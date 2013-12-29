@@ -52,9 +52,9 @@ struct tw_datafile_raw
 	void *memory;
 
 	tw_dfr_item_type *item_types;
-	uint32_t *item_offsets;
-	uint32_t *data_offsets;
-	uint32_t *uncomp_data_sizes;
+	int32_t *item_offsets;
+	int32_t *data_offsets;
+	int32_t *uncomp_data_sizes;
 	tw_byte *items_start;
 
 	size_t data_start_offset;
@@ -376,6 +376,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 
 int tw_dfr_close(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
 	dfr->free(dfr->memory, userdata);
 	dfr->memory = NULL;
 	return 0;
@@ -466,14 +467,19 @@ int tw_dfr_data_read(tw_datafile_raw *dfr, void **data_o, size_t *data_size_o, i
 	return 0;
 }
 
-int tw_dfr_data_num(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata)
+int tw_dfr_num_data(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
+	(void)userdata;
 	*num = dfr->header.num_data;
 	return 0;
 }
 
 int tw_dfr_item_read(tw_datafile_raw *dfr, void **item, size_t *item_size, int *type_id, int *id, int index, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
+	(void)userdata;
+
 	*item = NULL;
 	*item_size = 0;
 
@@ -547,13 +553,20 @@ int tw_dfr_item_find(tw_datafile_raw *dfr, void **item_o, size_t *item_size_o, i
 	return 0;
 }
 
-int tw_dfr_item_num(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata)
+int tw_dfr_num_items(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
+	(void)userdata;
+
 	*num = dfr->header.num_items;
+	return 0;
 }
 
 int tw_dfr_type_indexes(tw_datafile_raw *dfr, int *start, int *num, int type_id, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
+	(void)userdata;
+
 	*start = -1;
 	*num = 0;
 
@@ -574,6 +587,8 @@ int tw_dfr_type_indexes(tw_datafile_raw *dfr, int *start, int *num, int type_id,
 
 int tw_dfr_crc_calc(tw_datafile_raw *dfr, tw_dfr_crc *crc_o, tw_dfr_error *error, void *userdata)
 {
+	(void)error;
+
 	// NOTE: A proper implementation would only compute the checksum on the
 	//       actual datafile, however in order to provide compatiblity with
 	//       the reference implementation this crude behavior is actually
@@ -601,6 +616,8 @@ int tw_dfr_crc_calc(tw_datafile_raw *dfr, tw_dfr_crc *crc_o, tw_dfr_error *error
 
 int tw_dfr_dump(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 {
+	(void)dfr;
+	(void)userdata;
 	return tw_dfr_error_set(error, TW_DFR_ERRNO_NOTIMPLEMENTED, "tw_dfr_dump not implemented");
 }
 

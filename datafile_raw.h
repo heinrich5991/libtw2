@@ -45,11 +45,11 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata);
 int tw_dfr_close(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata);
 
 int tw_dfr_data_read(tw_datafile_raw *dfr, void **data, size_t *data_size, int index, tw_dfr_error *error, void *userdata);
-int tw_dfr_data_num(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata);
+int tw_dfr_num_data(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata);
 
 int tw_dfr_item_read(tw_datafile_raw *dfr, void **item, size_t *item_size, int *type_id, int *id, int index, tw_dfr_error *error, void *userdata);
 int tw_dfr_item_find(tw_datafile_raw *dfr, void **item, size_t *item_size, int type_id, int id, tw_dfr_error *error, void *userdata);
-int tw_dfr_item_num(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata);
+int tw_dfr_num_items(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *userdata);
 
 int tw_dfr_type_indexes(tw_datafile_raw *dfr, int *start, int *num, int type_id, tw_dfr_error *error, void *userdata);
 
