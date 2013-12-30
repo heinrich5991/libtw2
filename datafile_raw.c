@@ -255,7 +255,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 		if(dfr->read(&dfr->header, sizeof(dfr->header_ver), sizeof(dfr->header), &read, userdata) != 0)
 			return -1;
 
-		if(read != sizeof(dfr->header_ver))
+		if(read != sizeof(dfr->header))
 			return tw_dfr_error_set(error, TW_DFR_ERRNO_FILETOOSHORT, "datafile too short for header v3/v4");
 	}
 
@@ -313,7 +313,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 	{
 		// read everything except the data
 		size_t read = 0;
-		if(dfr->read(&dfr->memory, sizeof(tw_dfr_header_ver) + sizeof(tw_dfr_header), readsize, &read, userdata) != 0)
+		if(dfr->read(dfr->memory, sizeof(tw_dfr_header_ver) + sizeof(tw_dfr_header), readsize, &read, userdata) != 0)
 		{
 			dfr->free(dfr->memory, userdata);
 			return -1;
