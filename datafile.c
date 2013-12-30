@@ -52,7 +52,10 @@ tw_datafile *tw_df_open(const char *filename)
 	// actually read the datafile
 	if(tw_df_handle_error(tw_dfr_open(df.dfr, &error, &df), &error))
 	{
+		tw_dfr_free(df.dfr);
+		df.dfr = NULL;
 		tw_io_close(df.file);
+		df.file = NULL;
 		return NULL;
 	}
 
