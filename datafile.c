@@ -163,27 +163,27 @@ int tw_df_num_data(tw_datafile *df)
 	return result;
 }
 
-void *tw_df_item_read(tw_datafile *df, int index, size_t *size, int *type_id, int *id)
+int32_t *tw_df_item_read(tw_datafile *df, int index, size_t *count, int *type_id, int *id)
 {
 	tw_dfr_error error;
 
-	void *result = NULL;
-	if(tw_df_handle_error(tw_dfr_item_read(df->dfr, &result, size, type_id, id, index, &error, &df), &error))
+	int32_t *result = NULL;
+	if(tw_df_handle_error(tw_dfr_item_read(df->dfr, &result, count, type_id, id, index, &error, &df), &error))
 	{
-		*size = 0;
+		*count = 0;
 		return NULL;
 	}
 	return result;
 }
 
-void *tw_df_item_find(tw_datafile *df, size_t *size, int type_id, int id)
+int32_t *tw_df_item_find(tw_datafile *df, size_t *count, int type_id, int id)
 {
 	tw_dfr_error error;
 
-	void *result = NULL;
-	if(tw_df_handle_error(tw_dfr_item_find(df->dfr, &result, size, type_id, id, &error, &df), &error))
+	int32_t *result = NULL;
+	if(tw_df_handle_error(tw_dfr_item_find(df->dfr, &result, count, type_id, id, &error, &df), &error))
 	{
-		*size = 0;
+		*count = 0;
 		return NULL;
 	}
 	return result;

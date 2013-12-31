@@ -82,6 +82,7 @@ static int tw_dfr_check_header(tw_dfr_header *header, tw_dfr_error *error)
 	else if(header->size_items < 0) error_str = "total items size is negative";
 	else if(header->size_data < 0) error_str = "total data size is negative";
 	// various checks
+	else if(header->size_items % sizeof(int32_t) != 0) error_str = "item size not divisible by 4";
 	else if(header->size < header->swaplen) error_str = "size is less than swaplen";
 
 	if(error_str != NULL)
@@ -130,8 +131,11 @@ static int tw_dfr_check(tw_datafile_raw *dfr, tw_dfr_error *error)
 		int i;
 		for(i = 0; i < dfr->header.num_items; i++)
 		{
+			if(offset % sizeof(int32_t) != 0)
+				_TW_DFR_ERROR("item not aligned, item=%d offset=%d wantedalign=%d", i, offset, sizeof(int32_t));
+
 			if(offset != (size_t)dfr->item_offsets[i])
-				_TW_DFR_ERROR("invalid item offset, item=%d offset=%d", i, dfr->item_offsets[i]);
+				_TW_DFR_ERROR("invalid item offset, item=%d offset=%d wanted=%d", i, dfr->item_offsets[i], offset);
 
 			if(offset + sizeof(tw_dfr_item) > (size_t)dfr->header.size_items)
 				_TW_DFR_ERROR("item header out of bounds, item=%d offset=%d size_items=%d", i, offset);
@@ -241,7 +245,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 		return tw_dfr_error_set(error, TW_DFR_ERRNO_WRONGMAGIC, "wrong datafile signature, magic=%08x", dfr->header_ver.magic);
 
 	// header consists of little-endian ints
-	tw_endian_fromlittle(&dfr->header_ver, sizeof(int), sizeof(dfr->header_ver) / sizeof(int));
+	tw_endian_fromlittle(&dfr->header_ver, sizeof(int32_t), sizeof(dfr->header_ver) / sizeof(int32_t));
 	// fix magic bytes after endian-swap
 	tw_mem_copy(dfr->header_ver.magic, TW_DFR_MAGIC, sizeof(dfr->header_ver.magic));
 
@@ -260,7 +264,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 	}
 
 	// version-dependent header also consists of little-endian ints
-	tw_endian_fromlittle(&dfr->header, sizeof(int), sizeof(dfr->header) / sizeof(int));
+	tw_endian_fromlittle(&dfr->header, sizeof(int32_t), sizeof(dfr->header) / sizeof(int32_t));
 
 	if(tw_dfr_check_header(&dfr->header, error) != 0)
 		return error->errno;
@@ -325,6 +329,9 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 			return tw_dfr_error_set(error, TW_DFR_ERRNO_FILETOOSHORT, "datafile too short for items");
 		}
 	}
+
+	// everything up to the items is little-endian 32bit ints
+	tw_endian_fromlittle(dfr->memory, sizeof(int32_t), readsize / sizeof(int32_t));
 
 	{
 		// set up pointers
@@ -475,13 +482,13 @@ int tw_dfr_num_data(tw_datafile_raw *dfr, int *num, tw_dfr_error *error, void *u
 	return 0;
 }
 
-int tw_dfr_item_read(tw_datafile_raw *dfr, void **item, size_t *item_size, int *type_id, int *id, int index, tw_dfr_error *error, void *userdata)
+int tw_dfr_item_read(tw_datafile_raw *dfr, int32_t **item, size_t *item_count, int *type_id, int *id, int index, tw_dfr_error *error, void *userdata)
 {
 	(void)error;
 	(void)userdata;
 
 	*item = NULL;
-	*item_size = 0;
+	*item_count = 0;
 
 	// check the index
 	if(!(0 <= index && index < dfr->header.num_items))
@@ -496,19 +503,21 @@ int tw_dfr_item_read(tw_datafile_raw *dfr, void **item, size_t *item_size, int *
 	if(id)
 		*id = TW_DFR_ITEM__ID(item_header->type_id__id);
 
-	*item_size = item_header->size;
+	assert(item_header->size % sizeof(int32_t) == 0 && "item not aligned");
+
+	*item_count = item_header->size / sizeof(int32_t);
 	*item = (void *)&item_header[1];
 
 	return 0;
 }
 
-int tw_dfr_item_find(tw_datafile_raw *dfr, void **item_o, size_t *item_size_o, int type_id, int id, tw_dfr_error *error, void *userdata)
+int tw_dfr_item_find(tw_datafile_raw *dfr, int32_t **item_o, size_t *item_count_o, int type_id, int id, tw_dfr_error *error, void *userdata)
 {
 	*item_o = NULL;
-	*item_size_o = 0;
+	*item_count_o = 0;
 
-	void *item = NULL;
-	size_t item_size = 0;
+	int32_t *item = NULL;
+	size_t item_count = 0;
 
 	int start;
 	int num;
@@ -529,7 +538,7 @@ int tw_dfr_item_find(tw_datafile_raw *dfr, void **item_o, size_t *item_size_o, i
 
 			{
 				// get the item
-				int result = tw_dfr_item_read(dfr, &item, &item_size, NULL, &id2, i, error, userdata);
+				int result = tw_dfr_item_read(dfr, &item, &item_count, NULL, &id2, i, error, userdata);
 				if(result != 0)
 					return result;
 			}
@@ -538,18 +547,18 @@ int tw_dfr_item_find(tw_datafile_raw *dfr, void **item_o, size_t *item_size_o, i
 			if(id == id2)
 			{
 				*item_o = item;
-				*item_size_o = item_size;
+				*item_count_o = item_count;
 				return 0;
 			}
 
 			item = NULL;
-			item_size = 0;
+			item_count = 0;
 		}
 	}
 
 	// nothing found, return
 	*item_o = NULL;
-	*item_size_o = 0;
+	*item_count_o = 0;
 	return 0;
 }
 

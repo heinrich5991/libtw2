@@ -11,8 +11,8 @@ void *tw_df_data_load(tw_datafile *df, int index, size_t *size);
 void tw_df_data_unload(tw_datafile *df, int index);
 int tw_df_num_data(tw_datafile *df);
 
-void *tw_df_item_read(tw_datafile *df, int index, size_t *size, int *type_id, int *id);
-void *tw_df_item_find(tw_datafile *df, size_t *size, int type_id, int id);
+int32_t *tw_df_item_read(tw_datafile *df, int index, size_t *count, int *type_id, int *id);
+int32_t *tw_df_item_find(tw_datafile *df, size_t *count, int type_id, int id);
 void tw_df_type_indexes(tw_datafile *df, int type_id, int *start, int *num);
 int tw_df_num_items(tw_datafile *df);
 
