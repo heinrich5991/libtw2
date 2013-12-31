@@ -13,7 +13,7 @@ typedef uint32_t tw_dfr_crc;
 
 typedef struct tw_dfr_error
 {
-	int errno;
+	int errno_;
 	char string[256];
 } tw_dfr_error;
 
@@ -31,7 +31,7 @@ enum
 };
 
 
-tw_datafile_raw *tw_dfr_create();
+tw_datafile_raw *tw_dfr_create(void);
 void tw_dfr_free(tw_datafile_raw *dfr);
 
 void tw_dfr_callbacks_set(tw_datafile_raw *dfr,

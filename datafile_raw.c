@@ -29,7 +29,7 @@ static int tw_dfr_error_set(tw_dfr_error *error, int errno, const char *fmt, ...
 
 static int tw_dfr_error_set_v(tw_dfr_error *error, int errno, const char *fmt, va_list va_args)
 {
-	error->errno = errno;
+	error->errno_ = errno;
 	tw_str_format_v(error->string, sizeof(error->string), fmt, va_args);
 	return errno;
 }
@@ -195,7 +195,7 @@ static int tw_dfr_check(tw_datafile_raw *dfr, tw_dfr_error *error)
 }
 
 
-tw_datafile_raw *tw_dfr_create()
+tw_datafile_raw *tw_dfr_create(void)
 {
 	tw_datafile_raw *ret = malloc(sizeof(*ret));
 	return ret;
@@ -267,7 +267,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 	tw_endian_fromlittle(&dfr->header, sizeof(int32_t), sizeof(dfr->header) / sizeof(int32_t));
 
 	if(tw_dfr_check_header(&dfr->header, error) != 0)
-		return error->errno;
+		return error->errno_;
 
 	size_t readsize = 0;
 	{
@@ -375,7 +375,7 @@ int tw_dfr_open(tw_datafile_raw *dfr, tw_dfr_error *error, void *userdata)
 	{
 		dfr->free(dfr->memory, userdata);
 		dfr->memory = NULL;
-		return error->errno;
+		return error->errno_;
 	}
 
 	return 0;
@@ -464,7 +464,7 @@ int tw_dfr_data_read(tw_datafile_raw *dfr, void **data_o, size_t *data_size_o, i
 				dfr->free(data, userdata);
 				data = NULL;
 				data_size = 0;
-				return error->errno;
+				return error->errno_;
 			}
 		}
 	}

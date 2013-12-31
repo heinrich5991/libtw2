@@ -271,12 +271,12 @@ static int tw_df_handle_error(int result, tw_dfr_error *error)
 		return 1;
 	else
 	{
-		if(error->errno == TW_DFR_ERRNO_OUTOFRANGE)
+		if(error->errno_ == TW_DFR_ERRNO_OUTOFRANGE)
 			tw_error_set(TW_ERRNO_OUTOFRANGE, "%s", error->string);
-		else if(error->errno == TW_DFR_ERRNO_NOTIMPLEMENTED)
+		else if(error->errno_ == TW_DFR_ERRNO_NOTIMPLEMENTED)
 			tw_error_set(TW_ERRNO_NOTIMPLEMENTED, "%s", error->string);
 		else
-			tw_error_set(TW_ERRNO_DF + error->errno, "datafile error: %s", error->string);
+			tw_error_set(TW_ERRNO_DF + error->errno_, "datafile error: %s", error->string);
 		return 1;
 	}
 }
