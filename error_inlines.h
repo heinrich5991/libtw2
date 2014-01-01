@@ -27,12 +27,12 @@ static inline void tw_error_msg_set(const char *file, int line, const char *func
 	va_end(va_args);
 }
 
-static inline const char *tw_error_string()
+static inline const char *tw_error_string(void)
 {
 	return tw_error_string_impl();
 }
 
-static inline void tw_error_clear()
+static inline void tw_error_clear(void)
 {
 	tw_error_errno_clear();
 #ifdef TW_ERROR

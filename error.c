@@ -54,23 +54,23 @@ void tw_error_errno_set(int errno)
 	tls.errno = errno;
 }
 
-int tw_error_errno()
+int tw_error_errno(void)
 {
 	return tls.errno;
 }
 
-void tw_error_errno_clear()
+void tw_error_errno_clear(void)
 {
 	tls.errno = 0;
 }
 
-void tw_error_msg_clear()
+void tw_error_msg_clear(void)
 {
 	tls.num_errors = 0;
 	tls.msg_constructed = 0;
 }
 
-static void tw_error_msg_construct()
+static void tw_error_msg_construct(void)
 {
 	// no errors with string? return the stringified errno
 	if(tls.num_errors == 0)
@@ -102,7 +102,7 @@ static void tw_error_msg_construct()
 	tls.msg_constructed = 1;
 }
 
-const char *tw_error_string_impl()
+const char *tw_error_string_impl(void)
 {
 	if(tls.errno == 0)
 		return NULL;

@@ -1,4 +1,8 @@
 __pycache__
+
 *.pyc
 *.o
+*.so
+
+/build
 a.out
