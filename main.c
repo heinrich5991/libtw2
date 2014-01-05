@@ -54,7 +54,6 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		/*
 		int start;
 		int num;
 		tw_df_type_indexes(df, TW_MAP_ITEMTYPE_VERSION, &start, &num);
@@ -71,13 +70,13 @@ int main(int argc, char **argv)
 			int id;
 			void *item = tw_df_item_read(df, k, &size, NULL, &id);
 
-			if(size < sizeof(tw_map_item_version))
+			if(size < sizeof(tw_map_item_version) % sizeof(int32_t))
 			{
 				COUNT(COUNT_SMALLVERSION);
 				continue;
 			}
 
-			if(size > sizeof(tw_map_item_version))
+			if(size > sizeof(tw_map_item_version) / sizeof(int32_t))
 				COUNT(COUNT_BIGVERSION);
 
 			if(id != 0)

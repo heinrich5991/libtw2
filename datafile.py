@@ -65,15 +65,15 @@ class _DatafileTypeItems:
 	def __getitem__(self, id_):
 		return self._df._dfr.item_find(self._type_id, id_)
 	def __iter__(self):
-		return (self._df._dfr.item(i) for i in self._df._dfr.type_indexes())
+		return (self._df._dfr.item(i) for i in self._df._dfr.type_indexes(self._type_id))
 	def __len__(self):
-		return len(self._df._dfr.type_indexes())
+		return len(self._df._dfr.type_indexes(self._type_id))
 
 class _DatafileTypes:
 	def __init__(self, df):
 		self._df = df
 	def __getitem__(self, type_id):
-		return _DatafileTypeItems(type_id)
+		return _DatafileTypeItems(self._df, type_id)
 
 class _DatafileData:
 	def __init__(self, df):
