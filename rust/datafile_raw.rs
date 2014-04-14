@@ -1,6 +1,6 @@
 
-#[feature(macro_rules)];
-#[feature(phase)];
+#![feature(macro_rules)]
+#![feature(phase)]
 
 #[phase(syntax, link)]
 extern crate log;
@@ -11,7 +11,6 @@ use std::io::IoResult;
 use std::iter;
 use std::raw;
 use std::mem;
-use std::vec_ng::Vec;
 
 // ---------------------------------------------------------------
 // TODO: general stuff, should be outsourced into a crate somewhen
@@ -84,9 +83,7 @@ unsafe fn swap_endian<T:Int>(buffer: &mut [T]) {
 
 #[inline]
 unsafe fn read_exact_raw<T>(reader: &mut Reader, buffer: &mut [T]) -> IoResult<()> {
-	// TODO: understand the necessity of mut here
-	let mut r = reader;
-	r.read_exact(transmute_mut_vec(buffer))
+	reader.fill(transmute_mut_vec(buffer))
 }
 
 #[inline]
@@ -113,22 +110,6 @@ fn relative_size_of_mult<T,U>(mult: uint) -> uint {
 #[inline]
 fn relative_size_of<T,U>() -> uint {
 	relative_size_of_mult::<T,U>(1)
-}
-
-trait ReadExact {
-	fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()>;
-}
-
-impl<T:Reader> ReadExact for T {
-	fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()> {
-		if buf.len() != 0 {
-			// TODO: find out why this is necessary
-			let result = try!(self.read(buf));
-			self.read_exact(buf.mut_slice_from(result))
-		} else {
-			Ok(())
-		}
-	}
 }
 
 trait SeekReader {
@@ -201,12 +182,14 @@ fn as_mut_i32_view<'a, T:DfOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
 
 fn read_as_le_i32s<T:DfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
 	// TODO: check for need of unsafe block
+	// TODO: what happens if the function returns early from the try!?
 	let mut result = unsafe { mem::uninit() };
 	try!(read_exact_le_ints(reader, as_mut_i32_view(as_mut_vec(&mut result))));
 	Ok(result)
 }
 
 fn read_owned_vec_as_le_i32s<T:DfOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
+	// TODO: what happens if the function returns early from the try!?
 	let mut result = Vec::with_capacity(count);
 	unsafe { result.set_len(count); }
 	try!(read_exact_le_ints(reader, as_mut_i32_view(result.as_mut_slice())));
