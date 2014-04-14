@@ -14,6 +14,10 @@ class Datafile:
 
 		self._data = {}
 
+		foo = {i: {item.id: item.data for item in self.types[i]} for i in range(7)}
+		print(foo)
+		raise NotImplementedError
+
 	def __enter__(self):
 		return self
 
@@ -42,11 +46,15 @@ class Datafile:
 		return _DatafileItems(self)
 
 	def close(self):
-		self._dfr.close()
+		if self._dfr is not None:
+			self._dfr.close()
+		if self._file is not None:
+			if self._file_owned:
+				self._file.close()
 		self._dfr = None
-		if self._file_owned:
-			self._file.close()
 		self._file = None
+		self._data = None
+		self._crc = None
 
 class _DatafileItems:
 	def __init__(self, df):
@@ -82,9 +90,10 @@ class _DatafileData:
 		try:
 			return self._df._data[index]
 		except KeyError:
-			d = self._df._dfr.data(index)
-			self._df._data[index] = d
-			return d
+			pass
+		d = self._df._dfr.data(index)
+		self._df._data[index] = d
+		return d
 	def drop(self, index):
 		del self._df._data[index]
 	def __iter__(self):
