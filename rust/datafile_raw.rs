@@ -5,16 +5,30 @@
 #[phase(syntax, link)]
 extern crate log;
 
-use std::cast;
-use std::io::File;
-use std::io::IoResult;
-use std::iter;
-use std::raw;
-use std::mem;
+extern crate libc; // for zlib
 
-// ---------------------------------------------------------------
-// TODO: general stuff, should be outsourced into a crate somewhen
-// ---------------------------------------------------------------
+use std::cell::RefCell;
+use std::io::{File, IoResult, SeekSet};
+use std::iter;
+use std::mem;
+use std::slice::mut_ref_slice;
+
+use bitmagic::{
+	read_exact_le_ints,
+	read_exact_le_ints_owned,
+	relative_size_of,
+	relative_size_of_mult,
+	to_little_endian,
+	transmute_slice,
+	transmute_mut_slice,
+};
+
+use oncecell::OnceCell;
+
+// TODO: the pub fixes unused code warnings
+pub mod bitmagic;
+pub mod oncecell;
+pub mod zlib;
 
 /// `try` for nested results
 macro_rules! try2(
@@ -25,92 +39,6 @@ macro_rules! try2(
 macro_rules! tryi(
 	($e:expr) => (match $e { Ok(e) => e, Err(e) => return Ok(Err(e)) })
 )
-
-#[inline]
-unsafe fn transmute_vec<'a,T,U>(x: &'a [T]) -> &'a [U] {
-	cast::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
-}
-
-#[inline]
-unsafe fn transmute_mut_vec<'a,T,U>(x: &'a mut [T]) -> &'a mut [U] {
-	cast::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
-}
-
-#[inline]
-fn as_mut_vec<'a,T>(thing: &'a mut T) -> &'a mut [T] {
-	unsafe { cast::transmute(raw::Slice { data: thing as *mut T as *T, len: 1 }) }
-}
-
-#[inline]
-#[allow(unused_variable)]
-#[cfg(target_endian="little")]
-unsafe fn from_little_endian<T:Int>(buffer: &mut [T]) {
-}
-
-#[inline]
-#[allow(unused_variable)]
-#[cfg(target_endian="little")]
-unsafe fn to_little_endian<T:Int>(buffer: &mut [T]) {
-}
-
-#[inline]
-#[cfg(target_endian="big")]
-unsafe fn from_little_endian<T:Int>(buffer: &mut [T]) {
-	swap_endian(buffer);
-}
-
-#[inline]
-#[cfg(target_endian="big")]
-unsafe fn to_little_endian<T:Int>(buffer: &mut [T]) {
-	swap_endian(buffer);
-}
-
-// depending on the target's endianness this function might not be needed
-#[allow(dead_code)]
-unsafe fn swap_endian<T:Int>(buffer: &mut [T]) {
-	let len = buffer.len();
-	let buffer_bytes: &mut [u8] = transmute_mut_vec(buffer);
-	for i in range(0, len) {
-		let mut start = i * mem::size_of::<T>();
-		let mut end = start + mem::size_of::<T>() - 1;
-		while start < end {
-			buffer_bytes.swap(start, end);
-			start += 1;
-			end -= 1;
-		}
-	}
-}
-
-#[inline]
-unsafe fn read_exact_raw<T>(reader: &mut Reader, buffer: &mut [T]) -> IoResult<()> {
-	reader.fill(transmute_mut_vec(buffer))
-}
-
-#[inline]
-fn read_exact_le_ints<T:Int>(reader: &mut Reader, buffer: &mut [T]) -> IoResult<()> {
-	try!(unsafe { read_exact_raw(reader, buffer) } );
-	unsafe { from_little_endian(buffer) };
-	Ok(())
-}
-
-#[inline]
-fn read_exact_le_ints_owned<T:Int>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
-	let mut result = Vec::with_capacity(count);
-	unsafe { result.set_len(count); }
-	try!(read_exact_le_ints(reader, result.as_mut_slice()));
-	Ok(result)
-}
-
-#[inline]
-fn relative_size_of_mult<T,U>(mult: uint) -> uint {
-	assert!(mult * mem::size_of::<T>() % mem::size_of::<U>() == 0);
-	mult * mem::size_of::<T>() / mem::size_of::<U>()
-}
-
-#[inline]
-fn relative_size_of<T,U>() -> uint {
-	relative_size_of_mult::<T,U>(1)
-}
 
 trait SeekReader {
 	fn seek<'a>(&'a mut self) -> &'a mut Seek;
@@ -168,39 +96,46 @@ struct DatafileItem<'a> {
 	data: &'a [i32],
 }
 
-trait DfOnlyI32 { }
-impl DfOnlyI32 for i32 { }
-impl DfOnlyI32 for DatafileHeaderVersion { }
-impl DfOnlyI32 for DatafileHeader { }
-impl DfOnlyI32 for DatafileItemType { }
-impl DfOnlyI32 for DatafileItemHeader { }
+// A struct may only implement UnsafeDfOnlyI32 if it consists entirely of i32
+// and does not have a destructor.
+trait UnsafeDfOnlyI32 { }
+impl UnsafeDfOnlyI32 for i32 { }
+impl UnsafeDfOnlyI32 for DatafileHeaderVersion { }
+impl UnsafeDfOnlyI32 for DatafileHeader { }
+impl UnsafeDfOnlyI32 for DatafileItemType { }
+impl UnsafeDfOnlyI32 for DatafileItemHeader { }
 
 
-fn as_mut_i32_view<'a, T:DfOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
-	unsafe { transmute_mut_vec(x) }
+fn as_mut_i32_slice<'a, T:UnsafeDfOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
+	unsafe { transmute_mut_slice(x) }
 }
 
-fn read_as_le_i32s<T:DfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
+fn read_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
 	// TODO: check for need of unsafe block
 	// TODO: what happens if the function returns early from the try!?
 	let mut result = unsafe { mem::uninit() };
-	try!(read_exact_le_ints(reader, as_mut_i32_view(as_mut_vec(&mut result))));
+	try!(read_exact_le_ints(reader, as_mut_i32_slice(mut_ref_slice(&mut result))));
 	Ok(result)
 }
 
-fn read_owned_vec_as_le_i32s<T:DfOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
+fn read_owned_vec_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
 	// TODO: what happens if the function returns early from the try!?
 	let mut result = Vec::with_capacity(count);
+	// this is safe as T is guaranteed by UnsafeDfOnlyI32 to be POD
+	// this means there won't be a destructor running over uninitialized
+	// elements, even 
 	unsafe { result.set_len(count); }
-	try!(read_exact_le_ints(reader, as_mut_i32_view(result.as_mut_slice())));
+	try!(read_exact_le_ints(reader, as_mut_i32_slice(result.as_mut_slice())));
 	Ok(result)
 }
 
+#[deriving(Eq, TotalEq, Show)]
 enum DatafileErr {
 	WrongMagic,
 	UnsupportedVersion,
 	MalformedHeader,
 	Malformed,
+	CompressionError,
 }
 
 static DATAFILE_MAGIC: &'static [u8] = bytes!("DATA");
@@ -216,7 +151,7 @@ impl DatafileHeaderVersion {
 	fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeaderVersion> {
 		let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
 		{
-			let magic_view: &mut [i32] = unsafe { transmute_mut_vec(result.magic) };
+			let magic_view: &mut [i32] = unsafe { transmute_mut_slice(result.magic) };
 			unsafe { to_little_endian(magic_view) };
 		}
 		Ok(result)
@@ -311,6 +246,10 @@ struct MapIterator<T,U,D,I> {
 	map_fn: fn (T, &D) -> U,
 }
 
+type DfItemIter<'a,T> = MapIterator<uint,DatafileItem<'a>,&'a T,iter::Range<uint>>;
+type DfItemTypeIter<'a,T> = MapIterator<uint,u16,&'a T,iter::Range<uint>>;
+type DfDataIter<'a,T> = MapIterator<uint,Result<&'a [u8],()>,&'a T,iter::Range<uint>>;
+
 impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
 	fn next(&mut self) -> Option<U> {
 		self.iterator.next().map(|x| (self.map_fn)(x, &self.data))
@@ -325,7 +264,7 @@ fn datafile_item_type_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> u16 {
 	df.item_type(index)
 }
 
-fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> Result<Vec<u8>,()> {
+fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> Result<&'a [u8],()> {
 	df.data(index)
 }
 
@@ -337,7 +276,7 @@ trait Datafile {
 	fn item<'a>(&'a self, index: uint) -> DatafileItem<'a>;
 	fn num_items(&self) -> uint;
 
-	fn data(&self, index: uint) -> Result<Vec<u8>,()>;
+	fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()>;
 	fn num_data(&self) -> uint;
 
 	fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint);
@@ -361,7 +300,7 @@ trait Datafile {
 		}
 		None
 	}
-	fn data_iter<'a>(&'a self) -> MapIterator<uint,Result<Vec<u8>,()>,&'a Self,iter::Range<uint>> {
+	fn data_iter<'a>(&'a self) -> MapIterator<uint,Result<&'a [u8],()>,&'a Self,iter::Range<uint>> {
 		MapIterator { data: self, iterator: range(0, self.num_data()), map_fn: datafile_data_map_fn }
 	}
 }
@@ -377,9 +316,9 @@ struct DatafileReader {
 	items_raw: Vec<i32>,
 
 	data_offset: u64,
-	uncomp_data: Vec<Option<Result<Vec<u8>,()>>>,
+	uncomp_data: Vec<OnceCell<Result<Vec<u8>,()>>>,
 
-	file: ~SeekReader,
+	file: RefCell<~SeekReader>,
 	// TODO: implement data read
 }
 
@@ -398,8 +337,9 @@ impl DatafileReader {
 		// possible failure of relative_size_of_mult should have been caught in header.check()
 		let items_raw = try!(read_owned_vec_as_le_i32s(file.reader(), relative_size_of_mult::<u8,i32>(header.size_items as uint)));
 
+		// TODO: FIXME: check for u64 -> i64 overflow
 		let data_offset = try!(file.seek().tell());
-		let uncomp_data = Vec::from_elem(header.num_data as uint, None);
+		let uncomp_data = Vec::from_elem(header.num_data as uint, OnceCell::new());
 
 		let result = DatafileReader {
 			header_ver: header_ver,
@@ -411,7 +351,7 @@ impl DatafileReader {
 			items_raw: items_raw,
 			data_offset: data_offset,
 			uncomp_data: uncomp_data,
-			file: file,
+			file: RefCell::new(file),
 		};
 		tryi!(result.check())
 		Ok(Ok(result))
@@ -519,22 +459,64 @@ impl DatafileReader {
 			.slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as uint))
 			.slice_to(relative_size_of::<DatafileItemHeader,i32>());
 		// TODO: find out why paranthesis are necessary
-		&(unsafe { transmute_vec::<i32,DatafileItemHeader>(slice) })[0]
+		&(unsafe { transmute_slice::<i32,DatafileItemHeader>(slice) })[0]
+	}
+	fn data_size_file(&self, index: uint) -> uint {
+		let start = self.data_offsets.as_slice()[index] as uint;
+		let end = if index < self.data_offsets.len() - 1 {
+			self.data_offsets.as_slice()[index + 1] as uint
+		} else {
+			self.header.size_data as uint
+		};
+		assert!(start <= end);
+		end - start
+	}
+	fn uncomp_data_impl(&self, index: uint) -> IoResult<DfResult<Vec<u8>>> {
+		let mut file = self.file.borrow_mut();
+		try!(file.seek().seek(self.data_offset as i64 + self.data_offsets.as_slice()[index] as i64, SeekSet));
+
+		let raw_data_len = self.data_size_file(index);
+		let mut raw_data = Vec::with_capacity(raw_data_len);
+		unsafe { raw_data.set_len(raw_data_len); }
+		try!(file.reader().fill(raw_data.as_mut_slice()));
+
+		match self.uncomp_data_sizes {
+			Some(ref uds) => {
+				let data_len = uds.as_slice()[index] as uint;
+				let mut data = Vec::with_capacity(data_len);
+				unsafe { data.set_len(data_len); }
+
+				match zlib::uncompress(data.as_mut_slice(), raw_data.as_slice()) {
+					Ok(len) if len == data.len() => {
+						Ok(Ok(data))
+					}
+					Ok(len) => {
+						error!("decompression error: wrong size, data={:u} size={:u} wanted={:u}", index, data.len(), len);
+						Ok(Err(CompressionError))
+					}
+					_ => {
+						error!("decompression error: zlib error");
+						Ok(Err(CompressionError))
+					}
+				}
+			},
+			None => {
+				Ok(Ok(raw_data))
+			},
+		}
 	}
 	fn debug_dump(&self) {
 		debug!("DATAFILE");
 		debug!("header_ver: {:?}", self.header_ver);
 		debug!("header: {:?}", self.header);
-		for i in range(0, self.num_item_types()) {
-			let type_id = self.item_type(i);
+		for type_id in self.item_types() {
 			debug!("item_type type_id={:u}", type_id);
 			for item in self.item_type_items(type_id) {
 				debug!("\titem id={:u} data={:?}", item.id, item.data);
 			}
 		}
-		for i in range(0, self.num_data()) {
-			let data = self.data(i);
-			debug!("data {:u} {:?}", i, data);
+		for (i, data) in self.data_iter().enumerate() {
+			debug!("data id={:u} size={:u}", i, data.unwrap().len());
 		}
 	}
 }
@@ -563,32 +545,31 @@ impl Datafile for DatafileReader {
 		self.header.num_items as uint
 	}
 
-	fn data(&self, index: uint) -> Result<Vec<u8>,()> {
-		Err(())
-		/*
-		// have we already decompressed the data?
-		match self.uncomp_data.as_slice()[index] {
+	fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
+		let self_uncomp_data_index = &self.uncomp_data.as_slice()[index];
+		match self_uncomp_data_index.try_borrow() {
 			// we have, return it
-			Some(ref x) => x.clone(),
-			// we haven't, decompress it
+			Some(x) => match x {
+				&Ok(ref y) => Ok(y.as_slice()),
+				&Err(()) => Err(()),
+			},
+			// we don't have it, uncompress it from the file
 			None => {
-				let result = match self.uncomp_data_impl(index) {
-					Ok(Ok(x)) => Some(x),
+				let result: Result<Vec<u8>,()> = match self.uncomp_data_impl(index) {
+					Ok(Ok(x)) => Ok(x),
 					Ok(Err(x)) => {
-						error!("datafile decompression error {:?}", x);
-						None
+						error!("datafile uncompression error {:?}", x);
+						Err(())
 					},
 					Err(x) => {
-						error!("IO error while decompressing {}", x);
-						None
+						error!("IO error while uncompressing {}", x);
+						Err(())
 					},
 				};
-				// TODO: fix constness issues
-				//self.uncomp_data[index] = Some(result.clone());
-				result
+				self_uncomp_data_index.init(result);
+				self_uncomp_data_index.borrow().as_ref().map(|x| x.as_slice()).map_err(|_| ())
 			},
 		}
-		*/
 	}
 	fn num_data(&self) -> uint {
 		self.header.num_data as uint
