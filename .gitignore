@@ -2,7 +2,9 @@ __pycache__
 
 *.pyc
 *.o
+*.rlib
 *.so
 
 /build
 a.out
+main
