@@ -3,6 +3,7 @@
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 
+use std::fmt;
 use std::kinds::marker;
 use std::ty::Unsafe;
 
@@ -97,98 +98,42 @@ impl<T:Clone> Clone for OnceCell<T> {
 	}
 }
 
+impl<T:fmt::Show> fmt::Show for OnceCell<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f.buf, r"OnceCell \{ value: {} \}", self.borrow())
+    }
+}
+
 mod test {
-	/*
-	use super::*;
+	use super::OnceCell;
 
 	#[test]
-	fn smoketest_cell() {
-		let x = Cell::new(10);
-		assert_eq!(x, Cell::new(10));
-		assert_eq!(x.get(), 10);
-		x.set(20);
-		assert_eq!(x, Cell::new(20));
-		assert_eq!(x.get(), 20);
-
-		let y = Cell::new((30, 40));
-		assert_eq!(y, Cell::new((30, 40)));
-		assert_eq!(y.get(), (30, 40));
-	}
-
-	#[test]
-	fn cell_has_sensible_show() {
-		use str::StrSlice;
-
-		let x = Cell::new("foo bar");
-		assert!(format!("{}", x).contains(x.get()));
-
-		x.set("baz qux");
-		assert!(format!("{}", x).contains(x.get()));
-	}
-
-	#[test]
-	fn double_imm_borrow() {
-		let x = OnceCell::new(0);
-		let _b1 = x.borrow();
-		x.borrow();
-	}
-
-	#[test]
-	fn no_mut_then_imm_borrow() {
-		let x = OnceCell::new(0);
-		let _b1 = x.borrow_mut();
-		assert!(x.try_borrow().is_none());
-	}
-
-	#[test]
-	fn no_imm_then_borrow_mut() {
-		let x = OnceCell::new(0);
-		let _b1 = x.borrow();
-		assert!(x.try_borrow_mut().is_none());
-	}
-
-	#[test]
-	fn no_double_borrow_mut() {
-		let x = OnceCell::new(0);
-		let _b1 = x.borrow_mut();
-		assert!(x.try_borrow_mut().is_none());
-	}
-
-	#[test]
-	fn imm_release_borrow_mut() {
-		let x = OnceCell::new(0);
-		{
-			let _b1 = x.borrow();
-		}
-		x.borrow_mut();
-	}
-
-	#[test]
-	fn mut_release_borrow_mut() {
-		let x = OnceCell::new(0);
-		{
-			let _b1 = x.borrow_mut();
-		}
-		x.borrow();
-	}
-
-	#[test]
-	fn double_borrow_single_release_no_borrow_mut() {
-		let x = OnceCell::new(0);
-		let _b1 = x.borrow();
-		{
-			let _b2 = x.borrow();
-		}
-		assert!(x.try_borrow_mut().is_none());
+	fn smoketest() {
+		let x = OnceCell::new();
+		assert_eq!(x.try_borrow(), None);
+		assert_eq!(x.try_init(10), Ok(()));
+		assert_eq!(x, OnceCell::new_with_value(10));
+		assert_eq!(x.try_borrow(), Some(&10));
+		assert_eq!(x.try_init(20), Err(()));
 	}
 
 	#[test]
 	#[should_fail]
-	fn discard_doesnt_unborrow() {
-		let x = OnceCell::new(0);
-		let _b = x.borrow();
-		let _ = _b;
-		let _b = x.borrow_mut();
+	fn borrow_without_value() {
+		let x: OnceCell<()> = OnceCell::new();
+		x.borrow();
 	}
-	*/
+
+	#[test]
+	#[should_fail]
+	fn init_with_value() {
+		let x = OnceCell::new_with_value(());
+		x.init(());
+	}
+
+	#[test]
+	#[should_fail]
+	fn compare_before_init() {
+		OnceCell::<()>::new() == OnceCell::new();
+	}
 }
