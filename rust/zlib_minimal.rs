@@ -1,3 +1,8 @@
+#![crate_type = "rlib"]
+#![crate_type = "dylib"]
+
+extern crate libc;
+
 use libc::c_ulong;
 
 pub mod raw {

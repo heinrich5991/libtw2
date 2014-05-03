@@ -1,3 +1,5 @@
+#![crate_type = "rlib"]
+#![crate_type = "dylib"]
 
 #![feature(macro_rules)]
 #![feature(phase)]
@@ -5,13 +7,15 @@
 #[phase(syntax, link)]
 extern crate log;
 
-extern crate libc; // for zlib
+extern crate oncecell;
+extern crate zlib = "zlib_minimal";
 
 use std::cell::RefCell;
 use std::io::{File, IoResult, SeekSet};
 use std::iter;
 use std::mem;
 use std::slice::mut_ref_slice;
+use std::str::from_utf8;
 
 use bitmagic::{
 	read_exact_le_ints,
@@ -25,10 +29,7 @@ use bitmagic::{
 
 use oncecell::OnceCell;
 
-// TODO: the pub fixes unused code warnings
-pub mod bitmagic;
-pub mod oncecell;
-pub mod zlib;
+mod bitmagic;
 
 /// `try` for nested results
 macro_rules! try2(
@@ -40,7 +41,7 @@ macro_rules! tryi(
 	($e:expr) => (match $e { Ok(e) => e, Err(e) => return Ok(Err(e)) })
 )
 
-trait SeekReader {
+pub trait SeekReader {
 	fn seek<'a>(&'a mut self) -> &'a mut Seek;
 	fn reader<'a>(&'a mut self) -> &'a mut Reader;
 }
@@ -60,13 +61,13 @@ impl SeekReader for File {
 
 // FIXME: use #[deriving(Clone)]
 //#[deriving(Clone)]
-struct DatafileHeaderVersion {
+pub struct DatafileHeaderVersion {
 	magic: [u8, ..4],
 	version: i32,
 }
 
 #[deriving(Clone)]
-struct DatafileHeader {
+pub struct DatafileHeader {
 	_size: i32,
 	_swaplen: i32,
 	num_item_types: i32,
@@ -77,27 +78,27 @@ struct DatafileHeader {
 }
 
 #[deriving(Clone)]
-struct DatafileItemType {
+pub struct DatafileItemType {
 	type_id: i32,
 	start: i32,
 	num: i32,
 }
 
 #[deriving(Clone)]
-struct DatafileItemHeader {
+pub struct DatafileItemHeader {
 	type_id__id: i32,
 	size: i32,
 }
 
 #[deriving(Clone)]
-struct DatafileItem<'a> {
+pub struct DatafileItem<'a> {
 	type_id: u16,
 	id: u16,
 	data: &'a [i32],
 }
 
-// A struct may only implement UnsafeDfOnlyI32 if it consists entirely of i32
-// and does not have a destructor.
+// A struct may only implement UnsafeDfOnlyI32 if it consists entirely of
+// tightly packed i32 and does not have a destructor.
 trait UnsafeDfOnlyI32 { }
 impl UnsafeDfOnlyI32 for i32 { }
 impl UnsafeDfOnlyI32 for DatafileHeaderVersion { }
@@ -111,26 +112,25 @@ fn as_mut_i32_slice<'a, T:UnsafeDfOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
 }
 
 fn read_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
-	// TODO: check for need of unsafe block
-	// TODO: what happens if the function returns early from the try!?
+	// this is safe as T is guaranteed by UnsafeDfOnlyI32 to be POD, which
+	// means there won't be a destructor running over uninitialized
+	// elements, even when returning early from the try!()
 	let mut result = unsafe { mem::uninit() };
 	try!(read_exact_le_ints(reader, as_mut_i32_slice(mut_ref_slice(&mut result))));
 	Ok(result)
 }
 
 fn read_owned_vec_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
-	// TODO: what happens if the function returns early from the try!?
 	let mut result = Vec::with_capacity(count);
-	// this is safe as T is guaranteed by UnsafeDfOnlyI32 to be POD
-	// this means there won't be a destructor running over uninitialized
-	// elements, even 
+	// this operation is safe by the same reasoning for the unsafe block in
+	// `read_as_le_i32s`.
 	unsafe { result.set_len(count); }
 	try!(read_exact_le_ints(reader, as_mut_i32_slice(result.as_mut_slice())));
 	Ok(result)
 }
 
 #[deriving(Eq, TotalEq, Show)]
-enum DatafileErr {
+pub enum DatafileErr {
 	WrongMagic,
 	UnsupportedVersion,
 	MalformedHeader,
@@ -138,17 +138,17 @@ enum DatafileErr {
 	CompressionError,
 }
 
-static DATAFILE_MAGIC: &'static [u8] = bytes!("DATA");
-static DATAFILE_MAGIC_BIGENDIAN: &'static [u8] = bytes!("ATAD");
-static DATAFILE_VERSION3: i32 = 3;
-static DATAFILE_VERSION4: i32 = 4;
+pub static DATAFILE_MAGIC: &'static [u8] = bytes!("DATA");
+pub static DATAFILE_MAGIC_BIGENDIAN: &'static [u8] = bytes!("ATAD");
+pub static DATAFILE_VERSION3: i32 = 3;
+pub static DATAFILE_VERSION4: i32 = 4;
 
-static DATAFILE_ITEMTYPE_ID_RANGE: i32 = 0x10000;
+pub static DATAFILE_ITEMTYPE_ID_RANGE: i32 = 0x10000;
 
-type DfResult<T> = Result<T,DatafileErr>;
+pub type DfResult<T> = Result<T,DatafileErr>;
 
 impl DatafileHeaderVersion {
-	fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeaderVersion> {
+	pub fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeaderVersion> {
 		let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
 		{
 			let magic_view: &mut [i32] = unsafe { transmute_mut_slice(result.magic) };
@@ -156,13 +156,13 @@ impl DatafileHeaderVersion {
 		}
 		Ok(result)
 	}
-	fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeaderVersion>> {
+	pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeaderVersion>> {
 		let result = try!(DatafileHeaderVersion::read_raw(reader));
 		debug!("read header_ver={:?}", result);
 		tryi!(result.check());
 		Ok(Ok(result))
 	}
-	fn check(&self) -> DfResult<()> {
+	pub fn check(&self) -> DfResult<()> {
 		Err(
 			if self.magic != DATAFILE_MAGIC && self.magic != DATAFILE_MAGIC_BIGENDIAN {
 				error!("wrong datafile signature, magic={:08x}",
@@ -182,16 +182,16 @@ impl DatafileHeaderVersion {
 }
 
 impl DatafileHeader {
-	fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeader> {
+	pub fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeader> {
 		Ok(try!(read_as_le_i32s(reader)))
 	}
-	fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeader>> {
+	pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeader>> {
 		let result = try!(DatafileHeader::read_raw(reader));
 		debug!("read header={:?}", result);
 		tryi!(result.check());
 		Ok(Ok(result))
 	}
-	fn check(&self) -> DfResult<()> {
+	pub fn check(&self) -> DfResult<()> {
 		Err(
 			if self._size < 0 {
 				error!("_size is negative, _size={:d}", self._size);
@@ -226,29 +226,27 @@ impl DatafileHeader {
 }
 
 impl DatafileItemHeader {
-	fn type_id(&self) -> u16 {
+	pub fn type_id(&self) -> u16 {
 		(((self.type_id__id as u32) >> 16) & 0xffff) as u16
 	}
-	fn id(&self) -> u16 {
+	pub fn id(&self) -> u16 {
 		((self.type_id__id as u32) & 0xffff) as u16
 	}
-	/*
-	fn set_type_id__id(&mut self, type_id: u16, id: u16) {
+	pub fn set_type_id__id(&mut self, type_id: u16, id: u16) {
 		self.type_id__id = (((type_id as u32) << 16) | (id as u32)) as i32;
 	}
-	*/
 }
 
-struct MapIterator<T,U,D,I> {
+pub struct MapIterator<T,U,D,I> {
 	data: D,
 	iterator: I,
 	// `map` is already an function of an iterator, so we can't use `map` as a name here
 	map_fn: fn (T, &D) -> U,
 }
 
-type DfItemIter<'a,T> = MapIterator<uint,DatafileItem<'a>,&'a T,iter::Range<uint>>;
-type DfItemTypeIter<'a,T> = MapIterator<uint,u16,&'a T,iter::Range<uint>>;
-type DfDataIter<'a,T> = MapIterator<uint,Result<&'a [u8],()>,&'a T,iter::Range<uint>>;
+pub type DfItemIter<'a,T> = MapIterator<uint,DatafileItem<'a>,&'a T,iter::Range<uint>>;
+pub type DfItemTypeIter<'a,T> = MapIterator<uint,u16,&'a T,iter::Range<uint>>;
+pub type DfDataIter<'a,T> = MapIterator<uint,Result<&'a [u8],()>,&'a T,iter::Range<uint>>;
 
 impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
 	fn next(&mut self) -> Option<U> {
@@ -256,19 +254,19 @@ impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
 	}
 }
 
-fn datafile_item_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> DatafileItem<'a> {
+fn datafile_item_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> DatafileItem<'a> {
 	df.item(index)
 }
 
-fn datafile_item_type_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> u16 {
+fn datafile_item_type_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> u16 {
 	df.item_type(index)
 }
 
-fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: & &'a T) -> Result<&'a [u8],()> {
+fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> Result<&'a [u8],()> {
 	df.data(index)
 }
 
-trait Datafile {
+pub trait Datafile {
 	// TODO: doc
 	fn item_type(&self, index: uint) -> u16;
 	fn num_item_types(&self) -> uint;
@@ -300,12 +298,12 @@ trait Datafile {
 		}
 		None
 	}
-	fn data_iter<'a>(&'a self) -> MapIterator<uint,Result<&'a [u8],()>,&'a Self,iter::Range<uint>> {
+	fn data_iter<'a>(&'a self) -> DfDataIter<'a,Self> {
 		MapIterator { data: self, iterator: range(0, self.num_data()), map_fn: datafile_data_map_fn }
 	}
 }
 
-struct DatafileReader {
+pub struct DatafileReader {
 	header_ver: DatafileHeaderVersion,
 	header: DatafileHeader,
 
@@ -323,7 +321,7 @@ struct DatafileReader {
 }
 
 impl DatafileReader {
-	fn read(mut file: ~SeekReader) -> IoResult<DfResult<DatafileReader>> {
+	pub fn read(mut file: ~SeekReader) -> IoResult<DfResult<DatafileReader>> {
 		let header_ver = try2!(DatafileHeaderVersion::read(file.reader()));
 		let header = try2!(DatafileHeader::read(file.reader()));
 		let item_types_raw = try!(read_owned_vec_as_le_i32s(file.reader(), header.num_item_types as uint));
@@ -356,7 +354,7 @@ impl DatafileReader {
 		tryi!(result.check())
 		Ok(Ok(result))
 	}
-	fn check(&self) -> DfResult<()> {
+	pub fn check(&self) -> DfResult<()> {
 		{
 			let mut expected_start = 0;
 			for (i, t) in self.item_types.iter().enumerate() {
@@ -505,7 +503,7 @@ impl DatafileReader {
 			},
 		}
 	}
-	fn debug_dump(&self) {
+	pub fn debug_dump(&self) {
 		debug!("DATAFILE");
 		debug!("header_ver: {:?}", self.header_ver);
 		debug!("header: {:?}", self.header);
@@ -516,7 +514,14 @@ impl DatafileReader {
 			}
 		}
 		for (i, data) in self.data_iter().enumerate() {
-			debug!("data id={:u} size={:u}", i, data.unwrap().len());
+			let data = data.unwrap();
+			debug!("data id={:u} size={:u}", i, data.len());
+			if data.len() < 256 {
+				match from_utf8(data) {
+					Some(s) => debug!("\tstr={:s}", s),
+					None => {},
+				}
+			}
 		}
 	}
 }
@@ -583,15 +588,4 @@ impl Datafile for DatafileReader {
 		}
 		(0, 0)
 	}
-}
-
-fn main() {
-	let file = ~File::open(&Path::new("../dm1.map")).ok().expect("open of ../dm1.map failed");
-	let df = match DatafileReader::read(file) {
-		Ok(Ok(x)) => x,
-		Ok(Err(x)) => fail!("datafile error {:?}", x),
-		Err(x) => fail!("IO error {:?}", x),
-	};
-	//println!("{:?}", df);
-	df.debug_dump();
 }

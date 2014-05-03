@@ -1,3 +1,6 @@
+#![crate_type = "rlib"]
+#![crate_type = "dylib"]
+
 use std::kinds::marker;
 use std::ty::Unsafe;
 
