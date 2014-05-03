@@ -1,3 +1,5 @@
+//! Type for a cached value
+
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 
@@ -20,7 +22,7 @@ impl<T> OnceCell<T> {
 		}
 	}
 
-	/// Create a new `OnceCell` already containing a value.
+	/// Create a new `OnceCell` already containing the specified value.
 	pub fn new_with_value(value: T) -> OnceCell<T> {
 		OnceCell {
 			value: Unsafe::new(Some(value)),
@@ -35,7 +37,7 @@ impl<T> OnceCell<T> {
 
 	/// Attempts to initialize the `OnceCell`.
 	///
-	/// Returns false if it was already initialized.
+	/// Returns `Err` if it was already initialized, `Ok` otherwise.
 	pub fn try_init(&self, value: T) -> Result<(), ()> {
 		match unsafe { &*self.value.get() } {
 			&None => {
