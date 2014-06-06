@@ -1,15 +1,14 @@
 
-use std::cast;
 use std::io::IoResult;
 use std::raw;
 use std::mem;
 
 pub unsafe fn transmute_slice<'a,T,U>(x: &'a [T]) -> &'a [U] {
-	cast::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
+	mem::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
 }
 
 pub unsafe fn transmute_mut_slice<'a,T,U>(x: &'a mut [T]) -> &'a mut [U] {
-	cast::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
+	mem::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
 }
 
 #[cfg(target_endian="little")]
@@ -47,7 +46,8 @@ pub unsafe fn swap_endian<T:Int>(buffer: &mut [T]) {
 }
 
 pub unsafe fn read_exact_raw<T>(reader: &mut Reader, buffer: &mut [T]) -> IoResult<()> {
-	reader.fill(transmute_mut_slice(buffer))
+	let transmuted = transmute_mut_slice(buffer);
+	reader.read_at_least(transmuted.len(), transmuted).map(|_| ())
 }
 
 pub fn read_exact_le_ints<T:Int>(reader: &mut Reader, buffer: &mut [T]) -> IoResult<()> {
