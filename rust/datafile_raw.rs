@@ -151,6 +151,7 @@ impl DatafileHeaderVersion {
 	pub fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeaderVersion> {
 		let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
 		{
+			// this operation is safe because result.magic is POD
 			let magic_view: &mut [i32] = unsafe { transmute_mut_slice(result.magic) };
 			unsafe { to_little_endian(magic_view) };
 		}
@@ -457,6 +458,8 @@ impl DatafileReader {
 			.slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as uint))
 			.slice_to(relative_size_of::<DatafileItemHeader,i32>());
 		// TODO: find out why paranthesis are necessary
+		// this operation is safe because both `i32` and
+		// `DatafileItemHeader` are POD
 		&(unsafe { transmute_slice::<i32,DatafileItemHeader>(slice) })[0]
 	}
 	fn data_size_file(&self, index: uint) -> uint {
