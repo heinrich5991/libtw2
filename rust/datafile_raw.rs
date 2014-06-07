@@ -7,6 +7,8 @@
 #[phase(syntax, link)]
 extern crate log;
 
+extern crate collections;
+
 extern crate oncecell;
 extern crate zlib = "zlib_minimal";
 
@@ -17,6 +19,8 @@ use std::iter;
 use std::mem;
 use std::slice::mut_ref_slice;
 use std::str::from_utf8;
+
+use collections::SmallIntMap;
 
 use bitmagic::{
 	read_exact_le_ints,
@@ -604,5 +608,73 @@ impl Datafile for DatafileReader {
 			}
 		}
 		(0, 0)
+	}
+}
+
+pub struct DatafileBuffer {
+	items: SmallIntMap<Vec<(u16, Vec<i32>)>>,
+	data: Vec<Vec<u8>>,
+}
+
+impl DatafileBuffer {
+	pub fn new() -> DatafileBuffer {
+		DatafileBuffer {
+			items: SmallIntMap::new(),
+			data: Vec::new(),
+		}
+	}
+
+	pub fn from_datafile<T:Datafile>(df: &T) -> Option<DatafileBuffer> {
+		let mut result = DatafileBuffer::new();
+		for maybe_data in df.data_iter() {
+			match maybe_data {
+				Ok(x) => result.add_data(x),
+				Err(()) => return None,
+			}
+		}
+		for DatafileItem { type_id, id, data } in df.items() {
+			result.add_item(type_id, id, data);
+		}
+		Some(result)
+	}
+
+	pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) {
+		let _ = (type_id, id, data);
+		unimplemented!()
+	}
+
+	pub fn add_data(&mut self, data: &[u8]) {
+		let _ = data;
+		unimplemented!()
+	}
+}
+
+impl Datafile for DatafileBuffer {
+	fn item_type(&self, index: uint) -> u16 {
+		let (type_id, _) = self.items.iter().nth(index).expect("Invalid type index");
+		type_id as u16 // TODO: make a check here
+	}
+	fn num_item_types(&self) -> uint {
+		self.items.len()
+	}
+
+	fn item<'a>(&'a self, index: uint) -> DatafileItem<'a> {
+		let _ = index;
+		unimplemented!()
+	}
+	fn num_items(&self) -> uint {
+		self.items.iter().fold(0, |s, (_, items)| s + items.len())
+	}
+
+	fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
+		Ok(self.data.as_slice()[index].as_slice())
+	}
+	fn num_data(&self) -> uint {
+		self.data.len()
+	}
+
+	fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint) {
+		let _ = type_id;
+		unimplemented!()
 	}
 }
