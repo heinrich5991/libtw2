@@ -82,11 +82,13 @@ impl<T> OnceCell<T> {
 	}
 }
 
-impl<T:Eq> Eq for OnceCell<T> {
+impl<T:PartialEq> PartialEq for OnceCell<T> {
 	fn eq(&self, other: &OnceCell<T>) -> bool {
 		self.borrow() == other.borrow()
 	}
 }
+
+impl<T:Eq> Eq for OnceCell<T> { }
 
 impl<T:Clone> Clone for OnceCell<T> {
 	fn clone(&self) -> OnceCell<T> {

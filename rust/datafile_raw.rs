@@ -11,6 +11,7 @@ extern crate oncecell;
 extern crate zlib = "zlib_minimal";
 
 use std::cell::RefCell;
+use std::fmt;
 use std::io::{File, IoResult, SeekSet};
 use std::iter;
 use std::mem;
@@ -59,14 +60,23 @@ impl SeekReader for File {
 // DATAFILE STUFF
 // --------------
 
-// FIXME: use #[deriving(Clone)]
+// FIXME: remove this Show implementation (should be #[deriving()]):
+impl fmt::Show for DatafileHeaderVersion {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, r"DatafileHeaderVersion \{ magic: {}, version: {} \}", self.magic.as_slice(), self.version)
+	}
+}
+
+
+// FIXME: use #[deriving(Clone)], use #[deriving(Show)]
 //#[deriving(Clone)]
+//#[deriving(Show)]
 pub struct DatafileHeaderVersion {
 	magic: [u8, ..4],
 	version: i32,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct DatafileHeader {
 	_size: i32,
 	_swaplen: i32,
@@ -77,7 +87,7 @@ pub struct DatafileHeader {
 	size_data: i32,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct DatafileItemType {
 	type_id: i32,
 	start: i32,
@@ -115,7 +125,7 @@ fn read_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
 	// this is safe as T is guaranteed by UnsafeDfOnlyI32 to be POD, which
 	// means there won't be a destructor running over uninitialized
 	// elements, even when returning early from the try!()
-	let mut result = unsafe { mem::uninit() };
+	let mut result = unsafe { mem::uninitialized() };
 	try!(read_exact_le_ints(reader, as_mut_i32_slice(mut_ref_slice(&mut result))));
 	Ok(result)
 }
@@ -129,7 +139,7 @@ fn read_owned_vec_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader, count: uint
 	Ok(result)
 }
 
-#[deriving(Eq, TotalEq, Show)]
+#[deriving(PartialEq, Eq, Show)]
 pub enum DatafileErr {
 	WrongMagic,
 	UnsupportedVersion,
@@ -159,7 +169,7 @@ impl DatafileHeaderVersion {
 	}
 	pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeaderVersion>> {
 		let result = try!(DatafileHeaderVersion::read_raw(reader));
-		debug!("read header_ver={:?}", result);
+		debug!("read header_ver={}", result);
 		tryi!(result.check());
 		Ok(Ok(result))
 	}
@@ -188,7 +198,7 @@ impl DatafileHeader {
 	}
 	pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeader>> {
 		let result = try!(DatafileHeader::read_raw(reader));
-		debug!("read header={:?}", result);
+		debug!("read header={}", result);
 		tryi!(result.check());
 		Ok(Ok(result))
 	}
@@ -233,6 +243,7 @@ impl DatafileItemHeader {
 	pub fn id(&self) -> u16 {
 		((self.type_id__id as u32) & 0xffff) as u16
 	}
+	#[allow(non_snake_case_functions)]
 	pub fn set_type_id__id(&mut self, type_id: u16, id: u16) {
 		self.type_id__id = (((type_id as u32) << 16) | (id as u32)) as i32;
 	}
@@ -511,12 +522,12 @@ impl DatafileReader {
 	}
 	pub fn debug_dump(&self) {
 		debug!("DATAFILE");
-		debug!("header_ver: {:?}", self.header_ver);
-		debug!("header: {:?}", self.header);
+		debug!("header_ver: {}", self.header_ver);
+		debug!("header: {}", self.header);
 		for type_id in self.item_types() {
 			debug!("item_type type_id={:u}", type_id);
 			for item in self.item_type_items(type_id) {
-				debug!("\titem id={:u} data={:?}", item.id, item.data);
+				debug!("\titem id={:u} data={}", item.id, item.data);
 			}
 		}
 		for (i, data) in self.data_iter().enumerate() {
@@ -569,7 +580,7 @@ impl Datafile for DatafileReader {
 				let result: Result<Vec<u8>,()> = match self.uncomp_data_impl(index) {
 					Ok(Ok(x)) => Ok(x),
 					Ok(Err(x)) => {
-						error!("datafile uncompression error {:?}", x);
+						error!("datafile uncompression error {}", x);
 						Err(())
 					},
 					Err(x) => {
