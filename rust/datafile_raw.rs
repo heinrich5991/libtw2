@@ -7,8 +7,6 @@
 #[phase(syntax, link)]
 extern crate log;
 
-extern crate collections;
-
 extern crate oncecell;
 extern crate zlib = "zlib_minimal";
 
@@ -19,8 +17,6 @@ use std::iter;
 use std::mem;
 use std::slice::mut_ref_slice;
 use std::str::from_utf8;
-
-use collections::SmallIntMap;
 
 use bitmagic::{
 	read_exact_le_ints,
@@ -611,15 +607,29 @@ impl Datafile for DatafileReader {
 	}
 }
 
+struct DfBufItemType {
+	type_id: u16,
+	start: uint,
+	num: uint,
+}
+
+struct DfBufItem {
+	type_id: u16,
+	id: u16,
+	data: Vec<i32>,
+}
+
 pub struct DatafileBuffer {
-	items: SmallIntMap<Vec<(u16, Vec<i32>)>>,
+	item_types: Vec<DfBufItemType>,
+	items: Vec<DfBufItem>,
 	data: Vec<Vec<u8>>,
 }
 
 impl DatafileBuffer {
 	pub fn new() -> DatafileBuffer {
 		DatafileBuffer {
-			items: SmallIntMap::new(),
+			item_types: Vec::new(),
+			items: Vec::new(),
 			data: Vec::new(),
 		}
 	}
@@ -628,42 +638,112 @@ impl DatafileBuffer {
 		let mut result = DatafileBuffer::new();
 		for maybe_data in df.data_iter() {
 			match maybe_data {
-				Ok(x) => result.add_data(x),
+				// TODO: find out why braces are necessary
+				Ok(x) => { result.add_data(x); },
 				Err(()) => return None,
 			}
 		}
 		for DatafileItem { type_id, id, data } in df.items() {
-			result.add_item(type_id, id, data);
+			result.add_item(type_id, id, data).unwrap();
 		}
 		Some(result)
 	}
 
-	pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) {
-		let _ = (type_id, id, data);
-		unimplemented!()
+	fn get_item_type_index(&self, type_id: u16) -> (uint, bool) {
+		for (i, &DfBufItemType { type_id: other_type_id, .. }) in self.item_types.iter().enumerate() {
+			if type_id <= other_type_id {
+				return (i, type_id == other_type_id);
+			}
+		}
+		(self.item_types.len(), false)
 	}
 
-	pub fn add_data(&mut self, data: &[u8]) {
-		let _ = data;
-		unimplemented!()
+	fn get_item_index(&self, item_type_index: uint, item_type_found: bool, id: u16) -> (uint, bool) {
+		if !item_type_found {
+			if item_type_index != self.item_types.len() {
+				(self.item_types.as_slice()[item_type_index].start, false)
+			} else {
+				(self.items.len(), false)
+			}
+		} else {
+			let DfBufItemType { start, num, .. } = self.item_types.as_slice()[item_type_index];
+
+			for (i, &DfBufItem { id: other_id, .. })
+				in self.items.slice_from(start).slice_to(num).iter().enumerate().map(|(i, x)| (start+i, x)) {
+
+				if id <= other_id {
+					return (i, id == other_id)
+				}
+			}
+
+			(start + num, false)
+		}
+	}
+
+	pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(),()> {
+		let (type_index, type_found) = self.get_item_type_index(type_id);
+		let (item_index, item_found) = self.get_item_index(type_index, type_found, id);
+
+		// if we already have an item of the given type and id,
+		// return an error
+		if item_found {
+			return Err(());
+		}
+
+		// if there isn't a type with such an id yet, insert it
+		if !type_found {
+			self.item_types.insert(type_index, DfBufItemType {
+				type_id: type_id,
+				start: item_index,
+				num: 0,
+			});
+		}
+
+		// we're going to insert an item, increase the count by one
+		self.item_types.as_mut_slice()[type_index].num += 1;
+
+		// increase the starts of the following item types by one
+		for t in self.item_types.mut_iter().skip(type_index + 1) {
+			t.start += 1;
+		}
+
+		// actually insert the item
+		self.items.insert(item_index, DfBufItem {
+			type_id: type_id,
+			id: id,
+			data: Vec::from_slice(data),
+		});
+
+		Ok(())
+	}
+
+	pub fn add_data(&mut self, data: &[u8]) -> uint {
+		// add the data
+		self.data.push(Vec::from_slice(data));
+		// return the index
+		self.data.len() - 1
 	}
 }
 
 impl Datafile for DatafileBuffer {
 	fn item_type(&self, index: uint) -> u16 {
-		let (type_id, _) = self.items.iter().nth(index).expect("Invalid type index");
-		type_id as u16 // TODO: make a check here
+		let &DfBufItemType { type_id, .. } = self.item_types.iter().nth(index).expect("Invalid type index");
+		type_id
 	}
 	fn num_item_types(&self) -> uint {
-		self.items.len()
+		self.item_types.len()
 	}
 
 	fn item<'a>(&'a self, index: uint) -> DatafileItem<'a> {
-		let _ = index;
-		unimplemented!()
+		let DfBufItem { type_id, id, ref data } = self.items.as_slice()[index];
+		DatafileItem {
+			type_id: type_id,
+			id: id,
+			data: data.as_slice(),
+		}
 	}
 	fn num_items(&self) -> uint {
-		self.items.iter().fold(0, |s, (_, items)| s + items.len())
+		self.items.len()
 	}
 
 	fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
@@ -674,7 +754,11 @@ impl Datafile for DatafileBuffer {
 	}
 
 	fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint) {
-		let _ = type_id;
-		unimplemented!()
+		let (type_index, type_found) = self.get_item_type_index(type_id);
+		if !type_found {
+			return (0, 0);
+		}
+		let item_type = self.item_types.as_slice()[type_index];
+		(item_type.start, item_type.num)
 	}
 }
