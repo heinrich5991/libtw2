@@ -636,10 +636,12 @@ impl DatafileBuffer {
 
 	pub fn from_datafile<T:Datafile>(df: &T) -> Option<DatafileBuffer> {
 		let mut result = DatafileBuffer::new();
-		for maybe_data in df.data_iter() {
+		for (i, maybe_data) in df.data_iter().enumerate() {
 			match maybe_data {
-				// TODO: find out why braces are necessary
-				Ok(x) => { result.add_data(x); },
+				Ok(x) => {
+					let index = result.add_data(x);
+					assert!(index == i);
+				},
 				Err(()) => return None,
 			}
 		}
