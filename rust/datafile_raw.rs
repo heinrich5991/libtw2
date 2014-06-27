@@ -32,6 +32,7 @@ use oncecell::OnceCell;
 
 mod bitmagic;
 
+// TODO: export these into a separate module
 /// `try` for nested results
 macro_rules! try2(
 	($e:expr) => (match $e { Ok(Ok(e)) => e, Ok(Err(e)) => return Ok(Err(e)), Err(e) => return Err(e) })
@@ -63,7 +64,7 @@ impl SeekReader for File {
 // FIXME: remove this Show implementation (should be #[deriving()]):
 impl fmt::Show for DatafileHeaderVersion {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, r"DatafileHeaderVersion \{ magic: {}, version: {} \}", self.magic.as_slice(), self.version)
+		write!(f, "DatafileHeaderVersion {{ magic: {}, version: {} }}", self.magic.as_slice(), self.version)
 	}
 }
 
@@ -71,12 +72,14 @@ impl fmt::Show for DatafileHeaderVersion {
 // FIXME: use #[deriving(Clone)], use #[deriving(Show)]
 //#[deriving(Clone)]
 //#[deriving(Show)]
+#[packed]
 pub struct DatafileHeaderVersion {
 	magic: [u8, ..4],
 	version: i32,
 }
 
 #[deriving(Clone, Show)]
+#[packed]
 pub struct DatafileHeader {
 	_size: i32,
 	_swaplen: i32,
@@ -88,6 +91,7 @@ pub struct DatafileHeader {
 }
 
 #[deriving(Clone, Show)]
+#[packed]
 pub struct DatafileItemType {
 	type_id: i32,
 	start: i32,
@@ -95,6 +99,7 @@ pub struct DatafileItemType {
 }
 
 #[deriving(Clone)]
+#[packed]
 pub struct DatafileItemHeader {
 	type_id__id: i32,
 	size: i32,
@@ -148,8 +153,8 @@ pub enum DatafileErr {
 	CompressionError,
 }
 
-pub static DATAFILE_MAGIC: &'static [u8] = bytes!("DATA");
-pub static DATAFILE_MAGIC_BIGENDIAN: &'static [u8] = bytes!("ATAD");
+pub static DATAFILE_MAGIC: [u8, ..4] = [b'D', b'A', b'T', b'A'];
+pub static DATAFILE_MAGIC_BIGENDIAN: [u8, ..4] = [b'A', b'T', b'A', b'D'];
 pub static DATAFILE_VERSION3: i32 = 3;
 pub static DATAFILE_VERSION4: i32 = 4;
 

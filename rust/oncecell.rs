@@ -102,7 +102,7 @@ impl<T:Clone> Clone for OnceCell<T> {
 
 impl<T:fmt::Show> fmt::Show for OnceCell<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r"OnceCell \{ value: {} \}", self.borrow())
+        write!(f, r"OnceCell {{ value: {} }}", self.borrow())
     }
 }
 
