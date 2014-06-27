@@ -5,6 +5,8 @@ __pycache__
 *.rlib
 *.so
 
+*.map
+
 /build
 a.out
 main
