@@ -1,3 +1,4 @@
+map_inplace
 transmute_slice
 transmute_mut_slice
 Vec::with_len
