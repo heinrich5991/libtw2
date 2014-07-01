@@ -1,7 +1,11 @@
+//! A function for converting `Vec`s inplace.
+
 #![crate_type = "rlib"]
 #![crate_type = "dylib"]
 
 #![feature(unsafe_destructor)]
+
+#![warn(missing_doc)]
 
 use std::mem;
 use std::ptr;
@@ -207,11 +211,11 @@ impl<T,U> Drop for PartialVec<T,U> {
 			// As per (e) and (f) we have instances of `U`s and
 			// `T`s in `vec`. Destruct them.
 			while self.start_u < self.end_u {
-				ptr::read(self.start_u as *U); // Run a `U` destructor.
+				let _ = ptr::read(self.start_u as *U); // Run a `U` destructor.
 				self.start_u = self.start_u.offset(1);
 			}
 			while self.start_t < self.end_t {
-				ptr::read(self.start_t as *T); // Run a `T` destructor.
+				let _ = ptr::read(self.start_t as *T); // Run a `T` destructor.
 				self.start_t = self.start_t.offset(1);
 			}
 			// After this destructor ran, the destructor of `vec`
@@ -226,6 +230,7 @@ impl<T,U> Iterator<T> for PartialVec<T,U> {
 	}
 }
 
+/// A trait covering just a `map_inplace` function.
 pub trait MapInplace<T,U,V:Vector<U>> : Vector<T> {
 	/// Converts a `Vec<T>` to a `Vec<U>` where `T` and `U` have the same
 	/// size.
