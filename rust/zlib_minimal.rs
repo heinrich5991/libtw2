@@ -16,8 +16,8 @@ pub mod raw {
 
 	#[link(name="z")]
 	extern {
-		pub fn uncompress(dest: *mut u8, dest_len: *mut c_ulong, source: *u8, source_len: c_ulong) -> c_int;
-		pub fn compress(dest: *mut u8, dest_len: *mut c_ulong, source: *u8, source_len: c_ulong) -> c_int;
+		pub fn uncompress(dest: *mut u8, dest_len: *mut c_ulong, source: *const u8, source_len: c_ulong) -> c_int;
+		pub fn compress(dest: *mut u8, dest_len: *mut c_ulong, source: *const u8, source_len: c_ulong) -> c_int;
 		pub fn compressBound(source_len: c_ulong) -> c_ulong;
 	}
 

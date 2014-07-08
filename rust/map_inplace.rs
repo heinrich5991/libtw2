@@ -220,7 +220,7 @@ impl<T,U> Iterator<T> for PartialVec<T,U> {
     }
 }
 
-trait MapInplace<T,U,V:Vector<U>> : Vector<T> {
+pub trait MapInplace<T,U,V:Vector<U>> : Vector<T> {
     fn map_inplace(self, f: |T| -> U) -> V;
 }
 
