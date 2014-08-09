@@ -17,8 +17,6 @@ fn main() {
 
 	let _dfb = match DatafileBuffer::from_datafile(&dfr) {
 		Some(x) => x,
-		None => {
-			fail!("datafile error ...");
-		}
+		None => fail!("datafile error ..."),
 	};
 }

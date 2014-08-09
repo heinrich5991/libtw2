@@ -11,7 +11,7 @@ use std::ty::Unsafe;
 /// end of its life.
 pub struct OnceCell<T> {
 	value: Unsafe<Option<T>>,
-	noshare: marker::NoShare,
+	noshare: marker::NoSync,
 }
 
 impl<T> OnceCell<T> {
@@ -19,7 +19,7 @@ impl<T> OnceCell<T> {
 	pub fn new() -> OnceCell<T> {
 		OnceCell {
 			value: Unsafe::new(None),
-			noshare: marker::NoShare,
+			noshare: marker::NoSync,
 		}
 	}
 
@@ -27,7 +27,7 @@ impl<T> OnceCell<T> {
 	pub fn new_with_value(value: T) -> OnceCell<T> {
 		OnceCell {
 			value: Unsafe::new(Some(value)),
-			noshare: marker::NoShare,
+			noshare: marker::NoSync,
 		}
 	}
 
@@ -95,7 +95,7 @@ impl<T:Clone> Clone for OnceCell<T> {
 		let self_value = unsafe { &*self.value.get() };
 		OnceCell {
 			value: Unsafe::new(self_value.clone()),
-			noshare: marker::NoShare,
+			noshare: marker::NoSync,
 		}
 	}
 }
