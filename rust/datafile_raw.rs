@@ -704,6 +704,10 @@ impl DatafileBuffer {
 		}
 	}
 
+	pub fn data_noerr<'a>(&'a self, index: uint) -> &'a [u8] {
+		self.data.as_slice()[index].as_slice()
+	}
+
 	pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(),()> {
 		let (type_index, type_found) = self.get_item_type_index(type_id);
 		let (item_index, item_found) = self.get_item_index(type_index, type_found, id);
@@ -771,7 +775,7 @@ impl Datafile for DatafileBuffer {
 	}
 
 	fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
-		Ok(self.data.as_slice()[index].as_slice())
+		Ok(self.data_noerr(index))
 	}
 	fn num_data(&self) -> uint {
 		self.data.len()
