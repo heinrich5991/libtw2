@@ -314,13 +314,13 @@ pub trait Datafile {
 	fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint);
 
 
-	fn items<'a>(&'a self) -> MapIterator<uint,DatafileItem<'a>,&'a Self,iter::Range<uint>> {
+	fn items<'a>(&'a self) -> DfItemIter<'a,Self> {
 		MapIterator { data: self, iterator: range(0, self.num_items()), map_fn: datafile_item_map_fn }
 	}
-	fn item_types<'a>(&'a self) -> MapIterator<uint,u16,&'a Self,iter::Range<uint>> {
+	fn item_types<'a>(&'a self) -> DfItemTypeIter<'a,Self> {
 		MapIterator { data: self, iterator: range(0, self.num_item_types()), map_fn: datafile_item_type_map_fn }
 	}
-	fn item_type_items<'a>(&'a self, type_id: u16) -> MapIterator<uint,DatafileItem<'a>,&'a Self,iter::Range<uint>> {
+	fn item_type_items<'a>(&'a self, type_id: u16) -> DfItemIter<'a,Self> {
 		let (start, num) = self.item_type_indexes_start_num(type_id);
 		MapIterator { data: self, iterator: range(start, start + num), map_fn: datafile_item_map_fn }
 	}
@@ -641,6 +641,12 @@ struct DfBufItem {
 	data: Vec<i32>,
 }
 
+pub type DfDataNoerrIter<'a,T> = MapIterator<uint,&'a [u8],&'a T,iter::Range<uint>>;
+
+fn datafile_data_noerr_map_fn<'a>(index: uint, df: &&'a DatafileBuffer) -> &'a [u8] {
+	df.data_noerr(index)
+}
+
 pub struct DatafileBuffer {
 	item_types: Vec<DfBufItemType>,
 	items: Vec<DfBufItem>,
@@ -706,6 +712,10 @@ impl DatafileBuffer {
 
 	pub fn data_noerr<'a>(&'a self, index: uint) -> &'a [u8] {
 		self.data.as_slice()[index].as_slice()
+	}
+
+	pub fn data_noerr_iter<'a>(&'a self) -> DfDataNoerrIter<'a,DatafileBuffer> {
+		MapIterator { data: self, iterator: range(0, self.num_data()), map_fn: datafile_data_noerr_map_fn }
 	}
 
 	pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(),()> {
