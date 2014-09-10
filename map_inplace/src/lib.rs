@@ -220,11 +220,11 @@ impl<T,U> Iterator<T> for PartialVec<T,U> {
     }
 }
 
-pub trait MapInplace<T,U,V:Vector<U>> : Vector<T> {
-    fn map_inplace(self, f: |T| -> U) -> V;
+pub trait MapInplace<T,U> {
+    fn map_inplace(self, f: |T| -> U) -> Vec<U>;
 }
 
-impl<T,U> MapInplace<T,U,Vec<U>> for Vec<T> {
+impl<T,U> MapInplace<T,U> for Vec<T> {
     /// Converts a `Vec<T>` to a `Vec<U>` where `T` and `U` have the same size.
     ///
     /// # Example

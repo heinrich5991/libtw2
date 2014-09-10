@@ -1,0 +1,20 @@
+[package]
+
+name = "datafile"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+
+[dependencies.map_inplace]
+
+path = "../map_inplace/"
+
+
+[dependencies.oncecell]
+
+path = "../oncecell/"
+
+
+[dependencies.zlib_minimal]
+
+path = "../zlib_minimal/"

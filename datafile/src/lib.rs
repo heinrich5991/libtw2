@@ -350,12 +350,12 @@ pub struct DatafileReader {
 	data_offset: u64,
 	uncomp_data: Vec<OnceCell<Result<Vec<u8>,()>>>,
 
-	file: RefCell<Box<SeekReader>>,
+	file: RefCell<Box<SeekReader+'static>>,
 	// TODO: implement data read
 }
 
 impl DatafileReader {
-	pub fn read(mut file: Box<SeekReader>) -> IoResult<DfResult<DatafileReader>> {
+	pub fn read(mut file: Box<SeekReader+'static>) -> IoResult<DfResult<DatafileReader>> {
 		let header_ver = try2!(DatafileHeaderVersion::read(file.reader()));
 		let header = try2!(DatafileHeader::read(file.reader()));
 		let item_types_raw = try!(read_owned_vec_as_le_i32s(file.reader(), header.num_item_types as uint));

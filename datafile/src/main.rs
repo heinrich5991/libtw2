@@ -1,4 +1,4 @@
-extern crate datafile = "datafile_raw";
+extern crate datafile;
 
 use datafile::DatafileReader;
 use datafile::DatafileBuffer;
