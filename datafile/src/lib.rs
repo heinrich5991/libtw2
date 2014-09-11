@@ -8,7 +8,7 @@
 extern crate log;
 
 extern crate oncecell;
-extern crate zlib = "zlib_minimal";
+extern crate "zlib_minimal" as zlib;
 
 use std::cell::RefCell;
 use std::fmt;
@@ -101,7 +101,7 @@ pub struct DatafileItemType {
 #[deriving(Clone)]
 #[packed]
 pub struct DatafileItemHeader {
-	type_id__id: i32,
+	type_id_and_id: i32,
 	size: i32,
 }
 
@@ -255,19 +255,18 @@ impl DatafileItemType {
 
 impl DatafileItemHeader {
 	pub fn new(type_id: u16, id: u16, size: i32) -> DatafileItemHeader {
-		let mut result = DatafileItemHeader { type_id__id: 0, size: size };
-		result.set_type_id__id(type_id, id);
+		let mut result = DatafileItemHeader { type_id_and_id: 0, size: size };
+		result.set_type_id_and_id(type_id, id);
 		result
 	}
 	pub fn type_id(&self) -> u16 {
-		(((self.type_id__id as u32) >> 16) & 0xffff) as u16
+		(((self.type_id_and_id as u32) >> 16) & 0xffff) as u16
 	}
 	pub fn id(&self) -> u16 {
-		((self.type_id__id as u32) & 0xffff) as u16
+		((self.type_id_and_id as u32) & 0xffff) as u16
 	}
-	#[allow(non_snake_case_functions)]
-	pub fn set_type_id__id(&mut self, type_id: u16, id: u16) {
-		self.type_id__id = (((type_id as u32) << 16) | (id as u32)) as i32;
+	pub fn set_type_id_and_id(&mut self, type_id: u16, id: u16) {
+		self.type_id_and_id = (((type_id as u32) << 16) | (id as u32)) as i32;
 	}
 }
 
