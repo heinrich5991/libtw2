@@ -1,5 +1,5 @@
 
-extern crate datafile = "datafile_raw";
+extern crate datafile;
 
 use datafile::DatafileBuffer;
 

@@ -1,0 +1,28 @@
+[root]
+name = "teeworlds_map"
+version = "0.0.1"
+dependencies = [
+ "datafile 0.0.1",
+]
+
+[[package]]
+name = "datafile"
+version = "0.0.1"
+dependencies = [
+ "map_inplace 0.0.1",
+ "oncecell 0.0.1",
+ "zlib_minimal 0.0.1",
+]
+
+[[package]]
+name = "map_inplace"
+version = "0.0.1"
+
+[[package]]
+name = "oncecell"
+version = "0.0.1"
+
+[[package]]
+name = "zlib_minimal"
+version = "0.0.1"
+
