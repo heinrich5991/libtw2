@@ -740,7 +740,7 @@ impl DatafileBuffer {
 		self.item_types.as_mut_slice()[type_index].num += 1;
 
 		// increase the starts of the following item types by one
-		for t in self.item_types.mut_iter().skip(type_index + 1) {
+		for t in self.item_types.iter_mut().skip(type_index + 1) {
 			t.start += 1;
 		}
 

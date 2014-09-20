@@ -2,14 +2,9 @@
 name = "datafile"
 version = "0.0.1"
 dependencies = [
- "map_inplace 0.0.1",
  "oncecell 0.0.1",
  "zlib_minimal 0.0.1",
 ]
-
-[[package]]
-name = "map_inplace"
-version = "0.0.1"
 
 [[package]]
 name = "oncecell"
