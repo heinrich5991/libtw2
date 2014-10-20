@@ -1,21 +1,21 @@
 [root]
-name = "teeworlds_map"
+name = "map"
 version = "0.0.1"
 dependencies = [
  "datafile 0.0.1",
+ "map_macros 0.0.1",
 ]
 
 [[package]]
 name = "datafile"
 version = "0.0.1"
 dependencies = [
- "map_inplace 0.0.1",
  "oncecell 0.0.1",
  "zlib_minimal 0.0.1",
 ]
 
 [[package]]
-name = "map_inplace"
+name = "map_macros"
 version = "0.0.1"
 
 [[package]]
