@@ -74,42 +74,42 @@ impl fmt::Show for DatafileHeaderVersion {
 //#[deriving(Show)]
 #[packed]
 pub struct DatafileHeaderVersion {
-	magic: [u8, ..4],
-	version: i32,
+	pub magic: [u8, ..4],
+	pub version: i32,
 }
 
 #[deriving(Clone, Show)]
 #[packed]
 pub struct DatafileHeader {
-	_size: i32,
-	_swaplen: i32,
-	num_item_types: i32,
-	num_items: i32,
-	num_data: i32,
-	size_items: i32,
-	size_data: i32,
+	pub _size: i32,
+	pub _swaplen: i32,
+	pub num_item_types: i32,
+	pub num_items: i32,
+	pub num_data: i32,
+	pub size_items: i32,
+	pub size_data: i32,
 }
 
 #[deriving(Clone, Show)]
 #[packed]
 pub struct DatafileItemType {
-	type_id: i32,
-	start: i32,
-	num: i32,
+	pub type_id: i32,
+	pub start: i32,
+	pub num: i32,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 #[packed]
 pub struct DatafileItemHeader {
-	type_id_and_id: i32,
-	size: i32,
+	pub type_id_and_id: i32,
+	pub size: i32,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct DatafileItem<'a> {
-	type_id: u16,
-	id: u16,
-	data: &'a [i32],
+	pub type_id: u16,
+	pub id: u16,
+	pub data: &'a [i32],
 }
 
 // A struct may only implement UnsafeDfOnlyI32 if it consists entirely of
@@ -748,7 +748,7 @@ impl DatafileBuffer {
 		self.items.insert(item_index, DfBufItem {
 			type_id: type_id,
 			id: id,
-			data: Vec::from_slice(data),
+			data: data.to_vec(),
 		});
 
 		Ok(())
@@ -756,7 +756,7 @@ impl DatafileBuffer {
 
 	pub fn add_data(&mut self, data: &[u8]) -> uint {
 		// add the data
-		self.data.push(Vec::from_slice(data));
+		self.data.push(data.to_vec());
 		// return the index
 		self.data.len() - 1
 	}
