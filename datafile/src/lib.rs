@@ -7,7 +7,6 @@
 #[phase(plugin, link)]
 extern crate log;
 
-extern crate oncecell;
 extern crate "zlib_minimal" as zlib;
 
 use std::cell::RefCell;
@@ -23,11 +22,9 @@ use bitmagic::{
     relative_size_of,
     relative_size_of_mult,
     to_little_endian,
-    transmute_slice,
     transmute_mut_slice,
+    transmute_slice,
 };
-
-use oncecell::OnceCell;
 
 mod bitmagic;
 
@@ -268,7 +265,7 @@ pub struct MapIterator<T,U,D,I> {
 
 pub type DfItemIter<'a,T> = MapIterator<uint,DatafileItem<'a>,&'a T,iter::Range<uint>>;
 pub type DfItemTypeIter<'a,T> = MapIterator<uint,u16,&'a T,iter::Range<uint>>;
-pub type DfDataIter<'a,T> = MapIterator<uint,Result<&'a [u8],()>,&'a T,iter::Range<uint>>;
+pub type DfDataIter<'a,T> = MapIterator<uint,Result<Vec<u8>,()>,&'a T,iter::Range<uint>>;
 
 impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
     fn next(&mut self) -> Option<U> {
@@ -284,7 +281,7 @@ fn datafile_item_type_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> u16 {
     df.item_type(index)
 }
 
-fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> Result<&'a [u8],()> {
+fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> Result<Vec<u8>,()> {
     df.data(index)
 }
 
@@ -296,7 +293,7 @@ pub trait Datafile {
     fn item<'a>(&'a self, index: uint) -> DatafileItem<'a>;
     fn num_items(&self) -> uint;
 
-    fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()>;
+    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()>;
     fn num_data(&self) -> uint;
 
     fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint);
@@ -336,7 +333,6 @@ pub struct DatafileReader {
     items_raw: Vec<i32>,
 
     data_offset: u64,
-    uncomp_data: Vec<OnceCell<Result<Vec<u8>,()>>>,
 
     file: RefCell<Box<SeekReader+'static>>,
     // TODO: implement data read
@@ -359,7 +355,6 @@ impl DatafileReader {
 
         // TODO: FIXME: check for u64 -> i64 overflow
         let data_offset = try!(file.seek().tell());
-        let uncomp_data = Vec::from_elem(header.num_data as uint, OnceCell::new());
 
         let result = DatafileReader {
             header_ver: header_ver,
@@ -370,7 +365,6 @@ impl DatafileReader {
             uncomp_data_sizes: uncomp_data_sizes,
             items_raw: items_raw,
             data_offset: data_offset,
-            uncomp_data: uncomp_data,
             file: RefCell::new(file),
         };
         tryi!(result.check())
@@ -544,7 +538,7 @@ impl DatafileReader {
             let data = data.unwrap();
             debug!("data id={} size={}", i, data.len());
             if data.len() < 256 {
-                match from_utf8(data) {
+                match from_utf8(data.as_slice()) {
                     Some(s) => debug!("\tstr={}", s),
                     None => {},
                 }
@@ -577,31 +571,19 @@ impl Datafile for DatafileReader {
         self.header.num_items as uint
     }
 
-    fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
-        let self_uncomp_data_index = &self.uncomp_data.as_slice()[index];
-        match self_uncomp_data_index.try_borrow() {
-            // we have, return it
-            Some(x) => match x {
-                &Ok(ref y) => Ok(y.as_slice()),
-                &Err(()) => Err(()),
+    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()> {
+        let result: Result<Vec<u8>,()> = match self.uncomp_data_impl(index) {
+            Ok(Ok(x)) => Ok(x),
+            Ok(Err(x)) => {
+                error!("datafile uncompression error {}", x);
+                Err(())
             },
-            // we don't have it, uncompress it from the file
-            None => {
-                let result: Result<Vec<u8>,()> = match self.uncomp_data_impl(index) {
-                    Ok(Ok(x)) => Ok(x),
-                    Ok(Err(x)) => {
-                        error!("datafile uncompression error {}", x);
-                        Err(())
-                    },
-                    Err(x) => {
-                        error!("IO error while uncompressing {}", x);
-                        Err(())
-                    },
-                };
-                self_uncomp_data_index.init(result);
-                self_uncomp_data_index.borrow().as_ref().map(|x| x.as_slice()).map_err(|_| ())
+            Err(x) => {
+                error!("IO error while uncompressing {}", x);
+                Err(())
             },
-        }
+        };
+        result
     }
     fn num_data(&self) -> uint {
         self.header.num_data as uint
@@ -745,9 +727,9 @@ impl DatafileBuffer {
         Ok(())
     }
 
-    pub fn add_data(&mut self, data: &[u8]) -> uint {
+    pub fn add_data(&mut self, data: Vec<u8>) -> uint {
         // add the data
-        self.data.push(data.to_vec());
+        self.data.push(data);
         // return the index
         self.data.len() - 1
     }
@@ -774,8 +756,8 @@ impl Datafile for DatafileBuffer {
         self.items.len()
     }
 
-    fn data<'a>(&'a self, index: uint) -> Result<&'a [u8],()> {
-        Ok(self.data_noerr(index))
+    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()> {
+        Ok(self.data_noerr(index).to_vec())
     }
     fn num_data(&self) -> uint {
         self.data.len()
