@@ -1,7 +1,8 @@
 
 use std::io::IoResult;
-use std::raw;
 use std::mem;
+use std::num::Int;
+use std::raw;
 
 pub unsafe fn transmute_slice<'a,T,U>(x: &'a [T]) -> &'a [U] {
 	mem::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })

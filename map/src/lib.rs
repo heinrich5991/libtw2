@@ -1,12 +1,8 @@
-
-#![feature(phase)]
-
 extern crate datafile;
 
-#[phase(plugin, link)]
-extern crate map_macros;
-
 use datafile::DatafileBuffer;
+
+pub mod internals;
 
 pub struct TeeworldsMap {
 	df: DatafileBuffer,
@@ -17,5 +13,3 @@ impl TeeworldsMap {
 		TeeworldsMap { df: df }
 	}
 }
-
-

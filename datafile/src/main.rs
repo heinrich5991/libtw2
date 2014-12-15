@@ -1,3 +1,5 @@
+#![cfg(not(test))]
+
 extern crate datafile;
 
 use datafile::DatafileReader;
@@ -9,14 +11,14 @@ fn main() {
 	let file = box File::open(&Path::new("../dm1.map")).unwrap();
 	let dfr = match DatafileReader::read(file) {
 		Ok(Ok(x)) => x,
-		Ok(Err(x)) => fail!("datafile error {}", x),
-		Err(x) => fail!("IO error {}", x),
+		Ok(Err(x)) => panic!("datafile error {}", x),
+		Err(x) => panic!("IO error {}", x),
 	};
 	//println!("{:?}", df);
 	dfr.debug_dump();
 
 	let _dfb = match DatafileBuffer::from_datafile(&dfr) {
 		Some(x) => x,
-		None => fail!("datafile error ..."),
+		None => panic!("datafile error ..."),
 	};
 }

@@ -3,8 +3,5 @@ name = "map"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
-[dependencies.map_macros]
-path = "macros/"
-
 [dependencies.datafile]
 path = "../datafile/"

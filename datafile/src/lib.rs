@@ -11,7 +11,6 @@ extern crate oncecell;
 extern crate "zlib_minimal" as zlib;
 
 use std::cell::RefCell;
-use std::fmt;
 use std::io::{File, IoResult, SeekSet};
 use std::iter;
 use std::mem;
@@ -61,24 +60,14 @@ impl SeekReader for File {
 // DATAFILE STUFF
 // --------------
 
-// FIXME: remove this Show implementation (should be #[deriving()]):
-impl fmt::Show for DatafileHeaderVersion {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "DatafileHeaderVersion {{ magic: {}, version: {} }}", self.magic.as_slice(), self.version)
-	}
-}
-
-
-// FIXME: use #[deriving(Clone)], use #[deriving(Show)]
-//#[deriving(Clone)]
-//#[deriving(Show)]
+#[deriving(Clone, Copy, Show)]
 #[packed]
 pub struct DatafileHeaderVersion {
 	pub magic: [u8, ..4],
 	pub version: i32,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone, Copy, Show)]
 #[packed]
 pub struct DatafileHeader {
 	pub _size: i32,
@@ -90,7 +79,7 @@ pub struct DatafileHeader {
 	pub size_data: i32,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone, Copy, Show)]
 #[packed]
 pub struct DatafileItemType {
 	pub type_id: i32,
@@ -98,36 +87,36 @@ pub struct DatafileItemType {
 	pub num: i32,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone, Copy, Show)]
 #[packed]
 pub struct DatafileItemHeader {
 	pub type_id_and_id: i32,
 	pub size: i32,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone, Copy, Show)]
 pub struct DatafileItem<'a> {
 	pub type_id: u16,
 	pub id: u16,
 	pub data: &'a [i32],
 }
 
-// A struct may only implement UnsafeDfOnlyI32 if it consists entirely of
+// A struct may only implement UnsafeOnlyI32 if it consists entirely of
 // tightly packed i32 and does not have a destructor.
-trait UnsafeDfOnlyI32 { }
-impl UnsafeDfOnlyI32 for i32 { }
-impl UnsafeDfOnlyI32 for DatafileHeaderVersion { }
-impl UnsafeDfOnlyI32 for DatafileHeader { }
-impl UnsafeDfOnlyI32 for DatafileItemType { }
-impl UnsafeDfOnlyI32 for DatafileItemHeader { }
+pub trait UnsafeOnlyI32: Copy { }
+impl UnsafeOnlyI32 for i32 { }
+impl UnsafeOnlyI32 for DatafileHeaderVersion { }
+impl UnsafeOnlyI32 for DatafileHeader { }
+impl UnsafeOnlyI32 for DatafileItemType { }
+impl UnsafeOnlyI32 for DatafileItemHeader { }
 
 
-fn as_mut_i32_slice<'a, T:UnsafeDfOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
+fn as_mut_i32_slice<'a, T:UnsafeOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
 	unsafe { transmute_mut_slice(x) }
 }
 
-fn read_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
-	// this is safe as T is guaranteed by UnsafeDfOnlyI32 to be POD, which
+fn read_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Reader) -> IoResult<T> {
+	// this is safe as T is guaranteed by UnsafeOnlyI32 to be POD, which
 	// means there won't be a destructor running over uninitialized
 	// elements, even when returning early from the try!()
 	let mut result = unsafe { mem::uninitialized() };
@@ -135,7 +124,7 @@ fn read_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader) -> IoResult<T> {
 	Ok(result)
 }
 
-fn read_owned_vec_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
+fn read_owned_vec_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
 	let mut result = Vec::with_capacity(count);
 	// this operation is safe by the same reasoning for the unsafe block in
 	// `read_as_le_i32s`.
@@ -144,7 +133,7 @@ fn read_owned_vec_as_le_i32s<T:UnsafeDfOnlyI32>(reader: &mut Reader, count: uint
 	Ok(result)
 }
 
-#[deriving(PartialEq, Eq, Show)]
+#[deriving(Clone, Copy, Eq, Hash, PartialEq, Show)]
 pub enum DatafileErr {
 	WrongMagic,
 	UnsupportedVersion,
@@ -167,7 +156,7 @@ impl DatafileHeaderVersion {
 		let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
 		{
 			// this operation is safe because result.magic is POD
-			let magic_view: &mut [i32] = unsafe { transmute_mut_slice(result.magic) };
+			let magic_view: &mut [i32] = unsafe { transmute_mut_slice(result.magic.as_mut_slice()) };
 			unsafe { to_little_endian(magic_view) };
 		}
 		Ok(result)
@@ -182,14 +171,14 @@ impl DatafileHeaderVersion {
 		Err(
 			if self.magic != DATAFILE_MAGIC && self.magic != DATAFILE_MAGIC_BIGENDIAN {
 				error!("wrong datafile signature, magic={:08x}",
-					(self.magic[0] << 24)
-					| (self.magic[1] << 16)
-					| (self.magic[2] << 8)
-					| (self.magic[3]));
-				WrongMagic
+					(self.magic[0] as u32 << 24)
+					| (self.magic[1] as u32 << 16)
+					| (self.magic[2] as u32 << 8)
+					| (self.magic[3] as u32));
+				DatafileErr::WrongMagic
 			} else if self.version != DATAFILE_VERSION3 && self.version != DATAFILE_VERSION4 {
-				error!("unsupported datafile version, version={:d}", self.version);
-				UnsupportedVersion
+				error!("unsupported datafile version, version={}", self.version);
+				DatafileErr::UnsupportedVersion
 			} else {
 				return Ok(());
 			}
@@ -213,29 +202,29 @@ impl DatafileHeader {
 	pub fn check(&self) -> DfResult<()> {
 		Err(
 			if self._size < 0 {
-				error!("_size is negative, _size={:d}", self._size);
-				MalformedHeader
+				error!("_size is negative, _size={}", self._size);
+				DatafileErr::MalformedHeader
 			} else if self._swaplen < 0 {
-				error!("_swaplen is negative, _swaplen={:d}", self._swaplen);
-				MalformedHeader
+				error!("_swaplen is negative, _swaplen={}", self._swaplen);
+				DatafileErr::MalformedHeader
 			} else if self.num_item_types < 0 {
-				error!("num_item_types is negative, num_item_types={:d}", self.num_item_types);
-				MalformedHeader
+				error!("num_item_types is negative, num_item_types={}", self.num_item_types);
+				DatafileErr::MalformedHeader
 			} else if self.num_items < 0 {
-				error!("num_items is negative, num_items={:d}", self.num_items);
-				MalformedHeader
+				error!("num_items is negative, num_items={}", self.num_items);
+				DatafileErr::MalformedHeader
 			} else if self.num_data < 0 {
-				error!("num_data is negative, num_data={:d}", self.num_data);
-				MalformedHeader
+				error!("num_data is negative, num_data={}", self.num_data);
+				DatafileErr::MalformedHeader
 			} else if self.size_items < 0 {
-				error!("size_items is negative, size_items={:d}", self.size_items);
-				MalformedHeader
+				error!("size_items is negative, size_items={}", self.size_items);
+				DatafileErr::MalformedHeader
 			} else if self.size_data < 0 {
-				error!("size_data is negative, size_data={:d}", self.size_data);
-				MalformedHeader
+				error!("size_data is negative, size_data={}", self.size_data);
+				DatafileErr::MalformedHeader
 			} else if self.size_items as u32 % mem::size_of::<i32>() as u32 != 0 {
-				error!("size_items not divisible by 4, size_items={:d}", self.size_items);
-				MalformedHeader
+				error!("size_items not divisible by 4, size_items={}", self.size_items);
+				DatafileErr::MalformedHeader
 			// TODO: make various check about size, swaplen (non-critical)
 			} else {
 				return Ok(())
@@ -392,60 +381,60 @@ impl DatafileReader {
 			let mut expected_start = 0;
 			for (i, t) in self.item_types.iter().enumerate() {
 				if !(0 <= t.type_id && t.type_id < DATAFILE_ITEMTYPE_ID_RANGE) {
-					error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={:u} type_id={:d}", DATAFILE_ITEMTYPE_ID_RANGE, i, t.type_id)
-					return Err(Malformed);
+					error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", DATAFILE_ITEMTYPE_ID_RANGE, i, t.type_id)
+					return Err(DatafileErr::Malformed);
 				}
 				if !(0 <= t.num && t.num <= self.header.num_items - t.start) {
-					error!("invalid item_type num: must be in range 0 to num_items - start + 1, item_type={:u} type_id={:d} start={:d} num={:d}", i, t.type_id, t.start, t.num);
-					return Err(Malformed);
+					error!("invalid item_type num: must be in range 0 to num_items - start + 1, item_type={} type_id={} start={} num={}", i, t.type_id, t.start, t.num);
+					return Err(DatafileErr::Malformed);
 				}
 				if t.start != expected_start {
-					error!("item_types are not sequential, item_type={:u} type_id={:d} start={:d} expected={:d}", i, t.type_id, t.start, expected_start);
-					return Err(Malformed);
+					error!("item_types are not sequential, item_type={} type_id={} start={} expected={}", i, t.type_id, t.start, expected_start);
+					return Err(DatafileErr::Malformed);
 				}
 				expected_start += t.num;
 				for (k, t2) in self.item_types.slice_to(i).iter().enumerate() {
 					if t.type_id == t2.type_id {
-						error!("item_type type_id occurs twice, type_id={:d} item_type1={:u} item_type2={:u}", t.type_id, i, k);
-						return Err(Malformed);
+						error!("item_type type_id occurs twice, type_id={} item_type1={} item_type2={}", t.type_id, i, k);
+						return Err(DatafileErr::Malformed);
 					}
 				}
 			}
 			if expected_start != self.header.num_items {
-				error!("last item_type does not contain last item, item_type={:d}", self.header.num_item_types - 1);
-				return Err(Malformed);
+				error!("last item_type does not contain last item, item_type={}", self.header.num_item_types - 1);
+				return Err(DatafileErr::Malformed);
 			}
 		}
 		{
 			let mut offset = 0;
 			for i in range(0, self.header.num_items as uint) {
 				if self.item_offsets.as_slice()[i] < 0 {
-					error!("invalid item offset (negative), item={:u} offset={:d}", i, self.item_offsets.as_slice()[i]);
-					return Err(Malformed);
+					error!("invalid item offset (negative), item={} offset={}", i, self.item_offsets.as_slice()[i]);
+					return Err(DatafileErr::Malformed);
 				}
 				if offset != self.item_offsets.as_slice()[i] as uint {
-					error!("invalid item offset, item={:u} offset={:d} wanted={:u}", i, self.item_offsets.as_slice()[i], offset);
-					return Err(Malformed);
+					error!("invalid item offset, item={} offset={} wanted={}", i, self.item_offsets.as_slice()[i], offset);
+					return Err(DatafileErr::Malformed);
 				}
 				offset += mem::size_of::<DatafileItemHeader>();
 				if offset > self.header.size_items as uint {
-					error!("item header out of bounds, item={:u} offset={:u} size_items={:d}", i, offset, self.header.size_items);
-					return Err(Malformed);
+					error!("item header out of bounds, item={} offset={} size_items={}", i, offset, self.header.size_items);
+					return Err(DatafileErr::Malformed);
 				}
 				let item_header = self.item_header(i);
 				if item_header.size < 0 {
-					error!("item has negative size, item={:u} size={:d}", i, item_header.size);
-					return Err(Malformed);
+					error!("item has negative size, item={} size={}", i, item_header.size);
+					return Err(DatafileErr::Malformed);
 				}
 				offset += item_header.size as uint;
 				if offset > self.header.size_items as uint {
-					error!("item out of bounds, item={:u} size={:d} size_items={:d}", i, item_header.size, self.header.size_items);
-					return Err(Malformed);
+					error!("item out of bounds, item={} size={} size_items={}", i, item_header.size, self.header.size_items);
+					return Err(DatafileErr::Malformed);
 				}
 			}
 			if offset != self.header.size_items as uint {
-				error!("last item not large enough, item={:d} offset={:u} size_items={:d}", self.header.num_items - 1, offset, self.header.size_items);
-				return Err(Malformed);
+				error!("last item not large enough, item={} offset={} size_items={}", self.header.num_items - 1, offset, self.header.size_items);
+				return Err(DatafileErr::Malformed);
 			}
 		}
 		{
@@ -454,20 +443,20 @@ impl DatafileReader {
 				match self.uncomp_data_sizes {
 					Some(ref uds) => {
 						if uds.as_slice()[i] < 0 {
-							error!("invalid data's uncompressed size, data={:u} uncomp_data_size={:d}", i, uds.as_slice()[i]);
-							return Err(Malformed);
+							error!("invalid data's uncompressed size, data={} uncomp_data_size={}", i, uds.as_slice()[i]);
+							return Err(DatafileErr::Malformed);
 						}
 					}
 					None => (),
 				}
 				let offset = self.data_offsets.as_slice()[i];
 				if offset < 0 || offset > self.header.size_data {
-					error!("invalid data offset, data={:u} offset={:d}", i, offset);
-					return Err(Malformed);
+					error!("invalid data offset, data={} offset={}", i, offset);
+					return Err(DatafileErr::Malformed);
 				}
 				if previous > offset {
-					error!("data overlaps, data1={:u} data2={:u}", i - 1, i);
-					return Err(Malformed);
+					error!("data overlaps, data1={} data2={}", i - 1, i);
+					return Err(DatafileErr::Malformed);
 				}
 				previous = offset;
 			}
@@ -477,8 +466,8 @@ impl DatafileReader {
 				for k in range(t.start as uint, (t.start + t.num) as uint) {
 					let item_header = self.item_header(k);
 					if item_header.type_id() != t.type_id as u16 {
-						error!("item does not have right type_id, type={:u} type_id1={:d} item={:u} type_id2={:u}", i, t.type_id, k, item_header.type_id());
-						return Err(Malformed);
+						error!("item does not have right type_id, type={} type_id1={} item={} type_id2={}", i, t.type_id, k, item_header.type_id());
+						return Err(DatafileErr::Malformed);
 					}
 				}
 			}
@@ -527,12 +516,12 @@ impl DatafileReader {
 						Ok(Ok(data))
 					}
 					Ok(len) => {
-						error!("decompression error: wrong size, data={:u} size={:u} wanted={:u}", index, data.len(), len);
-						Ok(Err(CompressionError))
+						error!("decompression error: wrong size, data={} size={} wanted={}", index, data.len(), len);
+						Ok(Err(DatafileErr::CompressionError))
 					}
 					_ => {
 						error!("decompression error: zlib error");
-						Ok(Err(CompressionError))
+						Ok(Err(DatafileErr::CompressionError))
 					}
 				}
 			},
@@ -546,17 +535,17 @@ impl DatafileReader {
 		debug!("header_ver: {}", self.header_ver);
 		debug!("header: {}", self.header);
 		for type_id in self.item_types() {
-			debug!("item_type type_id={:u}", type_id);
+			debug!("item_type type_id={}", type_id);
 			for item in self.item_type_items(type_id) {
-				debug!("\titem id={:u} data={}", item.id, item.data);
+				debug!("\titem id={} data={}", item.id, item.data);
 			}
 		}
 		for (i, data) in self.data_iter().enumerate() {
 			let data = data.unwrap();
-			debug!("data id={:u} size={:u}", i, data.len());
+			debug!("data id={} size={}", i, data.len());
 			if data.len() < 256 {
 				match from_utf8(data) {
-					Some(s) => debug!("\tstr={:s}", s),
+					Some(s) => debug!("\tstr={}", s),
 					None => {},
 				}
 			}
@@ -628,12 +617,14 @@ impl Datafile for DatafileReader {
 	}
 }
 
+#[deriving(Clone, Copy, Show)]
 struct DfBufItemType {
 	type_id: u16,
 	start: uint,
 	num: uint,
 }
 
+#[deriving(Clone, Show)]
 struct DfBufItem {
 	type_id: u16,
 	id: u16,

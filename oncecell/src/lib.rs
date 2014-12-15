@@ -5,12 +5,12 @@
 
 use std::fmt;
 use std::kinds::marker;
-use std::ty::Unsafe;
+use std::cell::UnsafeCell;
 
 /// A memory location that is initialized once and then kept constant until the
 /// end of its life.
 pub struct OnceCell<T> {
-	value: Unsafe<Option<T>>,
+	value: UnsafeCell<Option<T>>,
 	noshare: marker::NoSync,
 }
 
@@ -18,7 +18,7 @@ impl<T> OnceCell<T> {
 	/// Create a new empty `OnceCell`.
 	pub fn new() -> OnceCell<T> {
 		OnceCell {
-			value: Unsafe::new(None),
+			value: UnsafeCell::new(None),
 			noshare: marker::NoSync,
 		}
 	}
@@ -26,14 +26,14 @@ impl<T> OnceCell<T> {
 	/// Create a new `OnceCell` already containing the specified value.
 	pub fn new_with_value(value: T) -> OnceCell<T> {
 		OnceCell {
-			value: Unsafe::new(Some(value)),
+			value: UnsafeCell::new(Some(value)),
 			noshare: marker::NoSync,
 		}
 	}
 
 	/// Consumes the `OnceCell`, returning the wrapped value.
 	pub fn unwrap(self) -> T {
-		unsafe { self.value.unwrap().unwrap() }
+		unsafe { self.value.into_inner().unwrap() }
 	}
 
 	/// Attempts to initialize the `OnceCell`.
@@ -71,13 +71,13 @@ impl<T> OnceCell<T> {
 	///
 	/// The borrow lasts until the `OnceCell` exits scope.
 	///
-	/// # Failure
+	/// # Panics
 	///
-	/// Fails if the value is not initalized yet.
+	/// Panics if the value is not initalized yet.
 	pub fn borrow<'a>(&'a self) -> &'a T {
 		match self.try_borrow() {
 			Some(ptr) => ptr,
-			None => fail!("OnceCell<T> not initalized yet")
+			None => panic!("OnceCell<T> not initalized yet")
 		}
 	}
 }
@@ -94,7 +94,7 @@ impl<T:Clone> Clone for OnceCell<T> {
 	fn clone(&self) -> OnceCell<T> {
 		let self_value = unsafe { &*self.value.get() };
 		OnceCell {
-			value: Unsafe::new(self_value.clone()),
+			value: UnsafeCell::new(self_value.clone()),
 			noshare: marker::NoSync,
 		}
 	}
@@ -114,7 +114,7 @@ mod test {
 	fn smoketest() {
 		let x = OnceCell::new();
 		assert_eq!(x.try_borrow(), None);
-		assert_eq!(x.try_init(10), Ok(()));
+		assert_eq!(x.try_init(10u32), Ok(()));
 		assert_eq!(x, OnceCell::new_with_value(10));
 		assert_eq!(x.try_borrow(), Some(&10));
 		assert_eq!(x.try_init(20), Err(()));
