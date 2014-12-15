@@ -5,11 +5,11 @@ use datafile::DatafileBuffer;
 pub mod internals;
 
 pub struct TeeworldsMap {
-	df: DatafileBuffer,
+    df: DatafileBuffer,
 }
 
 impl TeeworldsMap {
-	pub fn from_datafile(df: DatafileBuffer) -> TeeworldsMap {
-		TeeworldsMap { df: df }
-	}
+    pub fn from_datafile(df: DatafileBuffer) -> TeeworldsMap {
+        TeeworldsMap { df: df }
+    }
 }
