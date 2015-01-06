@@ -2,12 +2,12 @@
 name = "datafile"
 version = "0.0.1"
 dependencies = [
- "oncecell 0.0.1",
+ "common 0.0.1",
  "zlib_minimal 0.0.1",
 ]
 
 [[package]]
-name = "oncecell"
+name = "common"
 version = "0.0.1"
 
 [[package]]

@@ -1,11 +1,7 @@
-#![feature(macro_rules)]
-#![feature(phase)]
-
-#[phase(plugin, link)]
-extern crate log;
-
-extern crate common;
-extern crate "zlib_minimal" as zlib;
+pub trait DatafileCallback {
+    fn read(start: Option<u32>, buffer: &mut [u8]) -> Result<u32,()>;
+    fn ensure_filesize(filesize: u32) -> Result<(),()>;
+}
 
 use std::cell::RefCell;
 use std::io::{IoResult, SeekSet};
@@ -24,74 +20,9 @@ use bitmagic::{
     transmute_slice,
 };
 
-mod bitmagic;
-
-// TODO: export these into a separate module
-/// `try` for nested results
-macro_rules! try2 {
-    ($e:expr) => (match $e { Ok(Ok(e)) => e, Ok(Err(e)) => return Ok(Err(e)), Err(e) => return Err(e) })
-}
-
-/// `try` for the inner nested result
-macro_rules! tryi {
-    ($e:expr) => (match $e { Ok(e) => e, Err(e) => return Ok(Err(e)) })
-}
-
 pub trait DatafileCallback {
-    fn read(start: u32, buffer: &mut [u8]) -> Result<uint,()>;
+    fn read(start: u32, buffer: &mut [u8]) -> Result<u32,()>;
     fn ensure_filesize(filesize: u32) -> Result<(),()>;
-}
-
-pub trait SeekReaderCast: Seek + Reader {
-    fn as_seek_ref(&self) -> &Seek;
-    fn as_reader_ref(&self) -> &Reader;
-    fn as_seek_mut(&mut self) -> &mut Seek;
-    fn as_reader_mut(&mut self) -> &mut Reader;
-}
-
-impl<T:Seek+Reader> SeekReaderCast for T {
-    fn as_seek_ref(&self) -> &Seek { self as &Seek }
-    fn as_reader_ref(&self) -> &Reader { self as &Reader }
-    fn as_seek_mut(&mut self) -> &mut Seek { self as &mut Seek }
-    fn as_reader_mut(&mut self) -> &mut Reader { self as &mut Reader }
-}
-
-// --------------
-// DATAFILE STUFF
-// --------------
-
-#[deriving(Clone, Copy, Show)]
-#[packed]
-pub struct DatafileHeaderVersion {
-    pub magic: [u8, ..4],
-    pub version: i32,
-}
-
-#[deriving(Clone, Copy, Show)]
-#[packed]
-pub struct DatafileHeader {
-    pub _size: i32,
-    pub _swaplen: i32,
-    pub num_item_types: i32,
-    pub num_items: i32,
-    pub num_data: i32,
-    pub size_items: i32,
-    pub size_data: i32,
-}
-
-#[deriving(Clone, Copy, Show)]
-#[packed]
-pub struct DatafileItemType {
-    pub type_id: i32,
-    pub start: i32,
-    pub num: i32,
-}
-
-#[deriving(Clone, Copy, Show)]
-#[packed]
-pub struct DatafileItemHeader {
-    pub type_id_and_id: i32,
-    pub size: i32,
 }
 
 #[deriving(Clone, Copy, Show)]
@@ -379,7 +310,7 @@ impl<T:Seek+Reader> DatafileReader<T> {
             data_offset: data_offset,
             file: RefCell::new(file),
         };
-        tryi!(result.check());
+        tryi!(result.check())
         Ok(Ok(result))
     }
     pub fn check(&self) -> DfResult<()> {
@@ -387,7 +318,7 @@ impl<T:Seek+Reader> DatafileReader<T> {
             let mut expected_start = 0;
             for (i, t) in self.item_types.iter().enumerate() {
                 if !(0 <= t.type_id && t.type_id < DATAFILE_ITEMTYPE_ID_RANGE) {
-                    error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", DATAFILE_ITEMTYPE_ID_RANGE, i, t.type_id);
+                    error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", DATAFILE_ITEMTYPE_ID_RANGE, i, t.type_id)
                     return Err(DatafileErr::Malformed);
                 }
                 if !(0 <= t.num && t.num <= self.header.num_items - t.start) {
@@ -553,7 +484,7 @@ impl<T:Seek+Reader> DatafileReader<T> {
             let data = data.unwrap();
             debug!("data id={} size={}", i, data.len());
             if data.len() < 256 {
-                match from_utf8(data.as_slice()).ok() {
+                match from_utf8(data.as_slice()) {
                     Some(s) => debug!("\tstr={}", s),
                     None => {},
                 }

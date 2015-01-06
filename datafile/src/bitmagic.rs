@@ -1,16 +1,11 @@
+pub use common::relative_size_of;
+pub use common::relative_size_of_mult;
+pub use common::transmute_mut_slice;
+pub use common::transmute_slice;
 
 use std::io::IoResult;
 use std::mem;
 use std::num::Int;
-use std::raw;
-
-pub unsafe fn transmute_slice<'a,T,U>(x: &'a [T]) -> &'a [U] {
-    mem::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
-}
-
-pub unsafe fn transmute_mut_slice<'a,T,U>(x: &'a mut [T]) -> &'a mut [U] {
-    mem::transmute(raw::Slice { data: x.as_ptr(), len: relative_size_of_mult::<T,U>(x.len()) })
-}
 
 #[cfg(target_endian="little")]
 pub unsafe fn from_little_endian<T:Int>(_buffer: &mut [T]) {
@@ -62,13 +57,4 @@ pub fn read_exact_le_ints_owned<T:Int>(reader: &mut Reader, count: uint) -> IoRe
     unsafe { result.set_len(count); }
     try!(read_exact_le_ints(reader, result.as_mut_slice()));
     Ok(result)
-}
-
-pub fn relative_size_of_mult<T,U>(mult: uint) -> uint {
-    assert!(mult * mem::size_of::<T>() % mem::size_of::<U>() == 0);
-    mult * mem::size_of::<T>() / mem::size_of::<U>()
-}
-
-pub fn relative_size_of<T,U>() -> uint {
-    relative_size_of_mult::<T,U>(1)
 }
