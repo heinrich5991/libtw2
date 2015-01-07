@@ -48,6 +48,62 @@ use std::time::duration::Duration;
 use serialize::base64;
 use serialize::base64::ToBase64;
 
+#[deriving(Clone)]
+pub struct TimedWorkQueue<T> {
+    now_queue: RingBuf<T>,
+    other_queues: HashMap<u64,RingBuf<Timed<T>>>,
+}
+
+impl<T> Default for TimedWorkQueue<T> {
+    fn default() -> TimedWorkQueue<T> {
+        TimedWorkQueue::new()
+    }
+}
+
+impl<T> TimedWorkQueue<T> {
+    pub fn new() -> TimedWorkQueue<T> {
+        TimedWorkQueue {
+            now_queue: RingBuf::new(),
+            other_queues: HashMap::new(),
+        }
+    }
+    pub fn add_duration(&mut self, dur: Duration) {
+        let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
+        if let Entry::Vacant(v) = self.other_queues.entry(dur_k) {
+            v.set(RingBuf::new());
+        }
+    }
+    fn duration_to_key(dur: Duration) -> u64 {
+        dur.num_milliseconds().to_u64().expect("Expected positive duration")
+    }
+    pub fn push(&mut self, dur: Duration, data: T) {
+        let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
+        let queue = self.other_queues.get_mut(&dur_k);
+        let queue = queue.expect("Need to `add_duration` before pushing with it.");
+        queue.push_back(Timed::new(data, Time::now() + dur));
+    }
+    pub fn push_now(&mut self, data: T) {
+        self.now_queue.push_back(data);
+    }
+    pub fn push_now_front(&mut self, data: T) {
+        self.now_queue.push_front(data);
+    }
+    pub fn pop(&mut self) -> Option<T> {
+        if let Some(data) = self.now_queue.pop_front() {
+            return Some(data);
+        }
+        let now = Time::now();
+        for (_, q) in self.other_queues.iter_mut() {
+            // Only pop the first element if there actually is an element in
+            // the front and it's time to process it.
+            if q.front().map(|timed| timed.time <= now).unwrap_or(false) {
+                return Some(q.pop_front().unwrap().data);
+            }
+        }
+        None
+    }
+}
+
 // TODO: What happens on time overflow?
 // TODO: What happens on time backward jump?
 
@@ -276,6 +332,14 @@ impl<T> Timed<T> {
     }
 }
 
+enum Work {
+    Resolve(MasterId),
+    RequestList(MasterId),
+    ExpectList(MasterId),
+    RequestInfo(ServerAddr),
+    ExpectInfo(ServerAddr),
+}
+
 struct StatsBrowser<'a> {
     master_servers: VecMap<MasterServerEntry>,
     servers: HashMap<ServerAddr,ServerEntry>,
@@ -285,11 +349,7 @@ struct StatsBrowser<'a> {
     list_limit: Limit,
     info_limit: Limit,
 
-    next_resolve: RingBuf<Timed<MasterId>>,
-    next_list_request: RingBuf<Timed<MasterId>>,
-    next_info_request: RingBuf<Timed<ServerAddr>>,
-    expect_list_response: RingBuf<Timed<MasterId>>,
-    expect_info_response: RingBuf<Timed<ServerAddr>>,
+    work_queue: TimedWorkQueue<Work>,
 
     socket: UdpSocket,
 
@@ -313,6 +373,12 @@ impl<'a> StatsBrowser<'a> {
                 return None;
             }
         };
+        let mut work_queue = TimedWorkQueue::new();
+        work_queue.add_duration(RESOLVE_REPEAT_MS.to_duration());
+        work_queue.add_duration(LIST_REPEAT_MS.to_duration());
+        work_queue.add_duration(LIST_EXPECT_MS.to_duration());
+        work_queue.add_duration(INFO_REPEAT_MS.to_duration());
+        work_queue.add_duration(INFO_EXPECT_MS.to_duration());
         Some(StatsBrowser {
             master_servers: Default::default(),
             servers: Default::default(),
@@ -322,11 +388,7 @@ impl<'a> StatsBrowser<'a> {
             list_limit: Limit::new(MAX_LISTS, MAX_LISTS_MS.to_duration()),
             info_limit: Limit::new(MAX_INFOS, MAX_INFOS_MS.to_duration()),
 
-            next_resolve: Default::default(),
-            next_list_request: Default::default(),
-            next_info_request: Default::default(),
-            expect_list_response: Default::default(),
-            expect_info_response: Default::default(),
+            work_queue: work_queue,
 
             socket: socket,
 
@@ -336,129 +398,105 @@ impl<'a> StatsBrowser<'a> {
     fn add_master(&mut self, domain: String) {
         let MasterId(id) = self.next_master_id.get_and_inc();
         assert!(self.master_servers.insert(id, MasterServerEntry::new(domain)).is_none());
-        self.next_resolve.push_front(Timed::new_now(MasterId(id)));
+        self.work_queue.push_now(Work::Resolve(MasterId(id)));
     }
-    fn run_resolve(&mut self) {
-        let now = Time::now();
-        while let Some(x) = self.next_resolve.pop_front() {
-            if x.time > now {
-                self.next_resolve.push_front(x);
-                break;
-            }
-            let MasterId(idx) = x.data;
-            let master = self.master_servers.get_mut(&idx).unwrap();
-            match addrinfo::get_host_addresses(master.domain.as_slice()).map(|x| x.get(0).cloned()) {
-                Ok(Some(y)) => {
-                    let addr = Addr { ip_address: y, port: MASTERSRV_PORT };
-                    info!("Resolved {} to {}", master.domain, addr);
-                    match mem::replace(&mut master.addr, Some(addr)) {
-                        Some(_) => {},
-                        None => { self.next_list_request.push_front(Timed::new(x.data, Time::now())); },
-                    }
-                },
-                Ok(None) => { info!("Resolved {}, no address found", master.domain); },
-                Err(x) => { warn!("Error while resolving {}, {}", master.domain, x); },
-            }
-            self.next_resolve.push_back(Timed::new(x.data, Time::now() + RESOLVE_REPEAT_MS.to_duration()));
-        }
-    }
-    fn run_request_list(&mut self) {
-        let now = Time::now();
-        while let Some(x) = self.expect_list_response.pop_front() {
-            if x.time > now {
-                self.expect_list_response.push_front(x);
-                break;
-            }
-            if self.check_complete_list(x.data).is_ok() {
-                self.next_list_request.push_back(Timed::new(x.data, now + LIST_REPEAT_MS.to_duration()));
-            } else {
-                let MasterId(idx) = x.data;
-                let master = self.master_servers.get_mut(&idx).unwrap();
-                info!("Re-requesting list for {}", master.domain);
-                self.next_list_request.push_front(Timed::new(x.data, now));
-            }
-        }
-        while let Some(x) = self.next_list_request.pop_front() {
-            if x.time > now || !self.list_limit.acquire().is_ok() {
-                self.next_list_request.push_front(x);
-                break;
-            }
-            let MasterId(idx) = x.data;
-            let master = self.master_servers.get_mut(&idx).unwrap();
-
-            let socket = &mut self.socket;
-            let mut send = |&mut: y: &[u8]| socket.send_to(
-                &mut SliceBuf::wrap(y),
-                &addr_to_sockaddr(master.addr.unwrap()),
-            ).unwrap();
-
-            debug!("Requesting count and list from {}", master.domain);
-            if protocol::request_count(|y| send(y)).would_block()
-                || protocol::request_list_5(|y| send(y)).would_block()
-                || protocol::request_list_6(|y| send(y)).would_block()
-            {
-                debug!("Failed to send count or list request, would block");
-                self.next_list_request.push_front(x);
-                break;
-            }
-
-            self.expect_list_response.push_back(Timed::new(x.data, Time::now() + LIST_EXPECT_MS.to_duration()));
-        }
-    }
-    fn run_request_info(&mut self) {
-        let now = Time::now();
-        while let Some(x) = self.expect_info_response.pop_front() {
-            if x.time > now {
-                self.expect_info_response.push_front(x);
-                break;
-            }
-            let server = *self.servers.get_mut(&x.data).unwrap();
-
-            let now = Time::now();
-            if server.num_missing_resp == 0 {
-                self.next_info_request.push_back(Timed::new(x.data, now + INFO_REPEAT_MS.to_duration()));
-            } else {
-                if server.num_missing_resp >= 10 {
-                    // Throw the server out after ten missing replies.
-                    match self.servers.remove(&x.data).unwrap().resp {
-                        Some(ref y) => self.cb.on_server_remove(x.data, &y.info),
-                        None => {},
-                    }
-                    continue;
+    fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
+        let MasterId(idx) = master_id;
+        let master = self.master_servers.get_mut(&idx).unwrap();
+        match addrinfo::get_host_addresses(master.domain.as_slice()).map(|x| x.get(0).cloned()) {
+            Ok(Some(x)) => {
+                let addr = Addr { ip_address: x, port: MASTERSRV_PORT };
+                info!("Resolved {} to {}", master.domain, addr);
+                match mem::replace(&mut master.addr, Some(addr)) {
+                    Some(_) => {},
+                    None => { self.work_queue.push_now(Work::RequestList(master_id)); },
                 }
-                info!("Re-requesting info from {}", x.data);
-                self.next_info_request.push_front(Timed::new(x.data, now));
+            },
+            Ok(None) => { info!("Resolved {}, no address found", master.domain); },
+            Err(x) => { warn!("Error while resolving {}, {}", master.domain, x); },
+        }
+        self.work_queue.push(RESOLVE_REPEAT_MS.to_duration(), Work::Resolve(master_id));
+	Ok(())
+    }
+    fn do_expect_list(&mut self, master_id: MasterId) -> Result<(),()> {
+        if self.check_complete_list(master_id).is_ok() {
+            self.work_queue.push(LIST_REPEAT_MS.to_duration(), Work::RequestList(master_id));
+        } else {
+            let MasterId(idx) = master_id;
+            let master = self.master_servers.get_mut(&idx).unwrap();
+            info!("Re-requesting list for {}", master.domain);
+            self.work_queue.push_now(Work::RequestList(master_id));
+        }
+	Ok(())
+    }
+    fn do_request_list(&mut self, master_id: MasterId) -> Result<(),()> {
+        let MasterId(idx) = master_id;
+        let master = self.master_servers.get_mut(&idx).unwrap();
+
+        let socket = &mut self.socket;
+        let mut send = |&mut: y: &[u8]| socket.send_to(
+            &mut SliceBuf::wrap(y),
+            &addr_to_sockaddr(master.addr.unwrap()),
+        ).unwrap();
+
+        debug!("Requesting count and list from {}", master.domain);
+        if protocol::request_count(|y| send(y)).would_block()
+            || protocol::request_list_5(|y| send(y)).would_block()
+            || protocol::request_list_6(|y| send(y)).would_block()
+        {
+            debug!("Failed to send count or list request, would block");
+            self.work_queue.push_now_front(Work::RequestList(master_id));
+            return Err(());
+        }
+
+        self.work_queue.push(LIST_EXPECT_MS.to_duration(), Work::ExpectList(master_id));
+        Ok(())
+    }
+    fn do_expect_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
+        let server = *self.servers.get_mut(&server_addr).unwrap();
+
+        let now = Time::now();
+        if server.num_missing_resp == 0 {
+            self.work_queue.push(INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
+        } else {
+            if server.num_missing_resp >= 10 {
+                // Throw the server out after ten missing replies.
+                match self.servers.remove(&server_addr).unwrap().resp {
+                    Some(ref y) => self.cb.on_server_remove(server_addr, &y.info),
+                    None => {},
+                }
+            } else {
+                info!("Re-requesting info from {}", server_addr);
+                self.work_queue.push_now(Work::RequestInfo(server_addr));
             }
         }
-        while let Some(addr) = self.next_info_request.pop_front() {
-            if addr.time > now || !self.info_limit.acquire().is_ok() {
-                self.next_info_request.push_front(addr);
-                break;
-            }
-            let server = self.servers.get_mut(&addr.data).unwrap();
-            server.num_missing_resp += 1;
+        Ok(())
+    }
+    fn do_request_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
+        let server = self.servers.get_mut(&server_addr).unwrap();
+        server.num_missing_resp += 1;
 
-            debug!("Requesting info from {}", addr.data);
-            let socket = &mut self.socket;
+        debug!("Requesting info from {}", server_addr);
+        let socket = &mut self.socket;
 
-            let mut send = |&mut: data: &[u8]| socket.send_to(
-                &mut SliceBuf::wrap(data),
-                &addr_to_sockaddr(addr.data.addr),
-            ).unwrap();
+        let mut send = |&mut: data: &[u8]| socket.send_to(
+            &mut SliceBuf::wrap(data),
+            &addr_to_sockaddr(server_addr.addr),
+        ).unwrap();
 
-            let would_block = match addr.data.version {
-                ProtocolVersion::V5 => protocol::request_info_5(|x| send(x)).would_block(),
-                ProtocolVersion::V6 => protocol::request_info_6(|x| send(x)).would_block(),
-            };
+        let would_block = match server_addr.version {
+            ProtocolVersion::V5 => protocol::request_info_5(|x| send(x)).would_block(),
+            ProtocolVersion::V6 => protocol::request_info_6(|x| send(x)).would_block(),
+        };
 
-            if would_block {
-                debug!("Failed to send info request, would block");
-                self.next_info_request.push_front(addr);
-                break;
-            }
-
-            self.expect_info_response.push_back(Timed::new(addr.data, Time::now() + INFO_EXPECT_MS.to_duration()));
+        if would_block {
+            debug!("Failed to send info request, would block");
+            self.work_queue.push_now_front(Work::RequestInfo(server_addr));
+            return Err(());
         }
+
+        self.work_queue.push(INFO_EXPECT_MS.to_duration(), Work::ExpectInfo(server_addr));
+        Ok(())
     }
     fn get_master_id(&self, addr: Addr) -> Option<MasterId> {
         for (i, master) in self.master_servers.iter() {
@@ -498,7 +536,9 @@ impl<'a> StatsBrowser<'a> {
             None => {},
         }
     }
-    fn process_list<T:Iterator<ServerAddr>+ExactSizeIterator<ServerAddr>>(&mut self, from: MasterId, mut servers_iter: T) {
+    fn process_list<I>(&mut self, from: MasterId, mut servers_iter: I)
+        where I: Iterator<ServerAddr>+ExactSizeIterator<ServerAddr>,
+    {
         let MasterId(idx) = from;
         let master = self.master_servers.get_mut(&idx).unwrap();
 
@@ -511,7 +551,7 @@ impl<'a> StatsBrowser<'a> {
             }
             if let Entry::Vacant(v) = self.servers.entry(s) {
                 v.set(ServerEntry::new());
-                self.next_info_request.push_front(Timed::new(s, now));
+                self.work_queue.push_now(Work::RequestInfo(s));
             }
         }
     }
@@ -618,10 +658,16 @@ impl<'a> StatsBrowser<'a> {
     }
     fn run(&mut self) {
         loop {
-            self.run_resolve();
-            self.run_request_list();
-            self.run_request_info();
             self.pump_network();
+            while let Some(work) = self.work_queue.pop() {
+                match work {
+                    Work::Resolve(id)       => { if !self.do_resolve(id).is_ok()        { break; } },
+                    Work::RequestList(id)   => { if !self.do_request_list(id).is_ok()   { break; } },
+                    Work::ExpectList(id)    => { if !self.do_expect_list(id).is_ok()    { break; } },
+                    Work::RequestInfo(addr) => { if !self.do_request_info(addr).is_ok() { break; } },
+                    Work::ExpectInfo(addr)  => { if !self.do_expect_info(addr).is_ok()  { break; } },
+                }
+            }
             timer::sleep(SLEEP_MS.to_duration());
         }
     }
