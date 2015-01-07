@@ -416,7 +416,7 @@ impl<'a> StatsBrowser<'a> {
             Err(x) => { warn!("Error while resolving {}, {}", master.domain, x); },
         }
         self.work_queue.push(RESOLVE_REPEAT_MS.to_duration(), Work::Resolve(master_id));
-	Ok(())
+        Ok(())
     }
     fn do_expect_list(&mut self, master_id: MasterId) -> Result<(),()> {
         if self.check_complete_list(master_id).is_ok() {
@@ -427,11 +427,15 @@ impl<'a> StatsBrowser<'a> {
             info!("Re-requesting list for {}", master.domain);
             self.work_queue.push_now(Work::RequestList(master_id));
         }
-	Ok(())
+        Ok(())
     }
     fn do_request_list(&mut self, master_id: MasterId) -> Result<(),()> {
         let MasterId(idx) = master_id;
         let master = self.master_servers.get_mut(&idx).unwrap();
+
+        if !self.list_limit.acquire().is_ok() {
+            return Err(());
+        }
 
         let socket = &mut self.socket;
         let mut send = |&mut: y: &[u8]| socket.send_to(
@@ -445,7 +449,6 @@ impl<'a> StatsBrowser<'a> {
             || protocol::request_list_6(|y| send(y)).would_block()
         {
             debug!("Failed to send count or list request, would block");
-            self.work_queue.push_now_front(Work::RequestList(master_id));
             return Err(());
         }
 
@@ -474,7 +477,10 @@ impl<'a> StatsBrowser<'a> {
     }
     fn do_request_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
         let server = self.servers.get_mut(&server_addr).unwrap();
-        server.num_missing_resp += 1;
+
+        if !self.info_limit.acquire().is_ok() {
+            return Err(());
+        }
 
         debug!("Requesting info from {}", server_addr);
         let socket = &mut self.socket;
@@ -491,9 +497,10 @@ impl<'a> StatsBrowser<'a> {
 
         if would_block {
             debug!("Failed to send info request, would block");
-            self.work_queue.push_now_front(Work::RequestInfo(server_addr));
             return Err(());
         }
+
+        server.num_missing_resp += 1;
 
         self.work_queue.push(INFO_EXPECT_MS.to_duration(), Work::ExpectInfo(server_addr));
         Ok(())
@@ -660,12 +667,16 @@ impl<'a> StatsBrowser<'a> {
         loop {
             self.pump_network();
             while let Some(work) = self.work_queue.pop() {
-                match work {
-                    Work::Resolve(id)       => { if !self.do_resolve(id).is_ok()        { break; } },
-                    Work::RequestList(id)   => { if !self.do_request_list(id).is_ok()   { break; } },
-                    Work::ExpectList(id)    => { if !self.do_expect_list(id).is_ok()    { break; } },
-                    Work::RequestInfo(addr) => { if !self.do_request_info(addr).is_ok() { break; } },
-                    Work::ExpectInfo(addr)  => { if !self.do_expect_info(addr).is_ok()  { break; } },
+                let result = match work {
+                    Work::Resolve(id)       => self.do_resolve(id),
+                    Work::RequestList(id)   => self.do_request_list(id),
+                    Work::ExpectList(id)    => self.do_expect_list(id),
+                    Work::RequestInfo(addr) => self.do_request_info(addr),
+                    Work::ExpectInfo(addr)  => self.do_expect_info(addr),
+                };
+                if !result.is_ok() {
+                    self.work_queue.push_now_front(work);
+                    break;
                 }
             }
             timer::sleep(SLEEP_MS.to_duration());
@@ -678,12 +689,12 @@ struct Tracker {
 }
 
 fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
-    println!("PLADD\t{}\t{}\t{}\t{}\t{}", addr, b64(&info.name), b64(&info.clan), info.is_player, info.country);
+    println!("PLADD\t{}\t{}\t{}\t{}\t{}", addr.addr, b64(&info.name), b64(&info.clan), info.is_player, info.country);
 }
 
 fn print_player_remove(addr: ServerAddr, info: &PlayerInfo) {
     if info.name.as_slice().as_bytes() == "(connecting)".as_bytes() { return; }
-    println!("PLDEL\t{}\t{}", addr, b64(&info.name));
+    println!("PLDEL\t{}\t{}", addr.addr, b64(&info.name));
 }
 
 fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
@@ -693,13 +704,13 @@ fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
 
 fn print_server_remove(addr: ServerAddr, info: &ServerInfo) {
     let _ = info;
-    println!("SVDEL\t{}", addr);
+    println!("SVDEL\t{}", addr.addr);
 }
 
 fn print_server_change_impl(addr: ServerAddr, new: bool, info: &ServerInfo) {
     println!("{}\t{}\t{}\t{}\t{}\t{}\t{}",
         if new { "SVADD" } else { "SVCHG" },
-        addr,
+        addr.addr,
         info.flags,
         b64(&info.version),
         b64(&info.game_type),
@@ -727,6 +738,9 @@ impl Tracker {
         Tracker {
             player_count: 0,
         }
+    }
+    fn server_ignore(addr: ServerAddr) -> bool {
+        addr.version != ProtocolVersion::V6
     }
     fn on_player_new(&mut self, addr: ServerAddr, info: &PlayerInfo) {
         if player_ignore(addr, info) { return; }
@@ -790,11 +804,13 @@ impl Tracker {
 
 impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
+        if Tracker::server_ignore(addr) { return; }
         print_server_new(addr, info);
         self.diff_players(addr, &[], info.clients());
     }
 
     fn on_server_change(&mut self, addr: ServerAddr, old: &ServerInfo, new: &ServerInfo) {
+        if Tracker::server_ignore(addr) { return; }
         if old.flags != new.flags
             || old.version != new.version
             || old.game_type != new.game_type
@@ -807,6 +823,7 @@ impl StatsBrowserCb for Tracker {
     }
 
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo) {
+        if Tracker::server_ignore(addr) { return; }
         print_server_remove(addr, last);
         self.diff_players(addr, last.clients(), &[]);
     }
