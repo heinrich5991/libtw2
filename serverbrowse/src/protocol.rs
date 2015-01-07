@@ -178,27 +178,30 @@ impl<'a> Unpacker<'a> {
 // TODO: better literals? :(
 const HEADER_LEN: uint = 14;
 pub type Header = [u8, ..HEADER_LEN];
-pub const REQUEST_LIST_5: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, 't' as u8]; // "reqt"
-pub const REQUEST_LIST_6: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, '2' as u8]; // "req2"
-pub const LIST_5:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'l' as u8, 'i' as u8, 's' as u8, 't' as u8]; // "list"
-pub const LIST_6:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'l' as u8, 'i' as u8, 's' as u8, '2' as u8]; // "lis2"
-pub const REQUEST_COUNT:  Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'c' as u8, 'o' as u8, 'u' as u8, '2' as u8]; // "cou2"
-pub const COUNT:          Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 's' as u8, 'i' as u8, 'z' as u8, '2' as u8]; // "siz2"
-pub const REQUEST_INFO_5: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'g' as u8, 'i' as u8, 'e' as u8, '2' as u8]; // "gie2"
-pub const REQUEST_INFO_6: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'g' as u8, 'i' as u8, 'e' as u8, '3' as u8]; // "gie3"
-pub const INFO_5:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'i' as u8, 'n' as u8, 'f' as u8, '2' as u8]; // "inf3"
-pub const INFO_6:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'i' as u8, 'n' as u8, 'f' as u8, '3' as u8]; // "inf3"
+pub const REQUEST_LIST_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, 't' as u8]; // "reqt"
+pub const REQUEST_LIST_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, '2' as u8]; // "req2"
+pub const LIST_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'l' as u8, 'i' as u8, 's' as u8, 't' as u8]; // "list"
+pub const LIST_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'l' as u8, 'i' as u8, 's' as u8, '2' as u8]; // "lis2"
+pub const REQUEST_COUNT:     Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'c' as u8, 'o' as u8, 'u' as u8, '2' as u8]; // "cou2"
+pub const COUNT:             Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 's' as u8, 'i' as u8, 'z' as u8, '2' as u8]; // "siz2"
+pub const REQUEST_INFO_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'g' as u8, 'i' as u8, 'e' as u8, '2' as u8]; // "gie2"
+pub const REQUEST_INFO_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'g' as u8, 'i' as u8, 'e' as u8, '3' as u8]; // "gie3"
+pub const REQUEST_INFO_6_64: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'f' as u8, 's' as u8, 't' as u8, 'd' as u8]; // "fstd"
+pub const INFO_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'i' as u8, 'n' as u8, 'f' as u8, '2' as u8]; // "inf2"
+pub const INFO_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'i' as u8, 'n' as u8, 'f' as u8, '3' as u8]; // "inf3"
+pub const INFO_6_64:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'd' as u8, 't' as u8, 's' as u8, 'f' as u8]; // "dtsf"
 
 pub const IPV4_MAPPING: [u8, ..12] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
 
 pub fn request_list_5<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_LIST_5) }
 pub fn request_list_6<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_LIST_6) }
-pub fn request_list<T>(send: |&[u8]| -> T) -> T { request_list_6(send) }
 
-pub fn request_info_5<T>(send: |&[u8]| -> T) -> T { request_info_num_5(0, send) }
-pub fn request_info_6<T>(send: |&[u8]| -> T) -> T { request_info_num_6(0, send) }
-pub fn request_info_num_5<T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_5, num, send) }
-pub fn request_info_num_6<T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_6, num, send) }
+pub fn request_info_5   <T>(send: |&[u8]| -> T) -> T { request_info_num_5   (0, send) }
+pub fn request_info_6   <T>(send: |&[u8]| -> T) -> T { request_info_num_6   (0, send) }
+pub fn request_info_6_64<T>(send: |&[u8]| -> T) -> T { request_info_num_6_64(0, send) }
+pub fn request_info_num_5   <T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_5,    num, send) }
+pub fn request_info_num_6   <T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_6,    num, send) }
+pub fn request_info_num_6_64<T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_6_64, num, send) }
 
 pub fn request_count<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_COUNT) }
 
