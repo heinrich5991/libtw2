@@ -1,4 +1,4 @@
 - Query for 64-player server
-- Use one global queue
 - Use less memory by not saving the complete server info struct for every
   server.
+- Support restarting.

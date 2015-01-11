@@ -1,8 +1,9 @@
 #![cfg(not(test))]
 
-#![feature(phase)]
+#![allow(unstable)]
+#![feature(int_uint)]
 
-#[phase(plugin, link)]
+#[macro_use]
 extern crate log;
 
 extern crate serverbrowse;
@@ -22,7 +23,7 @@ fn main() {
     let addr = SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 8303 };
     let mut socket = UdpSocket::bind(bindaddr).unwrap();
 
-    let mut buf = [0, ..BUFSIZE];
+    let mut buf = [0; BUFSIZE];
 
     //browse_protocol::request_list_6(|x| socket.send_to(x, addr).unwrap());
     browse_protocol::request_info_6(|x| socket.send_to(x, addr).unwrap());
@@ -38,7 +39,7 @@ fn main() {
 
         match browse_protocol::parse_response(buf.slice_to(len)) {
             Some(Response::Info6(x)) => {
-	    	println!("{}", x.parse().unwrap());
+	    	println!("{:?}", x.parse().unwrap());
                 break;
             },
             _ => {

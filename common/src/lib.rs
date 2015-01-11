@@ -1,3 +1,4 @@
+#![allow(unstable)]
 #![feature(macro_rules)]
 
 pub use slice::relative_size_of;

@@ -9,14 +9,19 @@ use std::io::net::ip::IpAddr;
 use std::io::net::ip::Ipv4Addr;
 use std::io::net::ip::Ipv6Addr;
 use std::mem;
+use std::num::ToPrimitive;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::slice;
 use std::str;
 
-const MAX_CLIENTS: uint = 16;
+const MAX_CLIENTS:     uint = 64;
+const MAX_CLIENTS_5:   uint = 16;
+const MAX_CLIENTS_664: uint = 64;
 
 /// Non-zero byte.
 #[unstable = "definition might move into a different module/crate"]
-#[deriving(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NzU8(u8);
 
 #[unstable]
@@ -40,7 +45,14 @@ impl fmt::Show for NzU8 {
     }
 }
 
-pub trait NzU8Slice for Sized? {
+impl fmt::String for NzU8 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let NzU8(v) = *self;
+        v.fmt(f)
+    }
+}
+
+pub trait NzU8Slice {
     fn as_bytes(&self) -> &[u8];
     fn from_bytes(bytes: &[u8]) -> Option<&Self>;
 }
@@ -136,7 +148,7 @@ pub fn read_int(iter: &mut slice::Iter<u8>) -> Option<i32> {
             break;
         }
         src = *unwrap_or_return!(iter.next(), None);
-        result |= (src & 0x7f) as i32 << (6 + 7 * i as uint); // 0x7f == 0b0111_1111
+        result |= ((src & 0x7f) as i32) << (6 + 7 * i as uint); // 0x7f == 0b0111_1111
     }
 
     result ^= -sign;
@@ -177,7 +189,7 @@ impl<'a> Unpacker<'a> {
 
 // TODO: better literals? :(
 const HEADER_LEN: uint = 14;
-pub type Header = [u8, ..HEADER_LEN];
+pub type Header = [u8; HEADER_LEN];
 pub const REQUEST_LIST_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, 't' as u8]; // "reqt"
 pub const REQUEST_LIST_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, '2' as u8]; // "req2"
 pub const LIST_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'l' as u8, 'i' as u8, 's' as u8, 't' as u8]; // "list"
@@ -191,32 +203,32 @@ pub const INFO_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 pub const INFO_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'i' as u8, 'n' as u8, 'f' as u8, '3' as u8]; // "inf3"
 pub const INFO_6_64:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'd' as u8, 't' as u8, 's' as u8, 'f' as u8]; // "dtsf"
 
-pub const IPV4_MAPPING: [u8, ..12] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
+pub const IPV4_MAPPING: [u8; 12] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
 
-pub fn request_list_5<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_LIST_5) }
-pub fn request_list_6<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_LIST_6) }
+pub fn request_list_5<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_5) }
+pub fn request_list_6<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_6) }
 
-pub fn request_info_5   <T>(send: |&[u8]| -> T) -> T { request_info_num_5   (0, send) }
-pub fn request_info_6   <T>(send: |&[u8]| -> T) -> T { request_info_num_6   (0, send) }
-pub fn request_info_6_64<T>(send: |&[u8]| -> T) -> T { request_info_num_6_64(0, send) }
-pub fn request_info_num_5   <T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_5,    num, send) }
-pub fn request_info_num_6   <T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_6,    num, send) }
-pub fn request_info_num_6_64<T>(num: u8, send: |&[u8]| -> T) -> T { request_info_num(&REQUEST_INFO_6_64, num, send) }
+pub fn request_info_5   <T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_5   (0, send) }
+pub fn request_info_6   <T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_6   (0, send) }
+pub fn request_info_6_64<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_6_64(0, send) }
+pub fn request_info_num_5   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_5,    num, send) }
+pub fn request_info_num_6   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_6,    num, send) }
+pub fn request_info_num_6_64<T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_6_64, num, send) }
 
-pub fn request_count<T>(send: |&[u8]| -> T) -> T { send(&REQUEST_COUNT) }
+pub fn request_count<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_COUNT) }
 
-fn request_info_num<T>(header: &Header, num: u8, send: |&[u8]| -> T) -> T {
-    let mut request = [0, ..HEADER_LEN+1];
+fn request_info_num<T,S>(header: &Header, num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T {
+    let mut request = [0; HEADER_LEN+1];
     request[HEADER_LEN] = num;
     for (i, &v) in header.iter().enumerate() { request[i] = v; }
     send(&request)
 }
 
 const S: uint = 64;
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct PString64 {
     len: uint,
-    contents: [NzU8, ..S],
+    contents: [NzU8; S],
 }
 
 impl PString64 {
@@ -264,13 +276,14 @@ impl Default for PString64 {
     }
 }
 
-impl Deref<[NzU8]> for PString64 {
+impl Deref for PString64 {
+    type Target = [NzU8];
     fn deref(&self) -> &[NzU8] {
         self.as_slice()
     }
 }
 
-impl DerefMut<[NzU8]> for PString64 {
+impl DerefMut for PString64 {
     fn deref_mut(&mut self) -> &mut [NzU8] {
         self.as_mut_slice()
     }
@@ -284,7 +297,7 @@ impl PartialEq for PString64 {
 
 impl Eq for PString64 { }
 
-impl<S:hash::Writer> hash::Hash<S> for PString64 {
+impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for PString64 {
     fn hash(&self, state: &mut S) {
         self.as_slice().hash(state);
     }
@@ -296,7 +309,7 @@ impl fmt::Show for PString64 {
     }
 }
 
-#[deriving(Copy, Clone, Default, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Default, Eq, Hash, PartialEq)]
 pub struct PlayerInfo {
     pub name: PString64,
     pub clan: PString64,
@@ -307,7 +320,7 @@ pub struct PlayerInfo {
 
 impl fmt::Show for PlayerInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r#""{}" "{}" {} {} {}"#,
+        write!(f, r#""{:?}" "{:?}" {:?} {:?} {:?}"#,
             String::from_utf8_lossy(self.name.as_bytes()),
             String::from_utf8_lossy(self.clan.as_bytes()),
             self.country,
@@ -317,14 +330,41 @@ impl fmt::Show for PlayerInfo {
     }
 }
 
-#[deriving(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
 pub enum ServerInfoVersion {
     V5,
     V6,
+    V664,
     V7,
 }
 
-#[deriving(Copy)]
+impl ServerInfoVersion {
+    pub fn max_clients(self) -> uint {
+        match self {
+            ServerInfoVersion::V5   => MAX_CLIENTS_5,
+            ServerInfoVersion::V6   => MAX_CLIENTS_5,
+            ServerInfoVersion::V664 => MAX_CLIENTS_664,
+            ServerInfoVersion::V7   => MAX_CLIENTS_5,
+        }
+    }
+    pub fn has_hostname(self) -> bool {
+        self >= ServerInfoVersion::V7
+    }
+    pub fn has_progression(self) -> bool {
+        self == ServerInfoVersion::V5
+    }
+    pub fn has_skill_level(self) -> bool {
+        self >= ServerInfoVersion::V7
+    }
+    pub fn has_offset(self) -> bool {
+        self == ServerInfoVersion::V664
+    }
+    pub fn has_extended_player_info(self) -> bool {
+        self >= ServerInfoVersion::V6
+    }
+}
+
+#[derive(Copy)]
 pub struct ServerInfo {
     pub info_version: ServerInfoVersion,
     pub token: i32,
@@ -340,7 +380,13 @@ pub struct ServerInfo {
     pub max_players: i32,
     pub num_clients: i32,
     pub max_clients: i32,
-    pub clients_array: [PlayerInfo, ..MAX_CLIENTS],
+    pub clients_array: [PlayerInfo; MAX_CLIENTS],
+}
+
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+struct ServerInfoRaw {
+    pub offset: Option<i32>,
+    pub rest: ServerInfo,
 }
 
 impl ServerInfo {
@@ -367,7 +413,7 @@ impl ServerInfo {
 
 impl fmt::Show for ServerInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r#"{} {} "{}" "{}" "{}" "{}" "{}" {} {} {} {}/{} {}/{}: {}"#,
+        write!(f, r#"{:?} {:?} "{:?}" "{:?}" "{:?}" "{:?}" "{:?}" {:?} {:?} {:?} {:?}/{:?} {:?}/{:?}: {:?}"#,
             self.info_version,
             self.token,
             String::from_utf8_lossy(self.version.as_bytes()),
@@ -412,7 +458,7 @@ impl PartialEq for ServerInfo {
 
 impl Eq for ServerInfo { }
 
-impl<S:hash::Writer> hash::Hash<S> for ServerInfo {
+impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for ServerInfo {
     fn hash(&self, state: &mut S) {
         self.info_version.hash(state);
         self.token       .hash(state);
@@ -449,80 +495,91 @@ impl Default for ServerInfo {
             max_players: Default::default(),
             num_clients: Default::default(),
             max_clients: Default::default(),
-            clients_array: [Default::default(), ..MAX_CLIENTS],
+            clients_array: [Default::default(); MAX_CLIENTS],
         }
     }
 }
 
-fn parse_server_info(
+fn parse_server_info<RI,RS>(
     unpacker: &mut Unpacker,
-    read_int: |&mut Unpacker| -> Option<i32>,
-    read_str: |&mut Unpacker| -> Option<PString64>,
+    read_int: RI,
+    read_str: RS,
     version: ServerInfoVersion,
-) -> Option<ServerInfo>
+) -> Option<ServerInfoRaw>
+    where RI: FnMut(&mut Unpacker) -> Option<i32>,
+          RS: FnMut(&mut Unpacker) -> Option<PString64>,
 {
-    let mut result: ServerInfo = Default::default();
+    let mut read_int = read_int;
+    let mut read_str = read_str;
+    let mut result: ServerInfoRaw = Default::default();
 
-    result.info_version = version;
-
-    result.token       = unwrap_or_return!(read_int(unpacker), None);
-    result.version     = unwrap_or_return!(read_str(unpacker), None);
-    result.name        = unwrap_or_return!(read_str(unpacker), None);
-    if version >= ServerInfoVersion::V7 {
-        result.hostname = Some(unwrap_or_return!(read_str(unpacker), None));
-    } else {
-        result.hostname = None;
-    }
-    result.map         = unwrap_or_return!(read_str(unpacker), None);
-    result.game_type   = unwrap_or_return!(read_str(unpacker), None);
-    result.flags       = unwrap_or_return!(read_int(unpacker), None);
-    if version == ServerInfoVersion::V5 {
-        result.progression = Some(unwrap_or_return!(read_int(unpacker), None));
-    } else {
-        result.progression = None;
-    }
-    if version >= ServerInfoVersion::V7 {
-        result.skill_level = Some(unwrap_or_return!(read_int(unpacker), None));
-    } else {
-        result.skill_level = None;
-    }
-    result.num_players = unwrap_or_return!(read_int(unpacker), None);
-    result.max_players = unwrap_or_return!(read_int(unpacker), None);
-    if version >= ServerInfoVersion::V6 {
-        result.num_clients = unwrap_or_return!(read_int(unpacker), None);
-        result.max_clients = unwrap_or_return!(read_int(unpacker), None);
-    } else {
-        result.num_clients = result.num_players;
-        result.max_clients = result.max_players;
-    }
-
-    // Error handling copied from Teeworlds' source.
-    if result.num_clients < 0 || result.num_clients > MAX_CLIENTS as i32
-        || result.max_clients < 0 || result.max_clients > MAX_CLIENTS as i32
-        || result.num_players < 0 || result.num_players > result.num_clients
-        || result.max_players < 0 || result.max_players > result.max_clients
     {
-        return None;
-    }
+        let i = &mut result.rest;
+        i.info_version = version;
 
-    for c in result.clients_mut().iter_mut() {
-        c.name = unwrap_or_return!(read_str(unpacker), None);
-        if version >= ServerInfoVersion::V6 {
-            c.clan    = unwrap_or_return!(read_str(unpacker), None);
-            c.country = unwrap_or_return!(read_int(unpacker), None);
+        i.token       = unwrap_or_return!(read_int(unpacker), None);
+        i.version     = unwrap_or_return!(read_str(unpacker), None);
+        i.name        = unwrap_or_return!(read_str(unpacker), None);
+        if version.has_hostname() {
+            i.hostname = Some(unwrap_or_return!(read_str(unpacker), None));
         } else {
-            c.clan    = PString64::new();
-            c.country = -1;
+            i.hostname = None;
         }
-        c.score = unwrap_or_return!(read_int(unpacker), None);
-        if version >= ServerInfoVersion::V6 {
-            c.is_player = unwrap_or_return!(read_int(unpacker), None);
+        i.map         = unwrap_or_return!(read_str(unpacker), None);
+        i.game_type   = unwrap_or_return!(read_str(unpacker), None);
+        i.flags       = unwrap_or_return!(read_int(unpacker), None);
+        if version.has_progression() {
+            i.progression = Some(unwrap_or_return!(read_int(unpacker), None));
         } else {
-            c.is_player = 1;
+            i.progression = None;
+        }
+        if version.has_skill_level() {
+            i.skill_level = Some(unwrap_or_return!(read_int(unpacker), None));
+        } else {
+            i.skill_level = None;
+        }
+        i.num_players = unwrap_or_return!(read_int(unpacker), None);
+        i.max_players = unwrap_or_return!(read_int(unpacker), None);
+        if version.has_extended_player_info() {
+            i.num_clients = unwrap_or_return!(read_int(unpacker), None);
+            i.max_clients = unwrap_or_return!(read_int(unpacker), None);
+        } else {
+            i.num_clients = i.num_players;
+            i.max_clients = i.max_players;
+        }
+
+        if version.has_offset() {
+            result.offset = Some(unwrap_or_return!(read_int(unpacker), None));
+        } else {
+            result.offset = None;
+        }
+
+        // Error handling copied from Teeworlds' source.
+        if i.num_clients < 0 || i.num_clients > version.max_clients().to_i32().unwrap()
+            || i.max_clients < 0 || i.max_clients > version.max_clients().to_i32().unwrap()
+            || i.num_players < 0 || i.num_players > i.num_clients
+            || i.max_players < 0 || i.max_players > i.max_clients
+        {
+            return None;
+        }
+
+        for c in i.clients_mut().iter_mut() {
+            c.name = unwrap_or_return!(read_str(unpacker), None);
+            if version.has_extended_player_info() {
+                c.clan    = unwrap_or_return!(read_str(unpacker), None);
+                c.country = unwrap_or_return!(read_int(unpacker), None);
+            } else {
+                c.clan    = PString64::new();
+                c.country = -1;
+            }
+            c.score = unwrap_or_return!(read_int(unpacker), None);
+            if version.has_extended_player_info() {
+                c.is_player = unwrap_or_return!(read_int(unpacker), None);
+            } else {
+                c.is_player = 1;
+            }
         }
     }
-
-    result.sort_clients();
 
     Some(result)
 }
@@ -551,20 +608,23 @@ impl<'a> Info5Response<'a> {
             info_read_int_v5,
             info_read_str,
             ServerInfoVersion::V5,
-        )
+        ).map(|mut raw| { raw.rest.sort_clients(); raw.rest })
     }
 }
 
 impl<'a> Info6Response<'a> {
-    fn parse_impl(self,
-        read_int: |&mut Unpacker| -> Option<i32>,
-        read_str: |&mut Unpacker| -> Option<PString64>,
+    fn parse_impl<RI,RS>(self,
+        read_int: RI,
+        read_str: RS,
         version: ServerInfoVersion,
     ) -> Option<ServerInfo>
+    where RI: FnMut(&mut Unpacker) -> Option<i32>,
+          RS: FnMut(&mut Unpacker) -> Option<PString64>,
     {
         let Info6Response(slice) = self;
         let mut unpacker = Unpacker::from_slice(slice);
         parse_server_info(&mut unpacker, read_int, read_str, version)
+            .map(|mut raw| { raw.rest.sort_clients(); raw.rest })
     }
     pub fn parse_v6(self) -> Option<ServerInfo> {
         self.parse_impl(info_read_int_v5, info_read_str, ServerInfoVersion::V6)
@@ -577,18 +637,21 @@ impl<'a> Info6Response<'a> {
     }
 }
 
-#[deriving(Copy, Clone)] pub struct Info5Response<'a>(pub &'a [u8]);
-#[deriving(Copy, Clone)] pub struct Info6Response<'a>(pub &'a [u8]);
-#[deriving(Copy, Clone)] pub struct CountResponse(pub u16); #[deriving(Copy, Clone)] pub struct List5Response<'a>(pub &'a [Addr5Packed]);
-#[deriving(Copy, Clone)] pub struct List6Response<'a>(pub &'a [Addr6Packed]);
+#[derive(Copy, Clone)] pub struct Info5Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)] pub struct Info6Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)] pub struct Info664Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)] pub struct CountResponse(pub u16);
+#[derive(Copy, Clone)] pub struct List5Response<'a>(pub &'a [Addr5Packed]);
+#[derive(Copy, Clone)] pub struct List6Response<'a>(pub &'a [Addr6Packed]);
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Response<'a> {
     List5(List5Response<'a>),
     List6(List6Response<'a>),
     Count(CountResponse),
     Info5(Info5Response<'a>),
     Info6(Info6Response<'a>),
+    Info664(Info664Response<'a>),
 }
 
 fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
@@ -616,7 +679,7 @@ fn parse_count(data: &[u8]) -> Option<u16> {
     if data.len() > 2 {
         warn!("parsing overlong count");
     }
-    Some((data[0] as u16 << 8) | (data[1] as u16))
+    Some(((data[0] as u16) << 8) | (data[1] as u16))
 }
 
 pub fn parse_response(data: &[u8]) -> Option<Response> {
@@ -624,18 +687,19 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
         return None;
     }
     let (header, data) = data.split_at(HEADER_LEN);
-    let header: &[u8, ..HEADER_LEN] = unsafe { &*(header.as_ptr() as *const [u8, ..HEADER_LEN]) };
+    let header: &[u8; HEADER_LEN] = unsafe { &*(header.as_ptr() as *const [u8; HEADER_LEN]) };
     match *header {
         LIST_5 => Some(Response::List5(List5Response(parse_list5(data)))),
         LIST_6 => Some(Response::List6(List6Response(parse_list6(data)))),
         INFO_5 => Some(Response::Info5(Info5Response(data))),
         INFO_6 => Some(Response::Info6(Info6Response(data))),
+        INFO_6_64 => Some(Response::Info664(Info664Response(data))),
         COUNT => parse_count(data).map(|x| Response::Count(CountResponse(x))),
         _ => None,
     }
 }
 
-#[deriving(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Addr {
     pub ip_address: IpAddr,
     pub port: u16,
@@ -644,16 +708,25 @@ pub struct Addr {
 impl fmt::Show for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.ip_address {
-            Ipv4Addr(..) => write!(f, "{}:{}", self.ip_address, self.port),
-            Ipv6Addr(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
+            Ipv4Addr(..) => write!(f, "{:?}:{:?}", self.ip_address, self.port),
+            Ipv6Addr(..) => write!(f, "[{:?}]:{:?}", self.ip_address, self.port),
         }
     }
 }
 
-#[deriving(Clone, Copy)]
+impl fmt::String for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.ip_address {
+            Ipv4Addr(..) => write!(f, "{:?}:{:?}", self.ip_address, self.port),
+            Ipv6Addr(..) => write!(f, "[{:?}]:{:?}", self.ip_address, self.port),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 #[repr(C, packed)]
 pub struct Addr5Packed {
-    ip_address: [u8, ..4],
+    ip_address: [u8; 4],
     port: LeU16,
 }
 
@@ -669,10 +742,10 @@ impl Addr5Packed {
     }
 }
 
-#[deriving(Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(C, packed)]
 pub struct Addr6Packed {
-    ip_address: [u8, ..16],
+    ip_address: [u8; 16],
     port: BeU16,
 }
 
@@ -683,7 +756,7 @@ impl Addr6Packed {
         let Addr6Packed { ip_address, port } = self;
         let compare_with = ip_address.slice_to(IPV4_MAPPING.len());
         let new_address = if compare_with != IPV4_MAPPING {
-            let ip_address: [BeU16, ..8] = unsafe { mem::transmute(ip_address) };
+            let ip_address: [BeU16; 8] = unsafe { mem::transmute(ip_address) };
             Ipv6Addr(
                 ip_address[0].to_u16(),
                 ip_address[1].to_u16(),
@@ -758,8 +831,8 @@ mod test {
         };
 
         println!("");
-        println!("{}", Info6Response(info_raw).parse().unwrap());
-        println!("{}", info);
+        println!("{:?}", Info6Response(info_raw).parse().unwrap());
+        println!("{:?}", info);
 
         assert_eq!(Info6Response(info_raw).parse().unwrap(), info);
     }

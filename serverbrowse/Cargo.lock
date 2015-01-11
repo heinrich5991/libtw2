@@ -3,10 +3,10 @@ name = "serverbrowse"
 version = "0.0.1"
 dependencies = [
  "common 0.0.1",
- "log 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.0.1 (git+https://github.com/carllerche/mio)",
- "rustc-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -15,47 +15,47 @@ version = "0.0.1"
 
 [[package]]
 name = "gcc"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "log"
-version = "0.1.4"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "regex 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "mio"
 version = "0.0.1"
-source = "git+https://github.com/carllerche/mio#ad527c546d9a8c49db9a8301e4f13e182790b955"
+source = "git+https://github.com/carllerche/mio#9a5c27f92c7dbf268ea1dad1fa0d68233c46918c"
 dependencies = [
- "log 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.1.0 (git+https://github.com/carllerche/nix-rust)",
- "time 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.1.1 (git+https://github.com/carllerche/nix-rust)",
+ "time 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "nix"
-version = "0.1.0"
-source = "git+https://github.com/carllerche/nix-rust#898674f93c2a4df6a8e2c9e07ed509ddb3d4e866"
+version = "0.1.1"
+source = "git+https://github.com/carllerche/nix-rust#f70a60e0b4dd670171a12fa98101ffc52f528eec"
 
 [[package]]
 name = "regex"
-version = "0.1.4"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"
-version = "0.2.1"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "time"
-version = "0.1.5"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "gcc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

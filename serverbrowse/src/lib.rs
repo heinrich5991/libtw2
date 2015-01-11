@@ -1,10 +1,7 @@
-#![feature(phase)]
-#![feature(default_type_params)]
+#![allow(unstable)]
+#![feature(int_uint)]
 
-#[phase(plugin, link)]
-extern crate log;
-
-#[phase(plugin, link)]
-extern crate common;
+#[macro_use] extern crate log;
+#[macro_use] extern crate common;
 
 pub mod protocol;
