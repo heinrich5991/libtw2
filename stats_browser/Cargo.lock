@@ -1,11 +1,11 @@
 [root]
-name = "serverbrowse"
+name = "stats_browser"
 version = "0.0.1"
 dependencies = [
- "common 0.0.1",
  "log 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.0.1 (git+https://github.com/carllerche/mio)",
  "rustc-serialize 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serverbrowse 0.0.1",
  "time 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -50,6 +50,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "rustc-serialize"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "serverbrowse"
+version = "0.0.1"
+dependencies = [
+ "common 0.0.1",
+ "log 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.0.1 (git+https://github.com/carllerche/mio)",
+ "rustc-serialize 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "time"

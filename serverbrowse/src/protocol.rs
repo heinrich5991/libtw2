@@ -716,10 +716,7 @@ impl fmt::Show for Addr {
 
 impl fmt::String for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.ip_address {
-            Ipv4Addr(..) => write!(f, "{:?}:{:?}", self.ip_address, self.port),
-            Ipv6Addr(..) => write!(f, "[{:?}]:{:?}", self.ip_address, self.port),
-        }
+        fmt::Show::fmt(self, f)
     }
 }
 

@@ -1,5 +1,5 @@
 #![allow(unstable)]
-#![feature(macro_rules)]
+#![feature(int_uint)]
 
 pub use slice::relative_size_of;
 pub use slice::relative_size_of_mult;

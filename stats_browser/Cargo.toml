@@ -1,0 +1,11 @@
+[package]
+name = "stats_browser"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]
+log = "*"
+rustc-serialize = "*"
+[dependencies.time]         version = "*" features = ["rustc-serialize"]
+[dependencies.mio]          git = "https://github.com/carllerche/mio"
+[dependencies.serverbrowse] path = "../serverbrowse"

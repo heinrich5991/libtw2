@@ -6,7 +6,10 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 [dependencies]
 log = "*"
 rustc-serialize = "*"
-time = "*"
+
+[dependencies.time]
+version = "*"
+features = ["rustc-serialize"]
 
 [dependencies.common]
 path = "../common/"

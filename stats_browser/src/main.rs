@@ -5,13 +5,12 @@
 
 #[macro_use] extern crate log;
 extern crate time;
-extern crate "rustc-serialize" as serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 
 extern crate mio;
 
 extern crate serverbrowse;
 
-use serverbrowse::protocol::Addr;
 use serverbrowse::protocol::CountResponse;
 use serverbrowse::protocol::Info5Response;
 use serverbrowse::protocol::Info6Response;
@@ -32,6 +31,9 @@ use mio::net::SockAddr;
 use mio::net::UnconnectedSocket;
 use mio::net::udp::UdpSocket;
 
+use rustc_serialize::base64;
+use rustc_serialize::base64::ToBase64;
+
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -41,15 +43,15 @@ use std::collections::hash_map::Entry;
 use std::default::Default;
 use std::fmt;
 use std::io::net::addrinfo;
+use std::io::net::ip::IpAddr;
 use std::io::timer;
 use std::mem;
+use std::num::Int;
 use std::num::SignedInt;
 use std::num::ToPrimitive;
 use std::ops::Add;
+use std::ops::Sub;
 use std::time::duration::Duration;
-
-use serialize::base64;
-use serialize::base64::ToBase64;
 
 #[derive(Clone)]
 pub struct TimedWorkQueue<T> {
@@ -146,20 +148,20 @@ impl Add<Duration> for Time {
     }
 }
 
-impl Time {
-    pub fn now() -> Time {
-        Time(time::precise_time_ns() / 1_000_000)
+impl Sub<Time> for Time {
+    type Output = Duration;
+    fn sub(self, rhs: Time) -> Duration {
+        let (Time(left), Time(right)) = (self, rhs);
+        Duration::milliseconds(
+            right.checked_sub(left).expect("Overflow while subtracting")
+            .to_i64().expect("Overflow while converting to i64")
+        )
     }
 }
 
-fn addr_to_sockaddr(addr: Addr) -> SockAddr {
-    SockAddr::InetAddr(addr.ip_address, addr.port)
-}
-
-fn sockaddr_to_addr(addr: SockAddr) -> Addr {
-    match addr {
-        SockAddr::InetAddr(ip_address, port) => Addr { ip_address: ip_address, port: port },
-        x => { panic!("Invalid sockaddr: {:?}", x); }
+impl Time {
+    pub fn now() -> Time {
+        Time(time::precise_time_ns() / 1_000_000)
     }
 }
 
@@ -193,7 +195,6 @@ struct MasterServerEntry {
     list: HashSet<ServerAddr>,
     updated_count: Option<u16>,
     updated_list: HashSet<ServerAddr>,
-    completely_updated: bool,
 }
 
 impl MasterServerEntry {
@@ -206,12 +207,11 @@ impl MasterServerEntry {
             list: HashSet::new(),
             updated_count: None,
             updated_list: HashSet::new(),
-            completely_updated: false,
         }
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable, Show)]
 enum ProtocolVersion {
     V5,
     V6,
@@ -224,10 +224,50 @@ impl fmt::String for ProtocolVersion {
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
+struct Addr(protocol::Addr);
+
+impl fmt::Show for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let &Addr(ref inner) = self;
+        fmt::Show::fmt(inner, f)
+    }
+}
+
+impl fmt::String for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let &Addr(ref inner) = self;
+        fmt::String::fmt(inner, f)
+    }
+}
+
+impl Addr {
+    pub fn new(ip_addr: IpAddr, port: u16) -> Addr {
+        Addr(protocol::Addr { ip_address: ip_addr, port: port })
+    }
+    pub fn to_sockaddr(self) -> SockAddr {
+        let Addr(inner) = self;
+        SockAddr::InetAddr(inner.ip_address, inner.port)
+    }
+    pub fn from_sockaddr(addr: SockAddr) -> Addr {
+        match addr {
+            SockAddr::InetAddr(ip_address, port) => Addr::new(ip_address, port),
+            x => { panic!("Invalid sockaddr: {:?}", x); }
+        }
+    }
+}
+
+impl rustc_serialize::Encodable for Addr {
+    fn encode<S:rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(),S::Error> {
+        s.emit_str(self.to_string().as_slice())
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq, RustcEncodable)]
 struct ServerAddr {
     version: ProtocolVersion,
     addr: Addr,
 }
+
 
 impl fmt::Show for ServerAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -288,7 +328,7 @@ trait StatsBrowserCb {
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo);
 }
 
-#[derive(Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
+#[derive(Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable, Show)]
 struct MasterId(uint);
 
 impl MasterId {
@@ -345,6 +385,13 @@ impl<T> Timed<T> {
     }
 }
 
+#[derive(RustcEncodable)]
+struct TimedWorkSerialized {
+    work: Work,
+    time: time::Timespec,
+}
+
+#[derive(RustcEncodable)]
 enum Work {
     Resolve(MasterId),
     RequestList(MasterId),
@@ -417,8 +464,8 @@ impl<'a> StatsBrowser<'a> {
         let MasterId(idx) = master_id;
         let master = self.master_servers.get_mut(&idx).unwrap();
         match addrinfo::get_host_addresses(master.domain.as_slice()).map(|x| x.get(0).cloned()) {
-            Ok(Some(x)) => {
-                let addr = Addr { ip_address: x, port: MASTERSRV_PORT };
+            Ok(Some(ip_address)) => {
+                let addr = Addr::new(ip_address, MASTERSRV_PORT);
                 info!("Resolved {} to {}", master.domain, addr);
                 match mem::replace(&mut master.addr, Some(addr)) {
                     Some(_) => {},
@@ -453,7 +500,7 @@ impl<'a> StatsBrowser<'a> {
         let socket = &mut self.socket;
         let mut send = |&mut: y: &[u8]| socket.send_to(
             &mut SliceBuf::wrap(y),
-            &addr_to_sockaddr(master.addr.unwrap()),
+            &master.addr.unwrap().to_sockaddr(),
         ).unwrap();
 
         debug!("Requesting count and list from {}", master.domain);
@@ -499,7 +546,7 @@ impl<'a> StatsBrowser<'a> {
 
         let mut send = |&mut: data: &[u8]| socket.send_to(
             &mut SliceBuf::wrap(data),
-            &addr_to_sockaddr(server_addr.addr),
+            &server_addr.addr.to_sockaddr(),
         ).unwrap();
 
         let would_block = match server_addr.version {
@@ -622,7 +669,7 @@ impl<'a> StatsBrowser<'a> {
             Some(Response::List5(List5Response(servers))) => {
                 match self.get_master_id(from) {
                     Some(id) => {
-                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V5, x.unpack())));
+                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V5, Addr(x.unpack()))));
                     },
                     None => {
                         let servers: Vec<_> = servers.iter().map(|x| x.unpack()).collect();
@@ -633,7 +680,7 @@ impl<'a> StatsBrowser<'a> {
             Some(Response::List6(List6Response(servers))) => {
                 match self.get_master_id(from) {
                     Some(id) => {
-                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V6, x.unpack())));
+                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V6, Addr(x.unpack()))));
                     },
                     None => {
                         let servers: Vec<_> = servers.iter().map(|x| x.unpack()).collect();
@@ -665,8 +712,8 @@ impl<'a> StatsBrowser<'a> {
                 match self.socket.recv_from(&mut buffer) {
                     Err(x) => { panic!("socket error, {:?}", x); },
                     Ok(NonBlock::WouldBlock) => return,
-                    Ok(NonBlock::Ready(from_sockaddr)) => {
-                        from = sockaddr_to_addr(from_sockaddr);
+                    Ok(NonBlock::Ready(sockaddr)) => {
+                        from = Addr::from_sockaddr(sockaddr);
                         remaining = buffer.remaining();
                     },
                 }
