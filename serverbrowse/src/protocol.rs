@@ -19,6 +19,8 @@ const MAX_CLIENTS:     uint = 64;
 const MAX_CLIENTS_5:   uint = 16;
 const MAX_CLIENTS_664: uint = 64;
 
+pub const MASTERSERVER_PORT: u16 = 8300;
+
 /// Non-zero byte.
 #[unstable = "definition might move into a different module/crate"]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -52,12 +54,12 @@ impl fmt::String for NzU8 {
     }
 }
 
-pub trait NzU8Slice {
+pub trait NzU8SliceExt {
     fn as_bytes(&self) -> &[u8];
     fn from_bytes(bytes: &[u8]) -> Option<&Self>;
 }
 
-impl NzU8Slice for [NzU8] {
+impl NzU8SliceExt for [NzU8] {
     fn as_bytes(&self) -> &[u8] {
         unsafe { mem::transmute(self) }
     }
@@ -243,7 +245,7 @@ impl PString64 {
         PString64::from_slice_trunc(slice)
     }
     pub fn from_str(slice: &str) -> PString64 {
-        PString64::from_slice(NzU8Slice::from_bytes(slice.as_bytes()).unwrap())
+        PString64::from_slice(NzU8SliceExt::from_bytes(slice.as_bytes()).unwrap())
     }
     pub fn from_slice_trunc(slice: &[NzU8]) -> PString64 {
         let mut result = PString64::new();

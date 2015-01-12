@@ -4,10 +4,8 @@
 #![feature(int_uint)]
 
 #[macro_use] extern crate log;
-extern crate time;
+extern crate "time" as rust_time;
 extern crate "rustc-serialize" as rustc_serialize;
-
-extern crate mio;
 
 extern crate serverbrowse;
 
@@ -16,101 +14,44 @@ use serverbrowse::protocol::Info5Response;
 use serverbrowse::protocol::Info6Response;
 use serverbrowse::protocol::List5Response;
 use serverbrowse::protocol::List6Response;
-use serverbrowse::protocol::NzU8Slice;
-use serverbrowse::protocol::PString64;
+use serverbrowse::protocol::MASTERSERVER_PORT;
+use serverbrowse::protocol::NzU8SliceExt;
 use serverbrowse::protocol::PlayerInfo;
 use serverbrowse::protocol::Response;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol;
 
-use mio::NonBlock;
-use mio::buf::Buf;
-use mio::buf::MutSliceBuf;
-use mio::buf::SliceBuf;
-use mio::net::SockAddr;
-use mio::net::UnconnectedSocket;
-use mio::net::udp::UdpSocket;
-
-use rustc_serialize::base64;
-use rustc_serialize::base64::ToBase64;
-
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::RingBuf;
 use std::collections::VecMap;
 use std::collections::hash_map::Entry;
 use std::default::Default;
-use std::fmt;
 use std::io::net::addrinfo;
-use std::io::net::ip::IpAddr;
 use std::io::timer;
 use std::mem;
-use std::num::Int;
 use std::num::SignedInt;
-use std::num::ToPrimitive;
-use std::ops::Add;
-use std::ops::Sub;
-use std::time::duration::Duration;
 
-#[derive(Clone)]
-pub struct TimedWorkQueue<T> {
-    now_queue: RingBuf<T>,
-    other_queues: HashMap<u64,RingBuf<Timed<T>>>,
-}
+use addr::Addr;
+use addr::ProtocolVersion;
+use addr::ServerAddr;
+use base64::b64;
+use entry::MasterServerEntry;
+use entry::ServerEntry;
+use entry::ServerResponse;
+use socket::NonBlockExt;
+use socket::UdpSocket;
+use socket::WouldBlock;
+use time::Limit;
+use time::Ms;
+use work_queue::TimedWorkQueue;
 
-impl<T> Default for TimedWorkQueue<T> {
-    fn default() -> TimedWorkQueue<T> {
-        TimedWorkQueue::new()
-    }
-}
-
-impl<T> TimedWorkQueue<T> {
-    pub fn new() -> TimedWorkQueue<T> {
-        TimedWorkQueue {
-            now_queue: RingBuf::new(),
-            other_queues: HashMap::new(),
-        }
-    }
-    pub fn add_duration(&mut self, dur: Duration) {
-        let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
-        if let Entry::Vacant(v) = self.other_queues.entry(dur_k) {
-            v.insert(RingBuf::new());
-        }
-    }
-    fn duration_to_key(dur: Duration) -> u64 {
-        dur.num_milliseconds().to_u64().expect("Expected positive duration")
-    }
-    pub fn push(&mut self, dur: Duration, data: T) {
-        let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
-        let queue = self.other_queues.get_mut(&dur_k);
-        let queue = queue.expect("Need to `add_duration` before pushing with it.");
-        queue.push_back(Timed::new(data, Time::now() + dur));
-    }
-    pub fn push_now(&mut self, data: T) {
-        self.now_queue.push_back(data);
-    }
-    pub fn push_now_front(&mut self, data: T) {
-        self.now_queue.push_front(data);
-    }
-    pub fn pop(&mut self) -> Option<T> {
-        if let Some(data) = self.now_queue.pop_front() {
-            return Some(data);
-        }
-        let now = Time::now();
-        for (_, q) in self.other_queues.iter_mut() {
-            // Only pop the first element if there actually is an element in
-            // the front and it's time to process it.
-            if q.front().map(|timed| timed.time <= now).unwrap_or(false) {
-                return Some(q.pop_front().unwrap().data);
-            }
-        }
-        None
-    }
-}
-
-// TODO: What happens on time overflow?
-// TODO: What happens on time backward jump?
+mod addr;
+mod base64;
+mod entry;
+mod socket;
+mod time;
+mod work_queue;
 
 // Config
 const MAX_LISTS:          u32 =  1;
@@ -125,202 +66,6 @@ const LIST_EXPECT_MS:    Ms = Ms(  5_000);
 const LIST_REPEAT_MS:    Ms = Ms( 30_000);
 const RESOLVE_REPEAT_MS: Ms = Ms(120_000);
 const SLEEP_MS:          Ms = Ms(      5);
-
-struct Ms(u32);
-
-impl Ms {
-    pub fn to_duration(self) -> Duration {
-        let Ms(ms) = self;
-        Duration::milliseconds(ms.to_i64().unwrap())
-    }
-}
-
-const MASTERSRV_PORT: u16 = 8300;
-
-#[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
-pub struct Time(u64); // In milliseconds.
-
-impl Add<Duration> for Time {
-    type Output = Time;
-    fn add(self, rhs: Duration) -> Time {
-        let Time(ms) = self;
-        Time(ms + rhs.num_milliseconds() as u64)
-    }
-}
-
-impl Sub<Time> for Time {
-    type Output = Duration;
-    fn sub(self, rhs: Time) -> Duration {
-        let (Time(left), Time(right)) = (self, rhs);
-        Duration::milliseconds(
-            right.checked_sub(left).expect("Overflow while subtracting")
-            .to_i64().expect("Overflow while converting to i64")
-        )
-    }
-}
-
-impl Time {
-    pub fn now() -> Time {
-        Time(time::precise_time_ns() / 1_000_000)
-    }
-}
-
-#[derive(Copy, Clone)]
-struct B64<'a>(&'a [u8]);
-
-fn b64(string: &PString64) -> B64 {
-    B64(string.as_slice().as_bytes())
-}
-
-impl<'a> fmt::String for B64<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let B64(bytes) = *self;
-        const CONFIG: base64::Config = base64::Config {
-            char_set: base64::CharacterSet::Standard,
-            newline: base64::Newline::LF,
-            pad: true,
-            line_length: None,
-        };
-        //write!(f, "{}", String::from_utf8_lossy(bytes))
-        write!(f, "{}", bytes.to_base64(CONFIG))
-    }
-}
-
-#[derive(Clone)]
-struct MasterServerEntry {
-    domain: String,
-    addr: Option<Addr>,
-
-    count: u16,
-    list: HashSet<ServerAddr>,
-    updated_count: Option<u16>,
-    updated_list: HashSet<ServerAddr>,
-}
-
-impl MasterServerEntry {
-    fn new(domain: String) -> MasterServerEntry {
-        MasterServerEntry {
-            domain: domain,
-            addr: None,
-
-            count: 0,
-            list: HashSet::new(),
-            updated_count: None,
-            updated_list: HashSet::new(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable, Show)]
-enum ProtocolVersion {
-    V5,
-    V6,
-}
-
-impl fmt::String for ProtocolVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
-    }
-}
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
-struct Addr(protocol::Addr);
-
-impl fmt::Show for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let &Addr(ref inner) = self;
-        fmt::Show::fmt(inner, f)
-    }
-}
-
-impl fmt::String for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let &Addr(ref inner) = self;
-        fmt::String::fmt(inner, f)
-    }
-}
-
-impl Addr {
-    pub fn new(ip_addr: IpAddr, port: u16) -> Addr {
-        Addr(protocol::Addr { ip_address: ip_addr, port: port })
-    }
-    pub fn to_sockaddr(self) -> SockAddr {
-        let Addr(inner) = self;
-        SockAddr::InetAddr(inner.ip_address, inner.port)
-    }
-    pub fn from_sockaddr(addr: SockAddr) -> Addr {
-        match addr {
-            SockAddr::InetAddr(ip_address, port) => Addr::new(ip_address, port),
-            x => { panic!("Invalid sockaddr: {:?}", x); }
-        }
-    }
-}
-
-impl rustc_serialize::Encodable for Addr {
-    fn encode<S:rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(),S::Error> {
-        s.emit_str(self.to_string().as_slice())
-    }
-}
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq, RustcEncodable)]
-struct ServerAddr {
-    version: ProtocolVersion,
-    addr: Addr,
-}
-
-
-impl fmt::Show for ServerAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}_{}", self.version, self.addr)
-    }
-}
-
-impl fmt::String for ServerAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
-    }
-}
-
-impl ServerAddr {
-    fn new(version: ProtocolVersion, addr: Addr) -> ServerAddr {
-        ServerAddr {
-            version: version,
-            addr: addr,
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct ServerEntry {
-    num_missing_resp: u32,
-    num_malformed_resp: u32,
-    num_extra_resp: u32,
-    resp: Option<ServerResponse>,
-}
-
-impl ServerEntry {
-    fn new() -> ServerEntry {
-        ServerEntry {
-            num_missing_resp: 0,
-            num_malformed_resp: 0,
-            num_extra_resp: 0,
-            resp: None,
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct ServerResponse {
-    info: ServerInfo,
-}
-
-impl ServerResponse {
-    fn new(info: ServerInfo) -> ServerResponse {
-        ServerResponse {
-            info: info,
-        }
-    }
-}
 
 trait StatsBrowserCb {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo);
@@ -337,58 +82,6 @@ impl MasterId {
         *self = MasterId(value + 1);
         MasterId(value)
     }
-}
-
-#[derive(Copy, Clone, Eq, Hash, PartialEq, Show)]
-struct Timed<T> {
-    data: T,
-    time: Time,
-}
-
-#[derive(Copy, Clone)]
-struct Limit {
-    remaining: u32,
-    reset: Time,
-    max: u32,
-    duration: Duration,
-}
-
-impl Limit {
-    fn new(max: u32, duration: Duration) -> Limit {
-        Limit {
-            remaining: max,
-            reset: Time::now(),
-            max: max,
-            duration: duration,
-        }
-    }
-    fn acquire_at(&mut self, time: Time) -> Result<(),()> {
-        if time >= self.reset {
-            self.remaining = self.max;
-            self.reset = time + self.duration;
-        }
-        if self.remaining != 0 {
-            self.remaining -= 1;
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-    fn acquire(&mut self) -> Result<(),()> {
-        self.acquire_at(Time::now())
-    }
-}
-
-impl<T> Timed<T> {
-    pub fn new(data: T, time: Time) -> Timed<T> {
-        Timed { data: data, time: time }
-    }
-}
-
-#[derive(RustcEncodable)]
-struct TimedWorkSerialized {
-    work: Work,
-    time: time::Timespec,
 }
 
 #[derive(RustcEncodable)]
@@ -426,7 +119,7 @@ impl<'a> StatsBrowser<'a> {
         })
     }
     fn new_without_masters(cb: &mut StatsBrowserCb) -> Option<StatsBrowser> {
-        let socket = match UdpSocket::v4() {
+        let socket = match UdpSocket::open() {
             Ok(s) => s,
             Err(e) => {
                 error!("Couldn't open socket, {:?}", e);
@@ -465,7 +158,7 @@ impl<'a> StatsBrowser<'a> {
         let master = self.master_servers.get_mut(&idx).unwrap();
         match addrinfo::get_host_addresses(master.domain.as_slice()).map(|x| x.get(0).cloned()) {
             Ok(Some(ip_address)) => {
-                let addr = Addr::new(ip_address, MASTERSRV_PORT);
+                let addr = Addr::new(ip_address, MASTERSERVER_PORT);
                 info!("Resolved {} to {}", master.domain, addr);
                 match mem::replace(&mut master.addr, Some(addr)) {
                     Some(_) => {},
@@ -498,10 +191,7 @@ impl<'a> StatsBrowser<'a> {
         }
 
         let socket = &mut self.socket;
-        let mut send = |&mut: y: &[u8]| socket.send_to(
-            &mut SliceBuf::wrap(y),
-            &master.addr.unwrap().to_sockaddr(),
-        ).unwrap();
+        let mut send = |&mut: data: &[u8]| socket.send_to(data, master.addr.unwrap()).unwrap();
 
         debug!("Requesting count and list from {}", master.domain);
         if protocol::request_count(|y| send(y)).would_block()
@@ -544,10 +234,7 @@ impl<'a> StatsBrowser<'a> {
         debug!("Requesting info from {}", server_addr);
         let socket = &mut self.socket;
 
-        let mut send = |&mut: data: &[u8]| socket.send_to(
-            &mut SliceBuf::wrap(data),
-            &server_addr.addr.to_sockaddr(),
-        ).unwrap();
+        let mut send = |&mut: data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
 
         let would_block = match server_addr.version {
             ProtocolVersion::V5 => protocol::request_info_5(|x| send(x)).would_block(),
@@ -669,7 +356,9 @@ impl<'a> StatsBrowser<'a> {
             Some(Response::List5(List5Response(servers))) => {
                 match self.get_master_id(from) {
                     Some(id) => {
-                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V5, Addr(x.unpack()))));
+                        self.process_list(id, servers.iter().map(|x|
+                            ServerAddr::new(ProtocolVersion::V5, Addr::from_srvbrowse_addr(x.unpack()))
+                        ));
                     },
                     None => {
                         let servers: Vec<_> = servers.iter().map(|x| x.unpack()).collect();
@@ -680,7 +369,9 @@ impl<'a> StatsBrowser<'a> {
             Some(Response::List6(List6Response(servers))) => {
                 match self.get_master_id(from) {
                     Some(id) => {
-                        self.process_list(id, servers.iter().map(|x| ServerAddr::new(ProtocolVersion::V6, Addr(x.unpack()))));
+                        self.process_list(id, servers.iter().map(|x|
+                            ServerAddr::new(ProtocolVersion::V6, Addr::from_srvbrowse_addr(x.unpack()))
+                        ));
                     },
                     None => {
                         let servers: Vec<_> = servers.iter().map(|x| x.unpack()).collect();
@@ -702,24 +393,16 @@ impl<'a> StatsBrowser<'a> {
         }
     }
     fn pump_network(&mut self) {
-        let mut storage: [u8; 2048] = unsafe { mem::uninitialized() };
+        let mut buffer: [u8; 2048] = unsafe { mem::uninitialized() };
 
         loop {
-            let from;
-            let remaining;
-            {
-                let mut buffer = MutSliceBuf::wrap(storage.as_mut_slice());
-                match self.socket.recv_from(&mut buffer) {
-                    Err(x) => { panic!("socket error, {:?}", x); },
-                    Ok(NonBlock::WouldBlock) => return,
-                    Ok(NonBlock::Ready(sockaddr)) => {
-                        from = Addr::from_sockaddr(sockaddr);
-                        remaining = buffer.remaining();
-                    },
-                }
+            match self.socket.recv_from(&mut buffer) {
+                Err(x) => { panic!("socket error, {:?}", x); },
+                Ok(Err(WouldBlock)) => return,
+                Ok(Ok((read_len, from))) => {
+                    self.process_packet(from, buffer.as_slice().slice_to(read_len));
+                },
             }
-            let read_len = storage.len() - remaining;
-            self.process_packet(from, storage.as_slice().slice_to(read_len));
         }
     }
     fn run(&mut self) {
