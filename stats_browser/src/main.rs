@@ -414,6 +414,10 @@ struct Tracker {
     player_count: u32,
 }
 
+fn print_start() {
+    println!("START\t1.0\tlibtw2\t0.1");
+}
+
 fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
     println!("PLADD\t{}\t{}\t{}\t{}\t{}", addr.addr, b64(&info.name), b64(&info.clan), info.is_player, info.country);
 }
@@ -464,6 +468,9 @@ impl Tracker {
         Tracker {
             player_count: 0,
         }
+    }
+    fn start(&mut self) {
+        print_start();
     }
     fn server_ignore(addr: ServerAddr) -> bool {
         addr.version != ProtocolVersion::V6
@@ -550,13 +557,14 @@ impl StatsBrowserCb for Tracker {
 
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo) {
         if Tracker::server_ignore(addr) { return; }
-        print_server_remove(addr, last);
         self.diff_players(addr, last.clients(), &[]);
+        print_server_remove(addr, last);
     }
 }
 
 fn main() {
     let mut tracker = Tracker::new();
+    tracker.start();
     let mut browser = match StatsBrowser::new(&mut tracker) {
         Some(b) => b,
         None => {
