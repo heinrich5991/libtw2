@@ -13,8 +13,6 @@ pub struct MasterServerEntry {
     /// Address of the master server if resolved, `None` otherwise.
     pub addr: Option<Addr>,
 
-    /// Number of servers the master server advertised to have.
-    pub count: u16,
     /// Servers that the master server lists.
     pub list: HashSet<ServerAddr>,
 
@@ -33,7 +31,6 @@ impl MasterServerEntry {
             domain: domain,
             addr: None,
 
-            count: 0,
             list: HashSet::new(),
             updated_count: None,
             updated_list: HashSet::new(),

@@ -710,15 +710,9 @@ pub struct Addr {
 impl fmt::Show for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.ip_address {
-            Ipv4Addr(..) => write!(f, "{:?}:{:?}", self.ip_address, self.port),
-            Ipv6Addr(..) => write!(f, "[{:?}]:{:?}", self.ip_address, self.port),
+            Ipv4Addr(..) => write!(f, "{}:{}", self.ip_address, self.port),
+            Ipv6Addr(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
         }
-    }
-}
-
-impl fmt::String for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
     }
 }
 
@@ -727,6 +721,23 @@ impl fmt::String for Addr {
 pub struct Addr5Packed {
     ip_address: [u8; 4],
     port: LeU16,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C, packed)]
+pub struct Addr6Packed {
+    ip_address: [u8; 16],
+    port: BeU16,
+}
+
+// ---------------------------------------
+// Boilerplate trait implementations below
+// ---------------------------------------
+
+impl fmt::String for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Show::fmt(self, f)
+    }
 }
 
 #[test] fn check_alignment_addr5_packed() { assert_eq!(mem::min_align_of::<Addr5Packed>(), 1); }
@@ -739,13 +750,6 @@ impl Addr5Packed {
             port: port.to_u16(),
         }
     }
-}
-
-#[derive(Clone, Copy)]
-#[repr(C, packed)]
-pub struct Addr6Packed {
-    ip_address: [u8; 16],
-    port: BeU16,
 }
 
 #[test] fn check_alignment_addr6_packed() { assert_eq!(mem::min_align_of::<Addr6Packed>(), 1); }

@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::collections::RingBuf;
 use std::collections::hash_map::Entry;
+use std::collections::hash_map;
+use std::collections::ring_buf;
 use std::default::Default;
-use std::time::duration::Duration;
+use std::iter;
 use std::num::ToPrimitive;
+use std::time::duration::Duration;
 
 use time::Time;
 use time::Timed;
@@ -56,6 +59,32 @@ impl<T> TimedWorkQueue<T> {
         }
         None
     }
+    pub fn iter_now(&self) -> IterNow<T> {
+        IterNow { iter: self.now_queue.iter() }
+    }
+    pub fn iter_other(&self) -> IterOther<T> {
+        fn ringbuf_iter<T>(ring_buf: &RingBuf<T>) -> ring_buf::Iter<T> { ring_buf.iter() }
+        let mut iters = self.other_queues.values().map(ringbuf_iter as fn(&RingBuf<Timed<T>>) -> ring_buf::Iter<Timed<T>>);
+        let first = iters.next();
+        IterOther {
+            iter: first,
+            iters: iters,
+        }
+    }
+}
+
+pub struct IterNow<'a,T:'a> {
+    iter: ring_buf::Iter<'a,T>,
+}
+
+pub struct IterOther<'a,T:'a> {
+    iter: Option<ring_buf::Iter<'a,Timed<T>>>,
+    iters: iter::Map<
+        &'a RingBuf<Timed<T>>,
+        ring_buf::Iter<'a,Timed<T>>,
+        hash_map::Values<'a,u64,RingBuf<Timed<T>>>,
+        fn(&RingBuf<Timed<T>>) -> ring_buf::Iter<Timed<T>>
+    >,
 }
 
 // ---------------------------------------
@@ -65,5 +94,46 @@ impl<T> TimedWorkQueue<T> {
 impl<T> Default for TimedWorkQueue<T> {
     fn default() -> TimedWorkQueue<T> {
         TimedWorkQueue::new()
+    }
+}
+
+impl<'a,T> Clone for IterNow<'a,T> {
+    fn clone(&self) -> IterNow<'a,T> {
+        IterNow { iter: self.iter.clone() }
+    }
+}
+
+impl<'a,T> Iterator for IterNow<'a,T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<&'a T> { self.iter.next() }
+    fn size_hint(&self) -> (uint, Option<uint>) { self.iter.size_hint() }
+}
+
+impl<'a,T> ExactSizeIterator for IterNow<'a,T> { }
+
+impl<'a,T> Iterator for IterOther<'a,T> {
+    type Item = &'a Timed<T>;
+    fn next(&mut self) -> Option<&'a Timed<T>> {
+        loop {
+            {
+                let iter = match &mut self.iter {
+                    &mut Some(ref mut i) => i,
+                    &mut None => return None,
+                };
+                match iter.next() {
+                    Some(x) => return Some(x),
+                    None => {}
+                }
+            }
+            self.iter = self.iters.next();
+        }
+    }
+    // TODO: implement `size_hint`
+    fn size_hint(&self) -> (uint, Option<uint>) {
+        let (lower, _upper) = match &self.iter {
+            &Some(ref i) => { let (l, u) = i.size_hint(); (l, u.unwrap()) },
+            &None => return (0, Some(0)),
+        };
+        (lower, None)
     }
 }

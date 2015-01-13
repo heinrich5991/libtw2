@@ -10,6 +10,7 @@ use rust_time as time;
 // TODO: What happens on time backward jump?
 
 /// Duration, in milliseconds.
+#[derive(Clone, Copy)]
 pub struct Ms(pub u32);
 
 impl Ms {
@@ -38,8 +39,9 @@ impl Sub<Time> for Time {
     fn sub(self, rhs: Time) -> Duration {
         let (Time(left), Time(right)) = (self, rhs);
         Duration::milliseconds(
-            right.checked_sub(left).expect("Overflow while subtracting")
-            .to_i64().expect("Overflow while converting to i64")
+            right.checked_sub(left).map(|x| x.to_i64().expect("Overflow while converting to i64"))
+	    .or_else(|| left.checked_sub(right).map(|x| -x.to_i64().expect("Overflow while converting to i64")))
+	    .expect("Overflow while subtracting")
         )
     }
 }

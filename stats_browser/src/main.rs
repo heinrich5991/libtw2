@@ -43,29 +43,15 @@ use socket::NonBlockExt;
 use socket::UdpSocket;
 use socket::WouldBlock;
 use time::Limit;
-use time::Ms;
 use work_queue::TimedWorkQueue;
 
-mod addr;
-mod base64;
-mod entry;
-mod socket;
-mod time;
-mod work_queue;
-
-// Config
-const MAX_LISTS:          u32 =  1;
-const MAX_INFOS:          u32 = 10;
-const MAX_MALFORMED_RESP: u32 = 10;
-const MAX_EXTRA_RESP:     u32 = 10;
-const MAX_LISTS_MS:      Ms = Ms(  1_000);
-const MAX_INFOS_MS:      Ms = Ms(     25);
-const INFO_EXPECT_MS:    Ms = Ms(  1_000);
-const INFO_REPEAT_MS:    Ms = Ms(  5_000);
-const LIST_EXPECT_MS:    Ms = Ms(  5_000);
-const LIST_REPEAT_MS:    Ms = Ms( 30_000);
-const RESOLVE_REPEAT_MS: Ms = Ms(120_000);
-const SLEEP_MS:          Ms = Ms(      5);
+pub mod addr;
+pub mod base64;
+pub mod config;
+pub mod entry;
+pub mod socket;
+pub mod time;
+pub mod work_queue;
 
 trait StatsBrowserCb {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo);
@@ -84,7 +70,6 @@ impl MasterId {
     }
 }
 
-#[derive(RustcEncodable)]
 enum Work {
     Resolve(MasterId),
     RequestList(MasterId),
@@ -127,19 +112,19 @@ impl<'a> StatsBrowser<'a> {
             }
         };
         let mut work_queue = TimedWorkQueue::new();
-        work_queue.add_duration(RESOLVE_REPEAT_MS.to_duration());
-        work_queue.add_duration(LIST_REPEAT_MS.to_duration());
-        work_queue.add_duration(LIST_EXPECT_MS.to_duration());
-        work_queue.add_duration(INFO_REPEAT_MS.to_duration());
-        work_queue.add_duration(INFO_EXPECT_MS.to_duration());
+        work_queue.add_duration(config::RESOLVE_REPEAT_MS.to_duration());
+        work_queue.add_duration(config::LIST_REPEAT_MS.to_duration());
+        work_queue.add_duration(config::LIST_EXPECT_MS.to_duration());
+        work_queue.add_duration(config::INFO_REPEAT_MS.to_duration());
+        work_queue.add_duration(config::INFO_EXPECT_MS.to_duration());
         Some(StatsBrowser {
             master_servers: Default::default(),
             servers: Default::default(),
 
             next_master_id: Default::default(),
 
-            list_limit: Limit::new(MAX_LISTS, MAX_LISTS_MS.to_duration()),
-            info_limit: Limit::new(MAX_INFOS, MAX_INFOS_MS.to_duration()),
+            list_limit: Limit::new(config::MAX_LISTS, config::MAX_LISTS_MS.to_duration()),
+            info_limit: Limit::new(config::MAX_INFOS, config::MAX_INFOS_MS.to_duration()),
 
             work_queue: work_queue,
 
@@ -168,12 +153,12 @@ impl<'a> StatsBrowser<'a> {
             Ok(None) => { info!("Resolved {}, no address found", master.domain); },
             Err(x) => { warn!("Error while resolving {}, {}", master.domain, x); },
         }
-        self.work_queue.push(RESOLVE_REPEAT_MS.to_duration(), Work::Resolve(master_id));
+        self.work_queue.push(config::RESOLVE_REPEAT_MS.to_duration(), Work::Resolve(master_id));
         Ok(())
     }
     fn do_expect_list(&mut self, master_id: MasterId) -> Result<(),()> {
         if self.check_complete_list(master_id).is_ok() {
-            self.work_queue.push(LIST_REPEAT_MS.to_duration(), Work::RequestList(master_id));
+            self.work_queue.push(config::LIST_REPEAT_MS.to_duration(), Work::RequestList(master_id));
         } else {
             let MasterId(idx) = master_id;
             let master = self.master_servers.get_mut(&idx).unwrap();
@@ -202,14 +187,14 @@ impl<'a> StatsBrowser<'a> {
             return Err(());
         }
 
-        self.work_queue.push(LIST_EXPECT_MS.to_duration(), Work::ExpectList(master_id));
+        self.work_queue.push(config::LIST_EXPECT_MS.to_duration(), Work::ExpectList(master_id));
         Ok(())
     }
     fn do_expect_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
         let server = *self.servers.get_mut(&server_addr).unwrap();
 
         if server.num_missing_resp == 0 {
-            self.work_queue.push(INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
+            self.work_queue.push(config::INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
         } else {
             if server.num_missing_resp >= 10 {
                 // Throw the server out after ten missing replies.
@@ -248,7 +233,7 @@ impl<'a> StatsBrowser<'a> {
 
         server.num_missing_resp += 1;
 
-        self.work_queue.push(INFO_EXPECT_MS.to_duration(), Work::ExpectInfo(server_addr));
+        self.work_queue.push(config::INFO_EXPECT_MS.to_duration(), Work::ExpectInfo(server_addr));
         Ok(())
     }
     fn get_master_id(&self, addr: Addr) -> Option<MasterId> {
@@ -268,7 +253,6 @@ impl<'a> StatsBrowser<'a> {
 
         if let Some(updated_count) = updated_count {
             if (updated_count as int - updated_list.len() as int).abs() <= 5 {
-                let _old_count = mem::replace(&mut master.count, updated_count);
                 let _old_list = mem::replace(&mut master.list, updated_list);
                 // TODO: diff
                 return Ok(());
@@ -318,14 +302,14 @@ impl<'a> StatsBrowser<'a> {
         };
         match info {
             None => {
-                if server.num_malformed_resp < MAX_MALFORMED_RESP {
+                if server.num_malformed_resp < config::MAX_MALFORMED_RESP {
                     warn!("Received unparsable info from {}, {:?}", from, raw);
                 }
                 server.num_malformed_resp += 1;
             },
             Some(x) => {
                 if server.num_missing_resp == 0 {
-                    if server.num_extra_resp < MAX_EXTRA_RESP {
+                    if server.num_extra_resp < config::MAX_EXTRA_RESP {
                         warn!("Received info while not expecting it, from {}, {:?}", from, x);
                     }
                     server.num_extra_resp += 1;
@@ -421,7 +405,7 @@ impl<'a> StatsBrowser<'a> {
                     break;
                 }
             }
-            timer::sleep(SLEEP_MS.to_duration());
+            timer::sleep(config::SLEEP_MS.to_duration());
         }
     }
 }

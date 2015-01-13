@@ -35,7 +35,7 @@ impl Addr {
 }
 
 /// Server address including protocol version.
-#[derive(Clone, Copy, Eq, Hash, PartialEq, RustcEncodable)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ServerAddr {
     /// The protocol version of the listening server.
     pub version: ProtocolVersion,
