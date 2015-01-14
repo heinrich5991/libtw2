@@ -39,7 +39,7 @@ impl MasterServerEntry {
 }
 
 /// Describes a server.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ServerEntry {
     /// Number of missing responses since the last successful info request.
     pub num_missing_resp: u32,
@@ -64,7 +64,7 @@ impl ServerEntry {
 }
 
 /// Describes a server info response.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ServerResponse {
     /// The server info received from the info request.
     pub info: ServerInfo,

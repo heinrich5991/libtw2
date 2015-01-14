@@ -25,7 +25,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecMap;
-use std::collections::hash_map::Entry;
+use std::collections::hash_map;
 use std::default::Default;
 use std::io::net::addrinfo;
 use std::io::timer;
@@ -52,6 +52,30 @@ pub mod entry;
 pub mod socket;
 pub mod time;
 pub mod work_queue;
+
+trait HashMapEntryToInner<'a> {
+    type Key;
+    type Value;
+    fn into_occupied(self) -> Option<hash_map::OccupiedEntry<'a,<Self as HashMapEntryToInner<'a>>::Key,<Self as HashMapEntryToInner<'a>>::Value>>;
+    fn into_vacant(self) -> Option<hash_map::VacantEntry<'a,<Self as HashMapEntryToInner<'a>>::Key,<Self as HashMapEntryToInner<'a>>::Value>>;
+}
+
+impl<'a,K,V> HashMapEntryToInner<'a> for hash_map::Entry<'a,K,V> {
+    type Key = K;
+    type Value = V;
+    fn into_occupied(self) -> Option<hash_map::OccupiedEntry<'a,K,V>> {
+        match self {
+            hash_map::Entry::Occupied(o) => Some(o),
+            hash_map::Entry::Vacant(_) => None,
+        }
+    }
+    fn into_vacant(self) -> Option<hash_map::VacantEntry<'a,K,V>> {
+        match self {
+            hash_map::Entry::Occupied(_) => None,
+            hash_map::Entry::Vacant(v) => Some(v),
+        }
+    }
+}
 
 trait StatsBrowserCb {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo);
@@ -191,14 +215,14 @@ impl<'a> StatsBrowser<'a> {
         Ok(())
     }
     fn do_expect_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
-        let server = *self.servers.get_mut(&server_addr).unwrap();
+        let server = self.servers.entry(server_addr).into_occupied().unwrap();
 
-        if server.num_missing_resp == 0 {
+        if server.get().num_missing_resp == 0 {
             self.work_queue.push(config::INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
         } else {
-            if server.num_missing_resp >= 10 {
+            if server.get().num_missing_resp >= 10 {
                 // Throw the server out after ten missing replies.
-                match self.servers.remove(&server_addr).unwrap().resp {
+                match server.remove().resp {
                     Some(ref y) => self.cb.on_server_remove(server_addr, &y.info),
                     None => {},
                 }
@@ -286,7 +310,7 @@ impl<'a> StatsBrowser<'a> {
             if !master.updated_list.insert(s) {
                 warn!("Double-received {}", s);
             }
-            if let Entry::Vacant(v) = self.servers.entry(s) {
+            if let Some(v) = self.servers.entry(s).into_vacant() {
                 v.insert(ServerEntry::new());
                 self.work_queue.push_now(Work::RequestInfo(s));
             }
@@ -318,7 +342,7 @@ impl<'a> StatsBrowser<'a> {
                 server.num_missing_resp = 0;
                 debug!("Received server info from {}, {:?}", from, x);
                 match server.resp {
-                    Some(y) => self.cb.on_server_change(from, &y.info, &x),
+                    Some(ref y) => self.cb.on_server_change(from, &y.info, &x),
                     None => self.cb.on_server_new(from, &x)
                 }
                 server.resp = Some(ServerResponse::new(x));

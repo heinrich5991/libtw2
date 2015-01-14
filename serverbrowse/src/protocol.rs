@@ -311,7 +311,8 @@ impl fmt::Show for PString64 {
     }
 }
 
-#[derive(Copy, Clone, Default, Eq, Hash, PartialEq)]
+#[allow(missing_copy_implementations)]
+#[derive(Clone, Default, Eq, Hash, PartialEq)]
 pub struct PlayerInfo {
     pub name: PString64,
     pub clan: PString64,
@@ -366,7 +367,6 @@ impl ServerInfoVersion {
     }
 }
 
-#[derive(Copy)]
 pub struct ServerInfo {
     pub info_version: ServerInfoVersion,
     pub token: i32,
@@ -385,7 +385,7 @@ pub struct ServerInfo {
     pub clients_array: [PlayerInfo; MAX_CLIENTS],
 }
 
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Default, Eq, Hash, PartialEq)]
 struct ServerInfoRaw {
     pub offset: Option<i32>,
     pub rest: ServerInfo,
@@ -435,8 +435,6 @@ impl fmt::Show for ServerInfo {
     }
 }
 
-impl Clone for ServerInfo { fn clone(&self) -> ServerInfo { *self } }
-
 impl PartialEq for ServerInfo {
     fn eq(&self, other: &ServerInfo) -> bool {
         true
@@ -482,22 +480,32 @@ impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for ServerInfo {
 
 impl Default for ServerInfo {
     fn default() -> ServerInfo {
+        fn d<T:Default>() -> T { Default::default() }
         ServerInfo {
             info_version: ServerInfoVersion::V6,
-            token: Default::default(),
-            version: Default::default(),
-            name: Default::default(),
-            hostname: Default::default(),
-            map: Default::default(),
-            game_type: Default::default(),
-            flags: Default::default(),
-            progression: Default::default(),
-            skill_level: Default::default(),
-            num_players: Default::default(),
-            max_players: Default::default(),
-            num_clients: Default::default(),
-            max_clients: Default::default(),
-            clients_array: [Default::default(); MAX_CLIENTS],
+            token:        d(),
+            version:      d(),
+            name:         d(),
+            hostname:     d(),
+            map:          d(),
+            game_type:    d(),
+            flags:        d(),
+            progression:  d(),
+            skill_level:  d(),
+            num_players:  d(),
+            max_players:  d(),
+            num_clients:  d(),
+            max_clients:  d(),
+            clients_array: [
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+            ],
         }
     }
 }
@@ -737,6 +745,43 @@ pub struct Addr6Packed {
 impl fmt::String for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Show::fmt(self, f)
+    }
+}
+
+impl Clone for ServerInfo {
+    fn clone(&self) -> ServerInfo {
+        let c = &self.clients_array;
+        ServerInfo {
+            info_version: self.info_version.clone(),
+            token:        self.token       .clone(),
+            version:      self.version     .clone(),
+            name:         self.name        .clone(),
+            hostname:     self.hostname    .clone(),
+            map:          self.map         .clone(),
+            game_type:    self.game_type   .clone(),
+            flags:        self.flags       .clone(),
+            progression:  self.progression .clone(),
+            skill_level:  self.skill_level .clone(),
+            num_players:  self.num_players .clone(),
+            max_players:  self.max_players .clone(),
+            num_clients:  self.num_clients .clone(),
+            max_clients:  self.max_clients .clone(),
+            clients_array: [
+                c[ 0].clone(), c[ 1].clone(), c[ 2].clone(), c[ 3].clone(), c[ 4].clone(),
+                c[ 5].clone(), c[ 6].clone(), c[ 7].clone(), c[ 8].clone(), c[ 9].clone(),
+                c[10].clone(), c[11].clone(), c[12].clone(), c[13].clone(), c[14].clone(),
+                c[15].clone(), c[16].clone(), c[17].clone(), c[18].clone(), c[19].clone(),
+                c[20].clone(), c[21].clone(), c[22].clone(), c[23].clone(), c[24].clone(),
+                c[25].clone(), c[26].clone(), c[27].clone(), c[28].clone(), c[29].clone(),
+                c[30].clone(), c[31].clone(), c[32].clone(), c[33].clone(), c[34].clone(),
+                c[35].clone(), c[36].clone(), c[37].clone(), c[38].clone(), c[39].clone(),
+                c[40].clone(), c[41].clone(), c[42].clone(), c[43].clone(), c[44].clone(),
+                c[45].clone(), c[46].clone(), c[47].clone(), c[48].clone(), c[49].clone(),
+                c[50].clone(), c[51].clone(), c[52].clone(), c[53].clone(), c[54].clone(),
+                c[55].clone(), c[56].clone(), c[57].clone(), c[58].clone(), c[59].clone(),
+                c[60].clone(), c[61].clone(), c[62].clone(), c[63].clone(),
+            ]
+        }
     }
 }
 
