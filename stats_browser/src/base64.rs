@@ -3,19 +3,11 @@ use rustc_serialize::base64::ToBase64;
 
 use std::fmt;
 
-use serverbrowse::protocol::PString64;
-use serverbrowse::protocol::NzU8SliceExt;
-
 /// A struct for printing a byte array as [Base64][wiki].
 ///
 /// [wiki]: https://en.wikipedia.org/wiki/Base64
 #[derive(Copy, Clone)]
-pub struct B64<'a>(&'a [u8]);
-
-/// Returns a `B64` for a `PString64`.
-pub fn b64(string: &PString64) -> B64 {
-    B64(string.as_slice().as_bytes())
-}
+pub struct B64<'a>(pub &'a [u8]);
 
 impl<'a> fmt::String for B64<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
