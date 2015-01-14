@@ -116,9 +116,9 @@ impl<'a,T> Iterator for IterOther<'a,T> {
     fn next(&mut self) -> Option<&'a Timed<T>> {
         loop {
             {
-                let iter = match &mut self.iter {
-                    &mut Some(ref mut i) => i,
-                    &mut None => return None,
+                let iter = match self.iter {
+                    Some(ref mut i) => i,
+                    None => return None,
                 };
                 match iter.next() {
                     Some(x) => return Some(x),
@@ -130,9 +130,9 @@ impl<'a,T> Iterator for IterOther<'a,T> {
     }
     // TODO: implement `size_hint`
     fn size_hint(&self) -> (uint, Option<uint>) {
-        let (lower, _upper) = match &self.iter {
-            &Some(ref i) => { let (l, u) = i.size_hint(); (l, u.unwrap()) },
-            &None => return (0, Some(0)),
+        let (lower, _upper) = match self.iter {
+            Some(ref i) => { let (l, u) = i.size_hint(); (l, u.unwrap()) },
+            None => return (0, Some(0)),
         };
         (lower, None)
     }
