@@ -5,6 +5,8 @@ use serverbrowse::protocol::ServerInfo;
 
 use std::cmp::Ordering;
 
+use rust_time;
+
 use addr::ProtocolVersion;
 use addr::ServerAddr;
 use base64::B64;
@@ -120,17 +122,34 @@ pub fn b64(string: &PString64) -> B64 {
     B64(string.as_slice().as_bytes())
 }
 
+// TODO: `args` should be `&[&fmt::String]`.
+fn print(command: &str, args: &[&str]) {
+    print!("{}\t{}", rust_time::get_time().sec, command);
+    for a in args.iter() {
+        print!("\t{}", a);
+    }
+    println!("");
+}
+
 fn print_start() {
-    println!("START\t1.0\tlibtw2\t0.1");
+    print("START", &["1.0", "libtw2", "0.1"]);
 }
 
 fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
-    println!("PLADD\t{}\t{}\t{}\t{}\t{}", addr.addr, b64(&info.name), b64(&info.clan), info.is_player, info.country);
+    print("PLADD", &[
+        addr.addr.to_string().as_slice(),
+        b64(&info.name).to_string().as_slice(),
+        b64(&info.clan).to_string().as_slice(),
+        info.is_player.to_string().as_slice(),
+        info.country.to_string().as_slice(),
+    ]);
 }
 
 fn print_player_remove(addr: ServerAddr, info: &PlayerInfo) {
-    if info.name.as_slice().as_bytes() == "(connecting)".as_bytes() { return; }
-    println!("PLDEL\t{}\t{}", addr.addr, b64(&info.name));
+    print("PLDEL", &[
+        addr.addr.to_string().as_slice(),
+        b64(&info.name).to_string().as_slice(),
+    ]);
 }
 
 fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
@@ -140,19 +159,18 @@ fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
 
 fn print_server_remove(addr: ServerAddr, info: &ServerInfo) {
     let _ = info;
-    println!("SVDEL\t{}", addr.addr);
+    print("SVDEL", &[addr.addr.to_string().as_slice()]);
 }
 
 fn print_server_change_impl(addr: ServerAddr, new: bool, info: &ServerInfo) {
-    println!("{}\t{}\t{}\t{}\t{}\t{}\t{}",
-        if new { "SVADD" } else { "SVCHG" },
-        addr.addr,
-        info.flags,
-        b64(&info.version),
-        b64(&info.game_type),
-        b64(&info.map),
-        b64(&info.name),
-    );
+    print(if new { "SVADD" } else { "SVCHG" }, &[
+        addr.addr.to_string().as_slice(),
+        info.flags.to_string().as_slice(),
+        b64(&info.version).to_string().as_slice(),
+        b64(&info.game_type).to_string().as_slice(),
+        b64(&info.map).to_string().as_slice(),
+        b64(&info.name).to_string().as_slice(),
+    ]);
 }
 
 fn print_server_new(addr: ServerAddr, info: &ServerInfo) {
