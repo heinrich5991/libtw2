@@ -99,7 +99,7 @@ pub struct StatsBrowser<'a> {
 impl<'a> StatsBrowser<'a> {
     pub fn new(cb: &mut StatsBrowserCb) -> Option<StatsBrowser> {
         StatsBrowser::new_without_masters(cb).map(|mut browser| {
-            for i in range(0u32, 4).map(|x| x + 1) {
+            for i in (0..4).map(|x| x + 1) {
                 browser.add_master(format!("master{}.teeworlds.com", i));
             }
             browser

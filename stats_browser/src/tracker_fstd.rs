@@ -4,6 +4,7 @@ use serverbrowse::protocol::PlayerInfo;
 use serverbrowse::protocol::ServerInfo;
 
 use std::cmp::Ordering;
+use std::fmt;
 
 use rust_time;
 
@@ -122,8 +123,7 @@ pub fn b64(string: &PString64) -> B64 {
     B64(string.as_slice().as_bytes())
 }
 
-// TODO: `args` should be `&[&fmt::String]`.
-fn print(command: &str, args: &[&str]) {
+fn print(command: &str, args: &[&fmt::String]) {
     print!("{}\t{}", rust_time::get_time().sec, command);
     for a in args.iter() {
         print!("\t{}", a);
@@ -132,23 +132,23 @@ fn print(command: &str, args: &[&str]) {
 }
 
 fn print_start() {
-    print("START", &["1.0", "libtw2", "0.1"]);
+    print("START", &[&"1.0", &"libtw2_statsbrowser", &"0.1"]);
 }
 
 fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
     print("PLADD", &[
-        addr.addr.to_string().as_slice(),
-        b64(&info.name).to_string().as_slice(),
-        b64(&info.clan).to_string().as_slice(),
-        info.is_player.to_string().as_slice(),
-        info.country.to_string().as_slice(),
+        &addr.addr,
+        &b64(&info.name),
+        &b64(&info.clan),
+        &info.is_player,
+        &info.country,
     ]);
 }
 
 fn print_player_remove(addr: ServerAddr, info: &PlayerInfo) {
     print("PLDEL", &[
-        addr.addr.to_string().as_slice(),
-        b64(&info.name).to_string().as_slice(),
+        &addr.addr,
+        &b64(&info.name),
     ]);
 }
 
@@ -159,17 +159,17 @@ fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
 
 fn print_server_remove(addr: ServerAddr, info: &ServerInfo) {
     let _ = info;
-    print("SVDEL", &[addr.addr.to_string().as_slice()]);
+    print("SVDEL", &[&addr.addr]);
 }
 
 fn print_server_change_impl(addr: ServerAddr, new: bool, info: &ServerInfo) {
     print(if new { "SVADD" } else { "SVCHG" }, &[
-        addr.addr.to_string().as_slice(),
-        info.flags.to_string().as_slice(),
-        b64(&info.version).to_string().as_slice(),
-        b64(&info.game_type).to_string().as_slice(),
-        b64(&info.map).to_string().as_slice(),
-        b64(&info.name).to_string().as_slice(),
+        &addr.addr,
+        &info.flags,
+        &b64(&info.version),
+        &b64(&info.game_type),
+        &b64(&info.map),
+        &b64(&info.name),
     ]);
 }
 

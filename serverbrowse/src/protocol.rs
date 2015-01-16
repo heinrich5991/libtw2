@@ -2,6 +2,7 @@ use common;
 use common::num::BeU16;
 use common::num::LeU16;
 
+use std::cmp;
 use std::default::Default;
 use std::fmt;
 use std::hash;
@@ -17,7 +18,7 @@ use std::str;
 
 const MAX_CLIENTS:     uint = 64;
 const MAX_CLIENTS_5:   uint = 16;
-const MAX_CLIENTS_664: uint = 64;
+const MAX_CLIENTS_6_64: uint = 64;
 
 pub const MASTERSERVER_PORT: u16 = 8300;
 
@@ -145,7 +146,7 @@ pub fn read_int(iter: &mut slice::Iter<u8>) -> Option<i32> {
 
     result |= (src & 0x3f) as i32; // 0x3f == 0b0011_1111
 
-    for i in range(0u32, 4) {
+    for i in 0..4 {
         if src & 0x80 == 0 { // 0x80 == 0b1000_0000
             break;
         }
@@ -346,8 +347,16 @@ impl ServerInfoVersion {
         match self {
             ServerInfoVersion::V5   => MAX_CLIENTS_5,
             ServerInfoVersion::V6   => MAX_CLIENTS_5,
-            ServerInfoVersion::V664 => MAX_CLIENTS_664,
+            ServerInfoVersion::V664 => MAX_CLIENTS_6_64,
             ServerInfoVersion::V7   => MAX_CLIENTS_5,
+        }
+    }
+    pub fn clients_per_packet(self) -> uint {
+        match self {
+            ServerInfoVersion::V5   => 16,
+            ServerInfoVersion::V6   => 16,
+            ServerInfoVersion::V664 => 24,
+            ServerInfoVersion::V7   => 16,
         }
     }
     pub fn has_hostname(self) -> bool {
@@ -383,12 +392,6 @@ pub struct ServerInfo {
     pub num_clients: i32,
     pub max_clients: i32,
     pub clients_array: [PlayerInfo; MAX_CLIENTS],
-}
-
-#[derive(Clone, Default, Eq, Hash, PartialEq)]
-struct ServerInfoRaw {
-    pub offset: Option<i32>,
-    pub rest: ServerInfo,
 }
 
 impl ServerInfo {
@@ -435,78 +438,20 @@ impl fmt::Show for ServerInfo {
     }
 }
 
-impl PartialEq for ServerInfo {
-    fn eq(&self, other: &ServerInfo) -> bool {
-        true
-        && self.info_version == other.info_version
-        && self.token        == other.token
-        && self.version      == other.version
-        && self.name         == other.name
-        && self.hostname     == other.hostname
-        && self.map          == other.map
-        && self.game_type    == other.game_type
-        && self.flags        == other.flags
-        && self.progression  == other.progression
-        && self.skill_level  == other.skill_level
-        && self.num_players  == other.num_players
-        && self.max_players  == other.max_players
-        && self.num_clients  == other.num_clients
-        && self.max_clients  == other.max_clients
-        && self.clients()    == other.clients()
-    }
+pub struct PartialServerInfo {
+    info: ServerInfo,
+    fill_array: [bool; MAX_CLIENTS],
 }
 
-impl Eq for ServerInfo { }
-
-impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for ServerInfo {
-    fn hash(&self, state: &mut S) {
-        self.info_version.hash(state);
-        self.token       .hash(state);
-        self.version     .hash(state);
-        self.name        .hash(state);
-        self.hostname    .hash(state);
-        self.map         .hash(state);
-        self.game_type   .hash(state);
-        self.flags       .hash(state);
-        self.progression .hash(state);
-        self.skill_level .hash(state);
-        self.num_players .hash(state);
-        self.max_players .hash(state);
-        self.num_clients .hash(state);
-        self.max_clients .hash(state);
-        self.clients()   .hash(state);
+impl PartialServerInfo {
+    fn fill(&self) -> &[bool] {
+        self.fill_array.slice_to(self.info.real_num_clients())
     }
-}
-
-impl Default for ServerInfo {
-    fn default() -> ServerInfo {
-        fn d<T:Default>() -> T { Default::default() }
-        ServerInfo {
-            info_version: ServerInfoVersion::V6,
-            token:        d(),
-            version:      d(),
-            name:         d(),
-            hostname:     d(),
-            map:          d(),
-            game_type:    d(),
-            flags:        d(),
-            progression:  d(),
-            skill_level:  d(),
-            num_players:  d(),
-            max_players:  d(),
-            num_clients:  d(),
-            max_clients:  d(),
-            clients_array: [
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-                d(), d(), d(), d(), d(), d(), d(), d(),
-            ],
-        }
+    fn fill_mut(&mut self) -> &mut [bool] {
+        self.fill_array.slice_to_mut(self.info.real_num_clients())
+    }
+    pub fn merge(&mut self, other: &PartialServerInfo) {
+        unimplemented!();
     }
 }
 
@@ -515,16 +460,16 @@ fn parse_server_info<RI,RS>(
     read_int: RI,
     read_str: RS,
     version: ServerInfoVersion,
-) -> Option<ServerInfoRaw>
+) -> Option<PartialServerInfo>
     where RI: FnMut(&mut Unpacker) -> Option<i32>,
           RS: FnMut(&mut Unpacker) -> Option<PString64>,
 {
     let mut read_int = read_int;
     let mut read_str = read_str;
-    let mut result: ServerInfoRaw = Default::default();
+    let mut result: PartialServerInfo = Default::default();
 
-    {
-        let i = &mut result.rest;
+    let (offset, end) = {
+        let i = &mut result.info;
         i.info_version = version;
 
         i.token       = unwrap_or_return!(read_int(unpacker), None);
@@ -558,10 +503,11 @@ fn parse_server_info<RI,RS>(
             i.max_clients = i.max_players;
         }
 
+        let offset;
         if version.has_offset() {
-            result.offset = Some(unwrap_or_return!(read_int(unpacker), None));
+            offset = unwrap_or_return!(read_int(unpacker), None);
         } else {
-            result.offset = None;
+            offset = 0;
         }
 
         // Error handling copied from Teeworlds' source.
@@ -573,7 +519,15 @@ fn parse_server_info<RI,RS>(
             return None;
         }
 
-        for c in i.clients_mut().iter_mut() {
+        let offset = unwrap_or_return!(offset.to_uint(), None);
+        // 64p offset checking
+        if offset >= i.real_num_clients() {
+            return None;
+        }
+
+        let end = cmp::min(offset + version.clients_per_packet(), i.real_num_clients());
+
+        for c in i.clients_mut()[offset..end].iter_mut() {
             c.name = unwrap_or_return!(read_str(unpacker), None);
             if version.has_extended_player_info() {
                 c.clan    = unwrap_or_return!(read_str(unpacker), None);
@@ -589,6 +543,10 @@ fn parse_server_info<RI,RS>(
                 c.is_player = 1;
             }
         }
+        (offset, end)
+    };
+    for f in result.fill_mut()[offset..end].iter_mut() {
+        *f = true;
     }
 
     Some(result)
@@ -618,7 +576,7 @@ impl<'a> Info5Response<'a> {
             info_read_int_v5,
             info_read_str,
             ServerInfoVersion::V5,
-        ).map(|mut raw| { raw.rest.sort_clients(); raw.rest })
+        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
     }
 }
 
@@ -634,7 +592,7 @@ impl<'a> Info6Response<'a> {
         let Info6Response(slice) = self;
         let mut unpacker = Unpacker::from_slice(slice);
         parse_server_info(&mut unpacker, read_int, read_str, version)
-            .map(|mut raw| { raw.rest.sort_clients(); raw.rest })
+            .map(|mut raw| { raw.info.sort_clients(); raw.info })
     }
     pub fn parse_v6(self) -> Option<ServerInfo> {
         self.parse_impl(info_read_int_v5, info_read_str, ServerInfoVersion::V6)
@@ -644,6 +602,19 @@ impl<'a> Info6Response<'a> {
     }
     pub fn parse(self) -> Option<ServerInfo> {
         Info6Response::parse_v6(self).or_else(|| Info6Response::parse_v7(self))
+    }
+}
+
+impl<'a> Info664Response<'a> {
+    pub fn parse(self) -> Option<PartialServerInfo> {
+        let Info664Response(slice) = self;
+        let mut unpacker = Unpacker::from_slice(slice);
+        parse_server_info(
+            &mut unpacker,
+            info_read_int_v5,
+            info_read_str,
+            ServerInfoVersion::V664,
+        )
     }
 }
 
@@ -781,6 +752,124 @@ impl Clone for ServerInfo {
                 c[55].clone(), c[56].clone(), c[57].clone(), c[58].clone(), c[59].clone(),
                 c[60].clone(), c[61].clone(), c[62].clone(), c[63].clone(),
             ]
+        }
+    }
+}
+
+impl Default for ServerInfo {
+    fn default() -> ServerInfo {
+        fn d<T:Default>() -> T { Default::default() }
+        ServerInfo {
+            info_version: ServerInfoVersion::V6,
+            token:        d(),
+            version:      d(),
+            name:         d(),
+            hostname:     d(),
+            map:          d(),
+            game_type:    d(),
+            flags:        d(),
+            progression:  d(),
+            skill_level:  d(),
+            num_players:  d(),
+            max_players:  d(),
+            num_clients:  d(),
+            max_clients:  d(),
+            clients_array: [
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+            ],
+        }
+    }
+}
+
+impl PartialEq for ServerInfo {
+    fn eq(&self, other: &ServerInfo) -> bool {
+        true
+        && self.info_version == other.info_version
+        && self.token        == other.token
+        && self.version      == other.version
+        && self.name         == other.name
+        && self.hostname     == other.hostname
+        && self.map          == other.map
+        && self.game_type    == other.game_type
+        && self.flags        == other.flags
+        && self.progression  == other.progression
+        && self.skill_level  == other.skill_level
+        && self.num_players  == other.num_players
+        && self.max_players  == other.max_players
+        && self.num_clients  == other.num_clients
+        && self.max_clients  == other.max_clients
+        && self.clients()    == other.clients()
+    }
+}
+
+impl Eq for ServerInfo { }
+
+impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for ServerInfo {
+    fn hash(&self, state: &mut S) {
+        self.info_version.hash(state);
+        self.token       .hash(state);
+        self.version     .hash(state);
+        self.name        .hash(state);
+        self.hostname    .hash(state);
+        self.map         .hash(state);
+        self.game_type   .hash(state);
+        self.flags       .hash(state);
+        self.progression .hash(state);
+        self.skill_level .hash(state);
+        self.num_players .hash(state);
+        self.max_players .hash(state);
+        self.num_clients .hash(state);
+        self.max_clients .hash(state);
+        self.clients()   .hash(state);
+    }
+}
+
+impl Clone for PartialServerInfo {
+    fn clone(&self) -> PartialServerInfo {
+        let f = &self.fill_array;
+        PartialServerInfo {
+            info: self.info.clone(),
+            fill_array: [
+                f[ 0].clone(), f[ 1].clone(), f[ 2].clone(), f[ 3].clone(), f[ 4].clone(),
+                f[ 5].clone(), f[ 6].clone(), f[ 7].clone(), f[ 8].clone(), f[ 9].clone(),
+                f[10].clone(), f[11].clone(), f[12].clone(), f[13].clone(), f[14].clone(),
+                f[15].clone(), f[16].clone(), f[17].clone(), f[18].clone(), f[19].clone(),
+                f[20].clone(), f[21].clone(), f[22].clone(), f[23].clone(), f[24].clone(),
+                f[25].clone(), f[26].clone(), f[27].clone(), f[28].clone(), f[29].clone(),
+                f[30].clone(), f[31].clone(), f[32].clone(), f[33].clone(), f[34].clone(),
+                f[35].clone(), f[36].clone(), f[37].clone(), f[38].clone(), f[39].clone(),
+                f[40].clone(), f[41].clone(), f[42].clone(), f[43].clone(), f[44].clone(),
+                f[45].clone(), f[46].clone(), f[47].clone(), f[48].clone(), f[49].clone(),
+                f[50].clone(), f[51].clone(), f[52].clone(), f[53].clone(), f[54].clone(),
+                f[55].clone(), f[56].clone(), f[57].clone(), f[58].clone(), f[59].clone(),
+                f[60].clone(), f[61].clone(), f[62].clone(), f[63].clone(),
+            ]
+        }
+    }
+}
+
+impl Default for PartialServerInfo {
+    fn default() -> PartialServerInfo {
+        fn d<T:Default>() -> T { Default::default() }
+        PartialServerInfo {
+            info: d(),
+            fill_array: [
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+                d(), d(), d(), d(), d(), d(), d(), d(),
+            ],
         }
     }
 }
