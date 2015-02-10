@@ -29,6 +29,6 @@ impl<'a> fmt::String for B64<'a> {
 
 impl<'a> fmt::Show for B64<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-	fmt::String::fmt(self, f)
+        fmt::String::fmt(self, f)
     }
 }

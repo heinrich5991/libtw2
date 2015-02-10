@@ -23,7 +23,7 @@ impl Ms {
 
 /// Point in time. This is strictly monotonic, but only for the runtime of the
 /// program.
-#[derive(Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Time(u64); // In milliseconds.
 
 impl Add<Duration> for Time {
@@ -40,8 +40,8 @@ impl Sub<Time> for Time {
         let (Time(left), Time(right)) = (self, rhs);
         Duration::milliseconds(
             right.checked_sub(left).map(|x| x.to_i64().expect("Overflow while converting to i64"))
-	    .or_else(|| left.checked_sub(right).map(|x| -x.to_i64().expect("Overflow while converting to i64")))
-	    .expect("Overflow while subtracting")
+            .or_else(|| left.checked_sub(right).map(|x| -x.to_i64().expect("Overflow while converting to i64")))
+            .expect("Overflow while subtracting")
         )
     }
 }
@@ -54,7 +54,7 @@ impl Time {
 }
 
 /// A struct holding data and a time.
-#[derive(Copy, Clone, Eq, Hash, PartialEq, Show)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Timed<T> {
     /// The data.
     pub data: T,

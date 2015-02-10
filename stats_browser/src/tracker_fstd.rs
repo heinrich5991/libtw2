@@ -2,6 +2,7 @@ use serverbrowse::protocol::NzU8SliceExt;
 use serverbrowse::protocol::PString64;
 use serverbrowse::protocol::PlayerInfo;
 use serverbrowse::protocol::ServerInfo;
+use serverbrowse::protocol::ServerInfoVersion;
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -119,11 +120,27 @@ impl StatsBrowserCb for Tracker {
 }
 
 /// Returns a `B64` for a `PString64`.
-pub fn b64(string: &PString64) -> B64 {
+fn b64(string: &PString64) -> B64 {
     B64(string.as_slice().as_bytes())
 }
 
-fn print(command: &str, args: &[&fmt::String]) {
+#[derive(Clone, Copy)]
+struct LogVersion(ServerInfoVersion);
+
+impl fmt::String for LogVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let LogVersion(inner) = *self;
+        let output = match inner {
+            ServerInfoVersion::V5 => "5",
+            ServerInfoVersion::V6 => "6",
+            ServerInfoVersion::V664 => "6_64",
+            ServerInfoVersion::V7 => "7",
+        };
+        fmt::String::fmt(&output, f)
+    }
+}
+
+fn print(command: &str, args: &[&fmt::Display]) {
     print!("{}\t{}", rust_time::get_time().sec, command);
     for a in args.iter() {
         print!("\t{}", a);
@@ -135,8 +152,9 @@ fn print_start() {
     print("START", &[&"1.0", &"libtw2_statsbrowser", &"0.1"]);
 }
 
-fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
+fn print_player_new(ver: LogVersion, addr: ServerAddr, info: &PlayerInfo) {
     print("PLADD", &[
+        &ver,
         &addr.addr,
         &b64(&info.name),
         &b64(&info.clan),
@@ -145,26 +163,31 @@ fn print_player_new(addr: ServerAddr, info: &PlayerInfo) {
     ]);
 }
 
-fn print_player_remove(addr: ServerAddr, info: &PlayerInfo) {
+fn print_player_remove(ver: LogVersion, addr: ServerAddr, info: &PlayerInfo) {
     print("PLDEL", &[
+        &ver,
         &addr.addr,
         &b64(&info.name),
     ]);
 }
 
-fn print_player_change(addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
-    print_player_remove(addr, new);
-    print_player_new(addr, old);
+fn print_player_change(ver: LogVersion, addr: ServerAddr, old: &PlayerInfo, new: &PlayerInfo) {
+    print_player_remove(ver, addr, new);
+    print_player_new(ver, addr, old);
 }
 
-fn print_server_remove(addr: ServerAddr, info: &ServerInfo) {
+fn print_server_remove(ver: LogVersion, addr: ServerAddr, info: &ServerInfo) {
     let _ = info;
-    print("SVDEL", &[&addr.addr]);
+    print("SVDEL", &[
+        &addr.addr,
+        &ver,
+    ]);
 }
 
-fn print_server_change_impl(addr: ServerAddr, new: bool, info: &ServerInfo) {
+fn print_server_change_impl(ver: LogVersion, addr: ServerAddr, new: bool, info: &ServerInfo) {
     print(if new { "SVADD" } else { "SVCHG" }, &[
         &addr.addr,
+        &LogVersion(info.info_version),
         &info.flags,
         &b64(&info.version),
         &b64(&info.game_type),

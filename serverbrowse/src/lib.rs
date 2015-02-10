@@ -1,5 +1,6 @@
-#![allow(unstable)]
-#![feature(int_uint)]
+#![feature(core)]
+#![feature(hash)]
+#![feature(io)]
 
 #[macro_use] extern crate common;
 #[macro_use] extern crate log;

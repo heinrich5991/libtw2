@@ -13,8 +13,8 @@ use std::collections::HashSet;
 use std::collections::VecMap;
 use std::collections::hash_map;
 use std::default::Default;
-use std::io::net::addrinfo;
-use std::io::timer;
+use std::old_io::net::addrinfo;
+use std::old_io::timer;
 use std::mem;
 use std::num::SignedInt;
 
@@ -61,8 +61,8 @@ pub trait StatsBrowserCb {
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo);
 }
 
-#[derive(Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable, Show)]
-struct MasterId(uint);
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
+struct MasterId(usize);
 
 impl MasterId {
     fn get_and_inc(&mut self) -> MasterId {
@@ -178,7 +178,7 @@ impl<'a> StatsBrowser<'a> {
         }
 
         let socket = &mut self.socket;
-        let mut send = |&mut: data: &[u8]| socket.send_to(data, master.addr.unwrap()).unwrap();
+        let mut send = |data: &[u8]| socket.send_to(data, master.addr.unwrap()).unwrap();
 
         debug!("Requesting count and list from {}", master.domain);
         if protocol::request_count(|y| send(y)).would_block()
@@ -221,7 +221,7 @@ impl<'a> StatsBrowser<'a> {
         debug!("Requesting info from {}", server_addr);
         let socket = &mut self.socket;
 
-        let mut send = |&mut: data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
+        let mut send = |data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
 
         let would_block = match server_addr.version {
             ProtocolVersion::V5 => protocol::request_info_5(|x| send(x)).would_block(),
@@ -254,7 +254,7 @@ impl<'a> StatsBrowser<'a> {
         let updated_list = mem::replace(&mut master.updated_list, HashSet::new());
 
         if let Some(updated_count) = updated_count {
-            if (updated_count as int - updated_list.len() as int).abs() <= 5 {
+            if (updated_count as isize - updated_list.len() as isize).abs() <= 5 {
                 let _old_list = mem::replace(&mut master.list, updated_list);
                 // TODO: diff
                 return Ok(());

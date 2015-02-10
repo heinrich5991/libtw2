@@ -1,7 +1,6 @@
 #![cfg(not(test))]
 
-#![allow(unstable)]
-#![feature(int_uint)]
+#![feature(io)]
 
 #[macro_use]
 extern crate log;
@@ -11,11 +10,11 @@ extern crate serverbrowse;
 use serverbrowse::protocol as browse_protocol;
 use serverbrowse::protocol::Response;
 
-use std::io::net::ip::Ipv4Addr;
-use std::io::net::ip::SocketAddr;
-use std::io::net::udp::UdpSocket;
+use std::old_io::net::ip::Ipv4Addr;
+use std::old_io::net::ip::SocketAddr;
+use std::old_io::net::udp::UdpSocket;
 
-const BUFSIZE: uint = 2048;
+const BUFSIZE: usize = 2048;
 
 fn main() {
     let bindaddr = SocketAddr { ip: Ipv4Addr(0, 0, 0, 0), port: 0 };
@@ -37,7 +36,7 @@ fn main() {
             continue;
         }
 
-        match browse_protocol::parse_response(buf.slice_to(len)) {
+        match browse_protocol::parse_response(&buf[..len]) {
             Some(Response::Info6(x)) => {
 	    	println!("{:?}", x.parse().unwrap());
                 break;
@@ -48,7 +47,7 @@ fn main() {
         }
 
         //let browse_protocol::ListResponse(server_addrs)
-        //    = browse_protocol::parse_response(buf.slice_to(len))
+        //    = browse_protocol::parse_response(&buf[..len])
         //      .map(|x| x.to_list()).unwrap_or(None).unwrap();
         //let server_addrs: &[browse_protocol::AddrPacked] = server_addrs;
 

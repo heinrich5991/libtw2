@@ -19,7 +19,7 @@ pub struct LeU16([u8; 2]);
 // BOILERPLATE CODE BELOW
 // ======================
 
-const S16: uint = 2;
+const S16: usize = 2;
 #[test] fn check_size_beu16() { assert_eq!(mem::size_of::<BeU16>(), S16); }
 #[test] fn check_size_leu16() { assert_eq!(mem::size_of::<LeU16>(), S16); }
 #[test] fn check_align_beu16() { assert_eq!(mem::align_of::<BeU16>(), 1); }

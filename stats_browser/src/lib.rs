@@ -1,8 +1,5 @@
 #![cfg(not(test))]
 
-#![allow(unstable)]
-#![feature(int_uint)]
-
 #[macro_use] extern crate log;
 extern crate "time" as rust_time;
 extern crate "rustc-serialize" as rustc_serialize;

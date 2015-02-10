@@ -34,7 +34,7 @@ impl UdpSocket {
     /// Receives a UDP packet. Non-blocking.
     ///
     /// Returns number number of bytes read and the source address.
-    pub fn recv_from(&mut self, buf: &mut [u8]) -> SockResult<NonBlock<(uint, Addr)>> {
+    pub fn recv_from(&mut self, buf: &mut [u8]) -> SockResult<NonBlock<(usize, Addr)>> {
         let &mut UdpSocket(ref mut mio_sock) = self;
         let buf_len = buf.len();
         let mut mio_buf = MutSliceBuf::wrap(buf);
@@ -87,7 +87,7 @@ pub type SockResult<T> = Result<T,SockError>;
 pub type NonBlock<T> = Result<T,WouldBlock>;
 
 /// Returned when an operation can't succeed without blocking.
-#[derive(Clone, Copy, Eq, PartialEq, Show)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WouldBlock;
 
 // ---------------------------------------
@@ -96,9 +96,9 @@ pub struct WouldBlock;
 
 impl Eq for SockError {}
 
-impl fmt::Show for SockError {
+impl fmt::Debug for SockError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let SockError(ref inner) = *self;
-	fmt::Show::fmt(inner, f)
+        fmt::Debug::fmt(inner, f)
     }
 }

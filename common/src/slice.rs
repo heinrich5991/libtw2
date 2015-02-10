@@ -1,12 +1,12 @@
 use std::mem;
 use std::raw;
 
-pub fn relative_size_of_mult<T,U>(mult: uint) -> uint {
+pub fn relative_size_of_mult<T,U>(mult: usize) -> usize {
     assert!(mult * mem::size_of::<T>() % mem::size_of::<U>() == 0);
     mult * mem::size_of::<T>() / mem::size_of::<U>()
 }
 
-pub fn relative_size_of<T,U>() -> uint {
+pub fn relative_size_of<T,U>() -> usize {
     relative_size_of_mult::<T,U>(1)
 }
 

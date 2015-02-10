@@ -6,19 +6,19 @@ use std::cmp;
 use std::default::Default;
 use std::fmt;
 use std::hash;
-use std::io::net::ip::IpAddr;
-use std::io::net::ip::Ipv4Addr;
-use std::io::net::ip::Ipv6Addr;
 use std::mem;
 use std::num::ToPrimitive;
+use std::old_io::net::ip::IpAddr;
+use std::old_io::net::ip::Ipv4Addr;
+use std::old_io::net::ip::Ipv6Addr;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::slice;
 use std::str;
 
-const MAX_CLIENTS:     uint = 64;
-const MAX_CLIENTS_5:   uint = 16;
-const MAX_CLIENTS_6_64: uint = 64;
+const MAX_CLIENTS:      u32 = 64;
+const MAX_CLIENTS_5:    u32 = 16;
+const MAX_CLIENTS_6_64: u32 = 64;
 
 pub const MASTERSERVER_PORT: u16 = 8300;
 
@@ -41,14 +41,14 @@ impl NzU8 {
     }
 }
 
-impl fmt::Show for NzU8 {
+impl fmt::Debug for NzU8 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let NzU8(v) = *self;
         v.fmt(f)
     }
 }
 
-impl fmt::String for NzU8 {
+impl fmt::Display for NzU8 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let NzU8(v) = *self;
         v.fmt(f)
@@ -116,21 +116,21 @@ impl ZBytes {
     unsafe fn as_bytes_mut(&mut self) -> &mut [u8] {
         &mut self.0
     }
-    pub fn slice_from(&self, begin: uint) -> &ZBytes {
+    pub fn slice_from(&self, begin: usize) -> &ZBytes {
         assert!(begin < self.as_bytes().len(), "cannot slice nul byte away");
-        unsafe { ZBytes::from_bytes_unchecked(self.as_bytes().slice_from(begin)) }
+        unsafe { ZBytes::from_bytes_unchecked(&self.as_bytes()[begin..]) }
     }
-    pub fn slice_from_mut(&mut self, begin: uint) -> &mut ZBytes {
+    pub fn slice_from_mut(&mut self, begin: usize) -> &mut ZBytes {
         assert!(begin < self.as_bytes().len(), "cannot slice nul byte away");
-        unsafe { ZBytes::from_bytes_unchecked_mut(self.as_bytes_mut().slice_from_mut(begin)) }
+        unsafe { ZBytes::from_bytes_unchecked_mut(&mut self.as_bytes_mut()[begin..]) }
     }
     pub fn as_nzbytes(&self) -> &[NzU8] {
         let len = self.as_bytes().len();
-        unsafe { mem::transmute(self.as_bytes().slice_to(len - 1)) }
+        unsafe { mem::transmute(&self.as_bytes()[..len - 1]) }
     }
     pub fn as_nzbytes_mut(&mut self) -> &mut [NzU8] {
         let len = self.as_bytes().len();
-        unsafe { mem::transmute(self.as_bytes_mut().slice_to_mut(len - 1)) }
+        unsafe { mem::transmute(&mut self.as_bytes_mut()[..len - 1]) }
     }
 }
 
@@ -144,14 +144,14 @@ pub fn read_int(iter: &mut slice::Iter<u8>) -> Option<i32> {
     let mut src = *unwrap_or_return!(iter.next(), None);
     let sign = ((src >> 6) & 1) as i32;
 
-    result |= (src & 0x3f) as i32; // 0x3f == 0b0011_1111
+    result |= (src & 0b0011_1111) as i32;
 
     for i in 0..4 {
-        if src & 0x80 == 0 { // 0x80 == 0b1000_0000
+        if src & 0b1000_0000 == 0 {
             break;
         }
         src = *unwrap_or_return!(iter.next(), None);
-        result |= ((src & 0x7f) as i32) << (6 + 7 * i as uint); // 0x7f == 0b0111_1111
+        result |= ((src & 0b0111_1111) as i32) << (6 + 7 * i as usize);
     }
 
     result ^= -sign;
@@ -164,7 +164,7 @@ pub fn read_string<'a>(iter: &mut slice::Iter<'a,u8>) -> Option<&'a ZBytes> {
     // `by_ref` is needed as the iterator is silently copied otherwise.
     for (i, &c) in iter.by_ref().enumerate() {
         if c == 0 {
-            return Some(unsafe { mem::transmute(slice.slice_to(i + 1)) });
+            return Some(unsafe { mem::transmute(&slice[..i + 1]) });
         }
     }
     None
@@ -191,7 +191,7 @@ impl<'a> Unpacker<'a> {
 }
 
 // TODO: better literals? :(
-const HEADER_LEN: uint = 14;
+const HEADER_LEN: usize = 14;
 pub type Header = [u8; HEADER_LEN];
 pub const REQUEST_LIST_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, 't' as u8]; // "reqt"
 pub const REQUEST_LIST_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'r' as u8, 'e' as u8, 'q' as u8, '2' as u8]; // "req2"
@@ -227,10 +227,10 @@ fn request_info_num<T,S>(header: &Header, num: u8, send: S) -> T where S: FnOnce
     send(&request)
 }
 
-const S: uint = 64;
+const S: usize = 64;
 #[derive(Copy)]
 pub struct PString64 {
-    len: uint,
+    len: usize,
     contents: [NzU8; S],
 }
 
@@ -257,10 +257,10 @@ impl PString64 {
         result
     }
     pub fn as_slice(&self) -> &[NzU8] {
-        self.contents.as_slice().slice_to(self.len)
+        &self.contents.as_slice()[..self.len]
     }
     pub fn as_mut_slice(&mut self) -> &mut [NzU8] {
-        self.contents.as_mut_slice().slice_to_mut(self.len)
+        &mut self.contents.as_mut_slice()[..self.len]
     }
 }
 
@@ -306,7 +306,7 @@ impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for PString64 {
     }
 }
 
-impl fmt::Show for PString64 {
+impl fmt::Debug for PString64 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_slice().fmt(f)
     }
@@ -322,7 +322,7 @@ pub struct PlayerInfo {
     pub is_player: i32,
 }
 
-impl fmt::Show for PlayerInfo {
+impl fmt::Debug for PlayerInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, r#""{:?}" "{:?}" {:?} {:?} {:?}"#,
             String::from_utf8_lossy(self.name.as_bytes()),
@@ -334,7 +334,7 @@ impl fmt::Show for PlayerInfo {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Show)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ServerInfoVersion {
     V5,
     V6,
@@ -343,7 +343,7 @@ pub enum ServerInfoVersion {
 }
 
 impl ServerInfoVersion {
-    pub fn max_clients(self) -> uint {
+    pub fn max_clients(self) -> u32 {
         match self {
             ServerInfoVersion::V5   => MAX_CLIENTS_5,
             ServerInfoVersion::V6   => MAX_CLIENTS_5,
@@ -351,7 +351,7 @@ impl ServerInfoVersion {
             ServerInfoVersion::V7   => MAX_CLIENTS_5,
         }
     }
-    pub fn clients_per_packet(self) -> uint {
+    pub fn clients_per_packet(self) -> u32 {
         match self {
             ServerInfoVersion::V5   => 16,
             ServerInfoVersion::V6   => 16,
@@ -391,15 +391,15 @@ pub struct ServerInfo {
     pub max_players: i32,
     pub num_clients: i32,
     pub max_clients: i32,
-    pub clients_array: [PlayerInfo; MAX_CLIENTS],
+    pub clients_array: [PlayerInfo; MAX_CLIENTS as usize],
 }
 
 impl ServerInfo {
     pub fn sort_clients(&mut self) {
         self.clients_mut().sort_by(|a, b| Ord::cmp(&*a.name, &*b.name));
     }
-    pub fn real_num_clients(&self) -> uint {
-        let num_clients = self.num_clients.to_uint().unwrap_or(0);
+    pub fn real_num_clients(&self) -> u32 {
+        let num_clients = self.num_clients.to_u32().unwrap_or(0);
         if num_clients <= MAX_CLIENTS {
             num_clients
         } else {
@@ -408,15 +408,15 @@ impl ServerInfo {
     }
     pub fn clients(&self) -> &[PlayerInfo] {
         let len = self.real_num_clients();
-        self.clients_array.slice_to(len)
+        &self.clients_array[..len as usize]
     }
     pub fn clients_mut(&mut self) -> &mut [PlayerInfo] {
         let len = self.real_num_clients();
-        self.clients_array.slice_to_mut(len)
+        &mut self.clients_array[..len as usize]
     }
 }
 
-impl fmt::Show for ServerInfo {
+impl fmt::Debug for ServerInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, r#"{:?} {:?} "{:?}" "{:?}" "{:?}" "{:?}" "{:?}" {:?} {:?} {:?} {:?}/{:?} {:?}/{:?}: {:?}"#,
             self.info_version,
@@ -440,18 +440,40 @@ impl fmt::Show for ServerInfo {
 
 pub struct PartialServerInfo {
     info: ServerInfo,
-    fill_array: [bool; MAX_CLIENTS],
+    fill_array: [bool; MAX_CLIENTS as usize],
 }
 
 impl PartialServerInfo {
     fn fill(&self) -> &[bool] {
-        self.fill_array.slice_to(self.info.real_num_clients())
+        &self.fill_array[..self.info.real_num_clients() as usize]
     }
     fn fill_mut(&mut self) -> &mut [bool] {
-        self.fill_array.slice_to_mut(self.info.real_num_clients())
+        &mut self.fill_array[..self.info.real_num_clients() as usize]
     }
-    pub fn merge(&mut self, other: &PartialServerInfo) {
-        unimplemented!();
+    // TODO: What to do when the infos don't match?
+    // Currently the other info is just ignored.
+    pub fn merge(&mut self, other: PartialServerInfo) {
+        if self.info.token != other.info.token
+            || self.info.num_clients != other.info.num_players
+        {
+            return;
+        }
+        // TODO: Better loop.
+        for (i, &f) in other.fill().iter().enumerate() {
+            if f {
+                // TODO: What if a client is received twice?
+                self.info.clients_mut()[i] = other.info.clients()[i].clone();
+                self.fill_mut()[i] = true;
+            }
+        }
+    }
+    pub fn get_info(&self) -> Option<&ServerInfo> {
+        for &f in self.fill().iter() {
+            if !f {
+                return None;
+            }
+        }
+        Some(&self.info)
     }
 }
 
@@ -519,15 +541,15 @@ fn parse_server_info<RI,RS>(
             return None;
         }
 
-        let offset = unwrap_or_return!(offset.to_uint(), None);
+        let offset = unwrap_or_return!(offset.to_u32(), None);
         // 64p offset checking
         if offset >= i.real_num_clients() {
             return None;
         }
 
-        let end = cmp::min(offset + version.clients_per_packet(), i.real_num_clients());
+        let end = cmp::min(offset.to_u32().unwrap() + version.clients_per_packet(), i.real_num_clients());
 
-        for c in i.clients_mut()[offset..end].iter_mut() {
+        for c in i.clients_mut()[offset as usize..end as usize].iter_mut() {
             c.name = unwrap_or_return!(read_str(unpacker), None);
             if version.has_extended_player_info() {
                 c.clan    = unwrap_or_return!(read_str(unpacker), None);
@@ -543,7 +565,7 @@ fn parse_server_info<RI,RS>(
                 c.is_player = 1;
             }
         }
-        (offset, end)
+        (offset as usize, end as usize)
     };
     for f in result.fill_mut()[offset..end].iter_mut() {
         *f = true;
@@ -555,7 +577,7 @@ fn parse_server_info<RI,RS>(
 fn info_read_int_v5(unpacker: &mut Unpacker) -> Option<i32> {
     unpacker.read_string()
         .and_then(|x| str::from_utf8(x.as_nzbytes().as_bytes()).ok())
-        .and_then(|x| x.parse())
+        .and_then(|x| x.parse().ok())
 }
 
 fn info_read_int_v7(unpacker: &mut Unpacker) -> Option<i32> {
@@ -640,7 +662,7 @@ fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
     if remainder != 0 {
         warn!("parsing overlong list5");
     }
-    let data = data.slice_to(data.len() - remainder);
+    let data = &data[..data.len() - remainder];
     unsafe { common::transmute_slice(data) }
 }
 
@@ -649,7 +671,7 @@ fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
     if remainder != 0 {
         warn!("parsing overlong list5");
     }
-    let data = data.slice_to(data.len() - remainder);
+    let data = &data[..data.len() - remainder];
     unsafe { common::transmute_slice(data) }
 }
 
@@ -686,7 +708,7 @@ pub struct Addr {
     pub port: u16,
 }
 
-impl fmt::Show for Addr {
+impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.ip_address {
             Ipv4Addr(..) => write!(f, "{}:{}", self.ip_address, self.port),
@@ -713,9 +735,15 @@ pub struct Addr6Packed {
 // Boilerplate trait implementations below
 // ---------------------------------------
 
-impl fmt::String for Addr {
+impl fmt::Display for PString64 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 
@@ -891,8 +919,8 @@ impl Addr5Packed {
 impl Addr6Packed {
     pub fn unpack(self) -> Addr {
         let Addr6Packed { ip_address, port } = self;
-        let compare_with = ip_address.slice_to(IPV4_MAPPING.len());
-        let new_address = if compare_with != IPV4_MAPPING {
+        let (maybe_ipv4_mapping, ipv4_address) = ip_address.split_at(IPV4_MAPPING.len());
+        let new_address = if maybe_ipv4_mapping != IPV4_MAPPING {
             let ip_address: [BeU16; 8] = unsafe { mem::transmute(ip_address) };
             Ipv6Addr(
                 ip_address[0].to_u16(),
@@ -905,8 +933,7 @@ impl Addr6Packed {
                 ip_address[7].to_u16(),
             )
         } else {
-            let ip_address = ip_address.slice_from(IPV4_MAPPING.len());
-            Ipv4Addr(ip_address[0], ip_address[1], ip_address[2], ip_address[3])
+            Ipv4Addr(ipv4_address[0], ipv4_address[1], ipv4_address[2], ipv4_address[3])
         };
         Addr {
             ip_address: new_address,

@@ -2,10 +2,10 @@ use rustc_serialize;
 use serverbrowse::protocol;
 
 use std::fmt;
-use std::io::net::ip::IpAddr;
+use std::old_io::net::ip::IpAddr;
 
 /// Protocol version of the `SERVERBROWSE_GETINFO` packet.
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable, Show)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
 pub enum ProtocolVersion {
     /// `SERVERBROWSE_GETINFO_5`.
     V5,
@@ -30,7 +30,7 @@ impl Addr {
     /// Converts the address into a serverbrowse address.
     pub fn to_srvbrowse_addr(self) -> protocol::Addr {
         let Addr(inner) = self;
-	inner
+        inner
     }
 }
 
@@ -57,23 +57,23 @@ impl ServerAddr {
 // Boilerplate trait implementations below
 // ---------------------------------------
 
-impl fmt::String for ProtocolVersion {
+impl fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
 
-impl fmt::Show for Addr {
+impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let &Addr(ref inner) = self;
-        fmt::Show::fmt(inner, f)
+        fmt::Debug::fmt(inner, f)
     }
 }
 
-impl fmt::String for Addr {
+impl fmt::Display for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let &Addr(ref inner) = self;
-        fmt::String::fmt(inner, f)
+        fmt::Display::fmt(inner, f)
     }
 }
 
@@ -83,14 +83,14 @@ impl rustc_serialize::Encodable for Addr {
     }
 }
 
-impl fmt::Show for ServerAddr {
+impl fmt::Debug for ServerAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}_{}", self.version, self.addr)
     }
 }
 
-impl fmt::String for ServerAddr {
+impl fmt::Display for ServerAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Show::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
