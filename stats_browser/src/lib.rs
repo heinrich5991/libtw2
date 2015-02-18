@@ -1,5 +1,11 @@
 #![cfg(not(test))]
 
+#![feature(collections)]
+#![feature(core)]
+#![feature(hash)]
+#![feature(io)]
+#![feature(std_misc)]
+
 #[macro_use] extern crate log;
 extern crate "time" as rust_time;
 extern crate "rustc-serialize" as rustc_serialize;

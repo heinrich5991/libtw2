@@ -98,8 +98,10 @@ pub struct StatsBrowser<'a> {
 
 impl<'a> StatsBrowser<'a> {
     pub fn new(cb: &mut StatsBrowserCb) -> Option<StatsBrowser> {
+        const MASTER_MIN: u32 = 1;
+        const MASTER_MAX: u32 = 4;
         StatsBrowser::new_without_masters(cb).map(|mut browser| {
-            for i in (0..4).map(|x| x + 1) {
+            for i in (MASTER_MIN..MASTER_MAX+1) {
                 browser.add_master(format!("master{}.teeworlds.com", i));
             }
             browser
@@ -275,7 +277,7 @@ impl<'a> StatsBrowser<'a> {
             None => {},
         }
     }
-    fn process_list<I>(&mut self, from: MasterId, mut servers_iter: I)
+    fn process_list<I>(&mut self, from: MasterId, servers_iter: I)
         where I: Iterator<Item=ServerAddr>+ExactSizeIterator,
     {
         let MasterId(idx) = from;
@@ -385,7 +387,7 @@ impl<'a> StatsBrowser<'a> {
                 Err(x) => { panic!("socket error, {:?}", x); },
                 Ok(Err(WouldBlock)) => return,
                 Ok(Ok((read_len, from))) => {
-                    self.process_packet(from, buffer.as_slice().slice_to(read_len));
+                    self.process_packet(from, &buffer[..read_len]);
                 },
             }
         }

@@ -9,7 +9,7 @@ use std::fmt;
 #[derive(Copy, Clone)]
 pub struct B64<'a>(pub &'a [u8]);
 
-impl<'a> fmt::String for B64<'a> {
+impl<'a> fmt::Debug for B64<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let B64(bytes) = *self;
         const CONFIG: base64::Config = base64::Config {
@@ -27,8 +27,8 @@ impl<'a> fmt::String for B64<'a> {
 // Boilerplate trait implementations below
 // ---------------------------------------
 
-impl<'a> fmt::Show for B64<'a> {
+impl<'a> fmt::Display for B64<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::String::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
