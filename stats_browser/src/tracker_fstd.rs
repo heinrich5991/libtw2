@@ -182,7 +182,7 @@ fn print_server(command: &str, addr: LogAddr, args: &[&fmt::Display]) {
 }
 
 fn print_start() {
-    print("START", &[&"1.1", &"libtw2_statsbrowser", &"0.1"]);
+    print("START", &[&"1.1", &"libtw2_statsbrowser", &"0.0.1"]);
 }
 
 fn print_player_new(addr: LogAddr, info: &PlayerInfo) {
