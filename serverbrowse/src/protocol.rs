@@ -477,6 +477,14 @@ impl PartialServerInfo {
     }
 }
 
+fn debug_parse_fail(help: &str) -> Option<PartialServerInfo> {
+    fn debug_parse_fail_impl(help: &str) {
+        //warn!("server info parsing failed at {}", help);
+    }
+    debug_parse_fail_impl(help);
+    None
+}
+
 fn parse_server_info<RI,RS>(
     unpacker: &mut Unpacker,
     read_int: RI,
@@ -486,6 +494,8 @@ fn parse_server_info<RI,RS>(
     where RI: FnMut(&mut Unpacker) -> Option<i32>,
           RS: FnMut(&mut Unpacker) -> Option<PString64>,
 {
+    use self::debug_parse_fail as fail;
+
     let mut read_int = read_int;
     let mut read_str = read_str;
     let mut result: PartialServerInfo = Default::default();
@@ -494,32 +504,32 @@ fn parse_server_info<RI,RS>(
         let i = &mut result.info;
         i.info_version = version;
 
-        i.token       = unwrap_or_return!(read_int(unpacker), None);
-        i.version     = unwrap_or_return!(read_str(unpacker), None);
-        i.name        = unwrap_or_return!(read_str(unpacker), None);
+        i.token       = unwrap_or_return!(read_int(unpacker), fail("token"));
+        i.version     = unwrap_or_return!(read_str(unpacker), fail("version"));
+        i.name        = unwrap_or_return!(read_str(unpacker), fail("name"));
         if version.has_hostname() {
-            i.hostname = Some(unwrap_or_return!(read_str(unpacker), None));
+            i.hostname = Some(unwrap_or_return!(read_str(unpacker), fail("hostname")));
         } else {
             i.hostname = None;
         }
-        i.map         = unwrap_or_return!(read_str(unpacker), None);
-        i.game_type   = unwrap_or_return!(read_str(unpacker), None);
-        i.flags       = unwrap_or_return!(read_int(unpacker), None);
+        i.map         = unwrap_or_return!(read_str(unpacker), fail("map"));
+        i.game_type   = unwrap_or_return!(read_str(unpacker), fail("game_type"));
+        i.flags       = unwrap_or_return!(read_int(unpacker), fail("flags"));
         if version.has_progression() {
-            i.progression = Some(unwrap_or_return!(read_int(unpacker), None));
+            i.progression = Some(unwrap_or_return!(read_int(unpacker), fail("progression")));
         } else {
             i.progression = None;
         }
         if version.has_skill_level() {
-            i.skill_level = Some(unwrap_or_return!(read_int(unpacker), None));
+            i.skill_level = Some(unwrap_or_return!(read_int(unpacker), fail("skill_level")));
         } else {
             i.skill_level = None;
         }
-        i.num_players = unwrap_or_return!(read_int(unpacker), None);
-        i.max_players = unwrap_or_return!(read_int(unpacker), None);
+        i.num_players = unwrap_or_return!(read_int(unpacker), fail("num_players"));
+        i.max_players = unwrap_or_return!(read_int(unpacker), fail("max_players"));
         if version.has_extended_player_info() {
-            i.num_clients = unwrap_or_return!(read_int(unpacker), None);
-            i.max_clients = unwrap_or_return!(read_int(unpacker), None);
+            i.num_clients = unwrap_or_return!(read_int(unpacker), fail("num_clients"));
+            i.max_clients = unwrap_or_return!(read_int(unpacker), fail("max_clients"));
         } else {
             i.num_clients = i.num_players;
             i.max_clients = i.max_players;
@@ -527,7 +537,7 @@ fn parse_server_info<RI,RS>(
 
         let offset;
         if version.has_offset() {
-            offset = unwrap_or_return!(read_int(unpacker), None);
+            offset = unwrap_or_return!(read_int(unpacker), fail("offset"));
         } else {
             offset = 0;
         }
@@ -538,29 +548,29 @@ fn parse_server_info<RI,RS>(
             || i.num_players < 0 || i.num_players > i.num_clients
             || i.max_players < 0 || i.max_players > i.max_clients
         {
-            return None;
+            return fail("count sanity check");
         }
 
-        let offset = unwrap_or_return!(offset.to_u32(), None);
+        let offset = unwrap_or_return!(offset.to_u32(), fail("offset sanity check"));
         // 64p offset checking
-        if offset >= i.real_num_clients() {
-            return None;
+        if offset != 0 && offset >= i.real_num_clients() {
+            return fail("offset sanity check");
         }
 
         let end = cmp::min(offset.to_u32().unwrap() + version.clients_per_packet(), i.real_num_clients());
 
         for c in i.clients_mut()[offset as usize..end as usize].iter_mut() {
-            c.name = unwrap_or_return!(read_str(unpacker), None);
+            c.name = unwrap_or_return!(read_str(unpacker), fail("name"));
             if version.has_extended_player_info() {
-                c.clan    = unwrap_or_return!(read_str(unpacker), None);
-                c.country = unwrap_or_return!(read_int(unpacker), None);
+                c.clan    = unwrap_or_return!(read_str(unpacker), fail("clan"));
+                c.country = unwrap_or_return!(read_int(unpacker), fail("country"));
             } else {
                 c.clan    = PString64::new();
                 c.country = -1;
             }
-            c.score = unwrap_or_return!(read_int(unpacker), None);
+            c.score = unwrap_or_return!(read_int(unpacker), fail("score"));
             if version.has_extended_player_info() {
-                c.is_player = unwrap_or_return!(read_int(unpacker), None);
+                c.is_player = unwrap_or_return!(read_int(unpacker), fail("is_player"));
             } else {
                 c.is_player = 1;
             }

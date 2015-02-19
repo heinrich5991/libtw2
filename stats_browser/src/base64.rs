@@ -18,8 +18,8 @@ impl<'a> fmt::Debug for B64<'a> {
             pad: true,
             line_length: None,
         };
-        //write!(f, "{}", String::from_utf8_lossy(bytes))
-        write!(f, "{}", bytes.to_base64(CONFIG))
+        write!(f, "{:?}", String::from_utf8_lossy(bytes))
+        //write!(f, "{}", bytes.to_base64(CONFIG))
     }
 }
 

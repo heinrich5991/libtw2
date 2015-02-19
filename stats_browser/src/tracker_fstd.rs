@@ -18,6 +18,7 @@ use StatsBrowserCb;
 #[allow(missing_copy_implementations)]
 pub struct Tracker {
     player_count: u32,
+    server_count: u32,
 }
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -55,13 +56,15 @@ impl Tracker {
     pub fn new() -> Tracker {
         Tracker {
             player_count: 0,
+            server_count: 0,
         }
     }
     pub fn start(&mut self) {
         print_start();
     }
     fn server_ignore(addr: LogAddr) -> bool {
-        addr.version != LogVersion(ServerInfoVersion::V6)
+        let _ = addr;
+        false
     }
     fn on_player_new(&mut self, addr: LogAddr, info: &PlayerInfo) {
         if player_ignore(addr, info) { return; }
@@ -129,6 +132,7 @@ impl StatsBrowserCb for Tracker {
         if Tracker::server_ignore(addr) { return; }
         print_server_new(addr, info);
         self.diff_players(addr, &[], info.clients());
+        self.server_count += 1;
     }
 
     fn on_server_change(&mut self, addr: ServerAddr, old: &ServerInfo, new: &ServerInfo) {
@@ -155,6 +159,7 @@ impl StatsBrowserCb for Tracker {
         if Tracker::server_ignore(addr) { return; }
         self.diff_players(addr, last.clients(), &[]);
         print_server_remove(addr, last);
+        self.server_count -= 1;
     }
 }
 
