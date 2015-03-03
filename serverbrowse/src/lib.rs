@@ -1,6 +1,5 @@
 #![feature(core)]
-#![feature(hash)]
-#![feature(io)]
+#![feature(net)]
 
 #[macro_use] extern crate common;
 #[macro_use] extern crate log;

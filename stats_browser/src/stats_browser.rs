@@ -13,10 +13,9 @@ use std::collections::HashSet;
 use std::collections::VecMap;
 use std::collections::hash_map;
 use std::default::Default;
-use std::old_io::net::addrinfo;
-use std::old_io::timer;
 use std::mem;
 use std::num::SignedInt;
+use std::old_io::timer;
 
 use addr::Addr;
 use addr::ProtocolVersion;
@@ -25,6 +24,7 @@ use config;
 use entry::MasterServerEntry;
 use entry::ServerEntry;
 use entry::ServerResponse;
+use lookup::lookup_host;
 use socket::NonBlockExt;
 use socket::UdpSocket;
 use socket::WouldBlock;
@@ -145,7 +145,7 @@ impl<'a> StatsBrowser<'a> {
     fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
         let MasterId(idx) = master_id;
         let master = self.master_servers.get_mut(&idx).unwrap();
-        match addrinfo::get_host_addresses(master.domain.as_slice()).map(|x| x.get(0).cloned()) {
+        match lookup_host(master.domain.as_slice()) {
             Ok(Some(ip_address)) => {
                 let addr = Addr::new(ip_address, MASTERSERVER_PORT);
                 info!("Resolved {} to {}", master.domain, addr);

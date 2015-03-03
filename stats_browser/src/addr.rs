@@ -2,7 +2,8 @@ use rustc_serialize;
 use serverbrowse::protocol;
 
 use std::fmt;
-use std::old_io::net::ip::IpAddr;
+use std::net::IpAddr;
+use std::net;
 
 /// Protocol version of the `SERVERBROWSE_GETINFO` packet.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
@@ -31,6 +32,15 @@ impl Addr {
     pub fn to_srvbrowse_addr(self) -> protocol::Addr {
         let Addr(inner) = self;
         inner
+    }
+    /// Converts the address to a socket address.
+    pub fn to_socket_addr(self) -> net::SocketAddr {
+        let srvbrowse_addr = self.to_srvbrowse_addr();
+        net::SocketAddr::new(srvbrowse_addr.ip_address, srvbrowse_addr.port)
+    }
+    /// Converts a socket address to an `Addr`.
+    pub fn from_socket_addr(addr: net::SocketAddr) -> Addr {
+        Addr::new(addr.ip(), addr.port())
     }
 }
 

@@ -7,10 +7,8 @@ use std::default::Default;
 use std::fmt;
 use std::hash;
 use std::mem;
+use std::net::IpAddr;
 use std::num::ToPrimitive;
-use std::old_io::net::ip::IpAddr;
-use std::old_io::net::ip::Ipv4Addr;
-use std::old_io::net::ip::Ipv6Addr;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::slice;
@@ -164,7 +162,7 @@ pub fn read_string<'a>(iter: &mut slice::Iter<'a,u8>) -> Option<&'a ZBytes> {
     // `by_ref` is needed as the iterator is silently copied otherwise.
     for (i, &c) in iter.by_ref().enumerate() {
         if c == 0 {
-            return Some(unsafe { mem::transmute(&slice[..i + 1]) });
+            return Some(unsafe { ZBytes::from_bytes_unchecked(&slice[..i + 1]) });
         }
     }
     None
@@ -300,8 +298,8 @@ impl PartialEq for PString64 {
 
 impl Eq for PString64 { }
 
-impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for PString64 {
-    fn hash(&self, state: &mut S) {
+impl hash::Hash for PString64 {
+    fn hash<H:hash::Hasher>(&self, state: &mut H) {
         self.as_slice().hash(state);
     }
 }
@@ -480,6 +478,7 @@ impl PartialServerInfo {
 fn debug_parse_fail(help: &str) -> Option<PartialServerInfo> {
     fn debug_parse_fail_impl(help: &str) {
         //warn!("server info parsing failed at {}", help);
+        let _ = help;
     }
     debug_parse_fail_impl(help);
     None
@@ -721,8 +720,8 @@ pub struct Addr {
 impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.ip_address {
-            Ipv4Addr(..) => write!(f, "{}:{}", self.ip_address, self.port),
-            Ipv6Addr(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
+            IpAddr::V4(..) => write!(f, "{}:{}", self.ip_address, self.port),
+            IpAddr::V6(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
         }
     }
 }
@@ -849,8 +848,8 @@ impl PartialEq for ServerInfo {
 
 impl Eq for ServerInfo { }
 
-impl<S:hash::Hasher+hash::Writer> hash::Hash<S> for ServerInfo {
-    fn hash(&self, state: &mut S) {
+impl hash::Hash for ServerInfo {
+    fn hash<H:hash::Hasher>(&self, state: &mut H) {
         self.info_version.hash(state);
         self.token       .hash(state);
         self.version     .hash(state);
@@ -918,7 +917,7 @@ impl Addr5Packed {
     pub fn unpack(self) -> Addr {
         let Addr5Packed { ip_address, port } = self;
         Addr {
-            ip_address: Ipv4Addr(ip_address[0], ip_address[1], ip_address[2], ip_address[3]),
+            ip_address: IpAddr::new_v4(ip_address[0], ip_address[1], ip_address[2], ip_address[3]),
             port: port.to_u16(),
         }
     }
@@ -932,7 +931,7 @@ impl Addr6Packed {
         let (maybe_ipv4_mapping, ipv4_address) = ip_address.split_at(IPV4_MAPPING.len());
         let new_address = if maybe_ipv4_mapping != IPV4_MAPPING {
             let ip_address: [BeU16; 8] = unsafe { mem::transmute(ip_address) };
-            Ipv6Addr(
+            IpAddr::new_v6(
                 ip_address[0].to_u16(),
                 ip_address[1].to_u16(),
                 ip_address[2].to_u16(),
@@ -943,7 +942,7 @@ impl Addr6Packed {
                 ip_address[7].to_u16(),
             )
         } else {
-            Ipv4Addr(ipv4_address[0], ipv4_address[1], ipv4_address[2], ipv4_address[3])
+            IpAddr::new_v4(ipv4_address[0], ipv4_address[1], ipv4_address[2], ipv4_address[3])
         };
         Addr {
             ip_address: new_address,

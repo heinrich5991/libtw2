@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 
-#![feature(io)]
+#![feature(net)]
 
 #[macro_use]
 extern crate log;
@@ -10,24 +10,29 @@ extern crate serverbrowse;
 use serverbrowse::protocol as browse_protocol;
 use serverbrowse::protocol::Response;
 
-use std::old_io::net::ip::Ipv4Addr;
-use std::old_io::net::ip::SocketAddr;
-use std::old_io::net::udp::UdpSocket;
+use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
+use std::net::UdpSocket;
 
 const BUFSIZE: usize = 2048;
 
+fn to_socket_addr_or_panic(addr: &str) -> SocketAddr {
+    addr.to_socket_addrs().unwrap().next().unwrap()
+    //   |                 |        |      |
+    //   io::Result        Iterator Option SocketAddr
+}
+
 fn main() {
-    let bindaddr = SocketAddr { ip: Ipv4Addr(0, 0, 0, 0), port: 0 };
-    //let addr = SocketAddr { ip: Ipv4Addr(198, 251, 81, 153), port: 8300 };
-    let addr = SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 8303 };
-    let mut socket = UdpSocket::bind(bindaddr).unwrap();
+    let bindaddr = "localhost";
+    //let addr = "198.251.81.153:8300";
+    let addr = "127.0.0.1:8303";
+    let addr = to_socket_addr_or_panic(addr);
+    let socket = UdpSocket::bind(bindaddr).unwrap();
 
     let mut buf = [0; BUFSIZE];
 
     //browse_protocol::request_list_6(|x| socket.send_to(x, addr).unwrap());
-    browse_protocol::request_info_6(|x| socket.send_to(x, addr).unwrap());
-
-    socket.set_timeout(Some(1000));
+    browse_protocol::request_info_6(|x| socket.send_to(x, &addr).unwrap());
 
     loop {
         let (len, from) = socket.recv_from(&mut buf).unwrap();

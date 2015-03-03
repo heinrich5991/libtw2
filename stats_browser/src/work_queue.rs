@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::collections::RingBuf;
+use std::collections::VecDeque;
 use std::collections::hash_map::Entry;
 use std::collections::hash_map;
-use std::collections::ring_buf;
+use std::collections::vec_deque;
 use std::default::Default;
 use std::iter;
 use std::num::ToPrimitive;
@@ -13,21 +13,21 @@ use time::Timed;
 
 #[derive(Clone)]
 pub struct TimedWorkQueue<T> {
-    now_queue: RingBuf<T>,
-    other_queues: HashMap<u64,RingBuf<Timed<T>>>,
+    now_queue: VecDeque<T>,
+    other_queues: HashMap<u64,VecDeque<Timed<T>>>,
 }
 
 impl<T> TimedWorkQueue<T> {
     pub fn new() -> TimedWorkQueue<T> {
         TimedWorkQueue {
-            now_queue: RingBuf::new(),
+            now_queue: VecDeque::new(),
             other_queues: HashMap::new(),
         }
     }
     pub fn add_duration(&mut self, dur: Duration) {
         let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
         if let Entry::Vacant(v) = self.other_queues.entry(dur_k) {
-            v.insert(RingBuf::new());
+            v.insert(VecDeque::new());
         }
     }
     fn duration_to_key(dur: Duration) -> u64 {
@@ -63,8 +63,8 @@ impl<T> TimedWorkQueue<T> {
         IterNow { iter: self.now_queue.iter() }
     }
     pub fn iter_other(&self) -> IterOther<T> {
-        fn ringbuf_iter<T>(ring_buf: &RingBuf<T>) -> ring_buf::Iter<T> { ring_buf.iter() }
-        let mut iters = self.other_queues.values().map(ringbuf_iter as fn(&RingBuf<Timed<T>>) -> ring_buf::Iter<Timed<T>>);
+        fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<T> { vec_deque.iter() }
+        let mut iters = self.other_queues.values().map(ringbuf_iter as fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>);
         let first = iters.next();
         IterOther {
             iter: first,
@@ -74,14 +74,14 @@ impl<T> TimedWorkQueue<T> {
 }
 
 pub struct IterNow<'a,T:'a> {
-    iter: ring_buf::Iter<'a,T>,
+    iter: vec_deque::Iter<'a,T>,
 }
 
 pub struct IterOther<'a,T:'a> {
-    iter: Option<ring_buf::Iter<'a,Timed<T>>>,
+    iter: Option<vec_deque::Iter<'a,Timed<T>>>,
     iters: iter::Map<
-        hash_map::Values<'a,u64,RingBuf<Timed<T>>>,
-        fn(&RingBuf<Timed<T>>) -> ring_buf::Iter<Timed<T>>
+        hash_map::Values<'a,u64,VecDeque<Timed<T>>>,
+        fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>
     >,
 }
 
