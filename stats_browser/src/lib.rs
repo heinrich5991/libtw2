@@ -20,6 +20,7 @@ pub mod addr;
 pub mod base64;
 pub mod config;
 pub mod entry;
+pub mod hashmap_ext;
 pub mod lookup;
 pub mod socket;
 pub mod stats_browser;

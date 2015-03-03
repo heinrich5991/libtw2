@@ -11,7 +11,6 @@ use serverbrowse::protocol;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecMap;
-use std::collections::hash_map;
 use std::default::Default;
 use std::mem;
 use std::num::SignedInt;
@@ -24,36 +23,13 @@ use config;
 use entry::MasterServerEntry;
 use entry::ServerEntry;
 use entry::ServerResponse;
+use hashmap_ext::HashMapEntryIntoInner;
 use lookup::lookup_host;
 use socket::NonBlockExt;
 use socket::UdpSocket;
 use socket::WouldBlock;
 use time::Limit;
 use work_queue::TimedWorkQueue;
-
-trait HashMapEntryToInner<'a> {
-    type Key;
-    type Value;
-    fn into_occupied(self) -> Option<hash_map::OccupiedEntry<'a,<Self as HashMapEntryToInner<'a>>::Key,<Self as HashMapEntryToInner<'a>>::Value>>;
-    fn into_vacant(self) -> Option<hash_map::VacantEntry<'a,<Self as HashMapEntryToInner<'a>>::Key,<Self as HashMapEntryToInner<'a>>::Value>>;
-}
-
-impl<'a,K,V> HashMapEntryToInner<'a> for hash_map::Entry<'a,K,V> {
-    type Key = K;
-    type Value = V;
-    fn into_occupied(self) -> Option<hash_map::OccupiedEntry<'a,K,V>> {
-        match self {
-            hash_map::Entry::Occupied(o) => Some(o),
-            hash_map::Entry::Vacant(_) => None,
-        }
-    }
-    fn into_vacant(self) -> Option<hash_map::VacantEntry<'a,K,V>> {
-        match self {
-            hash_map::Entry::Occupied(_) => None,
-            hash_map::Entry::Vacant(v) => Some(v),
-        }
-    }
-}
 
 pub trait StatsBrowserCb {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo);
