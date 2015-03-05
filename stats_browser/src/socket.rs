@@ -1,35 +1,35 @@
 extern crate mio;
 
+use self::mio::NonBlock as MioNonBlock;
 use self::mio::buf::Buf;
 use self::mio::buf::MutBuf;
 use self::mio::buf::MutSliceBuf;
 use self::mio::buf::SliceBuf;
-use self::mio::net::TryRecv;
-use self::mio::net::TrySend;
-use self::mio::net::udp::UdpSocket as MioUdpSocket;
+use self::mio::net::udp;
 
 use std::fmt;
 use std::io;
+use std::net::UdpSocket as StdUdpSocket;
 
 use addr::Addr;
 
 /// An unconnected non-blocking UDP socket.
-pub struct UdpSocket(MioUdpSocket);
+pub struct UdpSocket(MioNonBlock<StdUdpSocket>);
 
 impl UdpSocket {
     /// Opens a UDP socket.
     pub fn open() -> SockResult<UdpSocket> {
-        MioUdpSocket::bind("localhost")
+        udp::v4()
             .map(|s| UdpSocket(s))
             .map_err(|e| SockError(e))
     }
     /// Sends a UDP packet to the specified address. Non-blocking.
     pub fn send_to(&mut self, buf: &[u8], dst: Addr) -> SockResult<NonBlock<()>> {
-        let &mut UdpSocket(ref mut mio_sock) = self;
+        let &mut UdpSocket(ref mut std_sock) = self;
         let mut mio_buf = SliceBuf::wrap(buf);
-        match TrySend::send_to(mio_sock, &mut mio_buf, &dst.to_socket_addr()) {
-            Ok(mio::NonBlock::Ready(())) => Ok(Ok(())),
-            Ok(mio::NonBlock::WouldBlock) => Ok(Err(WouldBlock)),
+        match std_sock.send_to(&mut mio_buf, &dst.to_socket_addr()) {
+            Ok(Some(())) => Ok(Ok(())),
+            Ok(None) => Ok(Err(WouldBlock)),
             Err(e) => Err(SockError(e)),
         }
     }
@@ -37,17 +37,17 @@ impl UdpSocket {
     ///
     /// Returns number number of bytes read and the source address.
     pub fn recv_from(&mut self, buf: &mut [u8]) -> SockResult<NonBlock<(usize, Addr)>> {
-        let &mut UdpSocket(ref mut mio_sock) = self;
+        let &mut UdpSocket(ref mut std_sock) = self;
         let buf_len = buf.len();
         let mut mio_buf = MutSliceBuf::wrap(buf);
-        match TryRecv::recv_from(mio_sock, &mut mio_buf) {
-            Ok(mio::NonBlock::Ready(sockaddr)) => {
+        match std_sock.recv_from(&mut mio_buf) {
+            Ok(Some(sockaddr)) => {
                 let from = Addr::from_socket_addr(sockaddr);
                 let remaining = mio_buf.remaining();
                 let read_len = buf_len - remaining;
                 Ok(Ok((read_len, from)))
             },
-            Ok(mio::NonBlock::WouldBlock) => Ok(Err(WouldBlock)),
+            Ok(None) => Ok(Err(WouldBlock)),
             Err(x) => { panic!("socket error, {:?}", x); },
         }
     }

@@ -7,6 +7,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 env_logger = "*"
 log = "*"
 rustc-serialize = "*"
-[dependencies.time] version = "*" features = ["rustc-serialize"]
+[dependencies.common] path = "../common"
 [dependencies.mio] git = "https://github.com/carllerche/mio"
 [dependencies.serverbrowse] path = "../serverbrowse"
+[dependencies.time] version = "*" features = ["rustc-serialize"]

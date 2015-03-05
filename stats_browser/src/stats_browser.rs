@@ -1,3 +1,4 @@
+use common::format_bytes::Bytes;
 use serverbrowse::protocol::CountResponse;
 use serverbrowse::protocol::Info5Response;
 use serverbrowse::protocol::Info6Response;
@@ -59,16 +60,13 @@ enum Work {
 pub struct StatsBrowser<'a> {
     master_servers: VecMap<MasterServerEntry>,
     servers: HashMap<ServerAddr,ServerEntry>,
-
     next_master_id: MasterId,
 
     list_limit: Limit,
     info_limit: Limit,
 
     work_queue: TimedWorkQueue<Work>,
-
     socket: UdpSocket,
-
     cb: &'a mut (StatsBrowserCb+'a),
 }
 
@@ -100,16 +98,13 @@ impl<'a> StatsBrowser<'a> {
         Some(StatsBrowser {
             master_servers: Default::default(),
             servers: Default::default(),
-
             next_master_id: Default::default(),
 
             list_limit: Limit::new(config::MAX_LISTS, config::MAX_LISTS_MS.to_duration()),
             info_limit: Limit::new(config::MAX_INFOS, config::MAX_INFOS_MS.to_duration()),
 
             work_queue: work_queue,
-
             socket: socket,
-
             cb: cb,
         })
     }
@@ -177,6 +172,7 @@ impl<'a> StatsBrowser<'a> {
             self.work_queue.push(config::INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
         } else {
             if server.get().num_missing_resp >= 10 {
+                info!("Missing responses from {}, removing", server_addr);
                 // Throw the server out after ten missing replies.
                 match server.remove().resp {
                     Some(ref y) => self.cb.on_server_remove(server_addr, &y.info),
@@ -282,7 +278,7 @@ impl<'a> StatsBrowser<'a> {
         match info {
             None => {
                 if server.num_malformed_resp < config::MAX_MALFORMED_RESP {
-                    warn!("Received unparsable info from {}, {:?}", from, raw);
+                    warn!("Received unparsable info from {}, {:?}", from, Bytes(raw));
                 }
                 server.num_malformed_resp += 1;
             },

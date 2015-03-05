@@ -672,7 +672,7 @@ fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
         warn!("parsing overlong list5");
     }
     let data = &data[..data.len() - remainder];
-    unsafe { common::transmute_slice(data) }
+    unsafe { common::slice::transmute(data) }
 }
 
 fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
@@ -681,7 +681,7 @@ fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
         warn!("parsing overlong list5");
     }
     let data = &data[..data.len() - remainder];
-    unsafe { common::transmute_slice(data) }
+    unsafe { common::slice::transmute(data) }
 }
 
 fn parse_count(data: &[u8]) -> Option<u16> {

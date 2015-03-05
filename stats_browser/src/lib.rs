@@ -11,6 +11,7 @@
 extern crate "time" as rust_time;
 extern crate "rustc-serialize" as rustc_serialize;
 
+extern crate common;
 extern crate serverbrowse;
 
 pub use stats_browser::StatsBrowser;

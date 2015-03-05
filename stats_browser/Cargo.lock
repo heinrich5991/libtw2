@@ -2,10 +2,11 @@
 name = "stats_browser"
 version = "0.0.1"
 dependencies = [
+ "common 0.0.1",
  "env_logger 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.2.1 (git+https://github.com/carllerche/mio)",
- "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serverbrowse 0.0.1",
  "time 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -30,7 +31,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -51,7 +52,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "mio"
 version = "0.2.1"
-source = "git+https://github.com/carllerche/mio#06bf140e6928a4505df1520c0805905909f7b68a"
+source = "git+https://github.com/carllerche/mio#788095bbccd95175a2635c60659e32b177fb7386"
 dependencies = [
  "bytes 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -69,12 +70,12 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -84,7 +85,7 @@ dependencies = [
  "common 0.0.1",
  "log 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.2.1 (git+https://github.com/carllerche/mio)",
- "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -95,6 +96,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

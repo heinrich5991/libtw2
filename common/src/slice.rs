@@ -10,7 +10,7 @@ pub fn relative_size_of<T,U>() -> usize {
     relative_size_of_mult::<T,U>(1)
 }
 
-pub unsafe fn transmute_slice<'a,T,U>(x: &'a [T]) -> &'a [U] {
+pub unsafe fn transmute<'a,T,U>(x: &'a [T]) -> &'a [U] {
     assert!(mem::min_align_of::<T>() % mem::min_align_of::<U>() == 0);
     mem::transmute(raw::Slice {
         data: x.as_ptr(),
@@ -18,7 +18,7 @@ pub unsafe fn transmute_slice<'a,T,U>(x: &'a [T]) -> &'a [U] {
     })
 }
 
-pub unsafe fn transmute_mut_slice<'a,T,U>(x: &'a mut [T]) -> &'a mut [U] {
+pub unsafe fn transmute_mut<'a,T,U>(x: &'a mut [T]) -> &'a mut [U] {
     assert!(mem::min_align_of::<T>() % mem::min_align_of::<U>() == 0);
     mem::transmute(raw::Slice {
         data: x.as_ptr(),
