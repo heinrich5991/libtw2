@@ -13,6 +13,3 @@ features = ["rustc-serialize"]
 
 [dependencies.common]
 path = "../common/"
-
-[dependencies.mio]
-git = "https://github.com/carllerche/mio"

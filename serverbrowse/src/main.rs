@@ -1,7 +1,5 @@
 #![cfg(not(test))]
 
-#![feature(net)]
-
 #[macro_use]
 extern crate log;
 

@@ -7,7 +7,8 @@ use std::default::Default;
 use std::fmt;
 use std::hash;
 use std::mem;
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::Ipv6Addr;
 use std::num::ToPrimitive;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -711,7 +712,31 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum IpAddr {
+    V4(Ipv4Addr),
+    V6(Ipv6Addr),
+}
+
+impl IpAddr {
+    pub fn new_v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
+    }
+    pub fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> IpAddr {
+        IpAddr::V6(Ipv6Addr::new(a, b, c, d, e, f, g, h))
+    }
+}
+
+impl fmt::Debug for IpAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            IpAddr::V4(i) => write!(f, "{}", i),
+            IpAddr::V6(i) => write!(f, "[{}]", i),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Addr {
     pub ip_address: IpAddr,
     pub port: u16,
@@ -719,10 +744,7 @@ pub struct Addr {
 
 impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.ip_address {
-            IpAddr::V4(..) => write!(f, "{}:{}", self.ip_address, self.port),
-            IpAddr::V6(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
-        }
+        write!(f, "{}:{}", self.ip_address, self.port)
     }
 }
 
@@ -751,6 +773,12 @@ impl fmt::Display for PString64 {
 }
 
 impl fmt::Display for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl fmt::Display for IpAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
