@@ -1,4 +1,5 @@
 #![feature(core)]
+#![feature(slice_patterns)]
 
 pub use slice::relative_size_of;
 pub use slice::relative_size_of_mult;

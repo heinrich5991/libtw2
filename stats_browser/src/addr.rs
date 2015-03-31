@@ -89,7 +89,7 @@ impl fmt::Display for Addr {
 
 impl rustc_serialize::Encodable for Addr {
     fn encode<S:rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(),S::Error> {
-        s.emit_str(self.to_string().as_slice())
+        s.emit_str(&self.to_string())
     }
 }
 

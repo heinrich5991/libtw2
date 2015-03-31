@@ -5,7 +5,7 @@ use self::mio::buf::Buf;
 use self::mio::buf::MutBuf;
 use self::mio::buf::MutSliceBuf;
 use self::mio::buf::SliceBuf;
-use self::mio::net::udp;
+use self::mio::udp;
 
 use std::fmt;
 use std::io;

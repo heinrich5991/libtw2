@@ -1,3 +1,6 @@
+#[cfg(test)]
+use std::mem;
+
 /// Big-endian unsigned 16-bit integer
 ///
 /// Is internally represented as `[u8; 2]`.
@@ -22,8 +25,8 @@ pub struct LeU16([u8; 2]);
 const S16: usize = 2;
 #[test] fn check_size_beu16() { assert_eq!(mem::size_of::<BeU16>(), S16); }
 #[test] fn check_size_leu16() { assert_eq!(mem::size_of::<LeU16>(), S16); }
-#[test] fn check_align_beu16() { assert_eq!(mem::align_of::<BeU16>(), 1); }
-#[test] fn check_align_leu16() { assert_eq!(mem::align_of::<LeU16>(), 1); }
+#[test] fn check_align_beu16() { assert_eq!(mem::min_align_of::<BeU16>(), 1); }
+#[test] fn check_align_leu16() { assert_eq!(mem::min_align_of::<LeU16>(), 1); }
 
 #[stable]
 impl BeU16 {

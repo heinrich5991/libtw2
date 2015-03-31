@@ -2,14 +2,14 @@
 
 #![feature(collections)]
 #![feature(core)]
-#![feature(io)]
-#![feature(net)]
-#![feature(old_io)]
+#![feature(ip_addr)]
+#![feature(lookup_host)]
 #![feature(std_misc)]
+#![feature(thread_sleep)]
 
 #[macro_use] extern crate log;
-extern crate "time" as rust_time;
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate time as rust_time;
+extern crate rustc_serialize;
 
 extern crate common;
 extern crate serverbrowse;

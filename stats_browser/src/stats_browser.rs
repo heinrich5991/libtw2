@@ -15,7 +15,7 @@ use std::collections::VecMap;
 use std::default::Default;
 use std::mem;
 use std::num::SignedInt;
-use std::old_io::timer;
+use std::thread;
 
 use addr::Addr;
 use addr::ProtocolVersion;
@@ -116,7 +116,7 @@ impl<'a> StatsBrowser<'a> {
     fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
         let MasterId(idx) = master_id;
         let master = self.master_servers.get_mut(&idx).unwrap();
-        match lookup_host(master.domain.as_slice()) {
+        match lookup_host(&master.domain) {
             Ok(Some(ip_address)) => {
                 let addr = Addr::new(ip_address, MASTERSERVER_PORT);
                 info!("Resolved {} to {}", master.domain, addr);
@@ -380,7 +380,7 @@ impl<'a> StatsBrowser<'a> {
                     break;
                 }
             }
-            timer::sleep(config::SLEEP_MS.to_duration());
+            thread::sleep(config::SLEEP_MS.to_duration());
         }
     }
 }

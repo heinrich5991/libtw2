@@ -3,9 +3,9 @@ name = "serverbrowse"
 version = "0.0.1"
 dependencies = [
  "common 0.0.1",
- "log 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -14,31 +14,34 @@ version = "0.0.1"
 
 [[package]]
 name = "gcc"
-version = "0.3.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "log"
-version = "0.2.5"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.6"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "time"
-version = "0.1.20"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "gcc 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

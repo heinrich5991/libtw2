@@ -1,3 +1,5 @@
+#![cfg(not(test))]
+
 extern crate env_logger;
 extern crate stats_browser;
 

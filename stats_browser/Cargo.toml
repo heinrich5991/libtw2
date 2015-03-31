@@ -3,6 +3,10 @@ name = "stats_browser"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
+[[bin]]
+name = "stats_browser"
+doc = false
+
 [dependencies]
 env_logger = "*"
 log = "*"

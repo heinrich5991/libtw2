@@ -64,7 +64,7 @@ impl<T> TimedWorkQueue<T> {
     }
     pub fn iter_other(&self) -> IterOther<T> {
         fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<T> { vec_deque.iter() }
-        let mut iters = self.other_queues.values().map(ringbuf_iter as fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>);
+        let mut iters = self.other_queues.values().map(ringbuf_iter::<Timed<T>> as fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>);
         let first = iters.next();
         IterOther {
             iter: first,

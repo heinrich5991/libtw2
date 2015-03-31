@@ -7,6 +7,7 @@ use std::default::Default;
 use std::fmt;
 use std::hash;
 use std::mem;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::num::ToPrimitive;
@@ -249,17 +250,17 @@ impl PString64 {
     }
     pub fn from_slice_trunc(slice: &[NzU8]) -> PString64 {
         let mut result = PString64::new();
-        for (src, dest) in slice.iter().zip(result.contents.as_mut_slice().iter_mut()) {
+        for (src, dest) in slice.iter().zip(result.contents.iter_mut()) {
             *dest = *src;
         }
         result.len = slice.len();
         result
     }
     pub fn as_slice(&self) -> &[NzU8] {
-        &self.contents.as_slice()[..self.len]
+        &self.contents[..self.len]
     }
     pub fn as_mut_slice(&mut self) -> &mut [NzU8] {
-        &mut self.contents.as_mut_slice()[..self.len]
+        &mut self.contents[..self.len]
     }
 }
 
@@ -712,27 +713,17 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum IpAddr {
-    V4(Ipv4Addr),
-    V6(Ipv6Addr),
+pub trait IpAddrExt {
+    fn new_v4(a: u8, b: u8, c: u8, d: u8) -> Self;
+    fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> Self;
 }
 
-impl IpAddr {
-    pub fn new_v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
+impl IpAddrExt for IpAddr {
+    fn new_v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
         IpAddr::V4(Ipv4Addr::new(a, b, c, d))
     }
-    pub fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> IpAddr {
+    fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> IpAddr {
         IpAddr::V6(Ipv6Addr::new(a, b, c, d, e, f, g, h))
-    }
-}
-
-impl fmt::Debug for IpAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            IpAddr::V4(i) => write!(f, "{}", i),
-            IpAddr::V6(i) => write!(f, "[{}]", i),
-        }
     }
 }
 
@@ -744,7 +735,10 @@ pub struct Addr {
 
 impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.ip_address, self.port)
+        match self.ip_address {
+            IpAddr::V4(..) => write!(f, "{}:{}", self.ip_address, self.port),
+            IpAddr::V6(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
+        }
     }
 }
 
@@ -773,12 +767,6 @@ impl fmt::Display for PString64 {
 }
 
 impl fmt::Display for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
-}
-
-impl fmt::Display for IpAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
@@ -991,7 +979,7 @@ mod test {
 
     #[test]
     fn parse_info_v7() {
-        let info_raw = bytes!("\x01two\0three\0four\0five\0six\0\x07\x08\x01\x02\x02\x03eleven\0twelve\0\x40\x0d\x0efifteen\0sixteen\0\x11\x12\x13");
+        let info_raw = b"\x01two\0three\0four\0five\0six\0\x07\x08\x01\x02\x02\x03eleven\0twelve\0\x40\x0d\x0efifteen\0sixteen\0\x11\x12\x13";
         let info = ServerInfo {
             info_version: ServerInfoVersion::V7,
             token: 1,
@@ -1001,6 +989,7 @@ mod test {
             map: PString64::from_str("five"),
             game_type: PString64::from_str("six"),
             flags: 7,
+            progression: None,
             skill_level: Some(8),
             num_players: 1,
             max_players: 2,
@@ -1022,12 +1011,24 @@ mod test {
                     is_player: 19,
                 },
                 Default::default(), Default::default(),
-                Default::default(), Default::default(),
-                Default::default(), Default::default(),
-                Default::default(), Default::default(),
-                Default::default(), Default::default(),
-                Default::default(), Default::default(),
-                Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
+                Default::default(), Default::default(), Default::default(), Default::default(),
             ]
         };
 
