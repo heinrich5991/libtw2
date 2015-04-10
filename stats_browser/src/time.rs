@@ -1,4 +1,3 @@
-use std::num::Int;
 use std::num::ToPrimitive;
 use std::ops::Add;
 use std::ops::Sub;
@@ -18,6 +17,11 @@ impl Ms {
     pub fn to_duration(self) -> Duration {
         let Ms(ms) = self;
         Duration::milliseconds(ms.to_i64().unwrap())
+    }
+
+    pub fn milliseconds(self) -> u32 {
+        let Ms(inner) = self;
+        inner
     }
 }
 

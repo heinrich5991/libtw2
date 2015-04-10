@@ -67,7 +67,6 @@ impl<T> NonBlockExt for NonBlock<T> {
 }
 
 /// Socket error. Opaque struct.
-#[derive(Clone, PartialEq)]
 pub struct SockError(io::Error);
 
 /// Socket result alias.
@@ -82,8 +81,6 @@ pub struct WouldBlock;
 // ---------------------------------------
 // Boilerplate trait implementations below
 // ---------------------------------------
-
-impl Eq for SockError {}
 
 impl fmt::Debug for SockError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

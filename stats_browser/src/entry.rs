@@ -49,6 +49,9 @@ pub struct ServerEntry {
     pub num_extra_resp: u32,
     /// The last response from a server if received, `None` otherwise.
     pub resp: Option<ServerResponse>,
+    /// Whether the server supports the 0.6_64 protocol, only interesting if
+    /// the server is from a 0.6 master server.
+    pub server_664_support: Option<bool>,
 }
 
 impl ServerEntry {
@@ -59,6 +62,7 @@ impl ServerEntry {
             num_malformed_resp: 0,
             num_extra_resp: 0,
             resp: None,
+            server_664_support: None,
         }
     }
 }

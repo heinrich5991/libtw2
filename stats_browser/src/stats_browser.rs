@@ -14,7 +14,6 @@ use std::collections::HashSet;
 use std::collections::VecMap;
 use std::default::Default;
 use std::mem;
-use std::num::SignedInt;
 use std::thread;
 
 use addr::Addr;
@@ -380,7 +379,7 @@ impl<'a> StatsBrowser<'a> {
                     break;
                 }
             }
-            thread::sleep(config::SLEEP_MS.to_duration());
+            thread::sleep_ms(config::SLEEP_MS.milliseconds());
         }
     }
 }

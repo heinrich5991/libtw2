@@ -5,7 +5,6 @@
 #![feature(ip_addr)]
 #![feature(lookup_host)]
 #![feature(std_misc)]
-#![feature(thread_sleep)]
 
 #[macro_use] extern crate log;
 extern crate time as rust_time;
