@@ -1,6 +1,7 @@
 use std::fmt;
-use std::slice::ref_slice;
 use std::str;
+
+use slice::ref_slice;
 
 pub struct Bytes<'a>(pub &'a [u8]);
 pub struct Byte(pub u8);
