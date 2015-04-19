@@ -10,6 +10,7 @@ doc = false
 [dependencies]
 env_logger = "*"
 log = "*"
+num = "*"
 rustc-serialize = "*"
 [dependencies.common] path = "../common"
 [dependencies.mio] git = "https://github.com/carllerche/mio"

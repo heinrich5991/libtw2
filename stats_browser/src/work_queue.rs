@@ -5,9 +5,10 @@ use std::collections::hash_map;
 use std::collections::vec_deque;
 use std::default::Default;
 use std::iter;
-use std::num::ToPrimitive;
-use std::time::duration::Duration;
 
+use num::ToPrimitive;
+
+use time::Duration;
 use time::Time;
 use time::Timed;
 
@@ -31,7 +32,7 @@ impl<T> TimedWorkQueue<T> {
         }
     }
     fn duration_to_key(dur: Duration) -> u64 {
-        dur.num_milliseconds().to_u64().expect("Expected positive duration")
+        dur.milliseconds().to_u64().expect("Expected positive duration")
     }
     pub fn push(&mut self, dur: Duration, data: T) {
         let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);

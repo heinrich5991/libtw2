@@ -9,9 +9,10 @@ use serverbrowse::protocol::Response;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol;
 
+use num::ToPrimitive;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::VecMap;
 use std::default::Default;
 use std::mem;
 use std::thread;
@@ -29,6 +30,8 @@ use socket::NonBlockExt;
 use socket::UdpSocket;
 use socket::WouldBlock;
 use time::Limit;
+use vec_map::VecMap;
+use vec_map;
 use work_queue::TimedWorkQueue;
 
 pub trait StatsBrowserCb {
@@ -40,12 +43,9 @@ pub trait StatsBrowserCb {
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
 struct MasterId(usize);
 
-impl MasterId {
-    fn get_and_inc(&mut self) -> MasterId {
-        let MasterId(value) = *self;
-        *self = MasterId(value + 1);
-        MasterId(value)
-    }
+impl vec_map::Index for MasterId {
+    fn to_usize(self) -> usize { let MasterId(val) = self; val }
+    fn from_usize(val: usize) -> MasterId { MasterId(val) }
 }
 
 enum Work {
@@ -57,9 +57,8 @@ enum Work {
 }
 
 pub struct StatsBrowser<'a> {
-    master_servers: VecMap<MasterServerEntry>,
+    master_servers: VecMap<MasterId, MasterServerEntry>,
     servers: HashMap<ServerAddr,ServerEntry>,
-    next_master_id: MasterId,
 
     list_limit: Limit,
     info_limit: Limit,
@@ -89,18 +88,17 @@ impl<'a> StatsBrowser<'a> {
             }
         };
         let mut work_queue = TimedWorkQueue::new();
-        work_queue.add_duration(config::RESOLVE_REPEAT_MS.to_duration());
-        work_queue.add_duration(config::LIST_REPEAT_MS.to_duration());
-        work_queue.add_duration(config::LIST_EXPECT_MS.to_duration());
-        work_queue.add_duration(config::INFO_REPEAT_MS.to_duration());
-        work_queue.add_duration(config::INFO_EXPECT_MS.to_duration());
+        work_queue.add_duration(config::RESOLVE_REPEAT_MS);
+        work_queue.add_duration(config::LIST_REPEAT_MS);
+        work_queue.add_duration(config::LIST_EXPECT_MS);
+        work_queue.add_duration(config::INFO_REPEAT_MS);
+        work_queue.add_duration(config::INFO_EXPECT_MS);
         Some(StatsBrowser {
             master_servers: Default::default(),
             servers: Default::default(),
-            next_master_id: Default::default(),
 
-            list_limit: Limit::new(config::MAX_LISTS, config::MAX_LISTS_MS.to_duration()),
-            info_limit: Limit::new(config::MAX_INFOS, config::MAX_INFOS_MS.to_duration()),
+            list_limit: Limit::new(config::MAX_LISTS, config::MAX_LISTS_MS),
+            info_limit: Limit::new(config::MAX_INFOS, config::MAX_INFOS_MS),
 
             work_queue: work_queue,
             socket: socket,
@@ -108,13 +106,11 @@ impl<'a> StatsBrowser<'a> {
         })
     }
     pub fn add_master(&mut self, domain: String) {
-        let MasterId(id) = self.next_master_id.get_and_inc();
-        assert!(self.master_servers.insert(id, MasterServerEntry::new(domain)).is_none());
-        self.work_queue.push_now(Work::Resolve(MasterId(id)));
+        let master_id = self.master_servers.push(MasterServerEntry::new(domain));
+        self.work_queue.push_now(Work::Resolve(master_id));
     }
     fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
-        let MasterId(idx) = master_id;
-        let master = self.master_servers.get_mut(&idx).unwrap();
+        let master = &mut self.master_servers[master_id];
         match lookup_host(&master.domain) {
             Ok(Some(ip_address)) => {
                 let addr = Addr::new(ip_address, MASTERSERVER_PORT);
@@ -127,23 +123,21 @@ impl<'a> StatsBrowser<'a> {
             Ok(None) => { info!("Resolved {}, no address found", master.domain); },
             Err(x) => { warn!("Error while resolving {}, {}", master.domain, x); },
         }
-        self.work_queue.push(config::RESOLVE_REPEAT_MS.to_duration(), Work::Resolve(master_id));
+        self.work_queue.push(config::RESOLVE_REPEAT_MS, Work::Resolve(master_id));
         Ok(())
     }
     fn do_expect_list(&mut self, master_id: MasterId) -> Result<(),()> {
         if self.check_complete_list(master_id).is_ok() {
-            self.work_queue.push(config::LIST_REPEAT_MS.to_duration(), Work::RequestList(master_id));
+            self.work_queue.push(config::LIST_REPEAT_MS, Work::RequestList(master_id));
         } else {
-            let MasterId(idx) = master_id;
-            let master = self.master_servers.get_mut(&idx).unwrap();
+            let master = &mut self.master_servers[master_id];
             info!("Re-requesting list for {}", master.domain);
             self.work_queue.push_now(Work::RequestList(master_id));
         }
         Ok(())
     }
     fn do_request_list(&mut self, master_id: MasterId) -> Result<(),()> {
-        let MasterId(idx) = master_id;
-        let master = self.master_servers.get_mut(&idx).unwrap();
+        let master = &mut self.master_servers[master_id];
 
         if !self.list_limit.acquire().is_ok() {
             return Err(());
@@ -161,14 +155,14 @@ impl<'a> StatsBrowser<'a> {
             return Err(());
         }
 
-        self.work_queue.push(config::LIST_EXPECT_MS.to_duration(), Work::ExpectList(master_id));
+        self.work_queue.push(config::LIST_EXPECT_MS, Work::ExpectList(master_id));
         Ok(())
     }
     fn do_expect_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
         let server = self.servers.entry(server_addr).into_occupied().unwrap();
 
         if server.get().num_missing_resp == 0 {
-            self.work_queue.push(config::INFO_REPEAT_MS.to_duration(), Work::RequestInfo(server_addr));
+            self.work_queue.push(config::INFO_REPEAT_MS, Work::RequestInfo(server_addr));
         } else {
             if server.get().num_missing_resp >= 10 {
                 info!("Missing responses from {}, removing", server_addr);
@@ -208,20 +202,19 @@ impl<'a> StatsBrowser<'a> {
 
         server.num_missing_resp += 1;
 
-        self.work_queue.push(config::INFO_EXPECT_MS.to_duration(), Work::ExpectInfo(server_addr));
+        self.work_queue.push(config::INFO_EXPECT_MS, Work::ExpectInfo(server_addr));
         Ok(())
     }
     fn get_master_id(&self, addr: Addr) -> Option<MasterId> {
-        for (i, master) in self.master_servers.iter() {
+        for (id, master) in self.master_servers.iter() {
             if master.addr == Some(addr) {
-                return Some(MasterId(i));
+                return Some(id);
             }
         }
         None
     }
-    fn check_complete_list(&mut self, id: MasterId) -> Result<(),()> {
-        let MasterId(idx) = id;
-        let master = self.master_servers.get_mut(&idx).unwrap();
+    fn check_complete_list(&mut self, master_id: MasterId) -> Result<(),()> {
+        let master = &mut self.master_servers[master_id];
 
         let updated_count = master.updated_count.take();
         let updated_list = mem::replace(&mut master.updated_list, HashSet::new());
@@ -236,8 +229,7 @@ impl<'a> StatsBrowser<'a> {
         Err(())
     }
     fn process_count(&mut self, from: MasterId, count: u16) {
-        let MasterId(idx) = from;
-        let master = self.master_servers.get_mut(&idx).unwrap();
+        let master = &mut self.master_servers[from];
 
         debug!("Received count from {}, {}", master.domain, count);
 
@@ -251,8 +243,7 @@ impl<'a> StatsBrowser<'a> {
     fn process_list<I>(&mut self, from: MasterId, servers_iter: I)
         where I: Iterator<Item=ServerAddr>+ExactSizeIterator,
     {
-        let MasterId(idx) = from;
-        let master = self.master_servers.get_mut(&idx).unwrap();
+        let master = &mut self.master_servers[from];
 
         debug!("Received list from {}, length {}", master.domain, servers_iter.len());
 
@@ -379,7 +370,7 @@ impl<'a> StatsBrowser<'a> {
                     break;
                 }
             }
-            thread::sleep_ms(config::SLEEP_MS.milliseconds());
+            thread::sleep_ms(config::SLEEP_MS.milliseconds().to_u32().unwrap());
         }
     }
 }

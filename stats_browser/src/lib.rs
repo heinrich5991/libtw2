@@ -1,16 +1,14 @@
 #![cfg(not(test))]
 
-#![feature(collections)]
-#![feature(core)]
 #![feature(ip_addr)]
 #![feature(lookup_host)]
-#![feature(std_misc)]
 
 #[macro_use] extern crate log;
-extern crate time as rust_time;
+extern crate num;
 extern crate rustc_serialize;
+extern crate time as rust_time;
 
-extern crate common;
+#[macro_use] extern crate common;
 extern crate serverbrowse;
 
 pub use stats_browser::StatsBrowser;
@@ -26,4 +24,5 @@ pub mod socket;
 pub mod stats_browser;
 pub mod time;
 pub mod tracker_fstd;
+pub mod vec_map;
 pub mod work_queue;

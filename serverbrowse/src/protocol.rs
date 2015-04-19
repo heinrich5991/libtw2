@@ -2,7 +2,7 @@ use common;
 use common::num::BeU16;
 use common::num::LeU16;
 
-use num::traits::ToPrimitive;
+use num::ToPrimitive;
 
 use std::cmp;
 use std::default::Default;

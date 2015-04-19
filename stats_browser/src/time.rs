@@ -1,7 +1,6 @@
-use std::num::ToPrimitive;
+use num::ToPrimitive;
 use std::ops::Add;
 use std::ops::Sub;
-use std::time::duration::Duration;
 
 use rust_time as time;
 
@@ -10,17 +9,11 @@ use rust_time as time;
 
 /// Duration, in milliseconds.
 #[derive(Clone, Copy)]
-pub struct Ms(pub u32);
+pub struct Duration(pub i64);
 
-impl Ms {
-    /// Creates a `Duration` from the millisecond count.
-    pub fn to_duration(self) -> Duration {
-        let Ms(ms) = self;
-        Duration::milliseconds(ms.to_i64().unwrap())
-    }
-
-    pub fn milliseconds(self) -> u32 {
-        let Ms(inner) = self;
+impl Duration {
+    pub fn milliseconds(self) -> i64 {
+        let Duration(inner) = self;
         inner
     }
 }
@@ -34,7 +27,7 @@ impl Add<Duration> for Time {
     type Output = Time;
     fn add(self, rhs: Duration) -> Time {
         let Time(ms) = self;
-        Time(ms + rhs.num_milliseconds() as u64)
+        Time(ms + rhs.milliseconds() as u64)
     }
 }
 
@@ -42,7 +35,7 @@ impl Sub<Time> for Time {
     type Output = Duration;
     fn sub(self, rhs: Time) -> Duration {
         let (Time(left), Time(right)) = (self, rhs);
-        Duration::milliseconds(
+        Duration(
             right.checked_sub(left).map(|x| x.to_i64().expect("Overflow while converting to i64"))
             .or_else(|| left.checked_sub(right).map(|x| -x.to_i64().expect("Overflow while converting to i64")))
             .expect("Overflow while subtracting")
