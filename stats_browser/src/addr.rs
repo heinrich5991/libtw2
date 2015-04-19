@@ -1,8 +1,8 @@
 use rustc_serialize;
 use serverbrowse::protocol;
+use serverbrowse::protocol::IpAddr;
 
 use std::fmt;
-use std::net::IpAddr;
 use std::net;
 
 /// Protocol version of the `SERVERBROWSE_GETINFO` packet.
@@ -21,7 +21,11 @@ pub struct Addr(protocol::Addr);
 
 impl Addr {
     /// Creates a new `Addr` from a given IP address and a UDP port.
-    pub fn new(ip_addr: IpAddr, port: u16) -> Addr {
+    pub fn new(ip_addr: net::IpAddr, port: u16) -> Addr {
+        let ip_addr = match ip_addr {
+            net::IpAddr::V4(x) => IpAddr::V4(x),
+            net::IpAddr::V6(x) => IpAddr::V6(x),
+        };
         Addr(protocol::Addr { ip_address: ip_addr, port: port })
     }
     /// Converts a serverbrowse address to an `Addr`.
@@ -36,7 +40,11 @@ impl Addr {
     /// Converts the address to a socket address.
     pub fn to_socket_addr(self) -> net::SocketAddr {
         let srvbrowse_addr = self.to_srvbrowse_addr();
-        net::SocketAddr::new(srvbrowse_addr.ip_address, srvbrowse_addr.port)
+        let ip_addr = match srvbrowse_addr.ip_address {
+            IpAddr::V4(x) => net::IpAddr::V4(x),
+            IpAddr::V6(x) => net::IpAddr::V6(x),
+        };
+        net::SocketAddr::new(ip_addr, srvbrowse_addr.port)
     }
     /// Converts a socket address to an `Addr`.
     pub fn from_socket_addr(addr: net::SocketAddr) -> Addr {
