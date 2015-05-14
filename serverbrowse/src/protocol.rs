@@ -23,18 +23,14 @@ const MAX_CLIENTS_6_64: u32 = 64;
 pub const MASTERSERVER_PORT: u16 = 8300;
 
 /// Non-zero byte.
-#[unstable = "definition might move into a different module/crate"]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NzU8(u8);
 
-#[unstable]
 impl NzU8 {
-    #[unstable]
     pub fn from_u8(v: u8) -> NzU8 {
         assert!(v != 0);
         NzU8(v)
     }
-    #[unstable]
     pub fn to_u8(self) -> u8 {
         let NzU8(v) = self;
         v

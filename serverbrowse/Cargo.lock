@@ -4,9 +4,9 @@ version = "0.0.1"
 dependencies = [
  "common 0.0.1",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "num 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -15,12 +15,12 @@ version = "0.0.1"
 
 [[package]]
 name = "gcc"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -28,39 +28,38 @@ name = "log"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "num"
-version = "0.1.22"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "rand 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rand"
-version = "0.3.7"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.12"
+version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "time"
-version = "0.1.24"
+version = "0.1.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "gcc 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
