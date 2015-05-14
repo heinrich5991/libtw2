@@ -4,14 +4,12 @@
 #![crate_type = "dylib"]
 
 use std::fmt;
-use std::kinds::marker;
 use std::cell::UnsafeCell;
 
 /// A memory location that is initialized once and then kept constant until the
 /// end of its life.
 pub struct OnceCell<T> {
     value: UnsafeCell<Option<T>>,
-    noshare: marker::NoSync,
 }
 
 impl<T> OnceCell<T> {
@@ -19,7 +17,6 @@ impl<T> OnceCell<T> {
     pub fn new() -> OnceCell<T> {
         OnceCell {
             value: UnsafeCell::new(None),
-            noshare: marker::NoSync,
         }
     }
 
@@ -27,7 +24,6 @@ impl<T> OnceCell<T> {
     pub fn new_with_value(value: T) -> OnceCell<T> {
         OnceCell {
             value: UnsafeCell::new(Some(value)),
-            noshare: marker::NoSync,
         }
     }
 
@@ -95,14 +91,13 @@ impl<T:Clone> Clone for OnceCell<T> {
         let self_value = unsafe { &*self.value.get() };
         OnceCell {
             value: UnsafeCell::new(self_value.clone()),
-            noshare: marker::NoSync,
         }
     }
 }
 
-impl<T:fmt::Show> fmt::Show for OnceCell<T> {
+impl<T:fmt::Debug> fmt::Debug for OnceCell<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r"OnceCell {{ value: {} }}", self.borrow())
+        fmt::Debug::fmt(self.borrow(), f)
     }
 }
 
