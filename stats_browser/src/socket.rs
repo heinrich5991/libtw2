@@ -1,25 +1,23 @@
 extern crate mio;
 
-use self::mio::NonBlock as MioNonBlock;
 use self::mio::buf::Buf;
 use self::mio::buf::MutBuf;
 use self::mio::buf::MutSliceBuf;
 use self::mio::buf::SliceBuf;
-use self::mio::udp;
+use self::mio::udp::UdpSocket as MioUdpSocket;
 
 use std::fmt;
 use std::io;
-use std::net::UdpSocket as StdUdpSocket;
 
 use addr::Addr;
 
 /// An unconnected non-blocking UDP socket.
-pub struct UdpSocket(MioNonBlock<StdUdpSocket>);
+pub struct UdpSocket(MioUdpSocket);
 
 impl UdpSocket {
     /// Opens a UDP socket.
     pub fn open() -> SockResult<UdpSocket> {
-        udp::v4()
+        MioUdpSocket::v4()
             .map(|s| UdpSocket(s))
             .map_err(|e| SockError(e))
     }
