@@ -43,10 +43,10 @@ impl UnsafeOnlyI32 for DfItemHeader { }
 // BOILERPLATE CODE BELOW
 // ----------------------
 
-const SDHV: uint = 2;
-const SDH:  uint = 7;
-const SDIT: uint = 3;
-const SDIH: uint = 2;
+const SDHV: usize = 2;
+const SDH:  usize = 7;
+const SDIT: usize = 3;
+const SDIH: usize = 2;
 #[test] fn check_sdhv() { use std::mem::size_of; assert_eq!(SDHV * size_of::<i32>(), size_of::<DfHeaderVersion>()); }
 #[test] fn check_sdh()  { use std::mem::size_of; assert_eq!(SDH  * size_of::<i32>(), size_of::<DfHeader>());        }
 #[test] fn check_sdit() { use std::mem::size_of; assert_eq!(SDIT * size_of::<i32>(), size_of::<DfItemType>());      }

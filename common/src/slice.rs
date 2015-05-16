@@ -5,6 +5,10 @@ pub fn ref_slice<T>(r: &T) -> &[T] {
     unsafe { slice::from_raw_parts(r, 1) }
 }
 
+pub fn mut_ref_slice<T>(r: &mut T) -> &mut [T] {
+    unsafe { slice::from_raw_parts_mut(r, 1) }
+}
+
 pub fn relative_size_of_mult<T,U>(mult: usize) -> usize {
     assert!(mult * mem::size_of::<T>() % mem::size_of::<U>() == 0);
     mult * mem::size_of::<T>() / mem::size_of::<U>()

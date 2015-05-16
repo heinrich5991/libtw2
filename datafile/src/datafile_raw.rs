@@ -46,7 +46,7 @@ fn as_mut_i32_slice<'a, T:UnsafeOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
     unsafe { transmute_mut_slice(x) }
 }
 
-fn read_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Reader) -> IoResult<T> {
+fn read_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Read) -> IoResult<T> {
     // this is safe as T is guaranteed by UnsafeOnlyI32 to be POD, which
     // means there won't be a destructor running over uninitialized
     // elements, even when returning early from the try!()
@@ -55,7 +55,7 @@ fn read_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Reader) -> IoResult<T> {
     Ok(result)
 }
 
-fn read_owned_vec_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Reader, count: uint) -> IoResult<Vec<T>> {
+fn read_owned_vec_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Read, count: usize) -> IoResult<Vec<T>> {
     let mut result = Vec::with_capacity(count);
     // this operation is safe by the same reasoning for the unsafe block in
     // `read_as_le_i32s`.
@@ -83,7 +83,7 @@ pub static DATAFILE_ITEMTYPE_ID_RANGE: i32 = 0x10000;
 pub type DfResult<T> = Result<T,DatafileErr>;
 
 impl DatafileHeaderVersion {
-    pub fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeaderVersion> {
+    pub fn read_raw(reader: &mut Read) -> IoResult<DatafileHeaderVersion> {
         let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
         {
             // this operation is safe because result.magic is POD
@@ -92,7 +92,7 @@ impl DatafileHeaderVersion {
         }
         Ok(result)
     }
-    pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeaderVersion>> {
+    pub fn read(reader: &mut Read) -> IoResult<DfResult<DatafileHeaderVersion>> {
         let result = try!(DatafileHeaderVersion::read_raw(reader));
         debug!("read header_ver={}", result);
         tryi!(result.check());
@@ -121,10 +121,10 @@ impl DatafileHeaderVersion {
 }
 
 impl DatafileHeader {
-    pub fn read_raw(reader: &mut Reader) -> IoResult<DatafileHeader> {
+    pub fn read_raw(reader: &mut Read) -> IoResult<DatafileHeader> {
         Ok(try!(read_as_le_i32s(reader)))
     }
-    pub fn read(reader: &mut Reader) -> IoResult<DfResult<DatafileHeader>> {
+    pub fn read(reader: &mut Read) -> IoResult<DfResult<DatafileHeader>> {
         let result = try!(DatafileHeader::read_raw(reader));
         debug!("read header={}", result);
         tryi!(result.check());
@@ -197,9 +197,9 @@ pub struct MapIterator<T,U,D,I> {
     map_fn: fn (T, &D) -> U,
 }
 
-pub type DfItemIter<'a,T> = MapIterator<uint,DatafileItem<'a>,&'a T,iter::Range<uint>>;
-pub type DfItemTypeIter<'a,T> = MapIterator<uint,u16,&'a T,iter::Range<uint>>;
-pub type DfDataIter<'a,T> = MapIterator<uint,Result<Vec<u8>,()>,&'a T,iter::Range<uint>>;
+pub type DfItemIter<'a,T> = MapIterator<usize,DatafileItem<'a>,&'a T,iter::Range<usize>>;
+pub type DfItemTypeIter<'a,T> = MapIterator<usize,u16,&'a T,iter::Range<usize>>;
+pub type DfDataIter<'a,T> = MapIterator<usize,Result<Vec<u8>,()>,&'a T,iter::Range<usize>>;
 
 impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
     fn next(&mut self) -> Option<U> {
@@ -207,30 +207,30 @@ impl<T,U,D,I:Iterator<T>> Iterator<U> for MapIterator<T,U,D,I> {
     }
 }
 
-fn datafile_item_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> DatafileItem<'a> {
+fn datafile_item_map_fn<'a,T:Datafile>(index: usize, df: &&'a T) -> DatafileItem<'a> {
     df.item(index)
 }
 
-fn datafile_item_type_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> u16 {
+fn datafile_item_type_map_fn<'a,T:Datafile>(index: usize, df: &&'a T) -> u16 {
     df.item_type(index)
 }
 
-fn datafile_data_map_fn<'a,T:Datafile>(index: uint, df: &&'a T) -> Result<Vec<u8>,()> {
+fn datafile_data_map_fn<'a,T:Datafile>(index: usize, df: &&'a T) -> Result<Vec<u8>,()> {
     df.data(index)
 }
 
 pub trait Datafile {
     // TODO: doc
-    fn item_type(&self, index: uint) -> u16;
-    fn num_item_types(&self) -> uint;
+    fn item_type(&self, index: usize) -> u16;
+    fn num_item_types(&self) -> usize;
 
-    fn item<'a>(&'a self, index: uint) -> DatafileItem<'a>;
-    fn num_items(&self) -> uint;
+    fn item<'a>(&'a self, index: usize) -> DatafileItem<'a>;
+    fn num_items(&self) -> usize;
 
-    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()>;
-    fn num_data(&self) -> uint;
+    fn data<'a>(&'a self, index: usize) -> Result<Vec<u8>,()>;
+    fn num_data(&self) -> usize;
 
-    fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint);
+    fn item_type_indexes_start_num(&self, type_id: u16) -> (usize, usize);
 
 
     fn items<'a>(&'a self) -> DfItemIter<'a,Self> {
@@ -271,7 +271,7 @@ pub struct DatafileReader<T> {
     file: RefCell<T>,
 }
 
-impl<T:Seek+Reader> DatafileReader<T> {
+impl<T:Seek+Read> DatafileReader<T> {
     pub fn read(mut file: T) -> IoResult<DfResult<DatafileReader<T>>> {
         let header_ver;
         let header;
@@ -284,16 +284,16 @@ impl<T:Seek+Reader> DatafileReader<T> {
             let mut reader = file.as_reader_mut();
             header_ver = try2!(DatafileHeaderVersion::read(reader));
             header = try2!(DatafileHeader::read(reader));
-            item_types_raw = try!(read_owned_vec_as_le_i32s(reader, header.num_item_types as uint));
-            item_offsets = try!(read_owned_vec_as_le_i32s(reader, header.num_items as uint));
-            data_offsets = try!(read_owned_vec_as_le_i32s(reader, header.num_data as uint));
+            item_types_raw = try!(read_owned_vec_as_le_i32s(reader, header.num_item_types as usize));
+            item_offsets = try!(read_owned_vec_as_le_i32s(reader, header.num_items as usize));
+            data_offsets = try!(read_owned_vec_as_le_i32s(reader, header.num_data as usize));
             uncomp_data_sizes = match header_ver.version {
                 3 => None,
-                4 => Some(try!(read_exact_le_ints_owned(reader, header.num_data as uint))),
+                4 => Some(try!(read_exact_le_ints_owned(reader, header.num_data as usize))),
                 _ => unreachable!(), // should have been caught in header_ver.check()
             };
             // possible failure of relative_size_of_mult should have been caught in header.check()
-            items_raw = try!(read_owned_vec_as_le_i32s(reader, relative_size_of_mult::<u8,i32>(header.size_items as uint)));
+            items_raw = try!(read_owned_vec_as_le_i32s(reader, relative_size_of_mult::<u8,i32>(header.size_items as usize)));
 
         }
         // TODO: FIXME: check for u64 -> i64 overflow
@@ -344,17 +344,17 @@ impl<T:Seek+Reader> DatafileReader<T> {
         }
         {
             let mut offset = 0;
-            for i in range(0, self.header.num_items as uint) {
+            for i in range(0, self.header.num_items as usize) {
                 if self.item_offsets.as_slice()[i] < 0 {
                     error!("invalid item offset (negative), item={} offset={}", i, self.item_offsets.as_slice()[i]);
                     return Err(DatafileErr::Malformed);
                 }
-                if offset != self.item_offsets.as_slice()[i] as uint {
+                if offset != self.item_offsets.as_slice()[i] as usize {
                     error!("invalid item offset, item={} offset={} wanted={}", i, self.item_offsets.as_slice()[i], offset);
                     return Err(DatafileErr::Malformed);
                 }
                 offset += mem::size_of::<DatafileItemHeader>();
-                if offset > self.header.size_items as uint {
+                if offset > self.header.size_items as usize {
                     error!("item header out of bounds, item={} offset={} size_items={}", i, offset, self.header.size_items);
                     return Err(DatafileErr::Malformed);
                 }
@@ -363,20 +363,20 @@ impl<T:Seek+Reader> DatafileReader<T> {
                     error!("item has negative size, item={} size={}", i, item_header.size);
                     return Err(DatafileErr::Malformed);
                 }
-                offset += item_header.size as uint;
-                if offset > self.header.size_items as uint {
+                offset += item_header.size as usize;
+                if offset > self.header.size_items as usize {
                     error!("item out of bounds, item={} size={} size_items={}", i, item_header.size, self.header.size_items);
                     return Err(DatafileErr::Malformed);
                 }
             }
-            if offset != self.header.size_items as uint {
+            if offset != self.header.size_items as usize {
                 error!("last item not large enough, item={} offset={} size_items={}", self.header.num_items - 1, offset, self.header.size_items);
                 return Err(DatafileErr::Malformed);
             }
         }
         {
             let mut previous = 0;
-            for i in range(0, self.header.num_data as uint) {
+            for i in range(0, self.header.num_data as usize) {
                 match self.uncomp_data_sizes {
                     Some(ref uds) => {
                         if uds.as_slice()[i] < 0 {
@@ -400,7 +400,7 @@ impl<T:Seek+Reader> DatafileReader<T> {
         }
         {
             for (i, t) in self.item_types.iter().enumerate() {
-                for k in range(t.start as uint, (t.start + t.num) as uint) {
+                for k in range(t.start as usize, (t.start + t.num) as usize) {
                     let item_header = self.item_header(k);
                     if item_header.type_id() != t.type_id as u16 {
                         error!("item does not have right type_id, type={} type_id1={} item={} type_id2={}", i, t.type_id, k, item_header.type_id());
@@ -411,26 +411,26 @@ impl<T:Seek+Reader> DatafileReader<T> {
         }
         Ok(())
     }
-    fn item_header<'a>(&'a self, index: uint) -> &'a DatafileItemHeader {
+    fn item_header<'a>(&'a self, index: usize) -> &'a DatafileItemHeader {
         let slice = self.items_raw
-            .slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as uint))
+            .slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as usize))
             .slice_to(relative_size_of::<DatafileItemHeader,i32>());
         // TODO: find out why paranthesis are necessary
         // this operation is safe because both `i32` and
         // `DatafileItemHeader` are POD
         &(unsafe { transmute_slice::<i32,DatafileItemHeader>(slice) })[0]
     }
-    fn data_size_file(&self, index: uint) -> uint {
-        let start = self.data_offsets.as_slice()[index] as uint;
+    fn data_size_file(&self, index: usize) -> usize {
+        let start = self.data_offsets.as_slice()[index] as usize;
         let end = if index < self.data_offsets.len() - 1 {
-            self.data_offsets.as_slice()[index + 1] as uint
+            self.data_offsets.as_slice()[index + 1] as usize
         } else {
-            self.header.size_data as uint
+            self.header.size_data as usize
         };
         assert!(start <= end);
         end - start
     }
-    fn uncomp_data_impl(&self, index: uint) -> IoResult<DfResult<Vec<u8>>> {
+    fn uncomp_data_impl(&self, index: usize) -> IoResult<DfResult<Vec<u8>>> {
         let mut file = self.file.borrow_mut();
         try!(file.as_seek_mut().seek(self.data_offset as i64 + self.data_offsets.as_slice()[index] as i64, SeekSet));
 
@@ -444,7 +444,7 @@ impl<T:Seek+Reader> DatafileReader<T> {
 
         match self.uncomp_data_sizes {
             Some(ref uds) => {
-                let data_len = uds.as_slice()[index] as uint;
+                let data_len = uds.as_slice()[index] as usize;
                 let mut data = Vec::with_capacity(data_len);
                 unsafe { data.set_len(data_len); }
 
@@ -493,31 +493,31 @@ impl<T:Seek+Reader> DatafileReader<T> {
     }
 }
 
-impl<T:Reader+Seek> Datafile for DatafileReader<T> {
-    fn item_type(&self, index: uint) -> u16 {
+impl<T:Read+Seek> Datafile for DatafileReader<T> {
+    fn item_type(&self, index: usize) -> u16 {
         self.item_types.as_slice()[index].type_id as u16
     }
-    fn num_item_types(&self) -> uint {
-        self.header.num_item_types as uint
+    fn num_item_types(&self) -> usize {
+        self.header.num_item_types as usize
     }
 
-    fn item<'a>(&'a self, index: uint) -> DatafileItem<'a> {
+    fn item<'a>(&'a self, index: usize) -> DatafileItem<'a> {
         let item_header = self.item_header(index);
         let data = self.items_raw
-            .slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as uint))
+            .slice_from(relative_size_of_mult::<u8,i32>(self.item_offsets.as_slice()[index] as usize))
             .slice_from(relative_size_of::<DatafileItemHeader,i32>())
-            .slice_to(relative_size_of_mult::<u8,i32>(item_header.size as uint));
+            .slice_to(relative_size_of_mult::<u8,i32>(item_header.size as usize));
         DatafileItem {
             type_id: item_header.type_id(),
             id: item_header.id(),
             data: data,
         }
     }
-    fn num_items(&self) -> uint {
-        self.header.num_items as uint
+    fn num_items(&self) -> usize {
+        self.header.num_items as usize
     }
 
-    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()> {
+    fn data<'a>(&'a self, index: usize) -> Result<Vec<u8>,()> {
         let result: Result<Vec<u8>,()> = match self.uncomp_data_impl(index) {
             Ok(Ok(x)) => Ok(x),
             Ok(Err(x)) => {
@@ -531,14 +531,14 @@ impl<T:Reader+Seek> Datafile for DatafileReader<T> {
         };
         result
     }
-    fn num_data(&self) -> uint {
-        self.header.num_data as uint
+    fn num_data(&self) -> usize {
+        self.header.num_data as usize
     }
 
-    fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint) {
+    fn item_type_indexes_start_num(&self, type_id: u16) -> (usize, usize) {
         for t in self.item_types.iter() {
             if t.type_id as u16 == type_id {
-                return (t.start as uint, t.num as uint);
+                return (t.start as usize, t.num as usize);
             }
         }
         (0, 0)
@@ -548,8 +548,8 @@ impl<T:Reader+Seek> Datafile for DatafileReader<T> {
 #[deriving(Clone, Copy, Show)]
 struct DfBufItemType {
     type_id: u16,
-    start: uint,
-    num: uint,
+    start: usize,
+    num: usize,
 }
 
 #[deriving(Clone, Show)]
@@ -559,9 +559,9 @@ struct DfBufItem {
     data: Vec<i32>,
 }
 
-pub type DfDataNoerrIter<'a,T> = MapIterator<uint,&'a [u8],&'a T,iter::Range<uint>>;
+pub type DfDataNoerrIter<'a,T> = MapIterator<usize,&'a [u8],&'a T,iter::Range<usize>>;
 
-fn datafile_data_noerr_map_fn<'a>(index: uint, df: &&'a DatafileBuffer) -> &'a [u8] {
+fn datafile_data_noerr_map_fn<'a>(index: usize, df: &&'a DatafileBuffer) -> &'a [u8] {
     df.data_noerr(index)
 }
 
@@ -597,7 +597,7 @@ impl DatafileBuffer {
         Some(result)
     }
 
-    fn get_item_type_index(&self, type_id: u16) -> (uint, bool) {
+    fn get_item_type_index(&self, type_id: u16) -> (usize, bool) {
         for (i, &DfBufItemType { type_id: other_type_id, .. }) in self.item_types.iter().enumerate() {
             if type_id <= other_type_id {
                 return (i, type_id == other_type_id);
@@ -606,7 +606,7 @@ impl DatafileBuffer {
         (self.item_types.len(), false)
     }
 
-    fn get_item_index(&self, item_type_index: uint, item_type_found: bool, id: u16) -> (uint, bool) {
+    fn get_item_index(&self, item_type_index: usize, item_type_found: bool, id: u16) -> (usize, bool) {
         if !item_type_found {
             if item_type_index != self.item_types.len() {
                 (self.item_types.as_slice()[item_type_index].start, false)
@@ -628,7 +628,7 @@ impl DatafileBuffer {
         }
     }
 
-    pub fn data_noerr<'a>(&'a self, index: uint) -> &'a [u8] {
+    pub fn data_noerr<'a>(&'a self, index: usize) -> &'a [u8] {
         self.data.as_slice()[index].as_slice()
     }
 
@@ -673,7 +673,7 @@ impl DatafileBuffer {
         Ok(())
     }
 
-    pub fn add_data(&mut self, data: Vec<u8>) -> uint {
+    pub fn add_data(&mut self, data: Vec<u8>) -> usize {
         // add the data
         self.data.push(data);
         // return the index
@@ -682,15 +682,15 @@ impl DatafileBuffer {
 }
 
 impl Datafile for DatafileBuffer {
-    fn item_type(&self, index: uint) -> u16 {
+    fn item_type(&self, index: usize) -> u16 {
         let &DfBufItemType { type_id, .. } = self.item_types.iter().nth(index).expect("Invalid type index");
         type_id
     }
-    fn num_item_types(&self) -> uint {
+    fn num_item_types(&self) -> usize {
         self.item_types.len()
     }
 
-    fn item<'a>(&'a self, index: uint) -> DatafileItem<'a> {
+    fn item<'a>(&'a self, index: usize) -> DatafileItem<'a> {
         let DfBufItem { type_id, id, ref data } = self.items.as_slice()[index];
         DatafileItem {
             type_id: type_id,
@@ -698,18 +698,18 @@ impl Datafile for DatafileBuffer {
             data: data.as_slice(),
         }
     }
-    fn num_items(&self) -> uint {
+    fn num_items(&self) -> usize {
         self.items.len()
     }
 
-    fn data<'a>(&'a self, index: uint) -> Result<Vec<u8>,()> {
+    fn data<'a>(&'a self, index: usize) -> Result<Vec<u8>,()> {
         Ok(self.data_noerr(index).to_vec())
     }
-    fn num_data(&self) -> uint {
+    fn num_data(&self) -> usize {
         self.data.len()
     }
 
-    fn item_type_indexes_start_num(&self, type_id: u16) -> (uint, uint) {
+    fn item_type_indexes_start_num(&self, type_id: u16) -> (usize, usize) {
         let (type_index, type_found) = self.get_item_type_index(type_id);
         if !type_found {
             return (0, 0);

@@ -6,24 +6,24 @@ use datafile::DatafileReader;
 use datafile::DatafileBuffer;
 use datafile::SeekReaderCast;
 
-use std::io::File;
-use std::io::IoResult;
-use std::io::SeekStyle;
+use std::fs::File;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::io;
+use std::path::Path;
 
 struct SeekReaderRef<'a>(&'a mut (SeekReaderCast+'a));
 
-impl<'a> Reader for SeekReaderRef<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<uint> {
+impl<'a> Read for SeekReaderRef<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.as_reader_mut().read(buf)
     }
 }
 
 impl<'a> Seek for SeekReaderRef<'a> {
-    fn tell(&self) -> IoResult<u64> {
-        self.0.as_seek_ref().tell()
-    }
-    fn seek(&mut self, pos: i64, seek_style: SeekStyle) -> IoResult<()> {
-        self.0.as_seek_mut().seek(pos, seek_style)
+    fn seek(&mut self, from: SeekFrom) -> io::Result<u64> {
+        self.0.as_seek_mut().seek(from)
     }
 }
 
@@ -31,8 +31,8 @@ fn main() {
     let mut file = File::open(&Path::new("../dm1.map")).unwrap();
     let dfr = match DatafileReader::read(SeekReaderRef(&mut file)) {
         Ok(Ok(x)) => x,
-        Ok(Err(x)) => panic!("datafile error {}", x),
-        Err(x) => panic!("IO error {}", x),
+        Ok(Err(x)) => panic!("datafile error {:?}", x),
+        Err(x) => panic!("IO error {:?}", x),
     };
     dfr.debug_dump();
 

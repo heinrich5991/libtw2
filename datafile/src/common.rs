@@ -19,7 +19,7 @@ impl<T> Clone for Align<T> {
 pub struct BeaI32(Align<i32>, [u8, ..4]);
 
 trait FlatArray<T> {
-    fn num_elements(_unused_self: Option<Self>) -> uint {
+    fn num_elements(_unused_self: Option<Self>) -> usize {
         if mem::size_of::<T>() != 0 {
             mem::size_of::<Self>() / mem::size_of::<T>()
         } else {
@@ -72,7 +72,7 @@ impl<T,U:FlatArray<T>> SliceExt<T> for [U] {
 // BOILERPLATE CODE BELOW
 // ======================
 
-const S32: uint = 4;
+const S32: usize = 4;
 #[test] fn check_s32() { use std::mem; assert_eq!(S32, mem::size_of::<BeaU32>()); }
 #[test] fn check_align_beai32() { use std::mem; assert_eq!(BeaI32, mem::min_align_of::<BeaI32>()); }
 
