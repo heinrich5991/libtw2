@@ -1,11 +1,10 @@
 #![cfg(not(test))]
 
-#![feature(globs)]
-
 extern crate datafile;
 
-use std::fmt::Show;
-use std::io::File;
+use std::fmt::Debug;
+use std::fs::File;
+use std::path::Path;
 
 use datafile::Datafile;
 use datafile::DatafileItem;
@@ -16,14 +15,14 @@ use internals::*;
 pub mod internals;
 
 fn main() {
-    let file = box File::open(&Path::new("../dm1.map")).unwrap();
+    let file = Box::new(File::open(&Path::new("../dm1.map")).unwrap());
     let dfr = DatafileReader::read(file).unwrap().unwrap();
 
     for item in dfr.items() {
         let item: DatafileItem = item;
-        fn print_map_item<T:MapItem+Show>(slice: &[i32]) {
+        fn print_map_item<T:MapItem+Debug>(slice: &[i32]) {
             let mi: Option<&T> = MapItemExt::from_slice(slice);
-            print!("{} ", mi);
+            print!("{:?} ", mi);
         }
         match item.type_id {
             0 => {

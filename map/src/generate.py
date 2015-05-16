@@ -36,22 +36,22 @@ use std::mem;
 
 pub trait MapItem: UnsafeOnlyI32 {
     fn version(unused_self: Option<Self>) -> i32;
-    fn offset(unused_self: Option<Self>) -> uint;
+    fn offset(unused_self: Option<Self>) -> usize;
 }
 
 pub trait MapItemExt {
-    fn len(unused_self: Option<Self>) -> uint;
-    fn sum_len(unused_self: Option<Self>) -> uint;
+    fn len(unused_self: Option<Self>) -> usize;
+    fn sum_len(unused_self: Option<Self>) -> usize;
 
     fn from_slice(slice: &[i32]) -> Option<&Self>;
     //fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self>;
 }
 
 impl<T:MapItem> MapItemExt for T {
-    fn len(_: Option<T>) -> uint {
+    fn len(_: Option<T>) -> usize {
         mem::size_of::<T>() / mem::size_of::<i32>()
     }
-    fn sum_len(_: Option<T>) -> uint {
+    fn sum_len(_: Option<T>) -> usize {
         MapItem::offset(None::<T>) + MapItemExt::len(None::<T>)
     }
 
@@ -62,20 +62,20 @@ impl<T:MapItem> MapItemExt for T {
         if slice[0] < MapItem::version(None::<T>) {
             return None;
         }
-        let result: &[i32] = slice.slice(MapItem::offset(None::<T>), MapItemExt::sum_len(None::<T>));
+        let result: &[i32] = &slice[MapItem::offset(None::<T>)..MapItemExt::sum_len(None::<T>)];
         assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<T>());
         Some(unsafe { &*(result.as_ptr() as *const T) })
     }
 }
 
-#[deriving(Clone, Copy, Show)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C, packed)]
 pub struct MapItemCommonV0 {
     pub version: i32,
 }
 
 impl UnsafeOnlyI32 for MapItemCommonV0 { }
-impl MapItem for MapItemCommonV0 { fn version(_: Option<MapItemCommonV0>) -> i32 { 0 } fn offset(_: Option<MapItemCommonV0>) -> uint { 0 } }
+impl MapItem for MapItemCommonV0 { fn version(_: Option<MapItemCommonV0>) -> i32 { 0 } fn offset(_: Option<MapItemCommonV0>) -> usize { 0 } }
 """
 
 def make_items(items):
@@ -120,7 +120,7 @@ def generate_structs(items):
     result = []
     for (_, name, versions) in items:
         for (i, version) in enumerate(versions):
-            result.append("#[deriving(Clone, Copy, Show)]")
+            result.append("#[derive(Clone, Copy, Debug)]")
             result.append("#[repr(packed, C)]")
             if version:
                 result.append("pub struct {s} {{".format(s=struct_name(name, i)))
@@ -128,7 +128,7 @@ def generate_structs(items):
                     if size is None:
                         result.append("    pub {}: i32,".format(member))
                     else:
-                        result.append("    pub {}: [i32, ..{}],".format(member, size))
+                        result.append("    pub {}: [i32; {}],".format(member, size))
                 result.append("}")
             else:
                 result.append("pub struct {s};".format(s=struct_name(name, i)))
@@ -148,7 +148,7 @@ def generate_impl_map_item(items):
     for (_, name, versions) in items:
         offset = 1
         for (i, version) in enumerate(versions):
-            result.append("impl MapItem for {s} {{ fn version(_: Option<{s}>) -> i32 {{ {v} }} fn offset(_: Option<{s}>) -> uint {{ {o} }} }}".format(s=struct_name(name, i), v=i+1, o=offset))
+            result.append("impl MapItem for {s} {{ fn version(_: Option<{s}>) -> i32 {{ {v} }} fn offset(_: Option<{s}>) -> usize {{ {o} }} }}".format(s=struct_name(name, i), v=i+1, o=offset))
             for (member, size) in version:
                 if size is None:
                     offset += 1
