@@ -1,7 +1,8 @@
 pub use common::relative_size_of;
 pub use common::relative_size_of_mult;
-pub use common::slice::transmute_mut as transmute_mut_slice;
 pub use common::slice::transmute as transmute_slice;
+pub use common::slice::transmute_mut as transmute_mut_slice;
+pub use common::slice::transmute_unchecked_mut as transmute_mut_slice_unchecked;
 
 use ext::ReadComplete;
 use std::io::Read;

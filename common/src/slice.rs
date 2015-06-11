@@ -20,10 +20,18 @@ pub fn relative_size_of<T,U>() -> usize {
 
 pub unsafe fn transmute<T,U>(x: &[T]) -> &[U] {
     assert!(mem::min_align_of::<T>() % mem::min_align_of::<U>() == 0);
-    slice::from_raw_parts(x.as_ptr() as *const U, relative_size_of_mult::<T,U>(x.len()))
+    transmute_unchecked(x)
 }
 
 pub unsafe fn transmute_mut<T,U>(x: &mut [T]) -> &mut [U] {
     assert!(mem::min_align_of::<T>() % mem::min_align_of::<U>() == 0);
+    transmute_unchecked_mut(x)
+}
+
+pub unsafe fn transmute_unchecked<T,U>(x: &[T]) -> &[U] {
+    slice::from_raw_parts(x.as_ptr() as *const U, relative_size_of_mult::<T,U>(x.len()))
+}
+
+pub unsafe fn transmute_unchecked_mut<T,U>(x: &mut [T]) -> &mut [U] {
     slice::from_raw_parts_mut(x.as_ptr() as *mut U, relative_size_of_mult::<T,U>(x.len()))
 }

@@ -20,6 +20,7 @@ use bitmagic::relative_size_of;
 use bitmagic::relative_size_of_mult;
 use bitmagic::to_little_endian;
 use bitmagic::transmute_mut_slice;
+use bitmagic::transmute_mut_slice_unchecked;
 use bitmagic::transmute_slice;
 use common::slice::mut_ref_slice;
 use ext::ReadComplete;
@@ -102,30 +103,30 @@ pub struct DatafileItem<'a> {
     pub data: &'a [i32],
 }
 
-// A struct may only implement UnsafeOnlyI32 if it consists entirely of
-// tightly packed i32 and does not have a destructor.
-pub trait UnsafeOnlyI32: Copy { }
-impl UnsafeOnlyI32 for i32 { }
-impl UnsafeOnlyI32 for DatafileHeaderVersion { }
-impl UnsafeOnlyI32 for DatafileHeader { }
-impl UnsafeOnlyI32 for DatafileItemType { }
-impl UnsafeOnlyI32 for DatafileItemHeader { }
+// A struct may only implement OnlyI32 if it consists entirely of tightly
+// packed i32 and does not have a destructor.
+pub unsafe trait OnlyI32: Copy { }
+unsafe impl OnlyI32 for i32 { }
+unsafe impl OnlyI32 for DatafileHeaderVersion { }
+unsafe impl OnlyI32 for DatafileHeader { }
+unsafe impl OnlyI32 for DatafileItemType { }
+unsafe impl OnlyI32 for DatafileItemHeader { }
 
 
-fn as_mut_i32_slice<'a, T:UnsafeOnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
+fn as_mut_i32_slice<'a, T:OnlyI32>(x: &'a mut [T]) -> &'a mut [i32] {
     unsafe { transmute_mut_slice(x) }
 }
 
-fn read_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Read) -> io::Result<T> {
-    // this is safe as T is guaranteed by UnsafeOnlyI32 to be POD, which
-    // means there won't be a destructor running over uninitialized
-    // elements, even when returning early from the try!()
+fn read_as_le_i32s<T:OnlyI32>(reader: &mut Read) -> io::Result<T> {
+    // this is safe as T is guaranteed by OnlyI32 to be POD, which means there
+    // won't be a destructor running over uninitialized elements, even when
+    // returning early from the try!()
     let mut result = unsafe { mem::uninitialized() };
     try!(unsafe { read_exact_le_ints(reader, as_mut_i32_slice(mut_ref_slice(&mut result)))});
     Ok(result)
 }
 
-fn read_owned_vec_as_le_i32s<T:UnsafeOnlyI32>(reader: &mut Read, count: usize) -> io::Result<Vec<T>> {
+fn read_owned_vec_as_le_i32s<T:OnlyI32>(reader: &mut Read, count: usize) -> io::Result<Vec<T>> {
     let mut result = Vec::with_capacity(count);
     // this operation is safe by the same reasoning for the unsafe block in
     // `read_as_le_i32s`.
@@ -157,7 +158,7 @@ impl DatafileHeaderVersion {
         let mut result: DatafileHeaderVersion = try!(read_as_le_i32s(reader));
         {
             // this operation is safe because result.magic is POD
-            let magic_view: &mut [i32] = unsafe { transmute_mut_slice(&mut result.magic) };
+            let magic_view: &mut [i32] = unsafe { transmute_mut_slice_unchecked(&mut result.magic) };
             unsafe { to_little_endian(magic_view) };
         }
         Ok(result)
