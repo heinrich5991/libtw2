@@ -14,7 +14,7 @@ impl<T> Clone for Align<T> {
 }
 
 /// Big-endian aligned signed 32-bit integer.
-#[repr(C, packed)]
+#[repr(C)]
 #[deriving(Clone, Copy)]
 pub struct BeaI32(Align<i32>, [u8, ..4]);
 

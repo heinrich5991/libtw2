@@ -1,33 +1,32 @@
+use raw::Callback;
+use raw::CallbackError;
+use raw::CallbackReadError;
+use format::OnlyI32;
+
+use std::mem;
+
 pub use common::relative_size_of;
 pub use common::relative_size_of_mult;
 pub use common::slice::transmute as transmute_slice;
 pub use common::slice::transmute_mut as transmute_mut_slice;
-pub use common::slice::transmute_unchecked_mut as transmute_mut_slice_unchecked;
 
-use ext::ReadComplete;
-use std::io::Read;
-use std::io;
-use std::mem;
-
-#[cfg(target_endian="little")]
-pub unsafe fn from_little_endian<T>(_buffer: &mut [T]) {
+pub fn as_mut_i32_slice<T:OnlyI32>(x: &mut [T]) -> &mut [i32] {
+    unsafe { transmute_mut_slice(x) }
 }
 
-#[cfg(target_endian="little")]
-pub unsafe fn to_little_endian<T>(_buffer: &mut [T]) {
-}
-
-#[cfg(target_endian="big")]
 pub unsafe fn from_little_endian<T>(buffer: &mut [T]) {
-    swap_endian(buffer);
+    if cfg!(target_endian="big") {
+        swap_endian(buffer);
+    }
 }
 
-#[cfg(target_endian="big")]
 pub unsafe fn to_little_endian<T>(buffer: &mut [T]) {
-    swap_endian(buffer);
+    if cfg!(target_endian="big") {
+        swap_endian(buffer);
+    }
 }
 
-// depending on the target's endianness this function might not be needed
+// Depending on the target's endianness this function might not be needed.
 #[allow(dead_code)]
 pub unsafe fn swap_endian<T>(buffer: &mut [T]) {
     let len = buffer.len();
@@ -43,19 +42,49 @@ pub unsafe fn swap_endian<T>(buffer: &mut [T]) {
     }
 }
 
-pub unsafe fn read_exact_raw<T>(mut reader: &mut Read, buffer: &mut [T]) -> io::Result<()> {
-    reader.read_complete(transmute_mut_slice(buffer))
+pub trait CallbackExt: Callback {
+    fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(),CallbackReadError> {
+        let read = try!(self.read(buffer));
+        if read != buffer.len() {
+            return Err(CallbackReadError::EndOfFile);
+        }
+        Ok(())
+    }
+    fn seek_read_exact(&mut self, offset: u32, buffer: &mut [u8]) -> Result<(),CallbackReadError> {
+        let read = try!(self.seek_read(offset, buffer));
+        if read != buffer.len() {
+            return Err(CallbackReadError::EndOfFile);
+        }
+        Ok(())
+    }
+    fn seek_read_exact_owned(&mut self, offset: u32, count: usize) -> Result<Vec<u8>,CallbackReadError> {
+        let mut result = Vec::with_capacity(count);
+        // Safe because `u8` is POD.
+        unsafe { result.set_len(count); }
+        try!(self.seek_read_exact(offset, &mut result));
+        Ok(result)
+    }
+    unsafe fn read_exact_raw<T>(&mut self, buffer: &mut [T]) -> Result<(),CallbackReadError> {
+        self.read_exact(transmute_mut_slice(buffer))
+    }
+    fn read_le_i32s<T:OnlyI32>(&mut self, buffer: &mut [T]) -> Result<usize,CallbackError> {
+        let read = try!(self.read(unsafe { transmute_mut_slice(buffer) }));
+        let read_i32s = read / mem::size_of::<i32>();
+        unsafe { from_little_endian(&mut as_mut_i32_slice(buffer)[..read_i32s]) };
+        Ok(read)
+    }
+    fn read_exact_le_i32s<T:OnlyI32>(&mut self, buffer: &mut [T]) -> Result<(),CallbackReadError> {
+        try!(unsafe { self.read_exact_raw(buffer) });
+        unsafe { from_little_endian(as_mut_i32_slice(buffer)); }
+        Ok(())
+    }
+    fn read_exact_le_i32s_owned<T:OnlyI32>(&mut self, count: usize) -> Result<Vec<T>,CallbackReadError> {
+        let mut result = Vec::with_capacity(count);
+        // Safe because T:OnlyI32 is POD.
+        unsafe { result.set_len(count); }
+        try!(self.read_exact_le_i32s(&mut result));
+        Ok(result)
+    }
 }
 
-pub unsafe fn read_exact_le_ints<T>(reader: &mut Read, buffer: &mut [T]) -> io::Result<()> {
-    try!(read_exact_raw(reader, buffer));
-    from_little_endian(buffer);
-    Ok(())
-}
-
-pub unsafe fn read_exact_le_ints_owned<T>(reader: &mut Read, count: usize) -> io::Result<Vec<T>> {
-    let mut result = Vec::with_capacity(count);
-    result.set_len(count);
-    try!(read_exact_le_ints(reader, &mut result));
-    Ok(result)
-}
+impl<CB:Callback> CallbackExt for CB { }
