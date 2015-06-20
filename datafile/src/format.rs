@@ -1,17 +1,31 @@
+use num::ToPrimitive;
 use std::mem;
 
+use bitmagic::CallbackExt;
+use bitmagic::as_mut_i32_slice;
+use bitmagic::to_little_endian;
+use common::slice::mut_ref_slice;
+use raw::Callback;
+use raw::Error;
 use raw::DatafileError;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct DatafileHeaderVersion {
+pub struct Header {
+    pub hv: HeaderVersion,
+    pub hr: HeaderRest,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct HeaderVersion {
     pub magic: [u8; 4],
     pub version: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct DatafileHeaderRest {
+pub struct HeaderRest {
     pub size: i32,
     pub _swaplen: i32,
     pub num_item_types: i32,
@@ -23,7 +37,7 @@ pub struct DatafileHeaderRest {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct DatafileItemType {
+pub struct ItemType {
     pub type_id: i32,
     pub start: i32,
     pub num: i32,
@@ -31,7 +45,7 @@ pub struct DatafileItemType {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct DatafileItemHeader {
+pub struct ItemHeader {
     pub type_id_and_id: i32,
     pub size: i32,
 }
@@ -40,28 +54,80 @@ pub struct DatafileItemHeader {
 // packed i32 and does not have a destructor.
 pub unsafe trait OnlyI32: Copy { }
 unsafe impl OnlyI32 for i32 { }
-unsafe impl OnlyI32 for DatafileHeaderVersion { }
-unsafe impl OnlyI32 for DatafileHeaderRest { }
-unsafe impl OnlyI32 for DatafileItemType { }
-unsafe impl OnlyI32 for DatafileItemHeader { }
+unsafe impl OnlyI32 for Header { }
+unsafe impl OnlyI32 for HeaderVersion { }
+unsafe impl OnlyI32 for HeaderRest { }
+unsafe impl OnlyI32 for ItemType { }
+unsafe impl OnlyI32 for ItemHeader { }
 
-pub static DATAFILE_MAGIC: [u8; 4] = *b"DATA";
-pub static DATAFILE_MAGIC_BIGENDIAN: [u8; 4] = *b"ATAD";
-pub static DATAFILE_VERSION3: i32 = 3;
-pub static DATAFILE_VERSION4: i32 = 4;
-pub static DATAFILE_ITEMTYPE_ID_RANGE: i32 = 0x10000;
+pub static MAGIC: [u8; 4] = *b"DATA";
+pub static MAGIC_BIGENDIAN: [u8; 4] = *b"ATAD";
+pub static VERSION3: i32 = 3;
+pub static VERSION4: i32 = 4;
+pub static ITEMTYPE_ID_RANGE: i32 = 0x10000;
+impl Header {
+    pub fn read<CB:Callback>(cb: &mut CB) -> Result<Header,Error> {
+        let mut result: Header = unsafe { mem::uninitialized() };
+        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
+        if read < mem::size_of_val(&result.hv) {
+            return Err(Error::Df(DatafileError::TooShortHeaderVersion));
+        }
+        {
+            let slice = as_mut_i32_slice(mut_ref_slice(&mut result));
+            // Revert endian conversion for magic field.
+            unsafe { to_little_endian(&mut slice[..1]); }
+        }
+        try!(result.hv.check());
+        if read < mem::size_of_val(&result) {
+            return Err(Error::Df(DatafileError::TooShortHeader));
+        }
+        try!(result.hr.check());
+        try!(result.check());
+        debug!("read header={:?}", result);
+        Ok(result)
+    }
+    pub fn check(&self) -> Result<(),DatafileError> {
+        let expected_size = try!(self.total_size());
+        if self.hr.size != expected_size {
+            error!("size does not match expected size, size={} expected={}", self.hr.size, expected_size);
+        } else {
+            return Ok(())
+        }
+        Err(DatafileError::MalformedHeader)
+    }
+    pub fn total_size(&self) -> Result<i32,DatafileError> {
+        // These two functions are just used to make the lines in this function
+        // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
+        // of the type as `u64`.
+        fn u(val: i32) -> u64 { val.to_u64().unwrap() }
+        fn s<T>() -> u64 { mem::size_of::<T>().to_u64().unwrap() }
 
-impl DatafileHeaderVersion {
+        let result: u64
+            // The whole computation won't overflow because we're multiplying
+            // small integers with `u32`s.
+            = s::<HeaderRest>() - s::<i32>() * 2 // header_rest without size, _swaplen
+            + s::<ItemType>() * u(self.hr.num_item_types) // item_types
+            + s::<i32>() * u(self.hr.num_items) // item_offsets
+            + s::<i32>() * u(self.hr.num_data) // data_offsets
+            + if self.hv.version >= 4 { s::<i32>() * u(self.hr.num_data) } else { 0 } // data_sizes (only version 4)
+            + u(self.hr.size_items) // items
+            + u(self.hr.size_data); // data
+
+        result.to_i32().ok_or(DatafileError::MalformedHeader)
+    }
+}
+
+impl HeaderVersion {
     pub fn check(&self) -> Result<(),DatafileError> {
         Err(
-            if self.magic != DATAFILE_MAGIC && self.magic != DATAFILE_MAGIC_BIGENDIAN {
+            if self.magic != MAGIC && self.magic != MAGIC_BIGENDIAN {
                 error!("wrong datafile signature, magic={:08x}",
                     ((self.magic[0] as u32) << 24)
                     | ((self.magic[1] as u32) << 16)
                     | ((self.magic[2] as u32) << 8)
                     | (self.magic[3] as u32));
                 DatafileError::WrongMagic(self.magic)
-            } else if self.version != DATAFILE_VERSION3 && self.version != DATAFILE_VERSION4 {
+            } else if self.version != VERSION3 && self.version != VERSION4 {
                 error!("unsupported datafile version, version={}", self.version);
                 DatafileError::UnsupportedVersion(self.version)
             } else {
@@ -71,7 +137,7 @@ impl DatafileHeaderVersion {
     }
 }
 
-impl DatafileHeaderRest {
+impl HeaderRest {
     pub fn check(&self) -> Result<(),DatafileError> {
         if self.size < 0 {
             error!("size is negative, size={}", self.size);
@@ -97,9 +163,9 @@ impl DatafileHeaderRest {
     }
 }
 
-impl DatafileItemHeader {
-    pub fn new(type_id: u16, id: u16, size: i32) -> DatafileItemHeader {
-        let mut result = DatafileItemHeader { type_id_and_id: 0, size: size };
+impl ItemHeader {
+    pub fn new(type_id: u16, id: u16, size: i32) -> ItemHeader {
+        let mut result = ItemHeader { type_id_and_id: 0, size: size };
         result.set_type_id_and_id(type_id, id);
         result
     }

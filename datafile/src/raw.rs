@@ -7,17 +7,10 @@ use std::str;
 use zlib;
 
 use bitmagic::CallbackExt;
-use bitmagic::as_mut_i32_slice;
 use bitmagic::relative_size_of;
 use bitmagic::relative_size_of_mult;
-use bitmagic::to_little_endian;
 use bitmagic::transmute_slice;
-use common::slice::mut_ref_slice;
-use format::DATAFILE_ITEMTYPE_ID_RANGE;
-use format::DatafileHeaderRest;
-use format::DatafileHeaderVersion;
-use format::DatafileItemHeader;
-use format::DatafileItemType;
+use format;
 use format::OnlyI32;
 
 pub trait Callback {
@@ -34,70 +27,10 @@ pub trait DataCallback {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct DatafileHeader {
-    pub hv: DatafileHeaderVersion,
-    pub hr: DatafileHeaderRest,
-}
-
 pub struct ItemView<'a> {
     pub type_id: u16,
     pub id: u16,
     pub data: &'a [i32],
-}
-
-unsafe impl OnlyI32 for DatafileHeader { }
-
-impl DatafileHeader {
-    pub fn read<CB:Callback>(cb: &mut CB) -> Result<DatafileHeader,Error> {
-        let mut result: DatafileHeader = unsafe { mem::uninitialized() };
-        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
-        if read < mem::size_of_val(&result.hv) {
-            return Err(Error::Df(DatafileError::TooShortHeaderVersion));
-        }
-        {
-            let slice = as_mut_i32_slice(mut_ref_slice(&mut result));
-            // Revert endian conversion for magic field.
-            unsafe { to_little_endian(&mut slice[..1]); }
-        }
-        try!(result.hv.check());
-        if read < mem::size_of_val(&result) {
-            return Err(Error::Df(DatafileError::TooShortHeader));
-        }
-        try!(result.hr.check());
-        try!(result.check());
-        debug!("read header={:?}", result);
-        Ok(result)
-    }
-    pub fn check(&self) -> Result<(),DatafileError> {
-        let expected_size = try!(self.total_size());
-        if self.hr.size != expected_size {
-            error!("size does not match expected size, size={} expected={}", self.hr.size, expected_size);
-        } else {
-            return Ok(())
-        }
-        Err(DatafileError::MalformedHeader)
-    }
-    pub fn total_size(&self) -> Result<i32,DatafileError> {
-        // These two functions are just used to make the lines in this function
-        // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
-        // of the type as `u64`.
-        fn u(val: i32) -> u64 { val.to_u64().unwrap() }
-        fn s<T>() -> u64 { mem::size_of::<T>().to_u64().unwrap() }
-
-        let result: u64
-            // The whole computation won't overflow because we're multiplying
-            // small integers with `u32`s.
-            = s::<DatafileHeaderRest>() - s::<i32>() * 2 // header_rest without size, _swaplen
-            + s::<DatafileItemType>() * u(self.hr.num_item_types) // item_types
-            + s::<i32>() * u(self.hr.num_items) // item_offsets
-            + s::<i32>() * u(self.hr.num_data) // data_offsets
-            + if self.hv.version >= 4 { s::<i32>() * u(self.hr.num_data) } else { 0 } // data_sizes (only version 4)
-            + u(self.hr.size_items) // items
-            + u(self.hr.size_data); // data
-
-        result.to_i32().ok_or(DatafileError::MalformedHeader)
-    }
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
@@ -155,8 +88,8 @@ impl CallbackReadError {
 }
 
 pub struct Reader {
-    header: DatafileHeader,
-    item_types: Vec<DatafileItemType>,
+    header: format::Header,
+    item_types: Vec<format::ItemType>,
     item_offsets: Vec<i32>,
     data_offsets: Vec<i32>,
     uncomp_data_sizes: Option<Vec<i32>>,
@@ -169,7 +102,7 @@ impl Reader {
             cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(DatafileError::TooShort))
         }
 
-        let header = try!(DatafileHeader::read(cb));
+        let header = try!(format::Header::read(cb));
         let item_types_raw = try!(read_i32s(cb, header.hr.num_item_types as usize));
         let item_offsets = try!(read_i32s(cb, header.hr.num_items as usize));
         let data_offsets = try!(read_i32s(cb, header.hr.num_data as usize));
@@ -198,8 +131,8 @@ impl Reader {
         {
             let mut expected_start = 0;
             for (i, t) in self.item_types.iter().enumerate() {
-                if !(0 <= t.type_id && t.type_id < DATAFILE_ITEMTYPE_ID_RANGE) {
-                    error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", DATAFILE_ITEMTYPE_ID_RANGE, i, t.type_id);
+                if !(0 <= t.type_id && t.type_id < format::ITEMTYPE_ID_RANGE) {
+                    error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", format::ITEMTYPE_ID_RANGE, i, t.type_id);
                     return Err(DatafileError::Malformed);
                 }
                 if !(0 <= t.num && t.num <= self.header.hr.num_items - t.start) {
@@ -234,7 +167,7 @@ impl Reader {
                     error!("invalid item offset, item={} offset={} wanted={}", i, self.item_offsets[i], offset);
                     return Err(DatafileError::Malformed);
                 }
-                offset += mem::size_of::<DatafileItemHeader>();
+                offset += mem::size_of::<format::ItemHeader>();
                 if offset > self.header.hr.size_items as usize {
                     error!("item header out of bounds, item={} offset={} size_items={}", i, offset, self.header.hr.size_items);
                     return Err(DatafileError::Malformed);
@@ -292,15 +225,15 @@ impl Reader {
         }
         Ok(())
     }
-    fn item_header(&self, index: usize) -> &DatafileItemHeader {
+    fn item_header(&self, index: usize) -> &format::ItemHeader {
         let slice = &self.items_raw
             [relative_size_of_mult::<u8,i32>(self.item_offsets[index].to_usize().unwrap())..]
-            [..relative_size_of::<DatafileItemHeader,i32>()];
+            [..relative_size_of::<format::ItemHeader,i32>()];
         // TODO: Find out why paranthesis are necessary.
         //
-        // This operation is safe because both `i32` and `DatafileItemHeader`
+        // This operation is safe because both `i32` and `format::ItemHeader`
         // are POD.
-        &(unsafe { transmute_slice::<i32,DatafileItemHeader>(slice) })[0]
+        &(unsafe { transmute_slice::<i32,format::ItemHeader>(slice) })[0]
     }
     fn data_size_file(&self, index: usize) -> usize {
         let start = self.data_offsets[index] as usize;
@@ -347,7 +280,7 @@ impl Reader {
         let item_header = self.item_header(index);
         let data = &self.items_raw
             [relative_size_of_mult::<u8,i32>(self.item_offsets[index].to_usize().unwrap())..]
-            [relative_size_of::<DatafileItemHeader,i32>()..]
+            [relative_size_of::<format::ItemHeader,i32>()..]
             [..relative_size_of_mult::<u8,i32>(item_header.size.to_usize().unwrap())];
         ItemView {
             type_id: item_header.type_id(),
