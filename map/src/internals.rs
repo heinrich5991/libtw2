@@ -1,41 +1,54 @@
-
 extern crate datafile;
 
-use datafile::UnsafeOnlyI32;
+use datafile::OnlyI32;
 
 use std::mem;
 
-pub trait MapItem: UnsafeOnlyI32 {
-    fn version(unused_self: Option<Self>) -> i32;
-    fn offset(unused_self: Option<Self>) -> usize;
+pub trait MapItem: OnlyI32 {
+    fn version() -> i32;
+    fn offset() -> usize;
 }
 
-pub trait MapItemExt {
-    fn len(unused_self: Option<Self>) -> usize;
-    fn sum_len(unused_self: Option<Self>) -> usize;
-
-    fn from_slice(slice: &[i32]) -> Option<&Self>;
-    //fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self>;
+pub trait MapItemExt: MapItem {
+    fn len() -> usize {
+        mem::size_of::<Self>() / mem::size_of::<i32>()
+    }
+    fn sum_len() -> usize {
+        Self::offset() + Self::len()
+    }
+    fn from_slice(slice: &[i32]) -> Option<&Self> {
+        if slice.len() < Self::sum_len() {
+            return None;
+        }
+        if slice[0] < Self::version() {
+            return None;
+        }
+        let result: &[i32] = &slice[Self::offset()..Self::sum_len()];
+        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some(unsafe { &*(result.as_ptr() as *const Self) })
+    }
+    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
+        if slice.len() < Self::sum_len() {
+            return None;
+        }
+        if slice[0] < Self::version() {
+            return None;
+        }
+        let result: &mut [i32] = &mut slice[Self::offset()..Self::sum_len()];
+        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some(unsafe { &mut *(result.as_ptr() as *mut Self) })
+    }
 }
 
-impl<T:MapItem> MapItemExt for T {
-    fn len(_: Option<T>) -> usize {
-        mem::size_of::<T>() / mem::size_of::<i32>()
-    }
-    fn sum_len(_: Option<T>) -> usize {
-        MapItem::offset(None::<T>) + MapItemExt::len(None::<T>)
-    }
+impl<T:MapItem> MapItemExt for T { }
 
-    fn from_slice(slice: &[i32]) -> Option<&T> {
-        if slice.len() < MapItemExt::sum_len(None::<T>) {
-            return None;
-        }
-        if slice[0] < MapItem::version(None::<T>) {
-            return None;
-        }
-        let result: &[i32] = &slice[MapItem::offset(None::<T>)..MapItemExt::sum_len(None::<T>)];
-        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<T>());
-        Some(unsafe { &*(result.as_ptr() as *const T) })
+fn i32s_to_string(result: &mut [u8], input: &[i32]) {
+    assert!(result.len() == input.len() * mem::size_of::<i32>());
+    for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
+        output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
+        output[1] = (((input >> 16) & 0xff) - 0x80) as u8;
+        output[2] = (((input >>  8) & 0xff) - 0x80) as u8;
+        output[3] = (((input >>  0) & 0xff) - 0x80) as u8;
     }
 }
 
@@ -45,8 +58,8 @@ pub struct MapItemCommonV0 {
     pub version: i32,
 }
 
-impl UnsafeOnlyI32 for MapItemCommonV0 { }
-impl MapItem for MapItemCommonV0 { fn version(_: Option<MapItemCommonV0>) -> i32 { 0 } fn offset(_: Option<MapItemCommonV0>) -> usize { 0 } }
+unsafe impl OnlyI32 for MapItemCommonV0 { }
+impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
 
 pub static MAP_ITEMTYPE_VERSION: u16 = 0;
 pub static MAP_ITEMTYPE_INFO: u16 = 1;
@@ -136,25 +149,27 @@ pub struct MapItemEnvpointsV1 {
     pub values: [i32; 4],
 }
 
-impl UnsafeOnlyI32 for MapItemVersionV1 { }
-impl UnsafeOnlyI32 for MapItemInfoV1 { }
-impl UnsafeOnlyI32 for MapItemImageV1 { }
-impl UnsafeOnlyI32 for MapItemImageV2 { }
-impl UnsafeOnlyI32 for MapItemEnvelopeV1 { }
-impl UnsafeOnlyI32 for MapItemEnvelopeV2 { }
-impl UnsafeOnlyI32 for MapItemGroupV1 { }
-impl UnsafeOnlyI32 for MapItemGroupV2 { }
-impl UnsafeOnlyI32 for MapItemLayerV1 { }
-impl UnsafeOnlyI32 for MapItemEnvpointsV1 { }
+unsafe impl OnlyI32 for MapItemVersionV1 { }
+unsafe impl OnlyI32 for MapItemInfoV1 { }
+unsafe impl OnlyI32 for MapItemImageV1 { }
+unsafe impl OnlyI32 for MapItemImageV2 { }
+unsafe impl OnlyI32 for MapItemEnvelopeV1 { }
+unsafe impl OnlyI32 for MapItemEnvelopeV2 { }
+unsafe impl OnlyI32 for MapItemGroupV1 { }
+unsafe impl OnlyI32 for MapItemGroupV2 { }
+unsafe impl OnlyI32 for MapItemLayerV1 { }
+unsafe impl OnlyI32 for MapItemEnvpointsV1 { }
 
-impl MapItem for MapItemVersionV1 { fn version(_: Option<MapItemVersionV1>) -> i32 { 1 } fn offset(_: Option<MapItemVersionV1>) -> usize { 1 } }
-impl MapItem for MapItemInfoV1 { fn version(_: Option<MapItemInfoV1>) -> i32 { 1 } fn offset(_: Option<MapItemInfoV1>) -> usize { 1 } }
-impl MapItem for MapItemImageV1 { fn version(_: Option<MapItemImageV1>) -> i32 { 1 } fn offset(_: Option<MapItemImageV1>) -> usize { 1 } }
-impl MapItem for MapItemImageV2 { fn version(_: Option<MapItemImageV2>) -> i32 { 2 } fn offset(_: Option<MapItemImageV2>) -> usize { 6 } }
-impl MapItem for MapItemEnvelopeV1 { fn version(_: Option<MapItemEnvelopeV1>) -> i32 { 1 } fn offset(_: Option<MapItemEnvelopeV1>) -> usize { 1 } }
-impl MapItem for MapItemEnvelopeV2 { fn version(_: Option<MapItemEnvelopeV2>) -> i32 { 2 } fn offset(_: Option<MapItemEnvelopeV2>) -> usize { 12 } }
-impl MapItem for MapItemGroupV1 { fn version(_: Option<MapItemGroupV1>) -> i32 { 1 } fn offset(_: Option<MapItemGroupV1>) -> usize { 1 } }
-impl MapItem for MapItemGroupV2 { fn version(_: Option<MapItemGroupV2>) -> i32 { 2 } fn offset(_: Option<MapItemGroupV2>) -> usize { 7 } }
-impl MapItem for MapItemLayerV1 { fn version(_: Option<MapItemLayerV1>) -> i32 { 1 } fn offset(_: Option<MapItemLayerV1>) -> usize { 1 } }
-impl MapItem for MapItemEnvpointsV1 { fn version(_: Option<MapItemEnvpointsV1>) -> i32 { 1 } fn offset(_: Option<MapItemEnvpointsV1>) -> usize { 1 } }
+impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemInfoV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemImageV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemImageV2 { fn version() -> i32 { 2 } fn offset() -> usize { 6 } }
+impl MapItem for MapItemEnvelopeV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemEnvelopeV2 { fn version() -> i32 { 2 } fn offset() -> usize { 12 } }
+impl MapItem for MapItemGroupV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } }
+impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemEnvpointsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+
+impl MapItemEnvelopeV1 { pub fn name_get(&self) -> [u8; 32] { let mut result: [u8; 32] = unsafe { mem::uninitialized() }; i32s_to_string(&mut result, &self.name); result } }
 

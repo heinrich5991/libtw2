@@ -6,23 +6,21 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::path::Path;
 
-use datafile::Datafile;
-use datafile::DatafileItem;
-use datafile::DatafileReader;
-
 use internals::*;
 
 pub mod internals;
 
 fn main() {
-    let file = Box::new(File::open(&Path::new("../dm1.map")).unwrap());
-    let dfr = DatafileReader::read(file).unwrap().unwrap();
+    let file = File::open(&Path::new("../dm1.map")).unwrap();
+    let dfr = datafile::Reader::new(file).unwrap();
 
     for item in dfr.items() {
-        let item: DatafileItem = item;
+        let item: datafile::ItemView = item;
         fn print_map_item<T:MapItem+Debug>(slice: &[i32]) {
-            let mi: Option<&T> = MapItemExt::from_slice(slice);
-            print!("{:?} ", mi);
+            let maybe_mi: Option<&T> = MapItemExt::from_slice(slice);
+            if let Some(mi) = maybe_mi {
+                print!("{:?} ", mi);
+            }
         }
         match item.type_id {
             0 => {
