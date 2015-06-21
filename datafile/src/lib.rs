@@ -6,9 +6,16 @@ extern crate itertools;
 extern crate num;
 extern crate zlib_minimal as zlib;
 
-pub use file::DatafileReaderFile;
+pub use file::DataIter;
+pub use file::Error;
+pub use file::Reader;
+pub use format::OnlyI32;
+pub use raw::ItemTypeItems;
+pub use raw::ItemTypes;
+pub use raw::ItemView;
+pub use raw::Items;
 
 mod bitmagic;
-pub mod raw;
+mod raw;
 mod file;
 pub mod format;

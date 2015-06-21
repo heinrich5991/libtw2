@@ -43,25 +43,13 @@ pub enum CallbackReadError {
 pub struct CallbackError;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub enum DatafileError {
-    WrongMagic([u8; 4]),
-    UnsupportedVersion(i32),
-    MalformedHeader,
-    Malformed,
-    CompressionError,
-    TooShort,
-    TooShortHeaderVersion,
-    TooShortHeader,
-}
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub enum Error {
-    Df(DatafileError),
+    Df(format::Error),
     Cb(CallbackError),
 }
 
-impl From<DatafileError> for Error {
-    fn from(err: DatafileError) -> Error {
+impl From<format::Error> for Error {
+    fn from(err: format::Error) -> Error {
         Error::Df(err)
     }
 }
@@ -79,7 +67,7 @@ impl From<CallbackError> for CallbackReadError {
 }
 
 impl CallbackReadError {
-    pub fn on_eof(self, df_err: DatafileError) -> Error {
+    pub fn on_eof(self, df_err: format::Error) -> Error {
         match self {
             CallbackReadError::Cb(err) => From::from(err),
             CallbackReadError::EndOfFile => From::from(df_err),
@@ -99,7 +87,7 @@ pub struct Reader {
 impl Reader {
     pub fn new<CB:Callback>(cb: &mut CB) -> Result<Reader,Error> {
         fn read_i32s<CB:Callback,T:OnlyI32>(cb: &mut CB, len: usize) -> Result<Vec<T>,Error> {
-            cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(DatafileError::TooShort))
+            cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(format::Error::TooShort))
         }
 
         let header = try!(format::Header::read(cb));
@@ -127,33 +115,33 @@ impl Reader {
         try!(result.check());
         Ok(result)
     }
-    pub fn check(&self) -> Result<(),DatafileError> {
+    pub fn check(&self) -> Result<(),format::Error> {
         {
             let mut expected_start = 0;
             for (i, t) in self.item_types.iter().enumerate() {
                 if !(0 <= t.type_id && t.type_id < format::ITEMTYPE_ID_RANGE) {
                     error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", format::ITEMTYPE_ID_RANGE, i, t.type_id);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 if !(0 <= t.num && t.num <= self.header.hr.num_items - t.start) {
                     error!("invalid item_type num: must be in range 0 to num_items - start + 1, item_type={} type_id={} start={} num={}", i, t.type_id, t.start, t.num);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 if t.start != expected_start {
                     error!("item_types are not sequential, item_type={} type_id={} start={} expected={}", i, t.type_id, t.start, expected_start);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 expected_start += t.num;
                 for (k, t2) in self.item_types[..i].iter().enumerate() {
                     if t.type_id == t2.type_id {
                         error!("item_type type_id occurs twice, type_id={} item_type1={} item_type2={}", t.type_id, i, k);
-                        return Err(DatafileError::Malformed);
+                        return Err(format::Error::Malformed);
                     }
                 }
             }
             if expected_start != self.header.hr.num_items {
                 error!("last item_type does not contain last item, item_type={}", self.header.hr.num_item_types - 1);
-                return Err(DatafileError::Malformed);
+                return Err(format::Error::Malformed);
             }
         }
         {
@@ -161,31 +149,31 @@ impl Reader {
             for i in 0..self.header.hr.num_items as usize {
                 if self.item_offsets[i] < 0 {
                     error!("invalid item offset (negative), item={} offset={}", i, self.item_offsets[i]);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 if offset != self.item_offsets[i] as usize {
                     error!("invalid item offset, item={} offset={} wanted={}", i, self.item_offsets[i], offset);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 offset += mem::size_of::<format::ItemHeader>();
                 if offset > self.header.hr.size_items as usize {
                     error!("item header out of bounds, item={} offset={} size_items={}", i, offset, self.header.hr.size_items);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 let item_header = self.item_header(i);
                 if item_header.size < 0 {
                     error!("item has negative size, item={} size={}", i, item_header.size);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 offset += item_header.size as usize;
                 if offset > self.header.hr.size_items as usize {
                     error!("item out of bounds, item={} size={} size_items={}", i, item_header.size, self.header.hr.size_items);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
             }
             if offset != self.header.hr.size_items as usize {
                 error!("last item not large enough, item={} offset={} size_items={}", self.header.hr.num_items - 1, offset, self.header.hr.size_items);
-                return Err(DatafileError::Malformed);
+                return Err(format::Error::Malformed);
             }
         }
         {
@@ -195,7 +183,7 @@ impl Reader {
                     Some(ref uds) => {
                         if uds[i] < 0 {
                             error!("invalid data's uncompressed size, data={} uncomp_data_size={}", i, uds[i]);
-                            return Err(DatafileError::Malformed);
+                            return Err(format::Error::Malformed);
                         }
                     }
                     None => (),
@@ -203,11 +191,11 @@ impl Reader {
                 let offset = self.data_offsets[i];
                 if offset < 0 || offset > self.header.hr.size_data {
                     error!("invalid data offset, data={} offset={}", i, offset);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 if previous > offset {
                     error!("data overlaps, data1={} data2={}", i - 1, i);
-                    return Err(DatafileError::Malformed);
+                    return Err(format::Error::Malformed);
                 }
                 previous = offset;
             }
@@ -218,7 +206,7 @@ impl Reader {
                     let item_header = self.item_header(k);
                     if item_header.type_id() != t.type_id as u16 {
                         error!("item does not have right type_id, type={} type_id1={} item={} type_id2={}", i, t.type_id, k, item_header.type_id());
-                        return Err(DatafileError::Malformed);
+                        return Err(format::Error::Malformed);
                     }
                 }
             }
@@ -247,7 +235,7 @@ impl Reader {
     }
     pub fn read_data<CB:Callback>(&self, cb: &mut CB, index: usize) -> Result<CB::Data,Error> {
         let raw_data_len = self.data_size_file(index);
-        let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(DatafileError::TooShort)));
+        let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort)));
 
         match self.uncomp_data_sizes {
             Some(ref uds) => {
@@ -260,11 +248,11 @@ impl Reader {
                     }
                     Ok(len) => {
                         error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
-                        Err(From::from(DatafileError::CompressionError))
+                        Err(From::from(format::Error::CompressionError))
                     }
                     _ => {
                         error!("decompression error: zlib error");
-                        Err(From::from(DatafileError::CompressionError))
+                        Err(From::from(format::Error::CompressionError))
                     }
                 }
             },
@@ -352,31 +340,19 @@ impl Reader {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> u16 {
             self_.item_type(i)
         }
-        MapIterator {
-            data: self,
-            iterator: 0..self.num_item_types(),
-            map_fn: map_fn,
-        }
+        MapIterator::new(self, 0..self.num_item_types(), map_fn)
     }
     pub fn item_type_items(&self, type_id: u16) -> ItemTypeItems {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> ItemView<'a> {
             self_.item(i)
         }
-        MapIterator {
-            data: self,
-            iterator: self.item_type_indices(type_id),
-            map_fn: map_fn,
-        }
+        MapIterator::new(self, self.item_type_indices(type_id), map_fn)
     }
     pub fn data_iter<'a,CB:Callback>(&'a self, cb: &'a mut CB) -> DataIter<'a,CB,CB::Data> {
         fn map_fn<CB:Callback>(i: usize, &mut (self_, ref mut cb): &mut (&Reader, &mut CB)) -> Result<CB::Data,Error> {
             self_.read_data(*cb, i)
         }
-        MapIterator {
-            data: (self, cb),
-            iterator: 0..self.num_data(),
-            map_fn: map_fn,
-        }
+        MapIterator::new((self, cb), 0..self.num_data(), map_fn)
     }
 }
 
@@ -390,7 +366,17 @@ pub struct MapIterator<T,D,I:Iterator> {
     iterator: I,
     // `map` is already an function of an iterator, so we can't use `map` as a
     // name here.
-    map_fn: fn (I::Item, &mut D) -> T,
+    map_fn: fn(I::Item, &mut D) -> T,
+}
+
+impl<T,D,I:Iterator> MapIterator<T,D,I> {
+    pub fn new(data: D, iterator: I, map_fn: fn(I::Item, &mut D) -> T) -> MapIterator<T,D,I> {
+        MapIterator {
+            data: data,
+            iterator: iterator,
+            map_fn: map_fn,
+        }
+    }
 }
 
 impl<T,D,I:Iterator> Iterator for MapIterator<T,D,I> {
@@ -418,18 +404,21 @@ struct DfBufItem {
     data: Vec<i32>,
 }
 
+#[allow(dead_code)]
 pub struct DatafileBuffer {
     item_types: Vec<DfBufItemType>,
     items: Vec<DfBufItem>,
     data: Vec<Vec<u8>>,
 }
 
+#[allow(dead_code)]
 pub type DfDataNoerrIter<'a,T> = MapIterator<&'a [u8],&'a T,ops::Range<usize>>;
 
 //fn datafile_data_noerr_map_fn<'a>(index: usize, df: &&'a DatafileBuffer) -> &'a [u8] {
 //    df.data_noerr(index)
 //}
 
+#[allow(dead_code)]
 impl DatafileBuffer {
     pub fn new() -> DatafileBuffer {
         DatafileBuffer {

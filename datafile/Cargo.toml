@@ -14,3 +14,7 @@ path = "../common/"
 
 [dependencies.zlib_minimal]
 path = "../zlib_minimal/"
+
+[[bin]]
+name = "datafile"
+doc = false

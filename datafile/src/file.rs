@@ -4,16 +4,18 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io;
+use std::ops;
 
+use format;
 use raw::Callback;
 use raw::CallbackError;
 use raw::DataCallback;
-use raw::DatafileError;
+use raw::ItemView;
 use raw;
 
 #[derive(Debug)]
 pub enum Error {
-    Df(DatafileError),
+    Df(format::Error),
     Io(io::Error),
 }
 
@@ -24,13 +26,13 @@ struct CallbackData {
     last_error: Option<io::Error>,
 }
 
-pub struct DatafileReaderFile {
+pub struct Reader {
     callback_data: CallbackData,
     raw: raw::Reader,
 }
 
-impl From<DatafileError> for Error {
-    fn from(err: DatafileError) -> Error {
+impl From<format::Error> for Error {
+    fn from(err: format::Error) -> Error {
         Error::Df(err)
     }
 }
@@ -41,8 +43,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl DatafileReaderFile {
-    pub fn new(file: File) -> Result<DatafileReaderFile,Error> {
+impl Reader {
+    pub fn new(file: File) -> Result<Reader,Error> {
         let mut file = file;
         let datafile_start = try!(file.seek(SeekFrom::Current(0)));
         let mut callback_data = CallbackData {
@@ -53,7 +55,7 @@ impl DatafileReaderFile {
         };
         let result = raw::Reader::new(&mut callback_data);
         let raw = try!(callback_data.retrieve_error(result));
-        Ok(DatafileReaderFile {
+        Ok(Reader {
             callback_data: callback_data,
             raw: raw,
         })
@@ -62,7 +64,49 @@ impl DatafileReaderFile {
         let result = self.raw.debug_dump(&mut self.callback_data);
         self.callback_data.retrieve_error(result)
     }
+    pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>,Error> {
+        let result = self.raw.read_data(&mut self.callback_data, index);
+        let vec: WrapVecU8 = try!(self.callback_data.retrieve_error(result));
+        Ok(vec.inner)
+    }
+    pub fn item(&self, index: usize) -> ItemView {
+        self.raw.item(index)
+    }
+    pub fn num_items(&self) -> usize {
+        self.raw.num_items()
+    }
+    pub fn num_data(&self) -> usize {
+        self.raw.num_data()
+    }
+    pub fn item_type_indices(&self, type_id: u16) -> ops::Range<usize> {
+        self.raw.item_type_indices(type_id)
+    }
+    pub fn item_type(&self, index: usize) -> u16 {
+        self.raw.item_type(index)
+    }
+    pub fn num_item_types(&self) -> usize {
+        self.raw.num_item_types()
+    }
+
+    pub fn items(&self) -> raw::Items {
+        self.raw.items()
+    }
+    pub fn item_types(&self) -> raw::ItemTypes {
+        self.raw.item_types()
+    }
+    pub fn item_type_items(&self, type_id: u16) -> raw::ItemTypeItems {
+        self.raw.item_type_items(type_id)
+    }
+    pub fn data_iter(&mut self) -> DataIter {
+        fn map_fn(i: usize, self_: &mut &mut Reader) -> Result<Vec<u8>,Error> {
+            self_.read_data(i)
+        }
+        let num_data = self.num_data();
+        raw::MapIterator::new(self, 0..num_data, map_fn)
+    }
 }
+
+pub type DataIter<'a> = raw::MapIterator<Result<Vec<u8>,Error>,&'a mut Reader,ops::Range<usize>>;
 
 impl CallbackData {
     fn store_error<T>(&mut self, result: Result<T,io::Error>) -> Result<T,CallbackError> {

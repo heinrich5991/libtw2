@@ -6,8 +6,19 @@ use bitmagic::as_mut_i32_slice;
 use bitmagic::to_little_endian;
 use common::slice::mut_ref_slice;
 use raw::Callback;
-use raw::Error;
-use raw::DatafileError;
+use raw;
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+pub enum Error {
+    WrongMagic([u8; 4]),
+    UnsupportedVersion(i32),
+    MalformedHeader,
+    Malformed,
+    CompressionError,
+    TooShort,
+    TooShortHeaderVersion,
+    TooShortHeader,
+}
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -66,11 +77,11 @@ pub static VERSION3: i32 = 3;
 pub static VERSION4: i32 = 4;
 pub static ITEMTYPE_ID_RANGE: i32 = 0x10000;
 impl Header {
-    pub fn read<CB:Callback>(cb: &mut CB) -> Result<Header,Error> {
+    pub fn read<CB:Callback>(cb: &mut CB) -> Result<Header,raw::Error> {
         let mut result: Header = unsafe { mem::uninitialized() };
         let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
         if read < mem::size_of_val(&result.hv) {
-            return Err(Error::Df(DatafileError::TooShortHeaderVersion));
+            return Err(raw::Error::Df(Error::TooShortHeaderVersion));
         }
         {
             let slice = as_mut_i32_slice(mut_ref_slice(&mut result));
@@ -79,23 +90,23 @@ impl Header {
         }
         try!(result.hv.check());
         if read < mem::size_of_val(&result) {
-            return Err(Error::Df(DatafileError::TooShortHeader));
+            return Err(raw::Error::Df(Error::TooShortHeader));
         }
         try!(result.hr.check());
         try!(result.check());
         debug!("read header={:?}", result);
         Ok(result)
     }
-    pub fn check(&self) -> Result<(),DatafileError> {
+    pub fn check(&self) -> Result<(),Error> {
         let expected_size = try!(self.total_size());
         if self.hr.size != expected_size {
             error!("size does not match expected size, size={} expected={}", self.hr.size, expected_size);
         } else {
             return Ok(())
         }
-        Err(DatafileError::MalformedHeader)
+        Err(Error::MalformedHeader)
     }
-    pub fn total_size(&self) -> Result<i32,DatafileError> {
+    pub fn total_size(&self) -> Result<i32,Error> {
         // These two functions are just used to make the lines in this function
         // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
         // of the type as `u64`.
@@ -113,12 +124,12 @@ impl Header {
             + u(self.hr.size_items) // items
             + u(self.hr.size_data); // data
 
-        result.to_i32().ok_or(DatafileError::MalformedHeader)
+        result.to_i32().ok_or(Error::MalformedHeader)
     }
 }
 
 impl HeaderVersion {
-    pub fn check(&self) -> Result<(),DatafileError> {
+    pub fn check(&self) -> Result<(),Error> {
         Err(
             if self.magic != MAGIC && self.magic != MAGIC_BIGENDIAN {
                 error!("wrong datafile signature, magic={:08x}",
@@ -126,10 +137,10 @@ impl HeaderVersion {
                     | ((self.magic[1] as u32) << 16)
                     | ((self.magic[2] as u32) << 8)
                     | (self.magic[3] as u32));
-                DatafileError::WrongMagic(self.magic)
+                Error::WrongMagic(self.magic)
             } else if self.version != VERSION3 && self.version != VERSION4 {
                 error!("unsupported datafile version, version={}", self.version);
-                DatafileError::UnsupportedVersion(self.version)
+                Error::UnsupportedVersion(self.version)
             } else {
                 return Ok(());
             }
@@ -138,7 +149,7 @@ impl HeaderVersion {
 }
 
 impl HeaderRest {
-    pub fn check(&self) -> Result<(),DatafileError> {
+    pub fn check(&self) -> Result<(),Error> {
         if self.size < 0 {
             error!("size is negative, size={}", self.size);
         } else if self._swaplen < 0 {
@@ -159,7 +170,7 @@ impl HeaderRest {
         } else {
             return Ok(())
         }
-        Err(DatafileError::MalformedHeader)
+        Err(Error::MalformedHeader)
     }
 }
 
