@@ -1,4 +1,4 @@
 extern crate datafile;
 
-pub mod internals;
+pub mod format;
 pub mod map;

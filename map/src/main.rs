@@ -8,7 +8,7 @@ use std::fs::File;
 use std::path::Path;
 use std::str;
 
-use map::internals::*;
+use map::format::*;
 
 fn main() {
     let file = File::open(&Path::new("../dm1.map")).unwrap();

@@ -1,5 +1,3 @@
-extern crate datafile;
-
 use datafile::OnlyI32;
 
 use std::mem;
