@@ -1,5 +1,8 @@
+extern crate datafile;
+
 use datafile::OnlyI32;
 
+use std::fmt;
 use std::mem;
 
 pub trait MapItem: OnlyI32 {
@@ -59,7 +62,7 @@ pub fn bytes_to_string(bytes: &[u8]) -> &[u8] {
     bytes
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemCommonV0 {
     pub version: i32,
@@ -67,6 +70,12 @@ pub struct MapItemCommonV0 {
 
 unsafe impl OnlyI32 for MapItemCommonV0 { }
 impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
+
+impl fmt::Debug for MapItemCommonV0 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "version={:?}", self.version)
+    }
+}
 
 pub const MAP_ITEMTYPE_VERSION: u16 = 0;
 pub const MAP_ITEMTYPE_INFO: u16 = 1;
@@ -76,11 +85,11 @@ pub const MAP_ITEMTYPE_GROUP: u16 = 4;
 pub const MAP_ITEMTYPE_LAYER: u16 = 5;
 pub const MAP_ITEMTYPE_ENVPOINTS: u16 = 6;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemVersionV1;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemInfoV1 {
     pub author: i32,
@@ -89,7 +98,7 @@ pub struct MapItemInfoV1 {
     pub license: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemImageV1 {
     pub width: i32,
@@ -99,13 +108,13 @@ pub struct MapItemImageV1 {
     pub data: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemImageV2 {
     pub format: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemEnvelopeV1 {
     pub channels: i32,
@@ -114,13 +123,13 @@ pub struct MapItemEnvelopeV1 {
     pub name: [i32; 8],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemEnvelopeV2 {
     pub synchronized: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemGroupV1 {
     pub offset_x: i32,
@@ -131,7 +140,7 @@ pub struct MapItemGroupV1 {
     pub num_layers: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemGroupV2 {
     pub use_clipping: i32,
@@ -141,14 +150,14 @@ pub struct MapItemGroupV2 {
     pub clip_h: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemLayerV1 {
     pub type_: i32,
     pub flags: i32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemEnvpointsV1 {
     pub time: i32,
@@ -187,3 +196,84 @@ impl MapItemEnvelopeV1 {
     }
 }
 
+impl fmt::Debug for MapItemVersionV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemInfoV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "author={:?}", self.author));
+        try!(write!(_f, " map_version={:?}", self.map_version));
+        try!(write!(_f, " credits={:?}", self.credits));
+        try!(write!(_f, " license={:?}", self.license));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemImageV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "width={:?}", self.width));
+        try!(write!(_f, " height={:?}", self.height));
+        try!(write!(_f, " external={:?}", self.external));
+        try!(write!(_f, " name={:?}", self.name));
+        try!(write!(_f, " data={:?}", self.data));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemImageV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "format={:?}", self.format));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemEnvelopeV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "channels={:?}", self.channels));
+        try!(write!(_f, " start_points={:?}", self.start_points));
+        try!(write!(_f, " num_points={:?}", self.num_points));
+        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemEnvelopeV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "synchronized={:?}", self.synchronized));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemGroupV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "offset_x={:?}", self.offset_x));
+        try!(write!(_f, " offset_y={:?}", self.offset_y));
+        try!(write!(_f, " parallax_x={:?}", self.parallax_x));
+        try!(write!(_f, " parallax_y={:?}", self.parallax_y));
+        try!(write!(_f, " start_layer={:?}", self.start_layer));
+        try!(write!(_f, " num_layers={:?}", self.num_layers));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemGroupV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "use_clipping={:?}", self.use_clipping));
+        try!(write!(_f, " clip_x={:?}", self.clip_x));
+        try!(write!(_f, " clip_y={:?}", self.clip_y));
+        try!(write!(_f, " clip_w={:?}", self.clip_w));
+        try!(write!(_f, " clip_h={:?}", self.clip_h));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "type_={:?}", self.type_));
+        try!(write!(_f, " flags={:?}", self.flags));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemEnvpointsV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "time={:?}", self.time));
+        try!(write!(_f, " curvetype={:?}", self.curvetype));
+        try!(write!(_f, " values={:?}", self.values));
+        Ok(())
+    }
+}

@@ -6,7 +6,6 @@ extern crate map;
 use std::fmt::Debug;
 use std::fs::File;
 use std::path::Path;
-use std::str;
 
 use map::format::*;
 
@@ -46,9 +45,6 @@ fn main() {
                 print_map_item::<MapItemCommonV0>(item.data);
                 print_map_item::<MapItemEnvelopeV1>(item.data);
                 print_map_item::<MapItemEnvelopeV2>(item.data);
-                if let Some(env_v1) = MapItemEnvelopeV1::from_slice(item.data) {
-                    print!("{:?} ", str::from_utf8(bytes_to_string(&env_v1.name_get())));
-                }
                 println!("");
             },
             4 => {

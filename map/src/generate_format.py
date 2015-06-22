@@ -32,6 +32,7 @@ extern crate datafile;
 
 use datafile::OnlyI32;
 
+use std::fmt;
 use std::mem;
 
 pub trait MapItem: OnlyI32 {
@@ -91,7 +92,7 @@ pub fn bytes_to_string(bytes: &[u8]) -> &[u8] {
     bytes
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemCommonV0 {
     pub version: i32,
@@ -99,6 +100,12 @@ pub struct MapItemCommonV0 {
 
 unsafe impl OnlyI32 for MapItemCommonV0 { }
 impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
+
+impl fmt::Debug for MapItemCommonV0 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "version={:?}", self.version)
+    }
+}
 """
 
 def make_items(items):
@@ -148,7 +155,7 @@ def generate_structs(items):
     result = []
     for (_, name, versions) in items:
         for (i, version) in enumerate(versions):
-            result.append("#[derive(Clone, Copy, Debug)]")
+            result.append("#[derive(Clone, Copy)]")
             result.append("#[repr(C)]")
             if version:
                 result.append("pub struct {s} {{".format(s=struct_name(name, i)))
@@ -194,7 +201,7 @@ def generate_impl_string(items):
                 if size is None or type is None:
                     continue
                 if type != 's':
-                    raise ValueError("Invalid type: {t}".format(type))
+                    raise ValueError("Invalid type: {}".format(type))
                 result.append("""\
 impl {s} {{
     pub fn {m}_get(&self) -> [u8; {num_bytes}] {{
@@ -208,6 +215,26 @@ impl {s} {{
     result.append("")
     return "\n".join(result)
 
+def generate_impl_debug(items):
+    result = []
+    for (_, name, versions) in items:
+        for (i, version) in enumerate(versions):
+            result.append("impl fmt::Debug for {s} {{".format(s=struct_name(name, i)))
+            result.append("    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {")
+            first = ""
+            for (member, size, type) in version:
+                if size is None or type is None:
+                    result.append("        try!(write!(_f, \"{first}{m}={{:?}}\", self.{m}));".format(m=member, first=first));
+                else:
+                    if type != 's':
+                        raise ValueError("Invalid type: {}".format(type))
+                    result.append("        try!(write!(_f, \"{first}{m}={{:?}}\", String::from_utf8_lossy(bytes_to_string(&self.{m}_get()))));".format(m=member, first=first));
+                first = " "
+            result.append("        Ok(())")
+            result.append("    }")
+            result.append("}")
+    return "\n".join(result)
+
 def main():
     items = make_items(ITEMS)
 
@@ -218,6 +245,7 @@ def main():
         generate_impl_unsafe_i32_only,
         generate_impl_map_item,
         generate_impl_string,
+        generate_impl_debug,
     ]:
         print(g(items))
 
