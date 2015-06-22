@@ -42,7 +42,7 @@ pub trait MapItemExt: MapItem {
 
 impl<T:MapItem> MapItemExt for T { }
 
-fn i32s_to_string(result: &mut [u8], input: &[i32]) {
+pub fn i32s_to_bytes(result: &mut [u8], input: &[i32]) {
     assert!(result.len() == input.len() * mem::size_of::<i32>());
     for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
         output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
@@ -52,8 +52,17 @@ fn i32s_to_string(result: &mut [u8], input: &[i32]) {
     }
 }
 
+pub fn bytes_to_string(bytes: &[u8]) -> &[u8] {
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == 0 {
+            return &bytes[..i]
+        }
+    }
+    bytes
+}
+
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct MapItemCommonV0 {
     pub version: i32,
 }
@@ -61,20 +70,20 @@ pub struct MapItemCommonV0 {
 unsafe impl OnlyI32 for MapItemCommonV0 { }
 impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
 
-pub static MAP_ITEMTYPE_VERSION: u16 = 0;
-pub static MAP_ITEMTYPE_INFO: u16 = 1;
-pub static MAP_ITEMTYPE_IMAGE: u16 = 2;
-pub static MAP_ITEMTYPE_ENVELOPE: u16 = 3;
-pub static MAP_ITEMTYPE_GROUP: u16 = 4;
-pub static MAP_ITEMTYPE_LAYER: u16 = 5;
-pub static MAP_ITEMTYPE_ENVPOINTS: u16 = 6;
+pub const MAP_ITEMTYPE_VERSION: u16 = 0;
+pub const MAP_ITEMTYPE_INFO: u16 = 1;
+pub const MAP_ITEMTYPE_IMAGE: u16 = 2;
+pub const MAP_ITEMTYPE_ENVELOPE: u16 = 3;
+pub const MAP_ITEMTYPE_GROUP: u16 = 4;
+pub const MAP_ITEMTYPE_LAYER: u16 = 5;
+pub const MAP_ITEMTYPE_ENVPOINTS: u16 = 6;
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemVersionV1;
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemInfoV1 {
     pub author: i32,
     pub map_version: i32,
@@ -83,7 +92,7 @@ pub struct MapItemInfoV1 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemImageV1 {
     pub width: i32,
     pub height: i32,
@@ -93,13 +102,13 @@ pub struct MapItemImageV1 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemImageV2 {
     pub format: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemEnvelopeV1 {
     pub channels: i32,
     pub start_points: i32,
@@ -108,13 +117,13 @@ pub struct MapItemEnvelopeV1 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemEnvelopeV2 {
     pub synchronized: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemGroupV1 {
     pub offset_x: i32,
     pub offset_y: i32,
@@ -125,7 +134,7 @@ pub struct MapItemGroupV1 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemGroupV2 {
     pub use_clipping: i32,
     pub clip_x: i32,
@@ -135,14 +144,14 @@ pub struct MapItemGroupV2 {
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemLayerV1 {
     pub type_: i32,
     pub flags: i32,
 }
 
 #[derive(Clone, Copy, Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct MapItemEnvpointsV1 {
     pub time: i32,
     pub curvetype: i32,
@@ -171,5 +180,12 @@ impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize
 impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
 impl MapItem for MapItemEnvpointsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
 
-impl MapItemEnvelopeV1 { pub fn name_get(&self) -> [u8; 32] { let mut result: [u8; 32] = unsafe { mem::uninitialized() }; i32s_to_string(&mut result, &self.name); result } }
+impl MapItemEnvelopeV1 {
+    pub fn name_get(&self) -> [u8; 32] {
+        let mut result: [u8; 32] = unsafe { mem::uninitialized() };
+        i32s_to_bytes(&mut result, &self.name);
+        result[32-1] = 0;
+        result
+    }
+}
 

@@ -1,14 +1,14 @@
 #![cfg(not(test))]
 
 extern crate datafile;
+extern crate map;
 
 use std::fmt::Debug;
 use std::fs::File;
 use std::path::Path;
+use std::str;
 
-use internals::*;
-
-pub mod internals;
+use map::internals::*;
 
 fn main() {
     let file = File::open(&Path::new("../dm1.map")).unwrap();
@@ -17,8 +17,7 @@ fn main() {
     for item in dfr.items() {
         let item: datafile::ItemView = item;
         fn print_map_item<T:MapItem+Debug>(slice: &[i32]) {
-            let maybe_mi: Option<&T> = MapItemExt::from_slice(slice);
-            if let Some(mi) = maybe_mi {
+            if let Some(mi) = T::from_slice(slice) {
                 print!("{:?} ", mi);
             }
         }
@@ -47,6 +46,9 @@ fn main() {
                 print_map_item::<MapItemCommonV0>(item.data);
                 print_map_item::<MapItemEnvelopeV1>(item.data);
                 print_map_item::<MapItemEnvelopeV2>(item.data);
+                if let Some(env_v1) = MapItemEnvelopeV1::from_slice(item.data) {
+                    print!("{:?} ", str::from_utf8(bytes_to_string(&env_v1.name_get())));
+                }
                 println!("");
             },
             4 => {

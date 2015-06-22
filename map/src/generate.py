@@ -72,7 +72,7 @@ pub trait MapItemExt: MapItem {
 
 impl<T:MapItem> MapItemExt for T { }
 
-fn i32s_to_string(result: &mut [u8], input: &[i32]) {
+pub fn i32s_to_bytes(result: &mut [u8], input: &[i32]) {
     assert!(result.len() == input.len() * mem::size_of::<i32>());
     for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
         output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
@@ -82,8 +82,17 @@ fn i32s_to_string(result: &mut [u8], input: &[i32]) {
     }
 }
 
+pub fn bytes_to_string(bytes: &[u8]) -> &[u8] {
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == 0 {
+            return &bytes[..i]
+        }
+    }
+    bytes
+}
+
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct MapItemCommonV0 {
     pub version: i32,
 }
@@ -131,7 +140,7 @@ def generate_constants(items):
     result = []
     for (type_id, name, _) in items:
         if type_id is not None:
-            result.append("pub static MAP_ITEMTYPE_{}: u16 = {};".format(name.upper(), type_id))
+            result.append("pub const MAP_ITEMTYPE_{}: u16 = {};".format(name.upper(), type_id))
     result.append("")
     return "\n".join(result)
 
@@ -140,7 +149,7 @@ def generate_structs(items):
     for (_, name, versions) in items:
         for (i, version) in enumerate(versions):
             result.append("#[derive(Clone, Copy, Debug)]")
-            result.append("#[repr(packed, C)]")
+            result.append("#[repr(C)]")
             if version:
                 result.append("pub struct {s} {{".format(s=struct_name(name, i)))
                 for (member, size, _) in version:
@@ -186,7 +195,15 @@ def generate_impl_string(items):
                     continue
                 if type != 's':
                     raise ValueError("Invalid type: {t}".format(type))
-                result.append("impl {s} {{ pub fn {m}_get(&self) -> [u8; {num_bytes}] {{ let mut result: [u8; {num_bytes}] = unsafe {{ mem::uninitialized() }}; i32s_to_string(&mut result, &self.{m}); result }} }}".format(s=struct_name(name, i), m=member, num_bytes=size*4))
+                result.append("""\
+impl {s} {{
+    pub fn {m}_get(&self) -> [u8; {num_bytes}] {{
+        let mut result: [u8; {num_bytes}] = unsafe {{ mem::uninitialized() }};
+        i32s_to_bytes(&mut result, &self.{m});
+        result[{num_bytes}-1] = 0;
+        result
+    }}
+}}""".format(s=struct_name(name, i), m=member, num_bytes=size*4))
 
     result.append("")
     return "\n".join(result)
