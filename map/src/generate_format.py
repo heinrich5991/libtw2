@@ -27,6 +27,20 @@ ITEMS = [
     ]),
 ]
 
+LAYER_V1_ITEMS = [
+    (2, "tilemap", [
+        # TODO: What is version 1?
+        [],
+        ["width", "height", "flags", "color_red", "color_green", "color_blue",
+         "color_alpha", "color_env", "color_env_offset", "image", "data"],
+        ["name[3s]"],
+    ]),
+    (3, "quads", [
+        ["num_quads", "data", "image"],
+        ["name[3s]"],
+    ])
+]
+
 header = """\
 extern crate datafile;
 
@@ -38,6 +52,7 @@ use std::mem;
 pub trait MapItem: OnlyI32 {
     fn version() -> i32;
     fn offset() -> usize;
+    fn ignore_version() -> bool;
 }
 
 pub trait MapItemExt: MapItem {
@@ -48,17 +63,24 @@ pub trait MapItemExt: MapItem {
         Self::offset() + Self::len()
     }
     fn from_slice(slice: &[i32]) -> Option<&Self> {
+        Self::from_slice_rest(slice).map(|(f, _)| f)
+    }
+    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
+        Self::from_slice_rest_mut(slice).map(|(f, _)| f)
+    }
+    fn from_slice_rest(slice: &[i32]) -> Option<(&Self, &[i32])> {
         if slice.len() < Self::sum_len() {
             return None;
         }
-        if slice[0] < Self::version() {
+        if !Self::ignore_version() && slice[0] < Self::version() {
             return None;
         }
-        let result: &[i32] = &slice[Self::offset()..Self::sum_len()];
-        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some(unsafe { &*(result.as_ptr() as *const Self) })
+        let result: &[i32] = &slice[Self::offset()..];
+        let (item, rest) = result.split_at(Self::len());
+        assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some((unsafe { &*(item.as_ptr() as *const Self) }, rest))
     }
-    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
+    fn from_slice_rest_mut(slice: &mut [i32]) -> Option<(&mut Self, &mut [i32])> {
         if slice.len() < Self::sum_len() {
             return None;
         }
@@ -66,8 +88,9 @@ pub trait MapItemExt: MapItem {
             return None;
         }
         let result: &mut [i32] = &mut slice[Self::offset()..Self::sum_len()];
-        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some(unsafe { &mut *(result.as_ptr() as *mut Self) })
+        let (item, rest) = result.split_at_mut(Self::len());
+        assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some((unsafe { &mut *(item.as_ptr() as *mut Self) }, rest))
     }
 }
 
@@ -99,9 +122,24 @@ pub struct MapItemCommonV0 {
 }
 
 unsafe impl OnlyI32 for MapItemCommonV0 { }
-impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
+impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } fn ignore_version() -> bool { true } }
 
 impl fmt::Debug for MapItemCommonV0 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "version={:?}", self.version)
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1CommonV0 {
+    pub version: i32,
+}
+
+unsafe impl OnlyI32 for MapItemLayerV1CommonV0 { }
+impl MapItem for MapItemLayerV1CommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } fn ignore_version() -> bool { true } }
+
+impl fmt::Debug for MapItemLayerV1CommonV0 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "version={:?}", self.version)
     }
@@ -140,14 +178,18 @@ def make_items(items):
 def struct_name(name, i):
     return "MapItem{}V{}".format(name.title().replace('_', ''), i + 1)
 
-def generate_header(items):
+def generate_header():
     return header
 
 def generate_constants(items):
     result = []
     for (type_id, name, _) in items:
-        if type_id is not None:
-            result.append("pub const MAP_ITEMTYPE_{}: u16 = {};".format(name.upper(), type_id))
+        # TODO: Remove this weird special-casing.
+        if name.startswith("layer_v1_"):
+            constant_type = "i32"
+        else:
+            constant_type = "u16"
+        result.append("pub const MAP_ITEMTYPE_{}: {} = {};".format(name.upper(), constant_type, type_id))
     result.append("")
     return "\n".join(result)
 
@@ -183,7 +225,16 @@ def generate_impl_map_item(items):
     for (_, name, versions) in items:
         offset = 1
         for (i, version) in enumerate(versions):
-            result.append("impl MapItem for {s} {{ fn version() -> i32 {{ {v} }} fn offset() -> usize {{ {o} }} }}".format(s=struct_name(name, i), v=i+1, o=offset))
+            if name != "layer":
+                ignore_version = "false"
+            else:
+                ignore_version = "true"
+            result.append("""\
+impl MapItem for {s} {{ \
+fn version() -> i32 {{ {v} }} \
+fn offset() -> usize {{ {o} }} \
+fn ignore_version() -> bool {{ {iv} }} \
+}}""".format(s=struct_name(name, i), v=i+1, o=offset, iv=ignore_version))
             for (_, size, _) in version:
                 if size is None:
                     offset += 1
@@ -235,19 +286,25 @@ def generate_impl_debug(items):
             result.append("}")
     return "\n".join(result)
 
+def preprocess_layer_v1_items(items):
+    return [(id, "layer_v1_" + name, versions) for (id, name, versions) in items]
+
 def main():
     items = make_items(ITEMS)
-
-    for g in [
-        generate_header,
+    layer_v1_items = make_items(preprocess_layer_v1_items(LAYER_V1_ITEMS))
+    steps = [
         generate_constants,
         generate_structs,
         generate_impl_unsafe_i32_only,
         generate_impl_map_item,
         generate_impl_string,
         generate_impl_debug,
-    ]:
-        print(g(items))
+    ]
+
+    print(generate_header())
+    for i in (items, layer_v1_items):
+        for g in steps:
+            print(g(i))
 
 if __name__ == '__main__':
     import sys

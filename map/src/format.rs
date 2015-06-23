@@ -8,6 +8,7 @@ use std::mem;
 pub trait MapItem: OnlyI32 {
     fn version() -> i32;
     fn offset() -> usize;
+    fn ignore_version() -> bool;
 }
 
 pub trait MapItemExt: MapItem {
@@ -18,17 +19,24 @@ pub trait MapItemExt: MapItem {
         Self::offset() + Self::len()
     }
     fn from_slice(slice: &[i32]) -> Option<&Self> {
+        Self::from_slice_rest(slice).map(|(f, _)| f)
+    }
+    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
+        Self::from_slice_rest_mut(slice).map(|(f, _)| f)
+    }
+    fn from_slice_rest(slice: &[i32]) -> Option<(&Self, &[i32])> {
         if slice.len() < Self::sum_len() {
             return None;
         }
-        if slice[0] < Self::version() {
+        if !Self::ignore_version() && slice[0] < Self::version() {
             return None;
         }
-        let result: &[i32] = &slice[Self::offset()..Self::sum_len()];
-        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some(unsafe { &*(result.as_ptr() as *const Self) })
+        let result: &[i32] = &slice[Self::offset()..];
+        let (item, rest) = result.split_at(Self::len());
+        assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some((unsafe { &*(item.as_ptr() as *const Self) }, rest))
     }
-    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
+    fn from_slice_rest_mut(slice: &mut [i32]) -> Option<(&mut Self, &mut [i32])> {
         if slice.len() < Self::sum_len() {
             return None;
         }
@@ -36,8 +44,9 @@ pub trait MapItemExt: MapItem {
             return None;
         }
         let result: &mut [i32] = &mut slice[Self::offset()..Self::sum_len()];
-        assert!(result.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some(unsafe { &mut *(result.as_ptr() as *mut Self) })
+        let (item, rest) = result.split_at_mut(Self::len());
+        assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
+        Some((unsafe { &mut *(item.as_ptr() as *mut Self) }, rest))
     }
 }
 
@@ -69,9 +78,24 @@ pub struct MapItemCommonV0 {
 }
 
 unsafe impl OnlyI32 for MapItemCommonV0 { }
-impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } }
+impl MapItem for MapItemCommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } fn ignore_version() -> bool { true } }
 
 impl fmt::Debug for MapItemCommonV0 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "version={:?}", self.version)
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1CommonV0 {
+    pub version: i32,
+}
+
+unsafe impl OnlyI32 for MapItemLayerV1CommonV0 { }
+impl MapItem for MapItemLayerV1CommonV0 { fn version() -> i32 { 0 } fn offset() -> usize { 0 } fn ignore_version() -> bool { true } }
+
+impl fmt::Debug for MapItemLayerV1CommonV0 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "version={:?}", self.version)
     }
@@ -176,16 +200,16 @@ unsafe impl OnlyI32 for MapItemGroupV2 { }
 unsafe impl OnlyI32 for MapItemLayerV1 { }
 unsafe impl OnlyI32 for MapItemEnvpointsV1 { }
 
-impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemInfoV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemImageV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemImageV2 { fn version() -> i32 { 2 } fn offset() -> usize { 6 } }
-impl MapItem for MapItemEnvelopeV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemEnvelopeV2 { fn version() -> i32 { 2 } fn offset() -> usize { 12 } }
-impl MapItem for MapItemGroupV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } }
-impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
-impl MapItem for MapItemEnvpointsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } }
+impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemInfoV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemImageV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemImageV2 { fn version() -> i32 { 2 } fn offset() -> usize { 6 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemEnvelopeV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemEnvelopeV2 { fn version() -> i32 { 2 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemGroupV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { true } }
+impl MapItem for MapItemEnvpointsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 
 impl MapItemEnvelopeV1 {
     pub fn name_get(&self) -> [u8; 32] {
@@ -274,6 +298,119 @@ impl fmt::Debug for MapItemEnvpointsV1 {
         try!(write!(_f, "time={:?}", self.time));
         try!(write!(_f, " curvetype={:?}", self.curvetype));
         try!(write!(_f, " values={:?}", self.values));
+        Ok(())
+    }
+}
+pub const MAP_ITEMTYPE_LAYER_V1_TILEMAP: i32 = 2;
+pub const MAP_ITEMTYPE_LAYER_V1_QUADS: i32 = 3;
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1TilemapV1;
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1TilemapV2 {
+    pub width: i32,
+    pub height: i32,
+    pub flags: i32,
+    pub color_red: i32,
+    pub color_green: i32,
+    pub color_blue: i32,
+    pub color_alpha: i32,
+    pub color_env: i32,
+    pub color_env_offset: i32,
+    pub image: i32,
+    pub data: i32,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1TilemapV3 {
+    pub name: [i32; 3],
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1QuadsV1 {
+    pub num_quads: i32,
+    pub data: i32,
+    pub image: i32,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1QuadsV2 {
+    pub name: [i32; 3],
+}
+
+unsafe impl OnlyI32 for MapItemLayerV1TilemapV1 { }
+unsafe impl OnlyI32 for MapItemLayerV1TilemapV2 { }
+unsafe impl OnlyI32 for MapItemLayerV1TilemapV3 { }
+unsafe impl OnlyI32 for MapItemLayerV1QuadsV1 { }
+unsafe impl OnlyI32 for MapItemLayerV1QuadsV2 { }
+
+impl MapItem for MapItemLayerV1TilemapV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1TilemapV2 { fn version() -> i32 { 2 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1TilemapV3 { fn version() -> i32 { 3 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1QuadsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1QuadsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 4 } fn ignore_version() -> bool { false } }
+
+impl MapItemLayerV1TilemapV3 {
+    pub fn name_get(&self) -> [u8; 12] {
+        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        i32s_to_bytes(&mut result, &self.name);
+        result[12-1] = 0;
+        result
+    }
+}
+impl MapItemLayerV1QuadsV2 {
+    pub fn name_get(&self) -> [u8; 12] {
+        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        i32s_to_bytes(&mut result, &self.name);
+        result[12-1] = 0;
+        result
+    }
+}
+
+impl fmt::Debug for MapItemLayerV1TilemapV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1TilemapV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "width={:?}", self.width));
+        try!(write!(_f, " height={:?}", self.height));
+        try!(write!(_f, " flags={:?}", self.flags));
+        try!(write!(_f, " color_red={:?}", self.color_red));
+        try!(write!(_f, " color_green={:?}", self.color_green));
+        try!(write!(_f, " color_blue={:?}", self.color_blue));
+        try!(write!(_f, " color_alpha={:?}", self.color_alpha));
+        try!(write!(_f, " color_env={:?}", self.color_env));
+        try!(write!(_f, " color_env_offset={:?}", self.color_env_offset));
+        try!(write!(_f, " image={:?}", self.image));
+        try!(write!(_f, " data={:?}", self.data));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1TilemapV3 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1QuadsV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "num_quads={:?}", self.num_quads));
+        try!(write!(_f, " data={:?}", self.data));
+        try!(write!(_f, " image={:?}", self.image));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1QuadsV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
         Ok(())
     }
 }
