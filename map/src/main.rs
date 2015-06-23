@@ -3,14 +3,15 @@
 extern crate datafile;
 extern crate map;
 
+use std::env;
 use std::fmt::Debug;
 use std::fs::File;
 use std::path::Path;
 
 use map::format::*;
 
-fn main() {
-    let file = File::open(&Path::new("../dm1.map")).unwrap();
+fn process(path: &Path) {
+    let file = File::open(path).unwrap();
     let dfr = datafile::Reader::new(file).unwrap();
 
     for item in dfr.items() {
@@ -77,5 +78,18 @@ fn main() {
             },
         }
         println!("");
+    }
+}
+
+fn main() {
+    let mut args = env::args_os();
+    let mut have_args = false;
+    let program_name = args.next().unwrap();
+    for arg in args {
+        have_args = true;
+        process(Path::new(&arg))
+    }
+    if !have_args {
+        println!("USAGE: {} <MAP>...", program_name.into_string().unwrap());
     }
 }
