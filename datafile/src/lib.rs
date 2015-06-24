@@ -14,6 +14,7 @@ pub use raw::ItemTypeItems;
 pub use raw::ItemTypes;
 pub use raw::ItemView;
 pub use raw::Items;
+pub use raw::Version;
 
 mod bitmagic;
 mod raw;

@@ -64,6 +64,9 @@ impl Reader {
         let result = self.raw.debug_dump(&mut self.callback_data);
         self.callback_data.retrieve_error(result)
     }
+    pub fn version(&self) -> raw::Version {
+        self.raw.version()
+    }
     pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>,Error> {
         let result = self.raw.read_data(&mut self.callback_data, index);
         let vec: WrapVecU8 = try!(self.callback_data.retrieve_error(result));
@@ -159,7 +162,7 @@ impl Callback for CallbackData {
     fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(),()>,CallbackError> {
         let result = self.file.seek(SeekFrom::End(0));
         let actual = try!(self.store_error(result));
-        Ok(if actual.checked_sub(self.datafile_start).unwrap() > filesize.to_u64().unwrap() {
+        Ok(if actual.checked_sub(self.datafile_start).unwrap() >= filesize.to_u64().unwrap() {
             Ok(())
         } else {
             Err(())

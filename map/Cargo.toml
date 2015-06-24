@@ -3,5 +3,11 @@ name = "map"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
+[dependencies]
+env_logger = "*"
+
+[dependencies.common]
+path = "../common/"
+
 [dependencies.datafile]
 path = "../datafile/"

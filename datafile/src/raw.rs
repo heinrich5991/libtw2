@@ -13,6 +13,23 @@ use bitmagic::transmute_slice;
 use format;
 use format::OnlyI32;
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+pub enum Version {
+    V3,
+    V4Crude,
+    V4,
+}
+
+impl Version {
+    fn has_compressed_data(&self) -> bool {
+        match *self {
+            Version::V3 => false,
+            Version::V4Crude => true,
+            Version::V4 => true,
+        }
+    }
+}
+
 pub trait Callback {
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize,CallbackError>;
     fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize,CallbackError>;
@@ -27,6 +44,7 @@ pub trait DataCallback {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct ItemView<'a> {
     pub type_id: u16,
     pub id: u16,
@@ -82,6 +100,7 @@ pub struct Reader {
     data_offsets: Vec<i32>,
     uncomp_data_sizes: Option<Vec<i32>>,
     items_raw: Vec<i32>,
+    version: Version,
 }
 
 impl Reader {
@@ -91,18 +110,30 @@ impl Reader {
         }
 
         let header = try!(format::Header::read(cb));
+        let header_check = try!(header.check_size_and_swaplen());
+        let version = match header.hv.version {
+            3 => Version::V3,
+            4 => if !header_check.crude_version { Version::V4 } else { Version::V4Crude },
+            _ => unreachable!(), // Should have been caught earlier, in Header::read().
+        };
         let item_types_raw = try!(read_i32s(cb, header.hr.num_item_types as usize));
         let item_offsets = try!(read_i32s(cb, header.hr.num_items as usize));
         let data_offsets = try!(read_i32s(cb, header.hr.num_data as usize));
-        let uncomp_data_sizes = match header.hv.version {
-            3 => None,
-            4 => Some(try!(read_i32s(cb, header.hr.num_data as usize))),
-            _ => unreachable!(), // Should have been caught in header.check().
+        let uncomp_data_sizes = if !version.has_compressed_data() {
+            None
+        } else {
+            Some(try!(read_i32s(cb, header.hr.num_data as usize)))
         };
-        // Possible failure of relative_size_of_mult should have been caught in header.check().
+
+        // Possible failure of relative_size_of_mult should have been caught in Header::read().
         let items_raw = try!(read_i32s(cb, relative_size_of_mult::<u8,i32>(header.hr.size_items as usize)));
 
         try!(cb.set_seek_base());
+
+        try!(try!(cb.ensure_filesize(header_check.expected_size)).map_err(|()| {
+            error!("file is not long enough, wanted {}", header_check.expected_size);
+            format::Error::TooShort
+        }));
 
         let result = Reader {
             header: header,
@@ -111,6 +142,7 @@ impl Reader {
             data_offsets: data_offsets,
             uncomp_data_sizes: uncomp_data_sizes,
             items_raw: items_raw,
+            version: version,
         };
         try!(result.check());
         Ok(result)
@@ -233,6 +265,9 @@ impl Reader {
         assert!(start <= end);
         end - start
     }
+    pub fn version(&self) -> Version {
+        self.version
+    }
     pub fn read_data<CB:Callback>(&self, cb: &mut CB, index: usize) -> Result<CB::Data,Error> {
         let raw_data_len = self.data_size_file(index);
         let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort)));
@@ -287,6 +322,7 @@ impl Reader {
             if t.type_id as u16 == type_id {
                 let start = t.start.to_usize().unwrap();
                 let num = t.num.to_usize().unwrap();
+                // Overflow check was in Reader::check().
                 return start..start+num;
             }
         }

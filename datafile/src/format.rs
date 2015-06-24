@@ -38,7 +38,7 @@ pub struct HeaderVersion {
 #[repr(C)]
 pub struct HeaderRest {
     pub size: i32,
-    pub _swaplen: i32,
+    pub swaplen: i32,
     pub num_item_types: i32,
     pub num_items: i32,
     pub num_data: i32,
@@ -76,6 +76,13 @@ pub static MAGIC_BIGENDIAN: [u8; 4] = *b"ATAD";
 pub static VERSION3: i32 = 3;
 pub static VERSION4: i32 = 4;
 pub static ITEMTYPE_ID_RANGE: i32 = 0x10000;
+
+pub struct HeaderCheckResult {
+    pub expected_size: u32,
+    // Version 4 with broken size calculation.
+    pub crude_version: bool,
+}
+
 impl Header {
     pub fn read<CB:Callback>(cb: &mut CB) -> Result<Header,raw::Error> {
         let mut result: Header = unsafe { mem::uninitialized() };
@@ -93,20 +100,43 @@ impl Header {
             return Err(raw::Error::Df(Error::TooShortHeader));
         }
         try!(result.hr.check());
-        try!(result.check());
         debug!("read header={:?}", result);
         Ok(result)
     }
-    pub fn check(&self) -> Result<(),Error> {
-        let expected_size = try!(self.total_size());
-        if self.hr.size != expected_size {
-            error!("size does not match expected size, size={} expected={}", self.hr.size, expected_size);
+    pub fn check_size_and_swaplen(&self) -> Result<HeaderCheckResult,Error> {
+        let expected_total_size = try!(self.calculate_total_size());
+        let expected_size0 = self.calculate_size_field(expected_total_size, false);
+        let expected_size1 = self.calculate_size_field(expected_total_size, true);
+        let expected_swaplen0 = self.calculate_swaplen_field(expected_total_size, false);
+        let expected_swaplen1 = self.calculate_swaplen_field(expected_total_size, true);
+
+        if self.hr.size != expected_size0 && self.hr.size != expected_size1 {
+            error!("size does not match expected size, size={} expected0={} expected1={}", self.hr.size, expected_size0, expected_size1);
+        } else if self.hr.swaplen != expected_swaplen0 && self.hr.swaplen != expected_swaplen1 {
+            error!("swaplen does not match expected swaplen, swaplen={} expected0={} expected1={}", self.hr.swaplen, expected_swaplen0, expected_swaplen1);
         } else {
-            return Ok(())
+            return Ok(HeaderCheckResult {
+                expected_size: expected_total_size.to_u32().unwrap(),
+                crude_version: self.hr.size != expected_size0,
+            })
         }
         Err(Error::MalformedHeader)
     }
-    pub fn total_size(&self) -> Result<i32,Error> {
+    fn calculate_size_field(&self, total_size: i32, crude_version: bool) -> i32 {
+        // The first four i32 fields are not accounted for in the size field.
+        let result = total_size - mem::size_of::<i32>().to_i32().unwrap() * 4;
+        if crude_version {
+            // Error in the calculation which existed in some version of the
+            // original code (it didn't account for the data_sizes).
+            result - mem::size_of::<i32>().to_i32().unwrap() * self.hr.num_data
+        } else {
+            result
+        }
+    }
+    fn calculate_swaplen_field(&self, total_size: i32, crude_version: bool) -> i32 {
+        self.calculate_size_field(total_size, crude_version) - self.hr.size_data
+    }
+    fn calculate_total_size(&self) -> Result<i32,Error> {
         // These two functions are just used to make the lines in this function
         // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
         // of the type as `u64`.
@@ -116,7 +146,7 @@ impl Header {
         let result: u64
             // The whole computation won't overflow because we're multiplying
             // small integers with `u32`s.
-            = s::<HeaderRest>() - s::<i32>() * 2 // header_rest without size, _swaplen
+            = s::<Header>() // header
             + s::<ItemType>() * u(self.hr.num_item_types) // item_types
             + s::<i32>() * u(self.hr.num_items) // item_offsets
             + s::<i32>() * u(self.hr.num_data) // data_offsets
@@ -152,8 +182,8 @@ impl HeaderRest {
     pub fn check(&self) -> Result<(),Error> {
         if self.size < 0 {
             error!("size is negative, size={}", self.size);
-        } else if self._swaplen < 0 {
-            error!("_swaplen is negative, _swaplen={}", self._swaplen);
+        } else if self.swaplen < 0 {
+            error!("swaplen is negative, swaplen={}", self.swaplen);
         } else if self.num_item_types < 0 {
             error!("num_item_types is negative, num_item_types={}", self.num_item_types);
         } else if self.num_items < 0 {

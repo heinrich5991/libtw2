@@ -22,9 +22,8 @@ ITEMS = [
     (5, "layer", [
         ["type_", "flags"],
     ]),
-    (6, "envpoints", [
-        ["time", "curvetype", "values[4]"],
-    ]),
+    # Different format:
+    (6, "envpoints", []),
 ]
 
 LAYER_V1_ITEMS = [
@@ -42,12 +41,11 @@ LAYER_V1_ITEMS = [
 ]
 
 header = """\
-extern crate datafile;
-
+use common;
 use datafile::OnlyI32;
-
 use std::fmt;
 use std::mem;
+use std::ops;
 
 pub trait MapItem: OnlyI32 {
     fn version() -> i32;
@@ -117,6 +115,26 @@ pub fn bytes_to_string(bytes: &[u8]) -> &[u8] {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+struct Fixed22_10 {
+    value: i32,
+}
+
+unsafe impl OnlyI32 for Fixed22_10 { }
+impl fmt::Debug for Fixed22_10 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        ((self.value as f32) / 1024.0).fmt(f)
+    }
+}
+
+impl fmt::Display for Fixed22_10 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct MapItemCommonV0 {
     pub version: i32,
 }
@@ -144,6 +162,67 @@ impl fmt::Debug for MapItemLayerV1CommonV0 {
         write!(f, "version={:?}", self.version)
     }
 }
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemEnvpointV1 {
+    time: i32,
+    curve_type: i32,
+    values: [Fixed22_10; 4],
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemEnvpointV2 {
+    v1: MapItemEnvpointV1,
+    in_tangent_dx: [Fixed22_10; 4],
+    in_tangent_dy: [Fixed22_10; 4],
+    out_tangent_dx: [Fixed22_10; 4],
+    out_tangent_dy: [Fixed22_10; 4],
+}
+
+unsafe impl OnlyI32 for MapItemEnvpointV1 { }
+unsafe impl OnlyI32 for MapItemEnvpointV2 { }
+impl fmt::Debug for MapItemEnvpointV1 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(f, "time={:?}", self.time));
+        try!(write!(f, " curve_type={:?}", self.curve_type));
+        try!(write!(f, " values={:?}", self.values));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemEnvpointV2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(f, "{:?}", self.v1));
+        try!(write!(f, " in_tangent_dx={:?}", self.in_tangent_dx));
+        try!(write!(f, " in_tangent_dy={:?}", self.in_tangent_dy));
+        try!(write!(f, " out_tangent_dx={:?}", self.out_tangent_dx));
+        try!(write!(f, " out_tangent_dy={:?}", self.out_tangent_dy));
+        Ok(())
+    }
+}
+impl Envpoint for MapItemEnvpointV1 { fn envelope_version() -> ops::Range<i32> { 1..2+1 } }
+impl Envpoint for MapItemEnvpointV2 { fn envelope_version() -> ops::Range<i32> { 3..3+1 } }
+
+pub trait Envpoint: OnlyI32 {
+    fn envelope_version() -> ops::Range<i32>;
+}
+
+pub trait EnvpointExt: Envpoint {
+    fn from_slice(slice: &[i32], envelope_version: i32) -> Option<&[Self]> {
+        if !(Self::envelope_version().start <= envelope_version
+            && envelope_version < Self::envelope_version().end)
+        {
+            return None;
+        }
+        if mem::size_of::<i32>() * slice.len() % mem::size_of::<Self>() != 0 {
+            return None;
+        }
+        Some(unsafe { common::slice::transmute(slice) })
+    }
+}
+
+impl<T:Envpoint> EnvpointExt for T { }
 """
 
 def make_items(items):
