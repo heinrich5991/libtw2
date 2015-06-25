@@ -1,3 +1,4 @@
+use common::MapIterator;
 use itertools::Itertools;
 use log;
 use num::ToPrimitive;
@@ -335,6 +336,15 @@ impl Reader {
         self.header.hr.num_item_types.to_usize().unwrap()
     }
 
+    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView> {
+        for item in self.item_type_items(type_id) {
+            if item.id == item_id {
+                return Some(item);
+            }
+        }
+        None
+    }
+
     pub fn debug_dump<CB:Callback>(&self, cb: &mut CB) -> Result<(),Error> {
         if !log_enabled!(log::LogLevel::Debug) {
             return Ok(())
@@ -366,11 +376,7 @@ impl Reader {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> ItemView<'a> {
             self_.item(i)
         }
-        MapIterator {
-            data: self,
-            iterator: 0..self.num_items(),
-            map_fn: map_fn,
-        }
+        MapIterator::new(self, 0..self.num_items(), map_fn)
     }
     pub fn item_types(&self) -> ItemTypes {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> u16 {
@@ -396,35 +402,6 @@ pub type DataIter<'a,CB,T> = MapIterator<Result<T,Error>,(&'a Reader,&'a mut CB)
 pub type Items<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
 pub type ItemTypes<'a> = MapIterator<u16,&'a Reader,ops::Range<usize>>;
 pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
-
-pub struct MapIterator<T,D,I:Iterator> {
-    data: D,
-    iterator: I,
-    // `map` is already an function of an iterator, so we can't use `map` as a
-    // name here.
-    map_fn: fn(I::Item, &mut D) -> T,
-}
-
-impl<T,D,I:Iterator> MapIterator<T,D,I> {
-    pub fn new(data: D, iterator: I, map_fn: fn(I::Item, &mut D) -> T) -> MapIterator<T,D,I> {
-        MapIterator {
-            data: data,
-            iterator: iterator,
-            map_fn: map_fn,
-        }
-    }
-}
-
-impl<T,D,I:Iterator> Iterator for MapIterator<T,D,I> {
-    type Item = T;
-    fn next(&mut self) -> Option<T> {
-        self.iterator.next().map(|x| (self.map_fn)(x, &mut self.data))
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iterator.size_hint()
-    }
-}
-
 
 #[derive(Clone, Copy, Debug)]
 struct DfBufItemType {

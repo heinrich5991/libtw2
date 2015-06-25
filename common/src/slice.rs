@@ -24,6 +24,6 @@ pub unsafe fn transmute<T,U>(x: &[T]) -> &[U] {
 }
 
 pub unsafe fn transmute_mut<T,U>(x: &mut [T]) -> &mut [U] {
-    assert!(mem::min_align_of::<T>() % mem::min_align_of::<U>() == 0);
+    transmute::<T,U>(x); // For the error checking.
     slice::from_raw_parts_mut(x.as_ptr() as *mut U, relative_size_of_mult::<T,U>(x.len()))
 }

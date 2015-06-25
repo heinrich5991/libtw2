@@ -5,6 +5,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 env_logger = "*"
+num = "*"
 
 [dependencies.common]
 path = "../common/"

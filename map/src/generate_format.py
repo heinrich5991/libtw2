@@ -18,6 +18,7 @@ ITEMS = [
     (4, "group", [
         ["offset_x", "offset_y", "parallax_x", "parallax_y", "start_layer", "num_layers"],
         ["use_clipping", "clip_x", "clip_y", "clip_w", "clip_h"],
+        ["name[3s]"],
     ]),
     (5, "layer", [
         ["type_", "flags"],
@@ -223,6 +224,38 @@ pub trait EnvpointExt: Envpoint {
 }
 
 impl<T:Envpoint> EnvpointExt for T { }
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct Tile {
+    pub index: u8,
+    pub flags: u8,
+    pub skip: u8,
+    pub reserved: u8,
+}
+
+pub const LAYERFLAG_DETAIL: u32 = 1;
+pub const LAYERFLAGS_ALL: u32 = 1;
+
+pub const TILELAYERFLAG_GAME: u32 = 1;
+pub const TILELAYERFLAGS_ALL: u32 = 1;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Error {
+    InvalidLayerFlags(u32),
+    InvalidLayerTilemapFlags(u32),
+    InvalidLayerType(i32),
+    InvalidTilesLength(usize),
+    InvalidVersion(i32),
+    MalformedGroup,
+    MalformedLayer,
+    MalformedLayerQuads,
+    MalformedLayerTilemap,
+    MalformedVersion,
+    MissingVersion,
+    NoGameLayers,
+    TooManyGameLayers(usize),
+}
 """
 
 def make_items(items):

@@ -1,3 +1,4 @@
+use common::MapIterator;
 use num::ToPrimitive;
 use std::fs::File;
 use std::io::Read;
@@ -91,6 +92,10 @@ impl Reader {
         self.raw.num_item_types()
     }
 
+    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView> {
+        self.raw.find_item(type_id, item_id)
+    }
+
     pub fn items(&self) -> raw::Items {
         self.raw.items()
     }
@@ -105,11 +110,11 @@ impl Reader {
             self_.read_data(i)
         }
         let num_data = self.num_data();
-        raw::MapIterator::new(self, 0..num_data, map_fn)
+        MapIterator::new(self, 0..num_data, map_fn)
     }
 }
 
-pub type DataIter<'a> = raw::MapIterator<Result<Vec<u8>,Error>,&'a mut Reader,ops::Range<usize>>;
+pub type DataIter<'a> = MapIterator<Result<Vec<u8>,Error>,&'a mut Reader,ops::Range<usize>>;
 
 impl CallbackData {
     fn store_error<T>(&mut self, result: Result<T,io::Error>) -> Result<T,CallbackError> {

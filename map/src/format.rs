@@ -181,6 +181,38 @@ pub trait EnvpointExt: Envpoint {
 
 impl<T:Envpoint> EnvpointExt for T { }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct Tile {
+    pub index: u8,
+    pub flags: u8,
+    pub skip: u8,
+    pub reserved: u8,
+}
+
+pub const LAYERFLAG_DETAIL: u32 = 1;
+pub const LAYERFLAGS_ALL: u32 = 1;
+
+pub const TILELAYERFLAG_GAME: u32 = 1;
+pub const TILELAYERFLAGS_ALL: u32 = 1;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Error {
+    InvalidLayerFlags(u32),
+    InvalidLayerTilemapFlags(u32),
+    InvalidLayerType(i32),
+    InvalidTilesLength(usize),
+    InvalidVersion(i32),
+    MalformedGroup,
+    MalformedLayer,
+    MalformedLayerQuads,
+    MalformedLayerTilemap,
+    MalformedVersion,
+    MissingVersion,
+    NoGameLayers,
+    TooManyGameLayers(usize),
+}
+
 pub const MAP_ITEMTYPE_VERSION: u16 = 0;
 pub const MAP_ITEMTYPE_INFO: u16 = 1;
 pub const MAP_ITEMTYPE_IMAGE: u16 = 2;
@@ -256,6 +288,12 @@ pub struct MapItemGroupV2 {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct MapItemGroupV3 {
+    pub name: [i32; 3],
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct MapItemLayerV1 {
     pub type_: i32,
     pub flags: i32,
@@ -269,6 +307,7 @@ unsafe impl OnlyI32 for MapItemEnvelopeV1 { }
 unsafe impl OnlyI32 for MapItemEnvelopeV2 { }
 unsafe impl OnlyI32 for MapItemGroupV1 { }
 unsafe impl OnlyI32 for MapItemGroupV2 { }
+unsafe impl OnlyI32 for MapItemGroupV3 { }
 unsafe impl OnlyI32 for MapItemLayerV1 { }
 
 impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
@@ -279,6 +318,7 @@ impl MapItem for MapItemEnvelopeV1 { fn version() -> i32 { 1 } fn offset() -> us
 impl MapItem for MapItemEnvelopeV2 { fn version() -> i32 { 2 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemGroupV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemGroupV3 { fn version() -> i32 { 3 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { true } }
 
 impl MapItemEnvelopeV1 {
@@ -286,6 +326,14 @@ impl MapItemEnvelopeV1 {
         let mut result: [u8; 32] = unsafe { mem::uninitialized() };
         i32s_to_bytes(&mut result, &self.name);
         result[32-1] = 0;
+        result
+    }
+}
+impl MapItemGroupV3 {
+    pub fn name_get(&self) -> [u8; 12] {
+        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        i32s_to_bytes(&mut result, &self.name);
+        result[12-1] = 0;
         result
     }
 }
@@ -353,6 +401,12 @@ impl fmt::Debug for MapItemGroupV2 {
         try!(write!(_f, " clip_y={:?}", self.clip_y));
         try!(write!(_f, " clip_w={:?}", self.clip_w));
         try!(write!(_f, " clip_h={:?}", self.clip_h));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemGroupV3 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
         Ok(())
     }
 }
