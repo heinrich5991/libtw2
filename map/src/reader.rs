@@ -60,6 +60,14 @@ pub struct Group {
     pub name: [u8; 12],
 }
 
+fn get_index(index: i32, indices: ops::Range<usize>) -> Option<usize> {
+    let index = unwrap_or_return!(index.to_usize(), None) + indices.start;
+    if !(index < indices.end) {
+        return None;
+    }
+    Some(index)
+}
+
 impl Group {
     // TODO: Overlong raw?
     fn from_raw(raw: &[i32], layer_indices: ops::Range<usize>) -> Result<Group,MapError> {
@@ -111,7 +119,7 @@ pub struct LayerQuads {
 }
 
 impl LayerQuads {
-    fn from_raw(raw: &[i32]) -> Result<LayerQuads,MapError> {
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<LayerQuads,MapError> {
         fn e<T>(option: Option<T>) -> Result<T,MapError> {
             option.ok_or(MapError::MalformedLayerQuads)
         }
@@ -120,12 +128,12 @@ impl LayerQuads {
         let image = if v1.image == -1 {
             None
         } else {
-            Some(try!(e(v1.image.to_usize())))
+            Some(try!(e(get_index(v1.image, image_indices))))
         };
         let name = v2.map(|v2| v2.name_get()).unwrap_or([0; 12]);
         Ok(LayerQuads {
             num_quads: try!(e(v1.num_quads.to_usize())),
-            data: try!(e(v1.data.to_usize())),
+            data: try!(e(get_index(v1.data, data_indices))),
             image: image,
             name: name,
         })
@@ -133,20 +141,34 @@ impl LayerQuads {
 }
 
 #[derive(Clone, Copy)]
+pub enum LayerTilemapType {
+    Game,
+    // Image index.
+    Normal(usize),
+}
+
+impl LayerTilemapType {
+    pub fn to_image_index(self) -> Option<usize> {
+        match self {
+            LayerTilemapType::Game => None,
+            LayerTilemapType::Normal(i) => Some(i),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct LayerTilemap {
-    pub game: bool,
     pub width: u32,
     pub height: u32,
     pub color: Color,
-    pub color_env: Option<u16>,
-    pub color_env_offset: i32,
-    pub image: Option<usize>,
+    pub color_env_and_offset: Option<(usize, i32)>,
+    pub type_: LayerTilemapType,
     pub data: usize,
     pub name: [u8; 12],
 }
 
 impl LayerTilemap {
-    fn from_raw(raw: &[i32]) -> Result<LayerTilemap,MapError> {
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<LayerTilemap,MapError> {
         fn e<T>(option: Option<T>) -> Result<T,MapError> {
             option.ok_or(MapError::MalformedLayerTilemap)
         }
@@ -163,26 +185,25 @@ impl LayerTilemap {
             blue: try!(e(v2.color_blue.to_u8())),
             alpha: try!(e(v2.color_alpha.to_u8())),
         };
-        let color_env = if v2.color_env == -1 {
+        let color_env_and_offset = if v2.color_env == -1 {
             None
         } else {
-            Some(try!(e(v2.color_env.to_u16())))
+            Some((try!(e(get_index(v2.color_env, data_indices.clone()))), v2.color_env_offset))
         };
-        let image = if v2.image == -1 {
-            None
+        let game = flags & format::TILELAYERFLAG_GAME != 0;
+        let type_ = if !game {
+            LayerTilemapType::Normal(try!(e(get_index(v2.image, image_indices))))
         } else {
-            Some(try!(e(v2.image.to_usize())))
+            LayerTilemapType::Game
         };
         let name = v3.map(|v3| v3.name_get()).unwrap_or([0; 12]);
         Ok(LayerTilemap {
-            game: flags & format::TILELAYERFLAG_GAME != 0,
             width: try!(e(v2.width.to_u32())),
             height: try!(e(v2.height.to_u32())),
             color: color,
-            color_env: color_env,
-            color_env_offset: v2.color_env_offset,
-            image: image,
-            data: try!(e(v2.data.to_usize())),
+            color_env_and_offset: color_env_and_offset,
+            type_: type_,
+            data: try!(e(get_index(v2.data, data_indices))),
             name: name,
         })
     }
@@ -201,7 +222,7 @@ pub enum LayerType {
 }
 
 impl Layer {
-    fn from_raw(raw: &[i32]) -> Result<Layer,MapError> {
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<Layer,MapError> {
         let (v1, rest) = try!(format::MapItemLayerV1::from_slice_rest(raw).ok_or(MapError::MalformedLayer));
         let flags = v1.flags as u32;
         if flags & !format::LAYERFLAGS_ALL != 0 {
@@ -209,14 +230,42 @@ impl Layer {
         }
         let t = match v1.type_ {
             format::MAP_ITEMTYPE_LAYER_V1_TILEMAP =>
-                LayerType::Tilemap(try!(LayerTilemap::from_raw(rest))),
+                LayerType::Tilemap(try!(LayerTilemap::from_raw(rest, data_indices, image_indices))),
             format::MAP_ITEMTYPE_LAYER_V1_QUADS =>
-                LayerType::Quads(try!(LayerQuads::from_raw(rest))),
+                LayerType::Quads(try!(LayerQuads::from_raw(rest, data_indices, image_indices))),
             _ => return Err(MapError::InvalidLayerType(v1.type_)),
         };
         Ok(Layer {
             detail: flags & format::LAYERFLAG_DETAIL != 0,
             t: t,
+        })
+    }
+}
+
+pub struct Image {
+    pub width: u32,
+    pub height: u32,
+    pub name: usize,
+    pub data: Option<usize>,
+}
+
+impl Image {
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>) -> Result<Image,MapError> {
+        fn e<T>(option: Option<T>) -> Result<T,MapError> {
+            option.ok_or(MapError::MalformedImage)
+        }
+        let v1 = try!(e(format::MapItemImageV1::from_slice(raw)));
+        // TODO: external blah
+        let data = if v1.external != 0 {
+            None
+        } else {
+            Some(try!(e(get_index(v1.data, data_indices.clone()))))
+        };
+        Ok(Image {
+            width: try!(e(v1.width.to_u32())),
+            height: try!(e(v1.height.to_u32())),
+            name: try!(e(get_index(v1.name, data_indices.clone()))),
+            data: data,
         })
     }
 }
@@ -249,14 +298,22 @@ impl Reader {
     pub fn group(&self, index: usize) -> Result<Group,MapError> {
         // Doesn't fail if index is from Reader::groups().
         let raw = self.reader.item(index);
-        Group::from_raw(raw.data, self.reader.item_type_indices(format::MAP_ITEMTYPE_LAYER))
+        let layer_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_LAYER);
+        Group::from_raw(raw.data, layer_indices)
     }
     pub fn layer(&self, index: usize) -> Result<Layer,MapError> {
         // Doesn't fail if index is from Reader::group().
         let raw = self.reader.item(index);
-        Layer::from_raw(raw.data)
+        let data_indices = 0..self.reader.num_data();
+        let image_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_IMAGE);
+        Layer::from_raw(raw.data, data_indices, image_indices)
     }
-    // Returns (game group index, game layer index).
+    pub fn image(&self, index: usize) -> Result<Image,MapError> {
+        let raw = self.reader.item(index);
+        let data_indices = 0..self.reader.num_data();
+        Image::from_raw(raw.data, data_indices)
+    }
+    // Returns (game group index, game group, game layer index, game layer).
     pub fn game_layer(&self) -> Result<(usize,Group,usize,LayerTilemap),MapError> {
         let mut num_game_layers = 0;
         let mut result = None;
@@ -267,7 +324,7 @@ impl Reader {
                 // TODO: Just as above, skip this layer in case of failure?
                 let layer = try!(self.layer(k));
                 if let LayerType::Tilemap(tilemap) = layer.t {
-                    if tilemap.game {
+                    if let LayerTilemapType::Game = tilemap.type_ {
                         num_game_layers += 1;
                         result = Some((i, group.clone(), k, tilemap))
                     }
@@ -279,6 +336,19 @@ impl Reader {
             1 => Ok(result.unwrap()),
             _ => Err(MapError::TooManyGameLayers(num_game_layers)),
         }
+    }
+    pub fn image_name(&mut self, data_index: usize) -> Result<Vec<u8>,Error> {
+        let mut raw = try!(self.reader.read_data(data_index));
+        if raw.pop() != Some(0) {
+            return Err(Error::Map(MapError::MalformedImageName))
+        }
+        for &c in &raw {
+            match c {
+                b'/' | b'\\' | b'\0' => return Err(Error::Map(MapError::MalformedImageName)),
+                _ => {}
+            }
+        }
+        Ok(raw)
     }
     pub fn layer_tiles(&mut self, data_index: usize) -> Result<Vec<format::Tile>,Error> {
         let raw = try!(self.reader.read_data(data_index));

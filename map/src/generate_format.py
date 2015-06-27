@@ -225,7 +225,7 @@ pub trait EnvpointExt: Envpoint {
 
 impl<T:Envpoint> EnvpointExt for T { }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(C)]
 pub struct Tile {
     pub index: u8,
@@ -248,6 +248,8 @@ pub enum Error {
     InvalidTilesLength(usize),
     InvalidVersion(i32),
     MalformedGroup,
+    MalformedImage,
+    MalformedImageName,
     MalformedLayer,
     MalformedLayerQuads,
     MalformedLayerTilemap,

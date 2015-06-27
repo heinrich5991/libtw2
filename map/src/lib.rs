@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate common;
 extern crate datafile;
 extern crate num;
