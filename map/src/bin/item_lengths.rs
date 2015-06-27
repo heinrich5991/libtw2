@@ -148,7 +148,11 @@ fn process(path: &Path, results: &mut HashMap<WeirdItem,u64>) -> Result<(),df::E
                     register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
                     continue;
                 }
-                check::<MapItemEnvelopeV1>(results, item.type_id, item.data);
+                if version == 1 && item.data.len() != MapItemEnvelopeV1::sum_len()
+                    && item.data.len() != MapItemEnvelopeV1Legacy::sum_len()
+                {
+                    register!(WeirdItem::wrong_size(item.type_id, version, item.data.len(), MapItemEnvelopeV1::sum_len()));
+                }
                 check::<MapItemEnvelopeV2>(results, item.type_id, item.data);
                 if let Some(c) = MapItemCommonV0::from_slice(item.data) {
                     match env_version {

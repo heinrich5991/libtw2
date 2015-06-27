@@ -151,6 +151,28 @@ impl fmt::Debug for MapItemCommonV0 {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct MapItemEnvelopeV1Legacy {
+    pub channels: i32,
+    pub start_points: i32,
+    pub num_points: i32,
+    pub _name: i32,
+}
+
+unsafe impl OnlyI32 for MapItemEnvelopeV1Legacy { }
+impl MapItem for MapItemEnvelopeV1Legacy { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+
+impl fmt::Debug for MapItemEnvelopeV1Legacy {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "channels={:?}", self.channels));
+        try!(write!(_f, " start_points={:?}", self.start_points));
+        try!(write!(_f, " num_points={:?}", self.num_points));
+        try!(write!(_f, " _name={:?}", self._name));
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct MapItemLayerV1CommonV0 {
     pub version: i32,
 }
