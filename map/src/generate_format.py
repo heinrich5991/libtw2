@@ -25,6 +25,9 @@ ITEMS = [
     ]),
     # Different format:
     (6, "envpoints", []),
+    (7, "ddrace_sound", [
+        ["external", "name", "data", "data_size"],
+    ]),
 ]
 
 LAYER_V1_ITEMS = [
@@ -38,7 +41,11 @@ LAYER_V1_ITEMS = [
     (3, "quads", [
         ["num_quads", "data", "image"],
         ["name[3s]"],
-    ])
+    ]),
+    (10, "ddrace_sounds", [
+        [],
+        ["num_sources", "data", "sound", "name[3s]"],
+    ]),
 ]
 
 header = """\
@@ -151,6 +158,22 @@ impl fmt::Debug for MapItemCommonV0 {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct MapItemInfoV1ExtraRace {
+    settings: i32,
+}
+
+unsafe impl OnlyI32 for MapItemInfoV1ExtraRace { }
+impl MapItem for MapItemInfoV1ExtraRace { fn version() -> i32 { 1 } fn offset() -> usize { 5 } fn ignore_version() -> bool { false } }
+
+impl fmt::Debug for MapItemInfoV1ExtraRace {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "settings={:?}", self.settings));
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct MapItemEnvelopeV1Legacy {
     pub channels: i32,
     pub start_points: i32,
@@ -247,6 +270,40 @@ pub trait EnvpointExt: Envpoint {
 
 impl<T:Envpoint> EnvpointExt for T { }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1TilemapExtraRace {
+    pub data: i32,
+}
+impl MapItemLayerV1TilemapExtraRace {
+    pub fn offset(version: i32, flags: u32) -> Option<usize> {
+        let offset = match version {
+            2 => MapItemLayerV1TilemapV2::sum_len(),
+            3 => MapItemLayerV1TilemapV3::sum_len(),
+            _ => return None,
+        };
+        Some(offset + match flags {
+            TILELAYERFLAG_TELEPORT => 0,
+            TILELAYERFLAG_SPEEDUP => 1,
+            TILELAYERFLAG_FRONT => 2,
+            TILELAYERFLAG_SWITCH => 3,
+            TILELAYERFLAG_TUNE => 4,
+            _ => return None,
+        })
+    }
+    pub fn from_slice(slice: &[i32], version: i32, flags: u32)
+        -> Option<&MapItemLayerV1TilemapExtraRace>
+    {
+        let offset = unwrap_or_return!(
+            MapItemLayerV1TilemapExtraRace::offset(version, flags), None
+        );
+        if slice.len() <= offset {
+            return None;
+        }
+        Some(&(unsafe { common::slice::transmute(slice) })[offset])
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(C)]
 pub struct Tile {
@@ -260,15 +317,21 @@ pub const LAYERFLAG_DETAIL: u32 = 1;
 pub const LAYERFLAGS_ALL: u32 = 1;
 
 pub const TILELAYERFLAG_GAME: u32 = 1;
-pub const TILELAYERFLAGS_ALL: u32 = 1;
+pub const TILELAYERFLAG_TELEPORT: u32 = 2;
+pub const TILELAYERFLAG_SPEEDUP: u32 = 4;
+pub const TILELAYERFLAG_FRONT: u32 = 8;
+pub const TILELAYERFLAG_SWITCH: u32 = 16;
+pub const TILELAYERFLAG_TUNE: u32 = 32;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
+    InconsistentGameLayerDimensions,
     InvalidLayerFlags(u32),
     InvalidLayerTilemapFlags(u32),
     InvalidLayerType(i32),
     InvalidTilesLength(usize),
     InvalidVersion(i32),
+    MalformedDdraceLayerSounds,
     MalformedGroup,
     MalformedImage,
     MalformedImageName,
@@ -277,9 +340,12 @@ pub enum Error {
     MalformedLayerTilemap,
     MalformedVersion,
     MissingVersion,
-    NoGameLayers,
-    TooManyGameLayers(usize),
+    NoGameLayer,
+    TooManyGameGroups,
+    TooManyGameLayers,
 }
+
+pub const MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS_LEGACY: i32 = 9;
 """
 
 def make_items(items):

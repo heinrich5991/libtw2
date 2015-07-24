@@ -33,6 +33,13 @@ impl From<io::Error> for Error {
     }
 }
 
+#[derive(Clone)]
+pub struct Tilemap<T> {
+    width: u32,
+    height: u32,
+    content: Vec<T>,
+}
+
 #[derive(Clone, Copy)]
 pub struct Color {
     pub red: u8,
@@ -111,6 +118,36 @@ impl Group {
 }
 
 #[derive(Clone, Copy)]
+pub struct DdraceLayerSounds {
+    pub num_sources: usize,
+    pub data: usize,
+    pub sound: Option<usize>,
+    pub legacy: bool,
+    pub name: [u8; 12],
+}
+
+impl DdraceLayerSounds {
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, sound_indices: ops::Range<usize>, legacy: bool) -> Result<DdraceLayerSounds,MapError> {
+        fn e<T>(option: Option<T>) -> Result<T,MapError> {
+            option.ok_or(MapError::MalformedDdraceLayerSounds)
+        }
+        let v2 = try!(e(format::MapItemLayerV1DdraceSoundsV2::from_slice(raw)));
+        let sound = if v2.sound == -1 {
+            None
+        } else {
+            Some(try!(e(get_index(v2.sound, sound_indices))))
+        };
+        Ok(DdraceLayerSounds {
+            num_sources: try!(e(v2.num_sources.to_usize())),
+            data: try!(e(get_index(v2.data, data_indices))),
+            sound: sound,
+            legacy: legacy,
+            name: v2.name_get(),
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct LayerQuads {
     pub num_quads: usize,
     pub data: usize,
@@ -142,16 +179,43 @@ impl LayerQuads {
 
 #[derive(Clone, Copy)]
 pub enum LayerTilemapType {
-    Game,
-    // Image index.
-    Normal(usize),
+    // Normal(normal)
+    Normal(LayerTilemapNormal),
+    // Game(data)
+    Game(usize),
+    // RaceTeleport(data, zeroes)
+    RaceTeleport(usize, usize),
+    // RaceSpeedup(data, zeroes)
+    RaceSpeedup(usize, usize),
+    // DdraceFront(data, zeroes)
+    DdraceFront(usize, usize),
+    // DdraceSwitch(data, zeroes)
+    DdraceSwitch(usize, usize),
+    // DdraceTune(data, zeroes)
+    DdraceTune(usize, usize),
+}
+
+#[derive(Clone, Copy)]
+pub struct LayerTilemapNormal {
+    pub color: Color,
+    pub color_env_and_offset: Option<(usize, i32)>,
+    pub image: Option<usize>,
+    pub data: usize,
 }
 
 impl LayerTilemapType {
-    pub fn to_image_index(self) -> Option<usize> {
-        match self {
-            LayerTilemapType::Game => None,
-            LayerTilemapType::Normal(i) => Some(i),
+    pub fn to_normal(&self) -> Option<&LayerTilemapNormal> {
+        match *self {
+            LayerTilemapType::Normal(ref n) => Some(n),
+            _ => None,
+        }
+    }
+    pub fn tiles(&self) -> Option<usize> {
+        match *self {
+            LayerTilemapType::Normal(ref n) => Some(n.data),
+            LayerTilemapType::Game(d) => Some(d),
+            LayerTilemapType::DdraceFront(d, _) => Some(d),
+            _ => None,
         }
     }
 }
@@ -160,10 +224,7 @@ impl LayerTilemapType {
 pub struct LayerTilemap {
     pub width: u32,
     pub height: u32,
-    pub color: Color,
-    pub color_env_and_offset: Option<(usize, i32)>,
     pub type_: LayerTilemapType,
-    pub data: usize,
     pub name: [u8; 12],
 }
 
@@ -172,13 +233,12 @@ impl LayerTilemap {
         fn e<T>(option: Option<T>) -> Result<T,MapError> {
             option.ok_or(MapError::MalformedLayerTilemap)
         }
+        let v0 = try!(e(format::MapItemLayerV1CommonV0::from_slice(raw)));
         let v2 = try!(e(format::MapItemLayerV1TilemapV2::from_slice(raw)));
         let v3 = format::MapItemLayerV1TilemapV3::from_slice(raw);
-        // TODO: Standard settings for game group.
         let flags = v2.flags as u32;
-        if flags & !format::TILELAYERFLAGS_ALL != 0 {
-            return Err(MapError::InvalidLayerTilemapFlags(flags));
-        }
+        let ve = format::MapItemLayerV1TilemapExtraRace::from_slice(raw, v0.version, flags);
+        // TODO: Standard settings for game group.
         let color = Color {
             red: try!(e(v2.color_red.to_u8())),
             green: try!(e(v2.color_green.to_u8())),
@@ -190,20 +250,66 @@ impl LayerTilemap {
         } else {
             Some((try!(e(get_index(v2.color_env, data_indices.clone()))), v2.color_env_offset))
         };
-        let game = flags & format::TILELAYERFLAG_GAME != 0;
-        let type_ = if !game {
-            LayerTilemapType::Normal(try!(e(get_index(v2.image, image_indices))))
+        let image = if v2.image == -1 {
+            None
         } else {
-            LayerTilemapType::Game
+            Some(try!(e(get_index(v2.image, image_indices))))
         };
+        let data = try!(e(get_index(v2.data, data_indices.clone())));
+        let mut normal = false;
+        let type_ = match flags {
+            0 => {
+                normal = true;
+                LayerTilemapType::Normal(LayerTilemapNormal {
+                    color: color,
+                    color_env_and_offset: color_env_and_offset,
+                    image: image,
+                    data: data,
+                })
+            }
+            format::TILELAYERFLAG_GAME => {
+                LayerTilemapType::Game(data)
+            }
+            format::TILELAYERFLAG_TELEPORT => {
+                LayerTilemapType::RaceTeleport(
+                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    data,
+                )
+            }
+            format::TILELAYERFLAG_SPEEDUP => {
+                LayerTilemapType::RaceSpeedup(
+                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    data,
+                )
+            }
+            format::TILELAYERFLAG_FRONT => {
+                LayerTilemapType::DdraceFront(
+                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    data,
+                )
+            }
+            format::TILELAYERFLAG_SWITCH => {
+                LayerTilemapType::DdraceSwitch(
+                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    data,
+                )
+            }
+            format::TILELAYERFLAG_TUNE => {
+                LayerTilemapType::DdraceTune(
+                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    data,
+                )
+            }
+            _ => return Err(MapError::InvalidLayerTilemapFlags(flags)),
+        };
+        if !normal {
+            // TODO: Do some checking on the other fields.
+        }
         let name = v3.map(|v3| v3.name_get()).unwrap_or([0; 12]);
         Ok(LayerTilemap {
             width: try!(e(v2.width.to_u32())),
             height: try!(e(v2.height.to_u32())),
-            color: color,
-            color_env_and_offset: color_env_and_offset,
             type_: type_,
-            data: try!(e(get_index(v2.data, data_indices))),
             name: name,
         })
     }
@@ -219,20 +325,37 @@ pub struct Layer {
 pub enum LayerType {
     Quads(LayerQuads),
     Tilemap(LayerTilemap),
+    DdraceSounds(DdraceLayerSounds),
 }
 
 impl Layer {
-    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<Layer,MapError> {
-        let (v1, rest) = try!(format::MapItemLayerV1::from_slice_rest(raw).ok_or(MapError::MalformedLayer));
+    fn from_raw(
+        raw: &[i32],
+        data_indices: ops::Range<usize>,
+        image_indices: ops::Range<usize>,
+        sound_indices: ops::Range<usize>,
+    ) -> Result<Layer,MapError> {
+        let (v1, rest) = try!(format::MapItemLayerV1::from_slice_rest(raw)
+                              .ok_or(MapError::MalformedLayer));
         let flags = v1.flags as u32;
         if flags & !format::LAYERFLAGS_ALL != 0 {
             return Err(MapError::InvalidLayerFlags(flags));
         }
         let t = match v1.type_ {
             format::MAP_ITEMTYPE_LAYER_V1_TILEMAP =>
-                LayerType::Tilemap(try!(LayerTilemap::from_raw(rest, data_indices, image_indices))),
+                LayerType::Tilemap(try!(LayerTilemap::from_raw(
+                    rest, data_indices, image_indices
+                ))),
             format::MAP_ITEMTYPE_LAYER_V1_QUADS =>
-                LayerType::Quads(try!(LayerQuads::from_raw(rest, data_indices, image_indices))),
+                LayerType::Quads(try!(LayerQuads::from_raw(
+                    rest, data_indices, image_indices
+                ))),
+            format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS
+                | format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS_LEGACY
+            =>  LayerType::DdraceSounds(try!(DdraceLayerSounds::from_raw(
+                    rest, data_indices, sound_indices,
+                    v1.type_ != format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS,
+                ))),
             _ => return Err(MapError::InvalidLayerType(v1.type_)),
         };
         Ok(Layer {
@@ -270,6 +393,18 @@ impl Image {
     }
 }
 
+pub struct GameLayers {
+    pub group: Group,
+    pub width: u32,
+    pub height: u32,
+    pub game: usize,
+    pub teleport: Option<usize>,
+    pub speedup: Option<usize>,
+    pub front: Option<usize>,
+    pub switch: Option<usize>,
+    pub tune: Option<usize>,
+}
+
 pub struct Reader {
     pub reader: df::Reader,
 }
@@ -298,25 +433,39 @@ impl Reader {
     pub fn group(&self, index: usize) -> Result<Group,MapError> {
         // Doesn't fail if index is from Reader::groups().
         let raw = self.reader.item(index);
+        assert!(raw.type_id == format::MAP_ITEMTYPE_GROUP);
         let layer_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_LAYER);
         Group::from_raw(raw.data, layer_indices)
     }
     pub fn layer(&self, index: usize) -> Result<Layer,MapError> {
         // Doesn't fail if index is from Reader::group().
         let raw = self.reader.item(index);
+        assert!(raw.type_id == format::MAP_ITEMTYPE_LAYER);
         let data_indices = 0..self.reader.num_data();
         let image_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_IMAGE);
-        Layer::from_raw(raw.data, data_indices, image_indices)
+        let sound_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_DDRACE_SOUND);
+        Layer::from_raw(raw.data, data_indices, image_indices, sound_indices)
     }
     pub fn image(&self, index: usize) -> Result<Image,MapError> {
         let raw = self.reader.item(index);
         let data_indices = 0..self.reader.num_data();
         Image::from_raw(raw.data, data_indices)
     }
-    // Returns (game group index, game group, game layer index, game layer).
-    pub fn game_layer(&self) -> Result<(usize,Group,usize,LayerTilemap),MapError> {
-        let mut num_game_layers = 0;
-        let mut result = None;
+    pub fn game_layers(&self) -> Result<GameLayers,MapError> {
+        fn put<T>(opt: &mut Option<T>, new: T) -> Result<(),MapError> {
+            match mem::replace(opt, Some(new)) {
+                None => Ok(()),
+                Some(_) => Err(MapError::TooManyGameLayers),
+            }
+        }
+        let mut group_index_width_height = None;
+        let mut game_group = None;
+        let mut game = None;
+        let mut teleport = None;
+        let mut speedup = None;
+        let mut front = None;
+        let mut switch = None;
+        let mut tune = None;
         for i in self.group_indices() {
             // TODO: Just skip this group?
             let group = try!(self.group(i));
@@ -324,18 +473,48 @@ impl Reader {
                 // TODO: Just as above, skip this layer in case of failure?
                 let layer = try!(self.layer(k));
                 if let LayerType::Tilemap(tilemap) = layer.t {
-                    if let LayerTilemapType::Game = tilemap.type_ {
-                        num_game_layers += 1;
-                        result = Some((i, group.clone(), k, tilemap))
+                    match tilemap.type_ {
+                        LayerTilemapType::Normal(_) => continue,
+                        LayerTilemapType::Game(d) => try!(put(&mut game, d)),
+                        LayerTilemapType::RaceTeleport(d, _) => try!(put(&mut teleport, d)),
+                        LayerTilemapType::RaceSpeedup(d, _) => try!(put(&mut speedup, d)),
+                        LayerTilemapType::DdraceFront(d, _) => try!(put(&mut front, d)),
+                        LayerTilemapType::DdraceSwitch(d, _) => try!(put(&mut switch, d)),
+                        LayerTilemapType::DdraceTune(d, _) => try!(put(&mut tune, d)),
+                    }
+                    match group_index_width_height {
+                        Some((k, _, _)) if i != k => {
+                            return Err(MapError::TooManyGameGroups);
+                        }
+                        Some((_, w, h)) if w != tilemap.width || h != tilemap.height => {
+                            return Err(MapError::InconsistentGameLayerDimensions);
+                        }
+                        Some(_) => {},
+                        None => {
+                            game_group = Some(group.clone());
+                            group_index_width_height = Some((i, tilemap.width, tilemap.height));
+                        }
                     }
                 }
             }
         }
-        match num_game_layers {
-            0 => Err(MapError::NoGameLayers),
-            1 => Ok(result.unwrap()),
-            _ => Err(MapError::TooManyGameLayers(num_game_layers)),
-        }
+        let game = match game {
+            Some(g) => g,
+            None => return Err(MapError::NoGameLayer),
+        };
+        let (_, width, height) = group_index_width_height.unwrap();
+        let group = game_group.unwrap();
+        Ok(GameLayers {
+            group: group,
+            width: width,
+            height: height,
+            game: game,
+            teleport: teleport,
+            speedup: speedup,
+            front: front,
+            switch: switch,
+            tune: tune,
+        })
     }
     pub fn image_name(&mut self, data_index: usize) -> Result<Vec<u8>,Error> {
         let mut raw = try!(self.reader.read_data(data_index));

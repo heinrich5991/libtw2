@@ -64,8 +64,8 @@ fn process(path: &Path, global_tiles_count: &mut [u64; 256]) -> Result<(),map::E
     let file = try!(File::open(path));
     let dfr = try!(df::Reader::new(file));
     let mut map = map::Reader::from_datafile(dfr);
-    let (_, _, _, game_layer) = try!(map.game_layer());
-    let tiles = try!(map.layer_tiles(game_layer.data));
+    let game_layers = try!(map.game_layers());
+    let tiles = try!(map.layer_tiles(game_layers.game));
 
     let mut tiles_count = [0u64; 256];
     for tile in tiles {

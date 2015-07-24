@@ -107,6 +107,22 @@ impl fmt::Debug for MapItemCommonV0 {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct MapItemInfoV1ExtraRace {
+    settings: i32,
+}
+
+unsafe impl OnlyI32 for MapItemInfoV1ExtraRace { }
+impl MapItem for MapItemInfoV1ExtraRace { fn version() -> i32 { 1 } fn offset() -> usize { 5 } fn ignore_version() -> bool { false } }
+
+impl fmt::Debug for MapItemInfoV1ExtraRace {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "settings={:?}", self.settings));
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct MapItemEnvelopeV1Legacy {
     pub channels: i32,
     pub start_points: i32,
@@ -203,6 +219,40 @@ pub trait EnvpointExt: Envpoint {
 
 impl<T:Envpoint> EnvpointExt for T { }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1TilemapExtraRace {
+    pub data: i32,
+}
+impl MapItemLayerV1TilemapExtraRace {
+    pub fn offset(version: i32, flags: u32) -> Option<usize> {
+        let offset = match version {
+            2 => MapItemLayerV1TilemapV2::sum_len(),
+            3 => MapItemLayerV1TilemapV3::sum_len(),
+            _ => return None,
+        };
+        Some(offset + match flags {
+            TILELAYERFLAG_TELEPORT => 0,
+            TILELAYERFLAG_SPEEDUP => 1,
+            TILELAYERFLAG_FRONT => 2,
+            TILELAYERFLAG_SWITCH => 3,
+            TILELAYERFLAG_TUNE => 4,
+            _ => return None,
+        })
+    }
+    pub fn from_slice(slice: &[i32], version: i32, flags: u32)
+        -> Option<&MapItemLayerV1TilemapExtraRace>
+    {
+        let offset = unwrap_or_return!(
+            MapItemLayerV1TilemapExtraRace::offset(version, flags), None
+        );
+        if slice.len() <= offset {
+            return None;
+        }
+        Some(&(unsafe { common::slice::transmute(slice) })[offset])
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(C)]
 pub struct Tile {
@@ -216,15 +266,21 @@ pub const LAYERFLAG_DETAIL: u32 = 1;
 pub const LAYERFLAGS_ALL: u32 = 1;
 
 pub const TILELAYERFLAG_GAME: u32 = 1;
-pub const TILELAYERFLAGS_ALL: u32 = 1;
+pub const TILELAYERFLAG_TELEPORT: u32 = 2;
+pub const TILELAYERFLAG_SPEEDUP: u32 = 4;
+pub const TILELAYERFLAG_FRONT: u32 = 8;
+pub const TILELAYERFLAG_SWITCH: u32 = 16;
+pub const TILELAYERFLAG_TUNE: u32 = 32;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
+    InconsistentGameLayerDimensions,
     InvalidLayerFlags(u32),
     InvalidLayerTilemapFlags(u32),
     InvalidLayerType(i32),
     InvalidTilesLength(usize),
     InvalidVersion(i32),
+    MalformedDdraceLayerSounds,
     MalformedGroup,
     MalformedImage,
     MalformedImageName,
@@ -233,9 +289,12 @@ pub enum Error {
     MalformedLayerTilemap,
     MalformedVersion,
     MissingVersion,
-    NoGameLayers,
-    TooManyGameLayers(usize),
+    NoGameLayer,
+    TooManyGameGroups,
+    TooManyGameLayers,
 }
+
+pub const MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS_LEGACY: i32 = 9;
 
 pub const MAP_ITEMTYPE_VERSION: u16 = 0;
 pub const MAP_ITEMTYPE_INFO: u16 = 1;
@@ -244,6 +303,7 @@ pub const MAP_ITEMTYPE_ENVELOPE: u16 = 3;
 pub const MAP_ITEMTYPE_GROUP: u16 = 4;
 pub const MAP_ITEMTYPE_LAYER: u16 = 5;
 pub const MAP_ITEMTYPE_ENVPOINTS: u16 = 6;
+pub const MAP_ITEMTYPE_DDRACE_SOUND: u16 = 7;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -323,6 +383,15 @@ pub struct MapItemLayerV1 {
     pub flags: i32,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemDdraceSoundV1 {
+    pub external: i32,
+    pub name: i32,
+    pub data: i32,
+    pub data_size: i32,
+}
+
 unsafe impl OnlyI32 for MapItemVersionV1 { }
 unsafe impl OnlyI32 for MapItemInfoV1 { }
 unsafe impl OnlyI32 for MapItemImageV1 { }
@@ -333,6 +402,7 @@ unsafe impl OnlyI32 for MapItemGroupV1 { }
 unsafe impl OnlyI32 for MapItemGroupV2 { }
 unsafe impl OnlyI32 for MapItemGroupV3 { }
 unsafe impl OnlyI32 for MapItemLayerV1 { }
+unsafe impl OnlyI32 for MapItemDdraceSoundV1 { }
 
 impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemInfoV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
@@ -344,6 +414,7 @@ impl MapItem for MapItemGroupV1 { fn version() -> i32 { 1 } fn offset() -> usize
 impl MapItem for MapItemGroupV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemGroupV3 { fn version() -> i32 { 3 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { true } }
+impl MapItem for MapItemDdraceSoundV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 
 impl MapItemEnvelopeV1 {
     pub fn name_get(&self) -> [u8; 32] {
@@ -441,8 +512,18 @@ impl fmt::Debug for MapItemLayerV1 {
         Ok(())
     }
 }
+impl fmt::Debug for MapItemDdraceSoundV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "external={:?}", self.external));
+        try!(write!(_f, " name={:?}", self.name));
+        try!(write!(_f, " data={:?}", self.data));
+        try!(write!(_f, " data_size={:?}", self.data_size));
+        Ok(())
+    }
+}
 pub const MAP_ITEMTYPE_LAYER_V1_TILEMAP: i32 = 2;
 pub const MAP_ITEMTYPE_LAYER_V1_QUADS: i32 = 3;
+pub const MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS: i32 = 10;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -484,17 +565,34 @@ pub struct MapItemLayerV1QuadsV2 {
     pub name: [i32; 3],
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1DdraceSoundsV1;
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1DdraceSoundsV2 {
+    pub num_sources: i32,
+    pub data: i32,
+    pub sound: i32,
+    pub name: [i32; 3],
+}
+
 unsafe impl OnlyI32 for MapItemLayerV1TilemapV1 { }
 unsafe impl OnlyI32 for MapItemLayerV1TilemapV2 { }
 unsafe impl OnlyI32 for MapItemLayerV1TilemapV3 { }
 unsafe impl OnlyI32 for MapItemLayerV1QuadsV1 { }
 unsafe impl OnlyI32 for MapItemLayerV1QuadsV2 { }
+unsafe impl OnlyI32 for MapItemLayerV1DdraceSoundsV1 { }
+unsafe impl OnlyI32 for MapItemLayerV1DdraceSoundsV2 { }
 
 impl MapItem for MapItemLayerV1TilemapV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1TilemapV2 { fn version() -> i32 { 2 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1TilemapV3 { fn version() -> i32 { 3 } fn offset() -> usize { 12 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1QuadsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1QuadsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 4 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1DdraceSoundsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1DdraceSoundsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 
 impl MapItemLayerV1TilemapV3 {
     pub fn name_get(&self) -> [u8; 12] {
@@ -505,6 +603,14 @@ impl MapItemLayerV1TilemapV3 {
     }
 }
 impl MapItemLayerV1QuadsV2 {
+    pub fn name_get(&self) -> [u8; 12] {
+        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        i32s_to_bytes(&mut result, &self.name);
+        result[12-1] = 0;
+        result
+    }
+}
+impl MapItemLayerV1DdraceSoundsV2 {
     pub fn name_get(&self) -> [u8; 12] {
         let mut result: [u8; 12] = unsafe { mem::uninitialized() };
         i32s_to_bytes(&mut result, &self.name);
@@ -551,6 +657,20 @@ impl fmt::Debug for MapItemLayerV1QuadsV1 {
 impl fmt::Debug for MapItemLayerV1QuadsV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1DdraceSoundsV1 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemLayerV1DdraceSoundsV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "num_sources={:?}", self.num_sources));
+        try!(write!(_f, " data={:?}", self.data));
+        try!(write!(_f, " sound={:?}", self.sound));
+        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
         Ok(())
     }
 }
