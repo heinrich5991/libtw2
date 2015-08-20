@@ -1,11 +1,12 @@
 use num::ToPrimitive;
 use std::mem;
 
-use bitmagic::CallbackExt;
+use bitmagic::CallbackNewExt;
 use bitmagic::as_mut_i32_slice;
 use bitmagic::to_little_endian;
 use common::slice::mut_ref_slice;
-use raw::Callback;
+use raw::CallbackNew;
+use raw::ResultExt;
 use raw;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
@@ -84,9 +85,9 @@ pub struct HeaderCheckResult {
 }
 
 impl Header {
-    pub fn read<CB:Callback>(cb: &mut CB) -> Result<Header,raw::Error> {
+    pub fn read<CB:CallbackNew>(cb: &mut CB) -> Result<Header,raw::Error<CB::Error>> {
         let mut result: Header = unsafe { mem::uninitialized() };
-        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
+        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)).wrap());
         if read < mem::size_of_val(&result.hv) {
             return Err(raw::Error::Df(Error::TooShortHeaderVersion));
         }
