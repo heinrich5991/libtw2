@@ -7,6 +7,7 @@ use std::io::SeekFrom;
 use std::io;
 use std::ops;
 
+use format;
 use raw::CallbackNew;
 use raw::CallbackReadData;
 use raw::DataCallback;
@@ -14,7 +15,39 @@ use raw::ItemView;
 use raw::ResultExt;
 use raw;
 
-pub type Error = raw::Error<io::Error>;
+#[derive(Debug)]
+pub enum Error {
+    Df(format::Error),
+    Io(io::Error),
+}
+
+impl From<format::Error> for Error {
+    fn from(err: format::Error) -> Error {
+        Error::Df(err)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+impl From<raw::Error<io::Error>> for Error {
+    fn from(err: raw::Error<io::Error>) -> Error {
+        match err {
+            raw::Error::Df(e) => Error::Df(e),
+            raw::Error::Cb(e) => Error::Io(e),
+        }
+    }
+}
+
+impl From<raw::WrapCallbackError<io::Error>> for Error {
+    fn from(err: raw::WrapCallbackError<io::Error>) -> Error {
+        let raw::WrapCallbackError(e) = err;
+        Error::Io(e)
+    }
+}
 
 struct CallbackData {
     file: File,
@@ -43,13 +76,13 @@ impl Reader {
         })
     }
     pub fn debug_dump(&mut self) -> Result<(),Error> {
-        self.raw.debug_dump(&mut self.callback_data)
+        Ok(try!(self.raw.debug_dump(&mut self.callback_data)))
     }
     pub fn version(&self) -> raw::Version {
         self.raw.version()
     }
     pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>,Error> {
-        self.raw.read_data(&mut self.callback_data, index).map(|w| w.inner)
+        Ok(try!(self.raw.read_data(&mut self.callback_data, index).map(|w| w.inner)))
     }
     pub fn item(&self, index: usize) -> ItemView {
         self.raw.item(index)

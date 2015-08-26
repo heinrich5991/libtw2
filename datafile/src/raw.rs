@@ -76,7 +76,7 @@ impl<CE> From<format::Error> for Error<CE> {
     }
 }
 
-pub struct WrapCallbackError<CE>(CE);
+pub struct WrapCallbackError<CE>(pub CE);
 impl<CE> From<WrapCallbackError<CE>> for Error<CE> {
     fn from(err: WrapCallbackError<CE>) -> Error<CE> {
         let WrapCallbackError(err) = err;
