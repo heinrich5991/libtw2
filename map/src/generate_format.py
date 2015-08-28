@@ -43,8 +43,8 @@ LAYER_V1_ITEMS = [
         ["name[3s]"],
     ]),
     (10, "ddrace_sounds", [
-        [],
         ["num_sources", "data", "sound", "name[3s]"],
+        [],
     ]),
 ]
 

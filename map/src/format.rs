@@ -567,16 +567,16 @@ pub struct MapItemLayerV1QuadsV2 {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct MapItemLayerV1DdraceSoundsV1;
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct MapItemLayerV1DdraceSoundsV2 {
+pub struct MapItemLayerV1DdraceSoundsV1 {
     pub num_sources: i32,
     pub data: i32,
     pub sound: i32,
     pub name: [i32; 3],
 }
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemLayerV1DdraceSoundsV2;
 
 unsafe impl OnlyI32 for MapItemLayerV1TilemapV1 { }
 unsafe impl OnlyI32 for MapItemLayerV1TilemapV2 { }
@@ -592,7 +592,7 @@ impl MapItem for MapItemLayerV1TilemapV3 { fn version() -> i32 { 3 } fn offset()
 impl MapItem for MapItemLayerV1QuadsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1QuadsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 4 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemLayerV1DdraceSoundsV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
-impl MapItem for MapItemLayerV1DdraceSoundsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemLayerV1DdraceSoundsV2 { fn version() -> i32 { 2 } fn offset() -> usize { 7 } fn ignore_version() -> bool { false } }
 
 impl MapItemLayerV1TilemapV3 {
     pub fn name_get(&self) -> [u8; 12] {
@@ -610,7 +610,7 @@ impl MapItemLayerV1QuadsV2 {
         result
     }
 }
-impl MapItemLayerV1DdraceSoundsV2 {
+impl MapItemLayerV1DdraceSoundsV1 {
     pub fn name_get(&self) -> [u8; 12] {
         let mut result: [u8; 12] = unsafe { mem::uninitialized() };
         i32s_to_bytes(&mut result, &self.name);
@@ -662,15 +662,15 @@ impl fmt::Debug for MapItemLayerV1QuadsV2 {
 }
 impl fmt::Debug for MapItemLayerV1DdraceSoundsV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "num_sources={:?}", self.num_sources));
+        try!(write!(_f, " data={:?}", self.data));
+        try!(write!(_f, " sound={:?}", self.sound));
+        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1DdraceSoundsV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "num_sources={:?}", self.num_sources));
-        try!(write!(_f, " data={:?}", self.data));
-        try!(write!(_f, " sound={:?}", self.sound));
-        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
         Ok(())
     }
 }

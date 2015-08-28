@@ -131,18 +131,19 @@ impl DdraceLayerSounds {
         fn e<T>(option: Option<T>) -> Result<T,MapError> {
             option.ok_or(MapError::MalformedDdraceLayerSounds)
         }
-        let v2 = try!(e(format::MapItemLayerV1DdraceSoundsV2::from_slice(raw)));
-        let sound = if v2.sound == -1 {
+        let v1 = try!(e(format::MapItemLayerV1DdraceSoundsV1::from_slice(raw)));
+        if !legacy { try!(e(format::MapItemLayerV1DdraceSoundsV2::from_slice(raw))); }
+        let sound = if v1.sound == -1 {
             None
         } else {
-            Some(try!(e(get_index(v2.sound, sound_indices))))
+            Some(try!(e(get_index(v1.sound, sound_indices))))
         };
         Ok(DdraceLayerSounds {
-            num_sources: try!(e(v2.num_sources.to_usize())),
-            data: try!(e(get_index(v2.data, data_indices))),
+            num_sources: try!(e(v1.num_sources.to_usize())),
+            data: try!(e(get_index(v1.data, data_indices))),
             sound: sound,
             legacy: legacy,
-            name: v2.name_get(),
+            name: v1.name_get(),
         })
     }
 }

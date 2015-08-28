@@ -74,6 +74,13 @@ fn process(path: &Path) -> Result<(),datafile::Error> {
                             print_map_item::<MapItemLayerV1QuadsV1>(rest);
                             print_map_item::<MapItemLayerV1QuadsV2>(rest);
                         }
+                        MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS
+                            | MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS_LEGACY
+                        => {
+                            print_map_item::<MapItemLayerV1CommonV0>(rest);
+                            print_map_item::<MapItemLayerV1DdraceSoundsV1>(rest);
+                            //print_map_item::<MapItemLayerV1DdraceSoundsV2>(rest);
+                        }
                         _ => panic!("unknown layer type {}", layer.type_),
                     }
                 }
@@ -87,6 +94,10 @@ fn process(path: &Path) -> Result<(),datafile::Error> {
                 }
                 print_envpoints::<MapItemEnvpointV1>(item.data, env_version);
                 print_envpoints::<MapItemEnvpointV2>(item.data, env_version);
+            },
+            MAP_ITEMTYPE_DDRACE_SOUND => {
+                print_map_item::<MapItemCommonV0>(item.data);
+                print_map_item::<MapItemDdraceSoundV1>(item.data);
             },
             _ => {
                 print_map_item::<MapItemCommonV0>(item.data);
