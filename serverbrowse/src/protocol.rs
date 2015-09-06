@@ -190,23 +190,24 @@ impl<'a> Unpacker<'a> {
     }
 }
 
-// TODO: better literals? :(
 const HEADER_LEN: usize = 14;
 pub type Header = [u8; HEADER_LEN];
-pub const REQUEST_LIST_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'r', b'e', b'q', b't']; // "reqt"
-pub const REQUEST_LIST_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'r', b'e', b'q', b'2']; // "req2"
-pub const LIST_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'l', b'i', b's', b't']; // "list"
-pub const LIST_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'l', b'i', b's', b'2']; // "lis2"
-pub const REQUEST_COUNT:     Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'c', b'o', b'u', b'2']; // "cou2"
-pub const COUNT:             Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b's', b'i', b'z', b'2']; // "siz2"
-pub const REQUEST_INFO_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'g', b'i', b'e', b'2']; // "gie2"
-pub const REQUEST_INFO_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'g', b'i', b'e', b'3']; // "gie3"
-pub const REQUEST_INFO_6_64: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'f', b's', b't', b'd']; // "fstd"
-pub const INFO_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'i', b'n', b'f', b'2']; // "inf2"
-pub const INFO_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'i', b'n', b'f', b'3']; // "inf3"
-pub const INFO_6_64:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'd', b't', b's', b'f']; // "dtsf"
+pub const REQUEST_LIST_5:    Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreqt";
+pub const REQUEST_LIST_6:    Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
+pub const LIST_5:            Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflist";
+pub const LIST_6:            Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
+pub const REQUEST_COUNT:     Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
+pub const COUNT:             Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
+pub const REQUEST_INFO_5:    Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie2";
+pub const REQUEST_INFO_6:    Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
+pub const REQUEST_INFO_6_64: Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfffstd";
+pub const INFO_5:            Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
+pub const INFO_6:            Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const INFO_6_64:         Header = *b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 
-pub const IPV4_MAPPING: [u8; 12] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
+pub const IPV4_MAPPING: [u8; 12] = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff
+];
 
 pub fn request_list_5<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_5) }
 pub fn request_list_6<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_6) }
