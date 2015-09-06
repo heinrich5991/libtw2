@@ -66,6 +66,8 @@ The main server info packet looks like follows:
     [int] token
     [str] name
     [str] map
+    [int] map_crc
+    [int] map_size
     [str] game_type
     [int] flags
     [int] num_players
@@ -83,7 +85,9 @@ The main server info packet looks like follows:
 a request, it mut be -1.
 
 `name`, `map`, `game_type` are the server's name, its current map and gametype,
-respectively.
+respectively. `map_crc` is the current map's CRC (note that Teeworlds uses
+incorrect starting values to calculate the CRC) and `map_size` is the map's
+size in bytes.
 
 There is currently only one flag for the `flags` field, namely the password
 flag, whose value is 1. It must be set if entering the server requires a
