@@ -12,6 +12,7 @@ use bitmagic::CallbackReadDataExt;
 use bitmagic::relative_size_of;
 use bitmagic::relative_size_of_mult;
 use bitmagic::transmute_slice;
+use format::ItemView;
 use format::OnlyI32;
 use format;
 
@@ -48,14 +49,6 @@ pub trait CallbackReadData {
 
 pub trait DataCallback {
     fn slice_mut(&mut self) -> &mut [u8];
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub struct ItemView<'a> {
-    pub type_id: u16,
-    pub id: u16,
-    pub data: &'a [i32],
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
@@ -417,127 +410,3 @@ pub type DataIter<'a,CB,T> = MapIterator<T,(&'a Reader,&'a mut CB),ops::Range<us
 pub type Items<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
 pub type ItemTypes<'a> = MapIterator<u16,&'a Reader,ops::Range<usize>>;
 pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
-
-#[derive(Clone, Copy, Debug)]
-struct DfBufItemType {
-    type_id: u16,
-    start: usize,
-    num: usize,
-}
-
-#[derive(Clone, Debug)]
-struct DfBufItem {
-    type_id: u16,
-    id: u16,
-    data: Vec<i32>,
-}
-
-#[allow(dead_code)]
-pub struct DatafileBuffer {
-    item_types: Vec<DfBufItemType>,
-    items: Vec<DfBufItem>,
-    data: Vec<Vec<u8>>,
-}
-
-#[allow(dead_code)]
-pub type DfDataNoerrIter<'a,T> = MapIterator<&'a [u8],&'a T,ops::Range<usize>>;
-
-//fn datafile_data_noerr_map_fn<'a>(index: usize, df: &&'a DatafileBuffer) -> &'a [u8] {
-//    df.data_noerr(index)
-//}
-
-#[allow(dead_code)]
-impl DatafileBuffer {
-    pub fn new() -> DatafileBuffer {
-        DatafileBuffer {
-            item_types: Vec::new(),
-            items: Vec::new(),
-            data: Vec::new(),
-        }
-    }
-
-    fn get_item_type_index(&self, type_id: u16) -> (usize, bool) {
-        for (i, &DfBufItemType { type_id: other_type_id, .. }) in self.item_types.iter().enumerate() {
-            if type_id <= other_type_id {
-                return (i, type_id == other_type_id);
-            }
-        }
-        (self.item_types.len(), false)
-    }
-
-    fn get_item_index(&self, item_type_index: usize, item_type_found: bool, id: u16) -> (usize, bool) {
-        if !item_type_found {
-            if item_type_index != self.item_types.len() {
-                (self.item_types[item_type_index].start, false)
-            } else {
-                (self.items.len(), false)
-            }
-        } else {
-            let DfBufItemType { start, num, .. } = self.item_types[item_type_index];
-
-            for (i, &DfBufItem { id: other_id, .. })
-                in self.items[start..][..num].iter().enumerate().map(|(i, x)| (start+i, x)) {
-
-                if id <= other_id {
-                    return (i, id == other_id)
-                }
-            }
-
-            (start + num, false)
-        }
-    }
-
-    pub fn data_noerr<'a>(&'a self, index: usize) -> &'a [u8] {
-        &self.data[index]
-    }
-
-    pub fn data_noerr_iter<'a>(&'a self) -> DfDataNoerrIter<'a,DatafileBuffer> {
-        // TODO: Implement this!
-        unimplemented!();
-        //MapIterator { data: self, iterator: 0..self.num_data(), map_fn: datafile_data_noerr_map_fn }
-    }
-
-    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(),()> {
-        let (type_index, type_found) = self.get_item_type_index(type_id);
-        let (item_index, item_found) = self.get_item_index(type_index, type_found, id);
-
-        // if we already have an item of the given type and id,
-        // return an error
-        if item_found {
-            return Err(());
-        }
-
-        // if there isn't a type with such an id yet, insert it
-        if !type_found {
-            self.item_types.insert(type_index, DfBufItemType {
-                type_id: type_id,
-                start: item_index,
-                num: 0,
-            });
-        }
-
-        // we're going to insert an item, increase the count by one
-        self.item_types[type_index].num += 1;
-
-        // increase the starts of the following item types by one
-        for t in self.item_types.iter_mut().skip(type_index + 1) {
-            t.start += 1;
-        }
-
-        // actually insert the item
-        self.items.insert(item_index, DfBufItem {
-            type_id: type_id,
-            id: id,
-            data: data.to_vec(),
-        });
-
-        Ok(())
-    }
-
-    pub fn add_data(&mut self, data: Vec<u8>) -> usize {
-        // add the data
-        self.data.push(data);
-        // return the index
-        self.data.len() - 1
-    }
-}

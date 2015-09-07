@@ -7,11 +7,11 @@ use std::io::SeekFrom;
 use std::io;
 use std::ops;
 
+use format::ItemView;
 use format;
 use raw::CallbackNew;
 use raw::CallbackReadData;
 use raw::DataCallback;
-use raw::ItemView;
 use raw::ResultExt;
 use raw;
 

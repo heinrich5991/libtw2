@@ -78,6 +78,14 @@ pub static VERSION3: i32 = 3;
 pub static VERSION4: i32 = 4;
 pub static ITEMTYPE_ID_RANGE: i32 = 0x10000;
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+pub struct ItemView<'a> {
+    pub type_id: u16,
+    pub id: u16,
+    pub data: &'a [i32],
+}
+
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct HeaderCheckResult {
     pub expected_size: u32,
     // Version 4 with broken size calculation.

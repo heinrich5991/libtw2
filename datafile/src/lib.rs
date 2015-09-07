@@ -9,14 +9,16 @@ extern crate zlib_minimal as zlib;
 pub use file::DataIter;
 pub use file::Error;
 pub use file::Reader;
+pub use format::ItemView;
 pub use format::OnlyI32;
 pub use raw::ItemTypeItems;
 pub use raw::ItemTypes;
-pub use raw::ItemView;
 pub use raw::Items;
 pub use raw::Version;
 
 mod bitmagic;
-mod raw;
+pub mod buffer;
 mod file;
+pub mod raw;
 pub mod format;
+mod writer;
