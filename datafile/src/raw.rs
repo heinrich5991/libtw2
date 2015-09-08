@@ -159,10 +159,17 @@ impl Reader {
     pub fn check(&self) -> Result<(),format::Error> {
         {
             let mut expected_start = 0;
+            let mut previous = None;
             for (i, t) in self.item_types.iter().enumerate() {
                 if !(0 <= t.type_id && t.type_id < format::ITEMTYPE_ID_RANGE) {
                     error!("invalid item_type type_id: must be in range 0 to {:x}, item_type={} type_id={}", format::ITEMTYPE_ID_RANGE, i, t.type_id);
                     return Err(format::Error::Malformed);
+                }
+                if let Some((previous_index, previous_type_id)) = previous {
+                    if !(t.type_id > previous_type_id) {
+                        error!("item_type type_id: must be larger than previous type_id, item_type1={} type_id1={} item_type2={} type_id2={}", previous_index, previous_type_id, i, t.type_id);
+                        return Err(format::Error::Malformed);
+                    }
                 }
                 if !(0 <= t.num && t.num <= self.header.hr.num_items - t.start) {
                     error!("invalid item_type num: must be in range 0 to num_items - start + 1, item_type={} type_id={} start={} num={}", i, t.type_id, t.start, t.num);
@@ -184,6 +191,7 @@ impl Reader {
                 error!("last item_type does not contain last item, item_type={}", self.header.hr.num_item_types - 1);
                 return Err(format::Error::Malformed);
             }
+            previous = Some((i, t.type_id));
         }
         {
             let mut offset = 0;
@@ -235,6 +243,7 @@ impl Reader {
                     return Err(format::Error::Malformed);
                 }
                 if previous > offset {
+                    // TODO: fix overflow issue
                     error!("data overlaps, data1={} data2={}", i - 1, i);
                     return Err(format::Error::Malformed);
                 }
