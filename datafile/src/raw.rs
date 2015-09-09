@@ -186,12 +186,12 @@ impl Reader {
                         return Err(format::Error::Malformed);
                     }
                 }
+                previous = Some((i, t.type_id));
             }
             if expected_start != self.header.hr.num_items {
                 error!("last item_type does not contain last item, item_type={}", self.header.hr.num_item_types - 1);
                 return Err(format::Error::Malformed);
             }
-            previous = Some((i, t.type_id));
         }
         {
             let mut offset = 0;
