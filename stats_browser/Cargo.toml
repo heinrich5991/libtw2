@@ -8,11 +8,11 @@ name = "stats_browser"
 doc = false
 
 [dependencies]
+common = { path = "../common/" }
 env_logger = "*"
 log = "*"
+mio = { git = "https://github.com/carllerche/mio" }
 num = "*"
 rustc-serialize = "*"
-[dependencies.common] path = "../common"
-[dependencies.mio] git = "https://github.com/carllerche/mio"
-[dependencies.serverbrowse] path = "../serverbrowse"
-[dependencies.time] version = "*" features = ["rustc-serialize"]
+serverbrowse = { path = "../serverbrowse/" }
+time = { version = "*", features = ["rustc-serialize"] }

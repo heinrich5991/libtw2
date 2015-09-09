@@ -4,13 +4,8 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
+common = { path = "../common/" }
 log = "*"
 num = "*"
 rustc-serialize = "*"
-
-[dependencies.time]
-version = "*"
-features = ["rustc-serialize"]
-
-[dependencies.common]
-path = "../common/"
+time = { version = "*", features = ["rustc-serialize"] }
