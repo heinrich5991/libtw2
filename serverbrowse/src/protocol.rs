@@ -296,27 +296,41 @@ pub struct PartialServerInfo {
     received: u64,
 }
 
+pub enum MergeError {
+    DifferingTokens,
+    DifferingVersions,
+    NotV664,
+    OverlappingPlayers,
+}
+
 impl PartialServerInfo {
     // TODO: What to do when the infos don't match?
     // Currently the other info is just ignored.
-    pub fn merge(&mut self, other: PartialServerInfo) {
-        let _ = other;
-        unimplemented!();
-        /*
-        if self.info.token != other.info.token
-            || self.info.num_clients != other.info.num_players
-        {
-            return;
+    pub fn merge(&mut self, other: PartialServerInfo) -> Result<(),MergeError> {
+        if self.info.token != other.info.token {
+            return Err(MergeError::DifferingTokens);
         }
-        // TODO: Better loop.
-        for (i, &f) in other.fill().iter().enumerate() {
-            if f {
-                // TODO: What if a client is received twice?
-                self.info.clients_mut()[i] = other.info.clients()[i].clone();
-                self.fill_mut()[i] = true;
-            }
+        if self.info.info_version != other.info.info_version {
+            return Err(MergeError::DifferingVersions);
         }
-        */
+        if self.info.info_version != ServerInfoVersion::V664 {
+            return Err(MergeError::NotV664);
+        }
+        if self.received & other.received == other.received {
+            // We already have that server info.
+            // TODO: What to do if it doesn't match?
+            return Ok(());
+        }
+        if self.received & other.received != 0 {
+            return Err(MergeError::OverlappingPlayers);
+        }
+        let mut iter = other.info.clients.into_iter();
+        self.info.clients.extend(&mut iter);
+
+        // Shouldn't happen because we keep a bitmask of players we already have.
+        assert!(!iter.next().is_some(), "too many players");
+
+        Ok(())
     }
     pub fn get_info(&self) -> Option<&ServerInfo> {
         if self.info.clients.len().to_i32().unwrap() != self.info.num_clients {
