@@ -740,10 +740,9 @@ mod test {
             ].iter().cloned().collect(),
         };
 
-        println!("");
         println!("{:?}", Info6Response(info_raw).parse().unwrap());
         println!("{:?}", info);
 
-        assert_eq!(Info6Response(info_raw).parse().unwrap(), info);
+        assert_eq!(Info6Response(info_raw).parse(), Some(info));
     }
 }
