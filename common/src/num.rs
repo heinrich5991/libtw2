@@ -23,8 +23,8 @@ pub struct LeU16([u8; 2]);
 const S16: usize = 2;
 #[test] fn check_size_beu16() { assert_eq!(mem::size_of::<BeU16>(), S16); }
 #[test] fn check_size_leu16() { assert_eq!(mem::size_of::<LeU16>(), S16); }
-#[test] fn check_align_beu16() { assert_eq!(mem::min_align_of::<BeU16>(), 1); }
-#[test] fn check_align_leu16() { assert_eq!(mem::min_align_of::<LeU16>(), 1); }
+#[test] fn check_align_beu16() { assert_eq!(mem::align_of::<BeU16>(), 1); }
+#[test] fn check_align_leu16() { assert_eq!(mem::align_of::<LeU16>(), 1); }
 
 impl BeU16 {
     pub fn from_u16(value: u16) -> BeU16 {
