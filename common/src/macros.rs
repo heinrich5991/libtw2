@@ -20,7 +20,7 @@ macro_rules! unsafe_boilerplate_packed {
                     return None;
                 }
                 let (struct_bytes, rest) = bytes.split_at($size);
-                let struct_ = Self::from_bytes(unsafe {
+                let struct_ = <$t>::from_bytes(unsafe {
                     &*(&struct_bytes[0] as *const _ as *const [u8; $size])
                 });
                 Some((struct_, rest))
