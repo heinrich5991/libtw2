@@ -38,3 +38,35 @@ impl LeU16 {
 
 unsafe_boilerplate_packed!(BeU16, 2, test_size_beu16, test_align_beu16);
 unsafe_boilerplate_packed!(LeU16, 2, test_size_leu16, test_align_leu16);
+
+#[cfg(test)]
+mod test {
+    use super::BeU16;
+    use super::LeU16;
+
+    #[quickcheck]
+    fn beu16_roundtrip(val: u16) -> bool { BeU16::from_u16(val).to_u16() == val }
+    #[quickcheck]
+    fn leu16_roundtrip(val: u16) -> bool { LeU16::from_u16(val).to_u16() == val }
+
+    #[quickcheck]
+    fn beu16_unpack((v0, v1): (u8, u8)) -> bool {
+        let bytes = &[v0, v1];
+        BeU16::from_u16(BeU16::from_bytes(bytes).to_u16()).as_bytes() == bytes
+    }
+    #[quickcheck]
+    fn leu16_unpack((v0, v1): (u8, u8)) -> bool {
+        let bytes = &[v0, v1];
+        LeU16::from_u16(LeU16::from_bytes(bytes).to_u16()).as_bytes() == bytes
+    }
+
+    #[test]
+    fn order() {
+        let be = *BeU16::from_u16(0x0120).as_bytes();
+        let le = *LeU16::from_u16(0x0120).as_bytes();
+        assert_eq!(be[0], 0x01);
+        assert_eq!(be[1], 0x20);
+        assert_eq!(le[0], 0x20);
+        assert_eq!(le[1], 0x01);
+    }
+}
