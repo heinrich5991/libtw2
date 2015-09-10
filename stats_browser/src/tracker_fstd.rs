@@ -1,6 +1,4 @@
-use serverbrowse::protocol::NzU8SliceExt;
-use serverbrowse::protocol::PString64;
-use serverbrowse::protocol::PlayerInfo;
+use serverbrowse::protocol::ClientInfo;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol::ServerInfoVersion;
 
@@ -66,13 +64,13 @@ impl Tracker {
         let _ = addr;
         false
     }
-    fn on_player_new(&mut self, addr: LogAddr, info: &PlayerInfo) {
+    fn on_player_new(&mut self, addr: LogAddr, info: &ClientInfo) {
         if player_ignore(addr, info) { return; }
         print_player_new(addr, info);
         self.player_count += 1;
     }
 
-    fn on_player_change(&mut self, addr: LogAddr, old: &PlayerInfo, new: &PlayerInfo) {
+    fn on_player_change(&mut self, addr: LogAddr, old: &ClientInfo, new: &ClientInfo) {
         if player_ignore(addr, old) || player_ignore(addr, new) { return; }
         if old.clan != new.clan
             || old.is_player != new.is_player
@@ -82,17 +80,17 @@ impl Tracker {
         }
     }
 
-    fn on_player_remove(&mut self, addr: LogAddr, last: &PlayerInfo) {
+    fn on_player_remove(&mut self, addr: LogAddr, last: &ClientInfo) {
         if player_ignore(addr, last) { return; }
         print_player_remove(addr, last);
         self.player_count -= 1;
     }
 
-    fn diff_players(&mut self, addr: LogAddr, slice_old: &[PlayerInfo], slice_new: &[PlayerInfo]) {
+    fn diff_players(&mut self, addr: LogAddr, slice_old: &[ClientInfo], slice_new: &[ClientInfo]) {
         let mut iter_old = slice_old.iter();
         let mut iter_new = slice_new.iter();
-        let mut maybe_old: Option<&PlayerInfo> = iter_old.next();
-        let mut maybe_new: Option<&PlayerInfo> = iter_new.next();
+        let mut maybe_old: Option<&ClientInfo> = iter_old.next();
+        let mut maybe_new: Option<&ClientInfo> = iter_new.next();
         loop {
             match (maybe_old, maybe_new) {
                 (None, None) => break,
@@ -131,7 +129,7 @@ impl StatsBrowserCb for Tracker {
         let addr = LogAddr::new(addr, info);
         if Tracker::server_ignore(addr) { return; }
         print_server_new(addr, info);
-        self.diff_players(addr, &[], info.clients());
+        self.diff_players(addr, &[], &info.clients);
         self.server_count += 1;
     }
 
@@ -151,21 +149,16 @@ impl StatsBrowserCb for Tracker {
         {
             print_server_change(addr, old, new);
         }
-        self.diff_players(addr, old.clients(), new.clients());
+        self.diff_players(addr, &old.clients, &new.clients);
     }
 
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo) {
         let addr = LogAddr::new(addr, last);
         if Tracker::server_ignore(addr) { return; }
-        self.diff_players(addr, last.clients(), &[]);
+        self.diff_players(addr, &last.clients, &[]);
         print_server_remove(addr, last);
         self.server_count -= 1;
     }
-}
-
-/// Returns a `B64` for a `PString64`.
-fn b64(string: &PString64) -> B64 {
-    B64(string.as_slice().as_bytes())
 }
 
 fn print_iter<'a,I:Iterator<Item=&'a (fmt::Display+'a)>>(command: &str, args: I) {
@@ -190,22 +183,22 @@ fn print_start() {
     print("START", &[&"1.1", &"libtw2_statsbrowser", &"0.0.1"]);
 }
 
-fn print_player_new(addr: LogAddr, info: &PlayerInfo) {
+fn print_player_new(addr: LogAddr, info: &ClientInfo) {
     print_server("PLADD", addr, &[
-        &b64(&info.name),
-        &b64(&info.clan),
+        &B64(&info.name),
+        &B64(&info.clan),
         &info.is_player,
         &info.country,
     ]);
 }
 
-fn print_player_remove(addr: LogAddr, info: &PlayerInfo) {
+fn print_player_remove(addr: LogAddr, info: &ClientInfo) {
     print_server("PLDEL", addr, &[
-        &b64(&info.name),
+        &B64(&info.name),
     ]);
 }
 
-fn print_player_change(addr: LogAddr, old: &PlayerInfo, new: &PlayerInfo) {
+fn print_player_change(addr: LogAddr, old: &ClientInfo, new: &ClientInfo) {
     print_player_remove(addr, new);
     print_player_new(addr, old);
 }
@@ -218,10 +211,10 @@ fn print_server_remove(addr: LogAddr, info: &ServerInfo) {
 fn print_server_change_impl(addr: LogAddr, new: bool, info: &ServerInfo) {
     print_server(if new { "SVADD" } else { "SVCHG" }, addr, &[
         &info.flags,
-        &b64(&info.version),
-        &b64(&info.game_type),
-        &b64(&info.map),
-        &b64(&info.name),
+        &B64(&info.version),
+        &B64(&info.game_type),
+        &B64(&info.map),
+        &B64(&info.name),
     ]);
 }
 
@@ -234,7 +227,7 @@ fn print_server_change(addr: LogAddr, old: &ServerInfo, new: &ServerInfo) {
     print_server_change_impl(addr, false, new);
 }
 
-fn player_ignore(addr: LogAddr, info: &PlayerInfo) -> bool {
+fn player_ignore(addr: LogAddr, info: &ClientInfo) -> bool {
     let _ = addr;
-    info.name.as_slice().as_bytes() == "(connecting)".as_bytes()
+    &*info.name == "(connecting)".as_bytes()
 }
