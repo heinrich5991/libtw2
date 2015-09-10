@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "nodrop 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -181,8 +181,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "serverbrowse"
 version = "0.0.1"
 dependencies = [
- "arrayvec 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrayvec 0.3.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
+ "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
