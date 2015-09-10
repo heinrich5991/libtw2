@@ -11,7 +11,7 @@ doc = false
 common = { path = "../common/" }
 env_logger = "*"
 log = "*"
-mio = { git = "https://github.com/carllerche/mio" }
+mio = "*"
 num = "*"
 rustc-serialize = "*"
 serverbrowse = { path = "../serverbrowse/" }
