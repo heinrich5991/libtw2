@@ -5,4 +5,8 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 arrayvec = "*"
-void = "*"
+itertools = "*"
+
+[dev-dependencies]
+quickcheck = "*"
+quickcheck_macros = "*"
