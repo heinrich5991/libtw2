@@ -8,6 +8,7 @@ __pycache__
 *.map
 
 /build
+/.cargo
 a.out
 main
 
