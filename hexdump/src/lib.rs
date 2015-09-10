@@ -1,8 +1,10 @@
 extern crate arrayvec;
+extern crate void;
 
 use arrayvec::ArrayVec;
 use std::io::Write;
 use std::str;
+use void::ResultVoidExt;
 
 const SEGMENT_LENGTH: usize = 4;
 // CHUNK_LENGTH should be a multiple of SEGMENT_LENGTH
@@ -13,11 +15,7 @@ const NUM_SEGMENTS_PER_CHUNK: usize = ((CHUNK_LENGTH + SEGMENT_LENGTH - 1) / SEG
 const BUFFER_LENGTH: usize = 64;
 
 pub fn hexdump(bytes: &[u8]) {
-    enum Void { }
-    match hexdump_raw(|s| -> Result<(),Void> { println!("{}", s); Ok(()) }, bytes) {
-        Ok(()) => {},
-        Err(v) => match v { },
-    }
+    hexdump_raw(|s| Ok(println!("{}", s)), bytes).void_unwrap();
 }
 
 pub fn hexdump_raw<E,F:FnMut(&str)->Result<(),E>>(f: F, bytes: &[u8]) -> Result<(),E> {

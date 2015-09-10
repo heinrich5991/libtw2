@@ -3,6 +3,7 @@ name = "hexdump"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "void 0.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
