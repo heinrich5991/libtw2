@@ -46,7 +46,7 @@ impl UdpSocket {
                 Ok(Ok((read_len, from)))
             },
             Ok(None) => Ok(Err(WouldBlock)),
-            Err(x) => { panic!("socket error, {:?}", x); },
+            Err(x) => Err(SockError(x)),
         }
     }
 }
