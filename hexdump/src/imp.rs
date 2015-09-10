@@ -180,6 +180,7 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
 #[cfg(test)]
 mod test {
     use super::hexdump_iter;
+    use super::CHUNK_LENGTH;
 
     use itertools::Itertools;
     use std::collections::HashSet;
@@ -213,5 +214,12 @@ mod test {
             .collect();
 
         printable_chars.is_subset(&printed_chars)
+    }
+
+    #[quickcheck]
+    fn line_count(bytes: Vec<u8>) -> bool {
+        let expected = (bytes.len() + CHUNK_LENGTH - 1) / CHUNK_LENGTH + 1;
+        hexdump_iter(&bytes).len() == expected
+            && hexdump_iter(&bytes).count() == expected
     }
 }
