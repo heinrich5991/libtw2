@@ -1,12 +1,11 @@
-use arrayvec::ArrayVec;
+use arrayvec::ArrayString;
 use itertools::Itertools;
 use std::fmt;
-use std::io::Write;
+use std::fmt::Write;
 use std::iter;
 use std::ops;
 use std::slice::Chunks;
 use std::slice;
-use std::str;
 
 const SEGMENT_LENGTH: usize = 4;
 // CHUNK_LENGTH should be a multiple of SEGMENT_LENGTH
@@ -16,8 +15,7 @@ const NUM_SEGMENTS_PER_CHUNK: usize = ((CHUNK_LENGTH + SEGMENT_LENGTH - 1) / SEG
 
 const BUFFER_LENGTH: usize = 64;
 
-// Must be UTF-8!
-type BufferImpl = ArrayVec<[u8; BUFFER_LENGTH]>;
+type BufferImpl = ArrayString<[u8; BUFFER_LENGTH]>;
 
 #[derive(Clone)]
 pub struct Buffer {
@@ -45,7 +43,7 @@ impl fmt::Debug for Buffer {
 impl ops::Deref for Buffer {
     type Target = str;
     fn deref(&self) -> &str {
-        unsafe { str::from_utf8_unchecked(&self.inner) }
+        &self.inner
     }
 }
 
@@ -111,13 +109,13 @@ impl<'a> ExactSizeIterator for Hexdump<'a> {
 }
 
 fn hexdump_summary(len: usize) -> Buffer {
-    let mut buf: ArrayVec<[u8; BUFFER_LENGTH]> = ArrayVec::new();
-    buf.write_all(b"    ").unwrap();
+    let mut buf = BufferImpl::new();
+    buf.write_str("    ").unwrap();
     for _ in 0..CHUNK_LENGTH {
-        buf.write_all(b"   ").unwrap();
+        buf.write_str("   ").unwrap();
     }
     for _ in 1..NUM_SEGMENTS_PER_CHUNK {
-        buf.write_all(b" ").unwrap();
+        buf.write_str(" ").unwrap();
     }
     write!(buf, "{:08x}", len).unwrap();
 
@@ -127,8 +125,8 @@ fn hexdump_summary(len: usize) -> Buffer {
 fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
     let offset = i * CHUNK_LENGTH;
 
-    let mut buf: ArrayVec<[u8; BUFFER_LENGTH]> = ArrayVec::new();
-    buf.write_all(b"|").unwrap();
+    let mut buf = BufferImpl::new();
+    buf.write_str("|").unwrap();
 
     let mut first = true;
     let mut num_segments = 0;
@@ -137,7 +135,7 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
         if first {
             first = false;
         } else {
-            buf.write_all(b" ").unwrap();
+            buf.write_str(" ").unwrap();
         }
 
         num_bytes = 0;
@@ -148,30 +146,30 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
         num_segments += 1;
     }
 
-    buf.write_all(b"| ").unwrap();
+    buf.write_str("| ").unwrap();
     for _ in num_bytes..SEGMENT_LENGTH {
-        buf.write_all(b"  ").unwrap();
+        buf.write_str("  ").unwrap();
     }
     for _ in num_segments..NUM_SEGMENTS_PER_CHUNK {
         for _ in 0..SEGMENT_LENGTH {
-            buf.write_all(b"  ").unwrap();
+            buf.write_str("  ").unwrap();
         }
-        buf.write_all(b" ").unwrap();
+        buf.write_str(" ").unwrap();
     }
 
     for &b in chunk {
         if b < 0x20 || b >= 0x7f {
-            buf.write_all(b".").unwrap();
+            buf.write_str(".").unwrap();
         } else {
             write!(buf, "{}", b as char).unwrap();
         }
     }
 
     for _ in chunk.len()..CHUNK_LENGTH {
-        buf.write_all(b" ").unwrap();
+        buf.write_str(" ").unwrap();
     }
 
-    buf.write_all(b" ").unwrap();
+    buf.write_str(" ").unwrap();
     write!(buf, "{:08x}", offset).unwrap();
 
     Buffer::new(buf)
