@@ -49,14 +49,13 @@ pub enum Packet {
     Connected(ConnectedPacket),
 }
 
-pub fn compress(bytes: &[u8]) -> Option<DataBuffer> {
-    let _ = bytes;
-    unimplemented!();
+// TODO: Implement compression.
+pub fn compress(bytes: &[u8]) -> Result<DataBuffer,()> {
+    Err(())
 }
 
-pub fn decompress(bytes: &[u8]) -> Option<DataBuffer> {
-    let _ = bytes;
-    unimplemented!();
+pub fn decompress(bytes: &[u8]) -> Result<DataBuffer,()> {
+    Err(())
 }
 
 impl Packet {
@@ -75,7 +74,7 @@ impl Packet {
         }
 
         let mut payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
-            unwrap_or_return!(decompress(payload))
+            unwrap_or_return!(decompress(payload).ok())
         } else {
             payload.iter().cloned().collect()
         };
