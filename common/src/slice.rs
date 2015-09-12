@@ -10,6 +10,7 @@ pub fn mut_ref_slice<T>(r: &mut T) -> &mut [T] {
 }
 
 pub fn relative_size_of_mult<T,U>(mult: usize) -> usize {
+    // Panics if mem::size_of::<U>() is 0.
     assert!(mult * mem::size_of::<T>() % mem::size_of::<U>() == 0);
     mult * mem::size_of::<T>() / mem::size_of::<U>()
 }
