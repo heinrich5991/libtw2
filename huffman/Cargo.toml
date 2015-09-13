@@ -1,0 +1,13 @@
+[package]
+name = "huffman"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]
+arrayvec = "*"
+itertools = "*"
+num = "*"
+
+[dev-dependencies]
+quickcheck = "*"
+quickcheck_macros = "*"
