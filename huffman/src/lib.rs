@@ -108,7 +108,6 @@ impl Huffman {
         // have to handle 25 steps.
         let mut stack: ArrayVec<[u16; 25]> = ArrayVec::new();
         let mut bits = 0;
-        let mut num_bits = 0u8;
 
         let mut top = ROOT_IDX;
         let mut first = true;
@@ -120,10 +119,9 @@ impl Huffman {
                 } else {
                     break;
                 }
-                let b = 1 << num_bits.checked_sub(1).unwrap();
+                let b = 1 << stack.len().to_u8().unwrap();
                 if bits & b != 0 {
                     bits &= !b;
-                    num_bits -= 1;
                     continue;
                 }
                 bits |= b;
@@ -135,12 +133,11 @@ impl Huffman {
             while top >= NUM_SYMBOLS {
                 assert!(stack.push(top).is_none());
                 top = nodes[top.to_usize().unwrap()].children[0];
-                num_bits += 1;
             }
 
             nodes[top.to_usize().unwrap()] = SymbolRepr {
                 bits: bits,
-                num_bits: num_bits,
+                num_bits: stack.len().to_u8().unwrap(),
             }.to_node();
         }
 
