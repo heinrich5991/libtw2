@@ -89,6 +89,7 @@ impl Huffman {
             // Sort in reverse (upper to lower)!
             frequencies.sort_by(|a, b| b.frequency.cmp(&a.frequency));
 
+            // `frequencies.len() > 1`, so these always succeed.
             let freq1 = frequencies.pop().unwrap();
             let freq2 = frequencies.pop().unwrap();
 
@@ -104,15 +105,18 @@ impl Huffman {
             assert!(frequencies.push(node_freq).is_none());
         }
 
-        // We can handle 24 bit in total, that means including the root node we
-        // have to handle 25 steps.
-        let mut stack: ArrayVec<[u16; 25]> = ArrayVec::new();
-        let mut bits = 0;
-
+        // We use a `top` variable as virtual extension of `stack` in order to
+        // have less `unwrap`s.
+        let mut stack: ArrayVec<[u16; 24]> = ArrayVec::new();
         let mut top = ROOT_IDX;
+
+        let mut bits = 0;
         let mut first = true;
 
+        // Use a depth-first traversal of the tree, exploring the left children
+        // of each node first, in order to set the bit patterns of the leaves.
         loop {
+            // On first iteration, don't try to go up the tree.
             if !first {
                 if let Some(t) = stack.pop() {
                     top = t;
