@@ -11,7 +11,6 @@ use itertools::Itertools;
 use num::ToPrimitive;
 use std::fmt::Write;
 use std::fmt;
-use std::iter;
 use std::slice;
 
 const EOF: u16 = 256;
@@ -76,7 +75,7 @@ impl Huffman {
         let array = unsafe { &*(frequencies as *const _ as *const _) };
         Huffman::from_frequencies_array(array)
     }
-    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman,()> { 
+    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman,()> {
         let mut frequencies: ArrayVec<[_; 512]> = frequencies.iter()
             .cloned().enumerate().map(|(i, f)| {
                 Frequency { frequency: f, node_idx: i.to_u16().unwrap() }
@@ -93,6 +92,7 @@ impl Huffman {
             let freq1 = frequencies.pop().unwrap();
             let freq2 = frequencies.pop().unwrap();
 
+            // Combine the nodes into one.
             let node = Node { children: [freq1.node_idx, freq2.node_idx] };
             let node_idx = nodes.len().to_u16().unwrap();
             let node_freq = Frequency {
@@ -106,41 +106,35 @@ impl Huffman {
 
         // We can handle 24 bit in total, that means including the root node we
         // have to handle 25 steps.
-        let mut stack: ArrayVec<[u16; 25]> = iter::once(ROOT_IDX).collect();
+        let mut stack: ArrayVec<[u16; 25]> = ArrayVec::new();
         let mut bits = 0;
-        let mut num_bits = 0;
+        let mut num_bits = 0u8;
 
         let mut top = ROOT_IDX;
-        while top >= NUM_SYMBOLS {
-            top = nodes[top.to_usize().unwrap()].children[0];
-            assert!(stack.push(top).is_none());
-            num_bits += 1;
-        }
-
-        nodes[top.to_usize().unwrap()] = SymbolRepr {
-            bits: bits,
-            num_bits: num_bits,
-        }.to_node();
+        let mut first = true;
 
         loop {
-            if stack.pop().unwrap() == ROOT_IDX {
-                break;
+            if !first {
+                if let Some(t) = stack.pop() {
+                    top = t;
+                } else {
+                    break;
+                }
+                let b = 1 << num_bits.checked_sub(1).unwrap();
+                if bits & b != 0 {
+                    bits &= !b;
+                    num_bits -= 1;
+                    continue;
+                }
+                bits |= b;
+                assert!(stack.push(top).is_none());
+                top = nodes[top.to_usize().unwrap()].children[1];
             }
-            let b = 1 << num_bits.checked_sub(1).unwrap();
-            if bits & b != 0 {
-                bits &= !b;
-                num_bits -= 1;
-                continue;
-            }
-            bits |= b;
-            // last aka top
-            let mut top = *stack.last().unwrap();
-            top = nodes[top.to_usize().unwrap()].children[1];
-            assert!(stack.push(top).is_none());
+            first = false;
 
             while top >= NUM_SYMBOLS {
-                top = nodes[top.to_usize().unwrap()].children[0];
                 assert!(stack.push(top).is_none());
+                top = nodes[top.to_usize().unwrap()].children[0];
                 num_bits += 1;
             }
 
