@@ -149,6 +149,14 @@ impl Huffman {
         assert!(result.nodes.iter_mut().set_from(nodes.iter().cloned()) == NUM_NODES);
         Ok(result)
     }
+    pub fn compressed_len(&self, input: &[u8]) -> usize {
+        (input.iter().map(|&b| self.symbol_bit_length(b.to_u16().unwrap()))
+         .fold(0, |s, a| s + a.to_usize().unwrap())
+            + self.symbol_bit_length(EOF).to_usize().unwrap() + 7) / 8
+    }
+    fn symbol_bit_length(&self, idx: u16) -> u32 {
+        self.get_node(idx).unwrap_err().num_bits()
+    }
     fn get_node(&self, idx: u16) -> Result<Node, SymbolRepr> {
         let n = self.nodes[idx.to_usize().unwrap()];
         if idx >= NUM_SYMBOLS {
