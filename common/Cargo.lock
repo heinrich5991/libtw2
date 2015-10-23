@@ -4,6 +4,7 @@ version = "0.0.1"
 dependencies = [
  "quickcheck 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck_macros 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ref_slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -54,6 +55,11 @@ dependencies = [
  "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "ref_slice"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "winapi"

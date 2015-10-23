@@ -1,13 +1,8 @@
 use std::mem;
 use std::slice;
 
-pub fn ref_slice<T>(r: &T) -> &[T] {
-    unsafe { slice::from_raw_parts(r, 1) }
-}
-
-pub fn mut_ref_slice<T>(r: &mut T) -> &mut [T] {
-    unsafe { slice::from_raw_parts_mut(r, 1) }
-}
+pub use ref_slice::ref_slice;
+pub use ref_slice::mut_ref_slice;
 
 pub fn relative_size_of_mult<T,U>(mult: usize) -> usize {
     // Panics if mem::size_of::<U>() is 0.

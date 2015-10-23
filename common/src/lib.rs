@@ -2,6 +2,8 @@
 #![cfg_attr(test, plugin(quickcheck_macros))]
 #[cfg(test)] extern crate quickcheck;
 
+extern crate ref_slice;
+
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;
 pub use slice::relative_size_of_mult;
