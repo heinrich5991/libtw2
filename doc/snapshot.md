@@ -11,17 +11,25 @@ Terminology
 
 All integers in this document are little-endian integers.
 
+
 Item key
 --------
 
 An item key is a 32-bit unsigned integer that contains the 16-bit unsigned
 integer `type_id` as the upper bits and `id` as the lower bits.
 
+
 Items
 -----
 
 An item consists of an item key `key` and an array of 32-bit signed integers
 `data`.
+
+
+Snapshot
+--------
+
+A snapshot is a collection of items identified by their key.
 
 
 Format
@@ -83,3 +91,36 @@ Item deltas
   using 32-bit integer addition that wraps around on overflow. Note that in the
   case of item update, the new size must be the same as the old size of the
   item data.
+
+
+Appendix
+========
+
+Pre-agreed item sizes
+---------------------
+
+This describes the 0.6 protocol of Teeworlds.
+
+`type_id` | `size` | name
+----------+--------+--------------
+       1  |    10  | obj_player_input
+       2  |     6  | obj_projectile
+       3  |     5  | obj_laser
+       4  |     4  | obj_pickup
+       5  |     3  | obj_flag
+       6  |     8  | obj_game_info
+       7  |     4  | obj_game_data
+       8  |    15  | obj_character_core
+       9  |    22  | obj_character
+      10  |     5  | obj_player_info
+      11  |    17  | obj_client_info
+      12  |     3  | obj_spectator_info
+      13  |     2  | event_common
+      14  |     2  | event_explosion
+      15  |     2  | event_spawn
+      16  |     2  | event_hammerhit
+      17  |     3  | event_death
+      18  |     3  | event_sound_global
+      19  |     3  | event_sound_world
+      20  |     3  | event_damage_indicator
+
