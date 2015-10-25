@@ -8,5 +8,6 @@ arrayvec = "*"
 itertools = "*"
 
 [dev-dependencies]
+num = "*"
 quickcheck = "*"
 quickcheck_macros = "*"

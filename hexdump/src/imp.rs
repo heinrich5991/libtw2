@@ -53,6 +53,14 @@ pub struct Hexdump<'a> {
     summary_done: bool,
 }
 
+pub fn sanitize_byte(byte: u8) -> char {
+    if 0x20 <= byte && byte < 0x7f {
+        byte as char
+    } else {
+        '.'
+    }
+}
+
 pub fn hexdump(bytes: &[u8]) {
     hexdump_iter(bytes).foreach(|s| println!("{}", s));
 }
@@ -158,11 +166,7 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
     }
 
     for &b in chunk {
-        if b < 0x20 || b >= 0x7f {
-            buf.write_str(".").unwrap();
-        } else {
-            write!(buf, "{}", b as char).unwrap();
-        }
+        write!(buf, "{}", sanitize_byte(b)).unwrap();
     }
 
     for _ in chunk.len()..CHUNK_LENGTH {
@@ -177,8 +181,9 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
 
 #[cfg(test)]
 mod test {
-    use super::hexdump_iter;
     use super::CHUNK_LENGTH;
+    use super::hexdump_iter;
+    use super::sanitize_byte;
 
     use itertools::Itertools;
     use std::collections::HashSet;
@@ -219,5 +224,14 @@ mod test {
         let expected = (bytes.len() + CHUNK_LENGTH - 1) / CHUNK_LENGTH + 1;
         hexdump_iter(&bytes).len() == expected
             && hexdump_iter(&bytes).count() == expected
+    }
+
+    #[test]
+    fn test_sanitize_byte() {
+        use num::ToPrimitive;
+        for i in 0..256u16 {
+            let i = i.to_u8().unwrap();
+            assert!(sanitize_byte(i) == '.' || sanitize_byte(i) == i as char);
+        }
     }
 }
