@@ -6,6 +6,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 [dependencies]
 common = { path = "../common/" }
 env_logger = "*"
+hexdump = { path = "../hexdump/" }
 itertools = "*"
 log = "*"
 num = "*"

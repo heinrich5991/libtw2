@@ -1,4 +1,6 @@
 use common::MapIterator;
+use hexdump::hexdump_iter;
+use hexdump::sanitize_byte;
 use itertools::Itertools;
 use log;
 use num::ToPrimitive;
@@ -372,7 +374,22 @@ impl Reader {
         for type_id in self.item_types() {
             debug!("item_type type_id={}", type_id);
             for item in self.item_type_items(type_id) {
-                debug!("\titem id={} data={:?}", item.id, item.data);
+                debug!("  item id={}", item.id);
+                for &data in item.data {
+                    fn i32_to_bytes(input: i32) -> [u8; 4] { [
+                        (((input >> 24) & 0xff) - 0x80) as u8,
+                        (((input >> 16) & 0xff) - 0x80) as u8,
+                        (((input >>  8) & 0xff) - 0x80) as u8,
+                        (((input >>  0) & 0xff) - 0x80) as u8,
+                    ] }
+                    let bytes = i32_to_bytes(data);
+                    debug!("    {:08x} {:11} {}{}{}{}", data, data,
+                        sanitize_byte(bytes[0]),
+                        sanitize_byte(bytes[1]),
+                        sanitize_byte(bytes[2]),
+                        sanitize_byte(bytes[3]),
+                    )
+                }
             }
         }
         for (i, data) in self.data_iter(cb).enumerate() {
@@ -380,9 +397,8 @@ impl Reader {
             let len = data.slice_mut().len();
             debug!("data id={} size={}", i, len);
             if len < 256 {
-                match str::from_utf8(data.slice_mut()).ok() {
-                    Some(s) => debug!("\tstr={:?}", s),
-                    None => {},
+                for line in hexdump_iter(data.slice_mut()) {
+                    debug!("  {}", line);
                 }
             }
         }
