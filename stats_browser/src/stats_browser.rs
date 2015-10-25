@@ -73,7 +73,7 @@ impl<'a> StatsBrowser<'a> {
         const MASTER_MIN: u32 = 1;
         const MASTER_MAX: u32 = 4;
         StatsBrowser::new_without_masters(cb).map(|mut browser| {
-            for i in (MASTER_MIN..MASTER_MAX+1) {
+            for i in MASTER_MIN..MASTER_MAX+1 {
                 browser.add_master(format!("master{}.teeworlds.com", i));
             }
             browser

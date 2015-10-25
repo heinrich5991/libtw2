@@ -6,7 +6,6 @@ use log;
 use num::ToPrimitive;
 use std::mem;
 use std::ops;
-use std::str;
 use zlib;
 
 use bitmagic::CallbackNewExt;
