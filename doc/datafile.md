@@ -18,7 +18,7 @@ Terminology
 Items
 -----
 
-An item consists of a 16-bit unsigned integer `type_id`, an 16-bit unsigned
+An item consists of a 16-bit unsigned integer `type_id`, a 16-bit unsigned
 integer `id` and an array of 32-bit signed integers `data`. The combination of
 `type_id` and `id` is unique amongst all items.
 
