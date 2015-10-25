@@ -58,6 +58,16 @@ pub fn decompress(bytes: &[u8]) -> Result<DataBuffer,()> {
     Err(())
 }
 
+fn write_connless_packet(bytes: &[u8]) -> Result<DataBuffer,()> {
+    if bytes.len() > MAX_PAYLOAD {
+        return Err(());
+    }
+    let mut result = DataBuffer::new();
+    result.extend((0..(HEADER_SIZE+PADDING_SIZE_CONNLESS)).map(|_| b'\xff'));
+    result.extend(bytes.iter().cloned());
+    Ok(result)
+}
+
 impl Packet {
     pub fn read(bytes: &[u8]) -> Option<Packet> {
         if bytes.len() > MAX_PACKETSIZE {
@@ -65,6 +75,7 @@ impl Packet {
         }
         let (header, payload) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes));
         let header = header.unpack();
+        // TODO: Maybe warn on "interesting" bytes here.
         if header.flags & PACKETFLAG_CONNLESS != 0 {
             if payload.len() < PADDING_SIZE_CONNLESS {
                 return None;
@@ -112,6 +123,12 @@ impl Packet {
             ack: ack,
             type_: type_,
         }))
+    }
+    pub fn write(&self) -> Result<DataBuffer,()> {
+        match *self {
+            Packet::Connected(ref p) => p.write(),
+            Packet::Connless(ref d) => write_connless_packet(d),
+        }
     }
 }
 
