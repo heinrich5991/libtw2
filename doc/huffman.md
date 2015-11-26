@@ -2,12 +2,23 @@ Description
 ===========
 
 Teeworlds uses a huffman code to compress its network messages. The
-substitution works on bytes terminated by an EOF symbol (which means that there are 2^8+1 = 257 symbols). The specific  can be seen in the appendix. The bitstream is encoded as follows:
+substitution works on bytes terminated by an EOF symbol (which means that there
+are 2^8+1 = 257 symbols). The specific substitutions can be seen in the
+appendix. The bitstream is padded with 0s until the number of bits is a
+multiple of 8, then the order of the bits in the individual bytes is reversed.
+This means a bitstream of `0123 4567 89ab cdef` ends up as:
 
   7654 3210 fecb da98 ...
   |         |
   |         second byte
   first byte
+
+NOTE: A bug in the reference implementation leads to an extra padding byte to
+be appended even if the bit stream already has a length that is a multiple of
+8.
+
+NOTE: The reference implementation ignores the end of the byte stream during
+decompression and just assumes it is followed by an endless stream of zeros.
 
 
 Example
