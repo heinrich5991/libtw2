@@ -14,11 +14,11 @@ fn read_file<T, F: FnMut(String) -> T>(filename: &str, f: F) -> Vec<T> {
 }
 
 fn main() {
-    let input = read_file("data/input", |l| {
+    let input = read_file("data/frequencies", |l| {
         u32::from_str_radix(&l, 10).unwrap()
     });
 
     for r in Huffman::from_frequencies(&input).unwrap().repr() {
-	println!("{}", r);
+        println!("{}", r);
     }
 }

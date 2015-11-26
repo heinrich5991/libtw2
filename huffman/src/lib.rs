@@ -149,10 +149,21 @@ impl Huffman {
         assert!(result.nodes.iter_mut().set_from(nodes.iter().cloned()) == NUM_NODES);
         Ok(result)
     }
-    pub fn compressed_len(&self, input: &[u8]) -> usize {
-        (input.iter().map(|&b| self.symbol_bit_length(b.to_u16().unwrap()))
+    fn compressed_bit_len(&self, input: &[u8]) -> usize {
+        input.iter().map(|&b| self.symbol_bit_length(b.to_u16().unwrap()))
          .fold(0, |s, a| s + a.to_usize().unwrap())
-            + self.symbol_bit_length(EOF).to_usize().unwrap() + 7) / 8
+            + self.symbol_bit_length(EOF).to_usize().unwrap()
+    }
+    pub fn compressed_len(&self, input: &[u8]) -> usize {
+        (self.compressed_bit_len(input) + 7) / 8
+    }
+    /// This function returns the number of bytes the reference implementation
+    /// uses to compress the input bytes.
+    ///
+    /// This might differ by 1 from `compressed_len` in case the compressed bit
+    /// stream would perfectly fit into bytes.
+    pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
+        self.compressed_bit_len(input) / 8 + 1
     }
     fn symbol_bit_length(&self, idx: u16) -> u32 {
         self.get_node(idx).unwrap_err().num_bits()

@@ -51,6 +51,13 @@ fn compressed_len() {
     let h = huffman_default();
 
     for (uncompressed, compressed) in test_cases() {
-        assert_eq!(h.compressed_len(&uncompressed), compressed.len())
+        let compressed_len_bug = h.compressed_len_bug(&uncompressed);
+        let compressed_len = h.compressed_len(&uncompressed);
+        // The reference implementation occasionally adds an extra byte to the
+        // compressed data.
+        assert!(compressed_len <= compressed_len_bug);
+        assert!(compressed_len_bug <= compressed_len + 1);
+
+        assert_eq!(compressed_len_bug, compressed.len())
     }
 }
