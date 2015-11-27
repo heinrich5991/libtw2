@@ -3,6 +3,7 @@
 #[cfg(test)] extern crate quickcheck;
 
 extern crate arrayvec;
+#[macro_use] extern crate common;
 extern crate itertools;
 extern crate num;
 
@@ -60,6 +61,42 @@ impl<'a> ExactSizeIterator for ReprIter<'a> {
 impl<'a> DoubleEndedIterator for ReprIter<'a> {
     fn next_back(&mut self) -> Option<SymbolRepr> {
         self.iter.next_back().map(|n| n.to_symbol_repr())
+    }
+}
+
+struct Bits {
+    byte: u8,
+    remaining_bits: u8,
+}
+
+impl Bits {
+    fn new(byte: u8) -> Bits {
+        Bits {
+            byte: byte,
+            remaining_bits: 8,
+        }
+    }
+}
+
+impl Iterator for Bits {
+    type Item = bool;
+    fn next(&mut self) -> Option<bool> {
+        if self.remaining_bits == 0 {
+            return None;
+        }
+        self.remaining_bits -= 1;
+        let result = (self.byte & 1) != 0;
+        self.byte >>= 1;
+        Some(result)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len(), Some(self.len()))
+    }
+}
+
+impl ExactSizeIterator for Bits {
+    fn len(&self) -> usize {
+        self.remaining_bits.to_usize().unwrap()
     }
 }
 
@@ -165,6 +202,34 @@ impl Huffman {
     pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
         self.compressed_bit_len(input) / 8 + 1
     }
+    pub fn compress(&self, input: &[u8], buffer: &mut [u8]) -> Option<&[u8]> {
+        let _ = (input, buffer);
+        unimplemented!();
+    }
+    pub fn decompress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+        let mut len = 0;
+        {
+            let mut output = buffer.into_iter();
+            let root = self.get_node(ROOT_IDX).unwrap();
+            let mut node = root;
+            'outer: for &byte in input {
+                for bit in Bits::new(byte) {
+                    let new_idx = node.children[bit as usize];
+                    if let Ok(n) = self.get_node(new_idx) {
+                        node = n;
+                    } else {
+                        if new_idx == EOF {
+                            break 'outer;
+                        }
+                        *unwrap_or_return!(output.next(), None) = new_idx.to_u8().unwrap();
+                        len += 1;
+                        node = root;
+                    }
+                }
+            }
+        }
+        Some(&buffer[..len])
+    }
     fn symbol_bit_length(&self, idx: u16) -> u32 {
         self.get_node(idx).unwrap_err().num_bits()
     }
@@ -188,7 +253,7 @@ struct Node {
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct SymbolRepr {
-    bits: u32,
+    bits: u32, // u24
     num_bits: u8,
 }
 

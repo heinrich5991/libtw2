@@ -61,3 +61,13 @@ fn compressed_len() {
         assert_eq!(compressed_len_bug, compressed.len())
     }
 }
+
+#[test]
+fn decompress() {
+    let h = huffman_default();
+
+    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    for (uncompressed, compressed) in test_cases() {
+        assert_eq!(Some(&uncompressed[..]), h.decompress(&compressed, &mut buffer));
+    }
+}
