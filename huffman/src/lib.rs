@@ -207,6 +207,7 @@ impl Huffman {
         unimplemented!();
     }
     pub fn decompress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+        // TODO: Expand input by an unbounded number of zero bytes.
         let mut len = 0;
         {
             let mut output = buffer.into_iter();

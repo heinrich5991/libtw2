@@ -21,12 +21,14 @@ fn read_file<T, F: FnMut(String) -> T>(filename: &str, f: F) -> Vec<T> {
         .collect()
 }
 
-fn huffman_default() -> Huffman {
-    let frequencies = read_file("data/frequencies", |l| {
+fn frequencies_default() -> Vec<u32> {
+    read_file("data/frequencies", |l| {
         u32::from_str_radix(&l, 10).unwrap()
-    });
+    })
+}
 
-    Huffman::from_frequencies(&frequencies).unwrap()
+fn huffman_default() -> Huffman {
+    Huffman::from_frequencies(&frequencies_default()).unwrap()
 }
 
 fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
@@ -39,6 +41,40 @@ fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
         let compressed = v.next().unwrap();
         (uncompressed, compressed)
     })
+}
+
+#[bench]
+fn from_frequencies(b: &mut test::Bencher) {
+    let frequencies = frequencies_default();
+    b.iter(|| {
+        test::black_box(Huffman::from_frequencies(&frequencies).unwrap());
+    });
+}
+
+#[bench]
+fn compressed_len_bug(b: &mut test::Bencher) {
+    let h = huffman_default();
+    let test_cases = test_cases();
+    b.iter(|| {
+        for &(ref uncompressed, _) in &test_cases {
+            test::black_box(h.compressed_len_bug(uncompressed));
+        }
+    });
+    b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
+        .fold(0, |s, l| s + l.to_u64().unwrap());
+}
+
+#[bench]
+fn compressed_len(b: &mut test::Bencher) {
+    let h = huffman_default();
+    let test_cases = test_cases();
+    b.iter(|| {
+        for &(ref uncompressed, _) in &test_cases {
+            test::black_box(h.compressed_len(uncompressed));
+        }
+    });
+    b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
+        .fold(0, |s, l| s + l.to_u64().unwrap());
 }
 
 #[bench]
