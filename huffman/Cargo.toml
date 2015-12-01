@@ -10,5 +10,6 @@ itertools = "*"
 num = "*"
 
 [dev-dependencies]
+huffman-reference = { path = "reference" }
 quickcheck = "*"
 quickcheck_macros = "*"

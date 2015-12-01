@@ -1,11 +1,13 @@
 #![feature(test)]
 
 extern crate huffman;
+extern crate huffman_reference;
 extern crate itertools;
 extern crate num;
 extern crate test;
 
 use huffman::Huffman;
+use huffman_reference::Huffman as HuffmanReference;
 use itertools::Itertools;
 use num::ToPrimitive;
 use std::fs::File;
@@ -29,6 +31,10 @@ fn frequencies_default() -> Vec<u32> {
 
 fn huffman_default() -> Huffman {
     Huffman::from_frequencies(&frequencies_default()).unwrap()
+}
+
+fn huffman_reference_default() -> HuffmanReference {
+    HuffmanReference::from_frequencies(&frequencies_default()).unwrap()
 }
 
 fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
@@ -80,6 +86,41 @@ fn compressed_len(b: &mut test::Bencher) {
 #[bench]
 fn decompress(b: &mut test::Bencher) {
     let h = huffman_default();
+    let test_cases = test_cases();
+    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    b.iter(|| {
+        for &(_, ref compressed) in &test_cases {
+            test::black_box(h.decompress(compressed, &mut buffer));
+        }
+    });
+    b.bytes = test_cases.iter().map(|&(_, ref compressed)| compressed.len())
+        .fold(0, |s, l| s + l.to_u64().unwrap());
+}
+
+#[bench]
+fn from_frequencies_reference(b: &mut test::Bencher) {
+    let frequencies = frequencies_default();
+    b.iter(|| {
+        test::black_box(HuffmanReference::from_frequencies(&frequencies).unwrap());
+    });
+}
+
+#[bench]
+fn compress_reference(b: &mut test::Bencher) {
+    let h = huffman_reference_default();
+    let test_cases = test_cases();
+    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    b.iter(|| {
+        for &(ref uncompressed, _) in &test_cases {
+            test::black_box(h.compress(uncompressed, &mut buffer));
+        }
+    });
+    b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
+        .fold(0, |s, l| s + l.to_u64().unwrap());
+}
+#[bench]
+fn decompress_reference(b: &mut test::Bencher) {
+    let h = huffman_reference_default();
     let test_cases = test_cases();
     let mut buffer = (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {

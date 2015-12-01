@@ -202,7 +202,23 @@ impl Huffman {
     pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
         self.compressed_bit_len(input) / 8 + 1
     }
-    pub fn compress(&self, input: &[u8], buffer: &mut [u8]) -> Option<&[u8]> {
+    pub fn compress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+        /*
+        let mut len = 0;
+        {
+            let mut output = buffer.into_iter();
+            let mut output_byte = 0;
+            let mut num_output_bits = 0;
+            for &byte in input {
+                let symbol = self.get_node(byte.to_u16().unwrap()).unwrap_err();
+                let mut bits_written = 0;
+                while symbol_bits > 0 {
+                    output_byte |= (symbol_bits >> bits_written) << num_output_bits;
+                    bits_written += 8 - num_output_bits;
+                }
+            }
+        }
+        */
         let _ = (input, buffer);
         unimplemented!();
     }
