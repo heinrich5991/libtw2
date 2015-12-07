@@ -8,6 +8,10 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::u8;
 
+fn buffer() -> Vec<u8> {
+    (0..10240).map(|_| 0).collect_vec()
+}
+
 fn read_file<T, F: FnMut(String) -> T>(filename: &str, f: F) -> Vec<T> {
     BufReader::new(File::open(filename).unwrap())
         .lines()
@@ -66,8 +70,16 @@ fn compressed_len() {
 fn decompress() {
     let h = huffman_default();
 
-    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    let mut buffer = buffer();
     for (uncompressed, compressed) in test_cases() {
         assert_eq!(Some(&uncompressed[..]), h.decompress(&compressed, &mut buffer));
     }
+}
+
+#[test]
+fn decompress_extend_stream() {
+    let h = huffman_default();
+
+    let mut buffer = buffer();
+    assert_eq!(Some(&[0x00, 0x00, 0x00][..]), h.decompress(&[0x57, 0xdc], &mut buffer));
 }

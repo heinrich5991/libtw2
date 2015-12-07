@@ -223,13 +223,14 @@ impl Huffman {
         unimplemented!();
     }
     pub fn decompress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
-        // TODO: Expand input by an unbounded number of zero bytes.
         let mut len = 0;
         {
+            let mut input = input.into_iter();
             let mut output = buffer.into_iter();
             let root = self.get_node(ROOT_IDX).unwrap();
             let mut node = root;
-            'outer: for &byte in input {
+            'outer: loop {
+                let &byte = input.next().unwrap_or(&0);
                 for bit in Bits::new(byte) {
                     let new_idx = node.children[bit as usize];
                     if let Ok(n) = self.get_node(new_idx) {
