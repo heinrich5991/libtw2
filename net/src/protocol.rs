@@ -1,4 +1,5 @@
 use arrayvec::ArrayVec;
+use huffman::instances::TEEWORLDS as HUFFMAN;
 
 pub const MAX_PACKETSIZE: usize = 1400;
 pub const HEADER_SIZE: usize = 3;
@@ -49,13 +50,22 @@ pub enum Packet {
     Connected(ConnectedPacket),
 }
 
-// TODO: Implement compression.
 pub fn compress(bytes: &[u8]) -> Result<DataBuffer,()> {
-    Err(())
+    let mut result = DataBuffer::new();
+    let capacity = result.capacity();
+    unsafe { result.set_len(capacity) };
+    let len = unwrap_or_return!(HUFFMAN.compress(bytes, &mut result), Err(())).len();
+    unsafe { result.set_len(len); }
+    Ok(result)
 }
 
 pub fn decompress(bytes: &[u8]) -> Result<DataBuffer,()> {
-    Err(())
+    let mut result = DataBuffer::new();
+    let capacity = result.capacity();
+    unsafe { result.set_len(capacity) };
+    let len = unwrap_or_return!(HUFFMAN.decompress(bytes, &mut result), Err(())).len();
+    unsafe { result.set_len(len); }
+    Ok(result)
 }
 
 fn write_connless_packet(bytes: &[u8]) -> Result<DataBuffer,()> {
@@ -129,6 +139,12 @@ impl Packet {
             Packet::Connected(ref p) => p.write(),
             Packet::Connless(ref d) => write_connless_packet(d),
         }
+    }
+}
+
+impl ConnectedPacket {
+    fn write(&self) -> Result<DataBuffer,()> {
+        unimplemented!();
     }
 }
 

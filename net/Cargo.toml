@@ -6,6 +6,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 [dependencies]
 arrayvec = "*"
 common = { path = "../common/" }
+huffman = { path = "../huffman/" }
 
 [dev-dependencies]
 quickcheck = "*"

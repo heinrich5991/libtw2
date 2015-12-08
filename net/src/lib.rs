@@ -4,5 +4,6 @@
 
 extern crate arrayvec;
 #[macro_use] extern crate common;
+extern crate huffman;
 
 pub mod protocol;
