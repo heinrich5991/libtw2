@@ -84,6 +84,20 @@ fn compressed_len(b: &mut test::Bencher) {
 }
 
 #[bench]
+fn compress(b: &mut test::Bencher) {
+    let h = huffman_default();
+    let test_cases = test_cases();
+    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    b.iter(|| {
+        for &(ref uncompressed, _) in &test_cases {
+            test::black_box(h.compress(uncompressed, &mut buffer));
+        }
+    });
+    b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
+        .fold(0, |s, l| s + l.to_u64().unwrap());
+}
+
+#[bench]
 fn decompress(b: &mut test::Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
@@ -118,6 +132,7 @@ fn compress_reference(b: &mut test::Bencher) {
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
         .fold(0, |s, l| s + l.to_u64().unwrap());
 }
+
 #[bench]
 fn decompress_reference(b: &mut test::Bencher) {
     let h = huffman_reference_default();
