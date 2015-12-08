@@ -14,6 +14,8 @@ use std::fmt::Write;
 use std::fmt;
 use std::slice;
 
+pub mod instances;
+
 const EOF: u16 = 256;
 pub const NUM_SYMBOLS: u16 = EOF + 1;
 const NUM_NODES: usize = NUM_SYMBOLS as usize * 2 - 1;
@@ -24,10 +26,12 @@ pub struct Huffman {
     nodes: [Node; NUM_NODES],
 }
 
+#[derive(Clone)]
 pub struct Repr<'a> {
     repr: &'a [Node],
 }
 
+#[derive(Clone)]
 pub struct ReprIter<'a> {
     iter: slice::Iter<'a, Node>,
 }
