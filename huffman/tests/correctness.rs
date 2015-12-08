@@ -67,6 +67,34 @@ fn compressed_len() {
 }
 
 #[test]
+fn compress() {
+    fn fuzzy_match(compressed: Option<&[u8]>, potentially_buggy: &[u8]) {
+        let mut potentially_buggy = potentially_buggy;
+        if compressed.map(|c| c.len() + 1 == potentially_buggy.len()).unwrap_or(false) {
+            potentially_buggy = &potentially_buggy[..potentially_buggy.len() - 1];
+        }
+        assert_eq!(compressed, Some(potentially_buggy));
+    }
+
+    let h = huffman_default();
+
+    let mut buffer = buffer();
+    for (uncompressed, compressed) in test_cases() {
+        fuzzy_match(h.compress_bug(&uncompressed, &mut buffer), &compressed);
+    }
+}
+
+#[test]
+fn compress_bug() {
+    let h = huffman_default();
+
+    let mut buffer = buffer();
+    for (uncompressed, compressed) in test_cases() {
+        assert_eq!(h.compress_bug(&uncompressed, &mut buffer), Some(&compressed[..]));
+    }
+}
+
+#[test]
 fn decompress() {
     let h = huffman_default();
 

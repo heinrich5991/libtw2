@@ -203,24 +203,45 @@ impl Huffman {
         self.compressed_bit_len(input) / 8 + 1
     }
     pub fn compress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
-        /*
+        self.compress_impl(input, buffer, false)
+    }
+    pub fn compress_bug<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+        self.compress_impl(input, buffer, true)
+    }
+    fn compress_impl<'a>(&self, input: &[u8], buffer: &'a mut [u8], bug: bool)
+        -> Option<&'a [u8]>
+    {
         let mut len = 0;
         {
             let mut output = buffer.into_iter();
             let mut output_byte = 0;
             let mut num_output_bits = 0;
-            for &byte in input {
-                let symbol = self.get_node(byte.to_u16().unwrap()).unwrap_err();
+            for s in input.into_iter().map(|b| b.to_u16().unwrap()).chain(Some(EOF)) {
+                let symbol = self.get_node(s).unwrap_err();
                 let mut bits_written = 0;
-                while symbol_bits > 0 {
-                    output_byte |= (symbol_bits >> bits_written) << num_output_bits;
+                if symbol.num_bits >= 8 - num_output_bits {
+                    output_byte |= (symbol.bits << num_output_bits) as u8;
+                    *unwrap_or_return!(output.next(), None) = output_byte;
+                    len += 1;
                     bits_written += 8 - num_output_bits;
+                    while symbol.num_bits - bits_written >= 8 {
+                        output_byte = (symbol.bits >> bits_written) as u8;
+                        *unwrap_or_return!(output.next(), None) = output_byte;
+                        len += 1;
+                        bits_written += 8;
+                    }
+                    num_output_bits = 0;
+                    output_byte = 0;
                 }
+                output_byte |= ((symbol.bits >> bits_written) << num_output_bits) as u8;
+                num_output_bits += symbol.num_bits - bits_written;
+            }
+            if num_output_bits > 0 || bug {
+                *unwrap_or_return!(output.next(), None) = output_byte;
+                len += 1;
             }
         }
-        */
-        let _ = (input, buffer);
-        unimplemented!();
+        Some(&buffer[..len])
     }
     pub fn decompress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
         let mut len = 0;
