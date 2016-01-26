@@ -1,5 +1,7 @@
+use std::fmt;
 use std::ops;
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CapacityError;
 
 pub struct Buffer<'a> {
@@ -46,5 +48,11 @@ impl<'a> ops::Deref for Buffer<'a> {
 impl<'a> ops::DerefMut for Buffer<'a> {
     fn deref_mut(&mut self) -> &mut [u8] {
         &mut self.buffer[..self.len]
+    }
+}
+
+impl<'a> fmt::Debug for Buffer<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        (&**self).fmt(f)
     }
 }
