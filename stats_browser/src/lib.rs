@@ -1,6 +1,5 @@
 #![cfg(not(test))]
 
-#![feature(ip_addr)]
 #![feature(lookup_host)]
 
 #[macro_use] extern crate log;

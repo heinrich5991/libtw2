@@ -9,8 +9,6 @@ use serverbrowse::protocol::Response;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol;
 
-use num::ToPrimitive;
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::default::Default;
@@ -111,9 +109,8 @@ impl<'a> StatsBrowser<'a> {
     }
     fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
         let master = &mut self.master_servers[master_id];
-        match lookup_host(&master.domain) {
-            Ok(Some(ip_address)) => {
-                let addr = Addr::new(ip_address, MASTERSERVER_PORT);
+        match lookup_host(&master.domain, MASTERSERVER_PORT) {
+            Ok(Some(addr)) => {
                 info!("Resolved {} to {}", master.domain, addr);
                 match mem::replace(&mut master.addr, Some(addr)) {
                     Some(_) => {},
@@ -370,7 +367,7 @@ impl<'a> StatsBrowser<'a> {
                     break;
                 }
             }
-            thread::sleep_ms(config::SLEEP_MS.milliseconds().to_u32().unwrap());
+            thread::sleep(config::SLEEP_MS.to_std());
         }
     }
 }

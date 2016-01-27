@@ -20,14 +20,6 @@ pub enum ProtocolVersion {
 pub struct Addr(protocol::Addr);
 
 impl Addr {
-    /// Creates a new `Addr` from a given IP address and a UDP port.
-    pub fn new(ip_addr: net::IpAddr, port: u16) -> Addr {
-        let ip_addr = match ip_addr {
-            net::IpAddr::V4(x) => IpAddr::V4(x),
-            net::IpAddr::V6(x) => IpAddr::V6(x),
-        };
-        Addr(protocol::Addr { ip_address: ip_addr, port: port })
-    }
     /// Converts a serverbrowse address to an `Addr`.
     pub fn from_srvbrowse_addr(addr: protocol::Addr) -> Addr {
         Addr(addr)
@@ -40,15 +32,20 @@ impl Addr {
     /// Converts the address to a socket address.
     pub fn to_socket_addr(self) -> net::SocketAddr {
         let srvbrowse_addr = self.to_srvbrowse_addr();
-        let ip_addr = match srvbrowse_addr.ip_address {
-            IpAddr::V4(x) => net::IpAddr::V4(x),
-            IpAddr::V6(x) => net::IpAddr::V6(x),
-        };
-        net::SocketAddr::new(ip_addr, srvbrowse_addr.port)
+        match srvbrowse_addr.ip_address {
+            IpAddr::V4(x) =>
+                net::SocketAddr::V4(net::SocketAddrV4::new(x, srvbrowse_addr.port)),
+            IpAddr::V6(x) =>
+                net::SocketAddr::V6(net::SocketAddrV6::new(x, srvbrowse_addr.port, 0, 0)),
+        }
     }
     /// Converts a socket address to an `Addr`.
     pub fn from_socket_addr(addr: net::SocketAddr) -> Addr {
-        Addr::new(addr.ip(), addr.port())
+        let (ip_addr, port) = match addr {
+            net::SocketAddr::V4(a) => (IpAddr::V4(*a.ip()), a.port()),
+            net::SocketAddr::V6(a) => (IpAddr::V6(*a.ip()), a.port()),
+        };
+        Addr(protocol::Addr { ip_address: ip_addr, port: port })
     }
 }
 

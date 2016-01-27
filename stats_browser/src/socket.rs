@@ -1,9 +1,5 @@
 extern crate mio;
 
-use self::mio::buf::Buf;
-use self::mio::buf::MutBuf;
-use self::mio::buf::MutSliceBuf;
-use self::mio::buf::SliceBuf;
 use self::mio::udp::UdpSocket as MioUdpSocket;
 
 use std::fmt;
@@ -24,9 +20,11 @@ impl UdpSocket {
     /// Sends a UDP packet to the specified address. Non-blocking.
     pub fn send_to(&mut self, buf: &[u8], dst: Addr) -> SockResult<NonBlock<()>> {
         let &mut UdpSocket(ref mut std_sock) = self;
-        let mut mio_buf = SliceBuf::wrap(buf);
-        match std_sock.send_to(&mut mio_buf, &dst.to_socket_addr()) {
-            Ok(Some(())) => Ok(Ok(())),
+        match std_sock.send_to(buf, &dst.to_socket_addr()) {
+            Ok(Some(len)) => {
+                assert!(len == buf.len(), "short send: {} out of {}", len, buf.len());
+                Ok(Ok(()))
+            },
             Ok(None) => Ok(Err(WouldBlock)),
             Err(e) => Err(SockError(e)),
         }
@@ -36,14 +34,10 @@ impl UdpSocket {
     /// Returns number number of bytes read and the source address.
     pub fn recv_from(&mut self, buf: &mut [u8]) -> SockResult<NonBlock<(usize, Addr)>> {
         let &mut UdpSocket(ref mut std_sock) = self;
-        let buf_len = buf.len();
-        let mut mio_buf = MutSliceBuf::wrap(buf);
-        match std_sock.recv_from(&mut mio_buf) {
-            Ok(Some(sockaddr)) => {
+        match std_sock.recv_from(buf) {
+            Ok(Some((len, sockaddr))) => {
                 let from = Addr::from_socket_addr(sockaddr);
-                let remaining = mio_buf.remaining();
-                let read_len = buf_len - remaining;
-                Ok(Ok((read_len, from)))
+                Ok(Ok((len, from)))
             },
             Ok(None) => Ok(Err(WouldBlock)),
             Err(x) => Err(SockError(x)),

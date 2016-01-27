@@ -1,6 +1,7 @@
 use num::ToPrimitive;
 use std::ops::Add;
 use std::ops::Sub;
+use std::time as std_time;
 
 use rust_time as time;
 
@@ -15,6 +16,9 @@ impl Duration {
     pub fn milliseconds(self) -> i64 {
         let Duration(inner) = self;
         inner
+    }
+    pub fn to_std(self) -> std_time::Duration {
+        std_time::Duration::from_millis(self.milliseconds().to_u64().unwrap())
     }
 }
 
