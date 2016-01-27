@@ -1,5 +1,7 @@
-use arrayvec::ArrayVec;
+use common::Buffer;
+use common::buffer;
 use huffman::instances::TEEWORLDS as HUFFMAN;
+use huffman;
 
 pub const MAX_PACKETSIZE: usize = 1400;
 pub const HEADER_SIZE: usize = 3;
@@ -17,69 +19,76 @@ pub const CTRLMSG_CONNECTACCEPT: u8 = 2;
 pub const CTRLMSG_ACCEPT:        u8 = 3;
 pub const CTRLMSG_CLOSE:         u8 = 4;
 
-pub const FLAGS_BITS: u32 = 4;
+pub const CHUNK_FLAGS_BITS: u32 = 2;
+pub const CHUNK_SIZE_BITS: u32 = 10;
+pub const PACKET_FLAGS_BITS: u32 = 4;
 pub const SEQUENCE_BITS: u32 = 10;
 
-pub const FLAGS_MASK: u8 = (1 << FLAGS_BITS) - 1;
-pub const SEQUENCE_MASK: u8 = (1 << FLAGS_BITS) - 1;
+#[derive(Debug)]
+pub enum Error {
+    Capacity(buffer::CapacityError),
+    TooLongData,
+}
 
-pub type DataBuffer = ArrayVec<[u8; 2048]>;
-pub type CloseMsg = ArrayVec<[u8; 128]>;
+impl From<buffer::CapacityError> for Error {
+    fn from(e: buffer::CapacityError) -> Error {
+        Error::Capacity(e)
+    }
+}
 
-pub enum ControlPacket {
+#[derive(Clone, Copy)]
+pub enum ControlPacket<'a> {
     KeepAlive,
     Connect,
     ConnectAccept,
     Accept,
-    Close(CloseMsg),
+    Close(&'a [u8]),
 }
 
-pub struct ConnectedPacket {
+#[derive(Clone, Copy)]
+pub struct ConnectedPacket<'a> {
     pub request_resend: bool,
     pub ack: u16, // u10
-    pub type_: ConnectedPacketType,
+    pub type_: ConnectedPacketType<'a>,
 }
 
-pub enum ConnectedPacketType {
-    Chunks(DataBuffer),
-    Control(ControlPacket),
+#[derive(Clone, Copy)]
+pub enum ConnectedPacketType<'a> {
+    Chunks(&'a [u8]),
+    Control(ControlPacket<'a>),
 }
 
-pub enum Packet {
-    Connless(DataBuffer),
-    Connected(ConnectedPacket),
+#[derive(Clone, Copy)]
+pub enum Packet<'a> {
+    Connless(&'a [u8]),
+    Connected(ConnectedPacket<'a>),
 }
 
-pub fn compress(bytes: &[u8]) -> Result<DataBuffer,()> {
-    let mut result = DataBuffer::new();
-    let capacity = result.capacity();
-    unsafe { result.set_len(capacity) };
-    let len = unwrap_or_return!(HUFFMAN.compress(bytes, &mut result), Err(())).len();
-    unsafe { result.set_len(len); }
-    Ok(result)
+pub fn compress(bytes: &[u8], buffer: &mut Buffer)
+    -> Result<(), buffer::CapacityError>
+{
+    HUFFMAN.compress(bytes, buffer)
 }
 
-pub fn decompress(bytes: &[u8]) -> Result<DataBuffer,()> {
-    let mut result = DataBuffer::new();
-    let capacity = result.capacity();
-    unsafe { result.set_len(capacity) };
-    let len = unwrap_or_return!(HUFFMAN.decompress(bytes, &mut result), Err(())).len();
-    unsafe { result.set_len(len); }
-    Ok(result)
+pub fn decompress(bytes: &[u8], buffer: &mut Buffer)
+    -> Result<(), huffman::DecompressionError>
+{
+    HUFFMAN.decompress(bytes, buffer)
 }
 
-fn write_connless_packet(bytes: &[u8]) -> Result<DataBuffer,()> {
+fn write_connless_packet(bytes: &[u8], buffer: &mut Buffer)
+    -> Result<(), Error>
+{
     if bytes.len() > MAX_PAYLOAD {
-        return Err(());
+        return Err(Error::TooLongData);
     }
-    let mut result = DataBuffer::new();
-    result.extend((0..(HEADER_SIZE+PADDING_SIZE_CONNLESS)).map(|_| b'\xff'));
-    result.extend(bytes.iter().cloned());
-    Ok(result)
+    try!(buffer.write(&[b'\xff'; HEADER_SIZE+PADDING_SIZE_CONNLESS]));
+    try!(buffer.write(bytes));
+    Ok(())
 }
 
-impl Packet {
-    pub fn read(bytes: &[u8]) -> Option<Packet> {
+impl<'a> Packet<'a> {
+    pub fn read(bytes: &'a [u8], buffer: &'a mut Buffer<'a>) -> Option<Packet<'a>> {
         if bytes.len() > MAX_PACKETSIZE {
             return None;
         }
@@ -91,13 +100,14 @@ impl Packet {
                 return None;
             }
             let payload = &payload[PADDING_SIZE_CONNLESS..];
-            return Some(Packet::Connless(payload.iter().cloned().collect()));
+            return Some(Packet::Connless(payload));
         }
 
-        let mut payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
-            unwrap_or_return!(decompress(payload).ok())
+        let payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
+            unwrap_or_return!(decompress(payload, buffer).ok());
+            buffer.init()
         } else {
-            payload.iter().cloned().collect()
+            payload
         };
 
         if payload.len() > MAX_PAYLOAD {
@@ -112,14 +122,19 @@ impl Packet {
             //       PACKETFLAG_REQUEST_RESEND for PACKETFLAG_CONTROL, but does
             //       not set them. What should we do?
 
-            let control = unwrap_or_return!(payload.remove(0));
+            if payload.len() < 1 {
+                return None;
+            }
+
+            let control = payload[0];
+            let payload = &payload[1..];
             let control = match control {
                 CTRLMSG_KEEPALIVE => ControlPacket::KeepAlive,
                 CTRLMSG_CONNECT => ControlPacket::Connect,
                 CTRLMSG_CONNECTACCEPT => ControlPacket::ConnectAccept,
                 CTRLMSG_ACCEPT => ControlPacket::Accept,
                 // TODO: Check for length
-                CTRLMSG_CLOSE => ControlPacket::Close(payload.into_iter().collect()),
+                CTRLMSG_CLOSE => ControlPacket::Close(payload),
                 _ => return None, // Unrecognized control packet.
             };
 
@@ -134,17 +149,47 @@ impl Packet {
             type_: type_,
         }))
     }
-    pub fn write(&self) -> Result<DataBuffer,()> {
+    pub fn write(&self, compression_buffer: &mut Buffer, buffer: &mut Buffer)
+        -> Result<(), Error>
+    {
         match *self {
-            Packet::Connected(ref p) => p.write(),
-            Packet::Connless(ref d) => write_connless_packet(d),
+            Packet::Connected(ref p) => p.write(compression_buffer, buffer),
+            Packet::Connless(ref d) => write_connless_packet(d, buffer),
         }
     }
 }
 
-impl ConnectedPacket {
-    fn write(&self) -> Result<DataBuffer,()> {
-        unimplemented!();
+impl<'a> ConnectedPacket<'a> {
+    fn write(&self, compression_buffer: &mut Buffer, buffer: &mut Buffer)
+        -> Result<(), Error>
+    {
+        match self.type_ {
+            ConnectedPacketType::Chunks(..) => {
+                let _ = compression_buffer;
+                unimplemented!();
+            }
+            ConnectedPacketType::Control(c) => {
+                c.write(buffer)
+            }
+        }
+    }
+}
+
+impl<'a> ControlPacket<'a> {
+    fn write(&self, buffer: &mut Buffer) -> Result<(), Error> {
+        let magic = match *self {
+            ControlPacket::KeepAlive => CTRLMSG_KEEPALIVE,
+            ControlPacket::Connect => CTRLMSG_CONNECT,
+            ControlPacket::ConnectAccept => CTRLMSG_CONNECTACCEPT,
+            ControlPacket::Accept => CTRLMSG_ACCEPT,
+            ControlPacket::Close(..) => CTRLMSG_CLOSE,
+        };
+        try!(buffer.write(&[magic]));
+        match *self {
+            ControlPacket::Close(m) => try!(buffer.write(m)),
+            _ => {},
+        }
+        Ok(())
     }
 }
 
@@ -178,7 +223,7 @@ impl PacketHeader {
     pub fn pack(self) -> PacketHeaderPacked {
         let PacketHeader { flags, ack, num_chunks } = self;
         // Check that the fields do not exceed their maximal size.
-        assert!(flags >> FLAGS_BITS == 0);
+        assert!(flags >> PACKET_FLAGS_BITS == 0);
         assert!(ack >> SEQUENCE_BITS == 0);
         PacketHeaderPacked {
             flags_padding_ack: flags << 4 | (ack >> 8) as u8,
@@ -188,7 +233,88 @@ impl PacketHeader {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct ChunkHeader {
+    flags: u8, // u2
+    size: u16, // u10
+}
+
+#[derive(Copy, Clone)]
+pub struct ChunkHeaderVital {
+    h: ChunkHeader,
+    sequence: u16, // u16
+}
+
+#[repr(C, packed)]
+#[derive(Copy, Clone)]
+pub struct ChunkHeaderPacked {
+    flags_size: u8, // u2 u6
+    padding_size: u8, // u4 u4
+}
+
+#[repr(C, packed)]
+#[derive(Copy, Clone)]
+pub struct ChunkHeaderVitalPacked {
+    flags_size: u8, // u2 u6
+    sequence_size: u8, // u4 u4
+    sequence: u8,
+}
+
+impl ChunkHeaderPacked {
+    pub fn unpack(self) -> ChunkHeader {
+        let ChunkHeaderPacked { flags_size, padding_size } = self;
+        ChunkHeader {
+            flags: (flags_size & 0b1100_0000) >> 6,
+            size: ((((flags_size & 0b0011_1111) as u16) << 4)
+                | (padding_size & 0b0000_1111) as u16),
+        }
+    }
+}
+
+impl ChunkHeader {
+    pub fn pack(self) -> ChunkHeaderPacked {
+        let ChunkHeader { flags, size } = self;
+        // Check that the fields do not exceed their maximal size.
+        assert!(flags >> CHUNK_FLAGS_BITS == 0);
+        assert!(size >> CHUNK_SIZE_BITS == 0);
+        ChunkHeaderPacked {
+            flags_size: (flags & 0b11) << 6 | ((size & 0b11_1111_0000) >> 4) as u8,
+            padding_size: (size & 0b00_0000_1111) as u8
+        }
+    }
+}
+
+impl ChunkHeaderVitalPacked {
+    pub fn unpack(self) -> ChunkHeaderVital {
+        let ChunkHeaderVitalPacked { flags_size, sequence_size, sequence } = self;
+        ChunkHeaderVital {
+            h: ChunkHeaderPacked {
+                flags_size: flags_size,
+                padding_size: sequence_size & 0b0000_1111,
+            }.unpack(),
+            sequence: ((sequence_size & 0b1111_0000) as u16) << 2
+                | ((sequence & 0b1111_1111) as u16),
+        }
+    }
+}
+
+impl ChunkHeaderVital {
+    pub fn pack(self) -> ChunkHeaderVitalPacked {
+        let ChunkHeaderVital { h, sequence } = self;
+        assert!(sequence >> SEQUENCE_BITS == 0);
+        let ChunkHeaderPacked { flags_size, padding_size } = h.pack();
+        ChunkHeaderVitalPacked {
+            flags_size: flags_size,
+            sequence_size: (padding_size & 0b0000_1111)
+                | ((sequence & 0b11_1100_0000) >> 2) as u8,
+            sequence: (sequence & 0b00_1111_1111) as u8,
+        }
+    }
+}
+
 unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_ph_align);
+unsafe_boilerplate_packed!(ChunkHeaderPacked, 2, test_ch_size, test_ch_align);
+unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, 3, test_chv_size, test_chv_align);
 
 #[cfg(test)]
 mod test {
@@ -199,7 +325,7 @@ mod test {
 
     #[quickcheck]
     fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
-        let flags = flags ^ (flags >> 4 << 4);
+        let flags = flags ^ (flags >> PACKET_FLAGS_BITS << PACKET_FLAGS_BITS);
         let ack = ack ^ (ack >> SEQUENCE_BITS << SEQUENCE_BITS);
         let packet_header = PacketHeader {
             flags: flags,
@@ -215,6 +341,32 @@ mod test {
         let v0 = v0 & 0b1111_0011;
         let bytes = &[v0, v1, v2];
         PacketHeaderPacked::from_bytes(bytes).unpack().pack().as_bytes() == bytes
+    }
+
+    #[quickcheck]
+    fn chunk_header_roundtrip(flags: u8, size: u16, sequence: u16) -> bool {
+        let flags = flags ^ (flags >> CHUNK_FLAGS_BITS << CHUNK_FLAGS_BITS);
+        let size = size ^ (size >> CHUNK_SIZE_BITS << CHUNK_SIZE_BITS);
+        let sequence = sequence ^ (sequence >> SEQUENCE_BITS << SEQUENCE_BITS);
+        let chunk_header = ChunkHeader {
+            flags: flags,
+            size: size,
+        };
+        let chunk_header_vital = ChunkHeaderVital {
+            h: chunk_header,
+            sequence: sequence,
+        };
+        packet_header == packet_header.pack().unpack()
+            && chunk_header_vital == chunk_header_vital.pack().unpack()
+    }
+
+    #[quickcheck]
+    fn packet_header_unpack((v0, v1, v2): (u8, u8, u8)) -> bool {
+        let bytes2 = &[v0, v1];
+        let bytes3 = &[v0, v1, v2];
+        let bytes2_result = &[v0, v1 & 0b1111_0000];
+        ChunkHeaderPacked::from_bytes(bytes2).unpack().pack().as_bytes() == bytes2_result
+            && ChunkHeaderVitalPacked::from_bytes(bytes3).unpack().pack().as_bytes() == bytes3
     }
 
     #[quickcheck]
