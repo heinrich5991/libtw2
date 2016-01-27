@@ -27,9 +27,9 @@ field while unpacking in the reference implementation.
     chunk_header_nonvital:
         [ 1] flag_resend
         [ 1] flag_vital
-        [ 6] <---------
-        [ 4] sequence |-- size
-        [ 4] <---------
+        [ 6] <----------
+        [ 4] sequence  |-- size
+        [ 4] <----------
         [ 8] sequence part 2
 
         FFss ssss  SSSS ssss  SSSS SSSS
