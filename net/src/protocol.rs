@@ -47,6 +47,7 @@ pub enum ControlPacket<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ConnectedPacket<'a> {
+    // TODO: Control packets don't contain request_resend in vanilla.
     pub request_resend: bool,
     pub ack: u16, // u10
     pub type_: ConnectedPacketType<'a>,
@@ -54,7 +55,8 @@ pub struct ConnectedPacket<'a> {
 
 #[derive(Clone, Copy)]
 pub enum ConnectedPacketType<'a> {
-    Chunks(&'a [u8]),
+    // Chunks(num_chunks, payload)
+    Chunks(u8, &'a [u8]),
     Control(ControlPacket<'a>),
 }
 
@@ -140,7 +142,7 @@ impl<'a> Packet<'a> {
 
             ConnectedPacketType::Control(control)
         } else {
-            ConnectedPacketType::Chunks(payload)
+            ConnectedPacketType::Chunks(header.num_chunks, payload)
         };
 
         Some(Packet::Connected(ConnectedPacket {
@@ -164,19 +166,48 @@ impl<'a> ConnectedPacket<'a> {
         -> Result<(), Error>
     {
         match self.type_ {
-            ConnectedPacketType::Chunks(..) => {
-                let _ = compression_buffer;
-                unimplemented!();
+            ConnectedPacketType::Chunks(num_chunks, payload) => {
+                assert!(compression_buffer.len() >= MAX_PAYLOAD);
+                let mut compression = 0;
+                if let Ok(()) = compress(payload, compression_buffer) {
+                    if compression_buffer.len() < payload.len() {
+                        compression = PACKETFLAG_COMPRESSION;
+                    }
+                }
+                let request_resend = if self.request_resend {
+                    PACKETFLAG_REQUEST_RESEND
+                } else {
+                    0
+                };
+                try!(buffer.write(PacketHeader {
+                    flags: request_resend | compression,
+                    ack: self.ack,
+                    num_chunks: num_chunks,
+                }.pack().as_bytes()));
+                try!(buffer.write(if compression != 0 {
+                    &compression_buffer
+                } else {
+                    payload
+                }));
+                Ok(())
             }
             ConnectedPacketType::Control(c) => {
-                c.write(buffer)
+                c.write(self.request_resend, self.ack, buffer)
             }
         }
     }
 }
 
 impl<'a> ControlPacket<'a> {
-    fn write(&self, buffer: &mut Buffer) -> Result<(), Error> {
+    fn write(&self, request_resend: bool, ack: u16, buffer: &mut Buffer)
+        -> Result<(), Error>
+    {
+        let request_resend = if request_resend { PACKETFLAG_REQUEST_RESEND } else { 0 };
+        try!(buffer.write(PacketHeader {
+            flags: PACKETFLAG_CONTROL | request_resend,
+            ack: ack,
+            num_chunks: 0,
+        }.pack().as_bytes()));
         let magic = match *self {
             ControlPacket::KeepAlive => CTRLMSG_KEEPALIVE,
             ControlPacket::Connect => CTRLMSG_CONNECT,
