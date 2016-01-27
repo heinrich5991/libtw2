@@ -1,6 +1,8 @@
+extern crate common;
 extern crate huffman;
 extern crate itertools;
 
+use common::Buffer;
 use huffman::Huffman;
 use itertools::Itertools;
 use std::fs::File;
@@ -68,19 +70,22 @@ fn compressed_len() {
 
 #[test]
 fn compress() {
-    fn fuzzy_match(compressed: Option<&[u8]>, potentially_buggy: &[u8]) {
+    fn fuzzy_match(compressed: &[u8], potentially_buggy: &[u8]) {
         let mut potentially_buggy = potentially_buggy;
-        if compressed.map(|c| c.len() + 1 == potentially_buggy.len()).unwrap_or(false) {
+        if compressed.len() + 1 == potentially_buggy.len() {
             potentially_buggy = &potentially_buggy[..potentially_buggy.len() - 1];
         }
-        assert_eq!(compressed, Some(potentially_buggy));
+        assert_eq!(compressed, potentially_buggy);
     }
 
     let h = huffman_default();
 
     let mut buffer = buffer();
+    let mut buffer = Buffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        fuzzy_match(h.compress_bug(&uncompressed, &mut buffer), &compressed);
+        buffer.reset();
+        h.compress_bug(&uncompressed, &mut buffer).unwrap();
+        fuzzy_match(&buffer[..], &compressed[..]);
     }
 }
 
@@ -89,8 +94,11 @@ fn compress_bug() {
     let h = huffman_default();
 
     let mut buffer = buffer();
+    let mut buffer = Buffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        assert_eq!(h.compress_bug(&uncompressed, &mut buffer), Some(&compressed[..]));
+        buffer.reset();
+        h.compress_bug(&uncompressed, &mut buffer).unwrap();
+        assert_eq!(&buffer[..], &compressed[..]);
     }
 }
 
@@ -99,8 +107,11 @@ fn decompress() {
     let h = huffman_default();
 
     let mut buffer = buffer();
+    let mut buffer = Buffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        assert_eq!(Some(&uncompressed[..]), h.decompress(&compressed, &mut buffer));
+        buffer.reset();
+        h.compress_bug(&uncompressed, &mut buffer).unwrap();
+        assert_eq!(&buffer[..], &compressed[..]);
     }
 }
 
@@ -109,5 +120,7 @@ fn decompress_extend_stream() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    assert_eq!(Some(&[0x00, 0x00, 0x00][..]), h.decompress(&[0x57, 0xdc], &mut buffer));
+    let mut buffer = Buffer::new(&mut buffer);
+    h.decompress(&[0x57, 0xdc], &mut buffer).unwrap();
+    assert_eq!(&[0x00, 0x00, 0x00][..], &buffer[..]);
 }

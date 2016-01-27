@@ -16,6 +16,9 @@ impl<'a> Buffer<'a> {
             len: 0,
         }
     }
+    pub fn reset(&mut self) {
+        self.len = 0;
+    }
     pub fn write(&mut self, bytes: &[u8]) -> Result<(), CapacityError> {
         self.extend(bytes.iter().cloned())
     }

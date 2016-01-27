@@ -4,7 +4,6 @@ use std::fmt;
 use std::fmt::Write;
 use std::iter;
 use std::ops;
-use std::slice::Chunks;
 use std::slice;
 
 const SEGMENT_LENGTH: usize = 4;
