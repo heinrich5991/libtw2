@@ -33,6 +33,9 @@ impl<'a> Buffer<'a> {
         assert!(self.len + num_bytes <= self.buffer.len());
         self.len += num_bytes;
     }
+    pub fn init(&self) -> &[u8] {
+        &self.buffer[..self.len]
+    }
     pub fn uninit_mut(&mut self) -> &mut [u8] {
         &mut self.buffer[self.len..]
     }
