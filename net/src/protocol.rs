@@ -213,6 +213,7 @@ impl<'a> ControlPacket<'a> {
         };
         try!(buffer.write(&[magic]));
         match *self {
+            // TODO: null termination
             ControlPacket::Close(m) => try!(buffer.write(m)),
             _ => {},
         }
@@ -228,7 +229,7 @@ pub struct PacketHeaderPacked {
     num_chunks: u8,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PacketHeader {
     pub flags: u8, // u4
     pub ack: u16, // u10
@@ -260,13 +261,13 @@ impl PacketHeader {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChunkHeader {
     flags: u8, // u2
     size: u16, // u10
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChunkHeaderVital {
     h: ChunkHeader,
     sequence: u16, // u16
@@ -345,10 +346,20 @@ unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, 3, test_chv_size, test_chv_al
 
 #[cfg(test)]
 mod test {
+    use super::CHUNK_FLAGS_BITS;
+    use super::CHUNK_SIZE_BITS;
+    use super::ChunkHeader;
+    use super::ChunkHeaderPacked;
+    use super::ChunkHeaderVital;
+    use super::ChunkHeaderVitalPacked;
+    use super::MAX_PACKETSIZE;
+    use super::PACKET_FLAGS_BITS;
     use super::Packet;
     use super::PacketHeader;
     use super::PacketHeaderPacked;
     use super::SEQUENCE_BITS;
+
+    use common::Buffer;
 
     #[quickcheck]
     fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
@@ -383,22 +394,25 @@ mod test {
             h: chunk_header,
             sequence: sequence,
         };
-        packet_header == packet_header.pack().unpack()
+        chunk_header == chunk_header.pack().unpack()
             && chunk_header_vital == chunk_header_vital.pack().unpack()
     }
 
     #[quickcheck]
-    fn packet_header_unpack((v0, v1, v2): (u8, u8, u8)) -> bool {
+    fn chunk_header_unpack((v0, v1, v2): (u8, u8, u8)) -> bool {
         let bytes2 = &[v0, v1];
         let bytes3 = &[v0, v1, v2];
-        let bytes2_result = &[v0, v1 & 0b1111_0000];
+        let bytes2_result = &[v0, v1 & 0b0000_1111];
+        let bytes3_result = &[v0, v1 | ((v2 & 0b1100_0000) >> 2), v2 | ((v1 & 0b0011_0000) << 2)];
         ChunkHeaderPacked::from_bytes(bytes2).unpack().pack().as_bytes() == bytes2_result
-            && ChunkHeaderVitalPacked::from_bytes(bytes3).unpack().pack().as_bytes() == bytes3
+            && ChunkHeaderVitalPacked::from_bytes(bytes3).unpack().pack().as_bytes() == bytes3_result
     }
 
     #[quickcheck]
     fn packet_read_no_panic(data: Vec<u8>) -> bool {
-        Packet::read(&data);
+        let mut buffer = [0; MAX_PACKETSIZE];
+        let mut buffer = Buffer::new(&mut buffer);
+        Packet::read(&data, &mut buffer);
         true
     }
 }
