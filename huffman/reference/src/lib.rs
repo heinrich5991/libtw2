@@ -1,7 +1,11 @@
+extern crate common;
 extern crate libc;
+extern crate huffman;
 extern crate num;
 extern crate huffman_reference_sys as sys;
 
+use common::Buffer;
+use common::buffer;
 use num::ToPrimitive;
 
 pub struct Huffman {
@@ -23,30 +27,34 @@ impl Huffman {
         unsafe { sys::huffman_init(result.inner_huffman_mut(), frequencies); }
         Ok(result)
     }
-    pub fn compress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+    pub fn compress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
+        -> Result<(), buffer::CapacityError>
+    {
         let result_len = unsafe {
             sys::huffman_compress(
                 self.inner_huffman(),
                 input.as_ptr() as *const _, input.len().to_i32().unwrap(),
-                buffer.as_ptr() as *mut _, buffer.len().to_i32().unwrap()
+                buffer.uninit_mut().as_ptr() as *mut _, buffer.remaining().to_i32().unwrap()
             )
         };
         match result_len.to_usize() {
-            Some(l) => Some(&buffer[..l]),
-            None => None,
+            Some(l) => unsafe { buffer.advance(l); Ok(()) },
+            None => Err(buffer::CapacityError),
         }
     }
-    pub fn decompress<'a>(&self, input: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+    pub fn decompress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
+        -> Result<(), huffman::DecompressionError>
+    {
         let result_len = unsafe {
             sys::huffman_decompress(
                 self.inner_huffman(),
                 input.as_ptr() as *const _, input.len().to_i32().unwrap(),
-                buffer.as_ptr() as *mut _, buffer.len().to_i32().unwrap()
+                buffer.uninit_mut().as_ptr() as *mut _, buffer.remaining().to_i32().unwrap()
             )
         };
         match result_len.to_usize() {
-            Some(l) => Some(&buffer[..l]),
-            None => None,
+            Some(l) => unsafe { buffer.advance(l); Ok(()) },
+            None => Err(huffman::DecompressionError::Capacity(buffer::CapacityError)),
         }
     }
     fn inner_huffman_mut(&mut self) -> *mut libc::c_void {

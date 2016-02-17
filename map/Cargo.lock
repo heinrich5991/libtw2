@@ -38,6 +38,7 @@ dependencies = [
 name = "common"
 version = "0.0.1"
 dependencies = [
+ "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ref_slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

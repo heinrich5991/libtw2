@@ -219,61 +219,77 @@ impl Huffman {
     pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
         self.compressed_bit_len(input) / 8 + 1
     }
-    pub fn compress<'a>(&self, input: &[u8], buffer: &mut Buffer)
+    pub fn compress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
         -> Result<(), buffer::CapacityError>
     {
         self.compress_impl(input, buffer, false)
     }
-    pub fn compress_bug<'a>(&self, input: &[u8], buffer: &mut Buffer)
+    pub fn compress_bug<B: Buffer>(&self, input: &[u8], buffer: &mut B)
         -> Result<(), buffer::CapacityError>
     {
         self.compress_impl(input, buffer, true)
     }
-    fn compress_impl<'a>(&self, input: &[u8], buffer: &mut Buffer, bug: bool)
+    fn compress_impl<B: Buffer>(&self, input: &[u8], buffer: &mut B, bug: bool)
         -> Result<(), buffer::CapacityError>
     {
-        let error = Err(buffer::CapacityError);
-        let mut len = 0;
-        {
-            let mut output = buffer.uninit_mut().into_iter();
-            let mut output_byte = 0;
-            let mut num_output_bits = 0;
-            for s in input.into_iter().map(|b| b.to_u16().unwrap()).chain(Some(EOF)) {
-                let symbol = self.get_node(s).unwrap_err();
-                let mut bits_written = 0;
-                if symbol.num_bits >= 8 - num_output_bits {
-                    output_byte |= (symbol.bits << num_output_bits) as u8;
-                    *unwrap_or_return!(output.next(), error) = output_byte;
-                    len += 1;
-                    bits_written += 8 - num_output_bits;
-                    while symbol.num_bits - bits_written >= 8 {
-                        output_byte = (symbol.bits >> bits_written) as u8;
-                        *unwrap_or_return!(output.next(), error) = output_byte;
-                        len += 1;
-                        bits_written += 8;
-                    }
-                    num_output_bits = 0;
-                    output_byte = 0;
-                }
-                output_byte |= ((symbol.bits >> bits_written) << num_output_bits) as u8;
-                num_output_bits += symbol.num_bits - bits_written;
-            }
-            if num_output_bits > 0 || bug {
-                *unwrap_or_return!(output.next(), error) = output_byte;
-                len += 1;
-            }
+        unsafe {
+            let len = try!(self.compress_impl_unsafe(input, buffer.uninit_mut(), bug)
+                           .map_err(|()| buffer::CapacityError));
+            buffer.advance(len);
+            Ok(())
         }
-        buffer.advance(len);
-        Ok(())
     }
-    pub fn decompress(&self, input: &[u8], buffer: &mut Buffer)
+    fn compress_impl_unsafe(&self, input: &[u8], buffer: &mut [u8], bug: bool)
+        -> Result<usize, ()>
+    {
+        let mut len = 0;
+        let mut output = buffer.into_iter();
+        let mut output_byte = 0;
+        let mut num_output_bits = 0;
+        for s in input.into_iter().map(|b| b.to_u16().unwrap()).chain(Some(EOF)) {
+            let symbol = self.get_node(s).unwrap_err();
+            let mut bits_written = 0;
+            if symbol.num_bits >= 8 - num_output_bits {
+                output_byte |= (symbol.bits << num_output_bits) as u8;
+                *try!(output.next().ok_or(())) = output_byte;
+                len += 1;
+                bits_written += 8 - num_output_bits;
+                while symbol.num_bits - bits_written >= 8 {
+                    output_byte = (symbol.bits >> bits_written) as u8;
+                    *try!(output.next().ok_or(())) = output_byte;
+                    len += 1;
+                    bits_written += 8;
+                }
+                num_output_bits = 0;
+                output_byte = 0;
+            }
+            output_byte |= ((symbol.bits >> bits_written) << num_output_bits) as u8;
+            num_output_bits += symbol.num_bits - bits_written;
+        }
+        if num_output_bits > 0 || bug {
+            *try!(output.next().ok_or(())) = output_byte;
+            len += 1;
+        }
+        Ok(len)
+    }
+
+    pub fn decompress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
         -> Result<(), DecompressionError>
     {
-        let error = Err(DecompressionError::Capacity(buffer::CapacityError));
+        unsafe {
+            let len = try!(self.decompress_unsafe(input, buffer.uninit_mut())
+                           .map_err(|()| DecompressionError::Capacity(buffer::CapacityError)));
+            buffer.advance(len);
+            Ok(())
+        }
+    }
+    fn decompress_unsafe(&self, input: &[u8], buffer: &mut [u8])
+        -> Result<usize, ()>
+    {
         let mut len = 0;
         {
             let mut input = input.into_iter();
-            let mut output = buffer.uninit_mut().into_iter();
+            let mut output = buffer.into_iter();
             let root = self.get_node(ROOT_IDX).unwrap();
             let mut node = root;
             'outer: loop {
@@ -286,15 +302,14 @@ impl Huffman {
                         if new_idx == EOF {
                             break 'outer;
                         }
-                        *unwrap_or_return!(output.next(), error) = new_idx.to_u8().unwrap();
+                        *try!(output.next().ok_or(())) = new_idx.to_u8().unwrap();
                         len += 1;
                         node = root;
                     }
                 }
             }
         }
-        buffer.advance(len);
-        Ok(())
+        Ok(len)
     }
     fn symbol_bit_length(&self, idx: u16) -> u32 {
         self.get_node(idx).unwrap_err().num_bits()

@@ -2,6 +2,8 @@
 name = "huffman-reference"
 version = "0.0.1"
 dependencies = [
+ "common 0.0.1",
+ "huffman 0.0.1",
  "huffman-reference-sys 0.0.1",
  "libc 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -17,12 +19,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "nodrop 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ref_slice 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "gcc"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "advapi32-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "huffman"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
+ "itertools 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -34,9 +63,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "libc"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "nodrop"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "num"
@@ -48,6 +90,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "odds"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "rand"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -56,6 +103,11 @@ dependencies = [
  "libc 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "ref_slice"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"

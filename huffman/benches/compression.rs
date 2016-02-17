@@ -1,11 +1,13 @@
 #![feature(test)]
 
+extern crate common;
 extern crate huffman;
 extern crate huffman_reference;
 extern crate itertools;
 extern crate num;
 extern crate test;
 
+use common::buffer::SliceBuffer;
 use huffman::Huffman;
 use huffman_reference::Huffman as HuffmanReference;
 use itertools::Itertools;
@@ -87,10 +89,10 @@ fn compressed_len(b: &mut test::Bencher) {
 fn compress(b: &mut test::Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
-    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            test::black_box(h.compress(uncompressed, &mut buffer));
+            let _ = test::black_box(h.compress(uncompressed, &mut SliceBuffer::new(buffer)));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
@@ -101,10 +103,10 @@ fn compress(b: &mut test::Bencher) {
 fn decompress(b: &mut test::Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
-    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(_, ref compressed) in &test_cases {
-            test::black_box(h.decompress(compressed, &mut buffer));
+            let _ = test::black_box(h.decompress(compressed, &mut SliceBuffer::new(buffer)));
         }
     });
     b.bytes = test_cases.iter().map(|&(_, ref compressed)| compressed.len())
@@ -123,10 +125,10 @@ fn from_frequencies_reference(b: &mut test::Bencher) {
 fn compress_reference(b: &mut test::Bencher) {
     let h = huffman_reference_default();
     let test_cases = test_cases();
-    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            test::black_box(h.compress(uncompressed, &mut buffer));
+            let _ = test::black_box(h.compress(uncompressed, &mut SliceBuffer::new(buffer)));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
@@ -137,10 +139,10 @@ fn compress_reference(b: &mut test::Bencher) {
 fn decompress_reference(b: &mut test::Bencher) {
     let h = huffman_reference_default();
     let test_cases = test_cases();
-    let mut buffer = (0..10240).map(|_| 0).collect_vec();
+    let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(_, ref compressed) in &test_cases {
-            test::black_box(h.decompress(compressed, &mut buffer));
+            let _ = test::black_box(h.decompress(compressed, &mut SliceBuffer::new(buffer)));
         }
     });
     b.bytes = test_cases.iter().map(|&(_, ref compressed)| compressed.len())

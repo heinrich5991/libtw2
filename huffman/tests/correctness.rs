@@ -2,7 +2,7 @@ extern crate common;
 extern crate huffman;
 extern crate itertools;
 
-use common::Buffer;
+use common::buffer::SliceBuffer;
 use huffman::Huffman;
 use itertools::Itertools;
 use std::fs::File;
@@ -81,7 +81,7 @@ fn compress() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = Buffer::new(&mut buffer);
+    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
         buffer.reset();
         h.compress_bug(&uncompressed, &mut buffer).unwrap();
@@ -94,7 +94,7 @@ fn compress_bug() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = Buffer::new(&mut buffer);
+    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
         buffer.reset();
         h.compress_bug(&uncompressed, &mut buffer).unwrap();
@@ -107,7 +107,7 @@ fn decompress() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = Buffer::new(&mut buffer);
+    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
         buffer.reset();
         h.compress_bug(&uncompressed, &mut buffer).unwrap();
@@ -120,7 +120,7 @@ fn decompress_extend_stream() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = Buffer::new(&mut buffer);
+    let mut buffer = SliceBuffer::new(&mut buffer);
     h.decompress(&[0x57, 0xdc], &mut buffer).unwrap();
     assert_eq!(&[0x00, 0x00, 0x00][..], &buffer[..]);
 }

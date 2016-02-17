@@ -2,6 +2,7 @@
 name = "common"
 version = "0.0.1"
 dependencies = [
+ "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck_macros 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "ref_slice 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -22,6 +23,15 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "memchr 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "arrayvec"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "nodrop 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -53,6 +63,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "nodrop"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "odds 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "odds"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "quickcheck"
