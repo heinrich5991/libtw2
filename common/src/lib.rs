@@ -5,7 +5,6 @@
 extern crate arrayvec;
 extern crate ref_slice;
 
-pub use buffer::Buffer;
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;
 pub use slice::relative_size_of_mult;
@@ -13,7 +12,6 @@ pub use slice::relative_size_of_mult;
 #[macro_use]
 mod macros;
 
-pub mod buffer;
 pub mod format_bytes;
 pub mod map_iter;
 pub mod num;
