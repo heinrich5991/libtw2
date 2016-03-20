@@ -13,3 +13,4 @@ a.out
 main
 
 target/
+Cargo.lock
