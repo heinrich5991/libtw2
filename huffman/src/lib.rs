@@ -3,13 +3,15 @@
 #[cfg(test)] extern crate quickcheck;
 
 extern crate arrayvec;
+extern crate buffer;
 #[macro_use] extern crate common;
 extern crate itertools;
 extern crate num;
 
 use arrayvec::ArrayVec;
-use common::Buffer;
-use common::buffer;
+use buffer::Buffer;
+use buffer::BufferRef;
+use buffer::with_buffer;
 use itertools::Itertools;
 use num::ToPrimitive;
 use std::fmt::Write;
@@ -219,24 +221,24 @@ impl Huffman {
     pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
         self.compressed_bit_len(input) / 8 + 1
     }
-    pub fn compress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
-        -> Result<(), buffer::CapacityError>
+    pub fn compress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
+        -> Result<&'a [u8], buffer::CapacityError>
     {
-        self.compress_impl(input, buffer, false)
+        with_buffer(buffer, |b| self.compress_impl(input, b, false))
     }
-    pub fn compress_bug<B: Buffer>(&self, input: &[u8], buffer: &mut B)
-        -> Result<(), buffer::CapacityError>
+    pub fn compress_bug<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
+        -> Result<&'a [u8], buffer::CapacityError>
     {
-        self.compress_impl(input, buffer, true)
+        with_buffer(buffer, |b| self.compress_impl(input, b, true))
     }
-    fn compress_impl<B: Buffer>(&self, input: &[u8], buffer: &mut B, bug: bool)
-        -> Result<(), buffer::CapacityError>
+    fn compress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>, bug: bool)
+        -> Result<&'d [u8], buffer::CapacityError>
     {
         unsafe {
-            let len = try!(self.compress_impl_unsafe(input, buffer.uninit_mut(), bug)
+            let len = try!(self.compress_impl_unsafe(input, buffer.uninitialized_mut(), bug)
                            .map_err(|()| buffer::CapacityError));
             buffer.advance(len);
-            Ok(())
+            Ok(buffer.initialized())
         }
     }
     fn compress_impl_unsafe(&self, input: &[u8], buffer: &mut [u8], bug: bool)
@@ -273,14 +275,19 @@ impl Huffman {
         Ok(len)
     }
 
-    pub fn decompress<B: Buffer>(&self, input: &[u8], buffer: &mut B)
-        -> Result<(), DecompressionError>
+    pub fn decompress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
+        -> Result<&'a [u8], DecompressionError>
+    {
+        with_buffer(buffer, |b| self.decompress_impl(input, b))
+    }
+    fn decompress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>)
+        -> Result<&'d [u8], DecompressionError>
     {
         unsafe {
-            let len = try!(self.decompress_unsafe(input, buffer.uninit_mut())
+            let len = try!(self.decompress_unsafe(input, buffer.uninitialized_mut())
                            .map_err(|()| DecompressionError::Capacity(buffer::CapacityError)));
             buffer.advance(len);
-            Ok(())
+            Ok(buffer.initialized())
         }
     }
     fn decompress_unsafe(&self, input: &[u8], buffer: &mut [u8])

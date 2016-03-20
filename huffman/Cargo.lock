@@ -3,6 +3,7 @@ name = "huffman"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "buffer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "huffman-reference 0.0.1",
  "itertools 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -38,6 +39,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "buffer"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mac 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "common"
 version = "0.0.1"
 dependencies = [
@@ -67,7 +77,7 @@ dependencies = [
 name = "huffman-reference"
 version = "0.0.1"
 dependencies = [
- "common 0.0.1",
+ "buffer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "huffman 0.0.1",
  "huffman-reference-sys 0.0.1",
  "libc 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -99,6 +109,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "mac"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "memchr"

@@ -2,7 +2,6 @@ extern crate common;
 extern crate huffman;
 extern crate itertools;
 
-use common::buffer::SliceBuffer;
 use huffman::Huffman;
 use itertools::Itertools;
 use std::fs::File;
@@ -11,7 +10,7 @@ use std::io::BufReader;
 use std::u8;
 
 fn buffer() -> Vec<u8> {
-    (0..10240).map(|_| 0).collect_vec()
+    Vec::with_capacity(10240)
 }
 
 fn read_file<T, F: FnMut(String) -> T>(filename: &str, f: F) -> Vec<T> {
@@ -81,11 +80,9 @@ fn compress() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        buffer.reset();
-        h.compress_bug(&uncompressed, &mut buffer).unwrap();
-        fuzzy_match(&buffer[..], &compressed[..]);
+        buffer.clear();
+        fuzzy_match(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed);
     }
 }
 
@@ -94,11 +91,9 @@ fn compress_bug() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        buffer.reset();
-        h.compress_bug(&uncompressed, &mut buffer).unwrap();
-        assert_eq!(&buffer[..], &compressed[..]);
+        buffer.clear();
+        assert_eq!(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed[..]);
     }
 }
 
@@ -107,11 +102,9 @@ fn decompress() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = SliceBuffer::new(&mut buffer);
     for (uncompressed, compressed) in test_cases() {
-        buffer.reset();
-        h.compress_bug(&uncompressed, &mut buffer).unwrap();
-        assert_eq!(&buffer[..], &compressed[..]);
+        buffer.clear();
+        assert_eq!(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed[..]);
     }
 }
 
@@ -120,7 +113,5 @@ fn decompress_extend_stream() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    let mut buffer = SliceBuffer::new(&mut buffer);
-    h.decompress(&[0x57, 0xdc], &mut buffer).unwrap();
-    assert_eq!(&[0x00, 0x00, 0x00][..], &buffer[..]);
+    assert_eq!(&[0x00, 0x00, 0x00][..], h.decompress(&[0x57, 0xdc], &mut buffer).unwrap());
 }

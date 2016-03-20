@@ -1,15 +1,20 @@
 [package]
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 name = "huffman"
 version = "0.0.1"
-authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 arrayvec = "*"
-common = { path = "../common/" }
+buffer = "0.1.2"
 itertools = "*"
 num = "*"
 
+[dependencies.common]
+path = "../common/"
+
 [dev-dependencies]
-huffman-reference = { path = "reference" }
 quickcheck = "*"
 quickcheck_macros = "*"
+
+[dev-dependencies.huffman-reference]
+path = "reference"
