@@ -2,7 +2,6 @@
 #![cfg_attr(test, plugin(quickcheck_macros))]
 #[cfg(test)] extern crate quickcheck;
 
-extern crate arrayvec;
 extern crate ref_slice;
 
 pub use map_iter::MapIterator;

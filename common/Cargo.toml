@@ -4,9 +4,8 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
-arrayvec = "*"
-ref_slice = "*"
+ref_slice = ">=0.1.0,<2.0"
 
 [dev-dependencies]
-quickcheck = "*"
-quickcheck_macros = "*"
+quickcheck = "0.2.26"
+quickcheck_macros = "0.2.26"
