@@ -1,5 +1,7 @@
-use common::Buffer;
-use common::buffer;
+use buffer::Buffer;
+use buffer::BufferRef;
+use buffer::with_buffer;
+use buffer;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use num::ToPrimitive;
@@ -8,8 +10,13 @@ pub const CHUNK_HEADER_SIZE: usize = 2;
 pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
 pub const HEADER_SIZE: usize = 3;
 pub const MAX_PACKETSIZE: usize = 1400;
-pub const MAX_PAYLOAD: usize = 1394;
 pub const PADDING_SIZE_CONNLESS: usize = 3;
+
+// For connectionless packets, this is obvious (MAX_PACKETSIZE - HEADER_SIZE -
+// PADDING_SIZE_CONNLESS). For packets sent in a connection context, you also
+// get a chunk header which replaces the connless padding (it's also 3 bytes
+// long).
+pub const MAX_PAYLOAD: usize = 1394;
 
 pub const PACKETFLAG_CONTROL:        u8 = 1 << 0;
 pub const PACKETFLAG_CONNLESS:       u8 = 1 << 1;
@@ -78,21 +85,80 @@ pub enum Packet<'a> {
     Connected(ConnectedPacket<'a>),
 }
 
-pub fn compress<B: Buffer>(bytes: &[u8], buffer: &mut B)
-    -> Result<(), buffer::CapacityError>
+pub struct Chunk<'a> {
+    pub data: &'a [u8],
+    // vital: Some((sequence, resend))
+    pub vital: Option<(u16, bool)>,
+}
+
+#[derive(Clone)]
+pub struct ChunksIter<'a> {
+    data: &'a [u8],
+}
+
+impl<'a> ChunksIter<'a> {
+    pub fn new(data: &'a [u8]) -> ChunksIter<'a> {
+        ChunksIter {
+            data: data,
+        }
+    }
+}
+
+impl<'a> Iterator for ChunksIter<'a> {
+    type Item = Chunk<'a>;
+    fn next(&mut self) -> Option<Chunk<'a>> {
+        if self.data.len() == 0 {
+            return None;
+        }
+        let (header, data) = unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data));
+        Some(if header.unpack().flags & CHUNKFLAG_VITAL != 0 {
+            let (header, data) = unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data));
+            let header = header.unpack();
+            self.data = data;
+            Chunk {
+                data: data,
+                vital: Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0)),
+            }
+        } else {
+            self.data = data;
+            Chunk {
+                data: data,
+                vital: None,
+            }
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.clone().count();
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for ChunksIter<'a> { }
+
+pub fn compress<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
+    -> Result<&'a [u8], buffer::CapacityError>
 {
     HUFFMAN.compress(bytes, buffer)
 }
 
-pub fn decompress<B: Buffer>(bytes: &[u8], buffer: &mut B)
-    -> Result<(), huffman::DecompressionError>
+pub fn decompress<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
+    -> Result<&'a [u8], huffman::DecompressionError>
 {
     HUFFMAN.decompress(bytes, buffer)
 }
 
+// TODO: Make this a member function of `Chunk`
 // vital: Some((sequence, resend))
-pub fn write_chunk<B: Buffer>(bytes: &[u8], vital: Option<(u16, bool)>, buffer: &mut B)
-    -> Result<(), buffer::CapacityError>
+pub fn write_chunk<'a, B: Buffer<'a>>(bytes: &[u8], vital: Option<(u16, bool)>, buffer: B)
+    -> Result<&'a [u8], buffer::CapacityError>
+{
+    with_buffer(buffer, |b| write_chunk_impl(bytes, vital, b))
+}
+
+pub fn write_chunk_impl<'d, 's>(bytes: &[u8],
+                                vital: Option<(u16, bool)>,
+                                mut buffer: BufferRef<'d, 's>)
+    -> Result<&'d [u8], buffer::CapacityError>
 {
     assert!(bytes.len() >> CHUNK_SIZE_BITS == 0);
     let size = bytes.len().to_u16().unwrap();
@@ -121,22 +187,33 @@ pub fn write_chunk<B: Buffer>(bytes: &[u8], vital: Option<(u16, bool)>, buffer: 
     };
     try!(buffer.write(header));
     try!(buffer.write(bytes));
-    Ok(())
+    Ok(buffer.initialized())
 }
 
-fn write_connless_packet<B: Buffer>(bytes: &[u8], buffer: &mut B)
-    -> Result<(), Error>
+fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
+    -> Result<&'a [u8], Error>
 {
-    if bytes.len() > MAX_PAYLOAD {
-        return Err(Error::TooLongData);
+    fn inner<'d, 's>(bytes: &[u8], mut buffer: BufferRef<'d, 's>)
+        -> Result<&'d [u8], Error>
+    {
+        if bytes.len() > MAX_PAYLOAD {
+            return Err(Error::TooLongData);
+        }
+        try!(buffer.write(&[b'\xff'; HEADER_SIZE+PADDING_SIZE_CONNLESS]));
+        try!(buffer.write(bytes));
+        Ok(buffer.initialized())
     }
-    try!(buffer.write(&[b'\xff'; HEADER_SIZE+PADDING_SIZE_CONNLESS]));
-    try!(buffer.write(bytes));
-    Ok(())
+
+    with_buffer(buffer, |b| inner(bytes, b))
 }
 
 impl<'a> Packet<'a> {
-    pub fn read<B: Buffer>(bytes: &'a [u8], buffer: &'a mut B) -> Option<Packet<'a>> {
+    pub fn read<'b, B: Buffer<'b>>(bytes: &'b [u8], buffer: B) -> Option<Packet<'b>> {
+        with_buffer(buffer, |b| Packet::read_impl(bytes, b))
+    }
+    fn read_impl<'d, 's>(bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
+        -> Option<Packet<'d>>
+    {
         if bytes.len() > MAX_PACKETSIZE {
             return None;
         }
@@ -152,8 +229,7 @@ impl<'a> Packet<'a> {
         }
 
         let payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
-            unwrap_or_return!(decompress(payload, buffer).ok());
-            buffer.init()
+            unwrap_or_return!(decompress(payload, &mut buffer).ok())
         } else {
             payload
         };
@@ -196,26 +272,47 @@ impl<'a> Packet<'a> {
             type_: type_,
         }))
     }
-    pub fn write<B1: Buffer, B2: Buffer>(&self, compression_buffer: &mut B1, buffer: &mut B2)
-        -> Result<(), Error>
+    pub fn write<'b, 'c, B1: Buffer<'b>, B2: Buffer<'c>>(&self,
+                                                         compression_buffer: B1,
+                                                         buffer: B2)
+        -> Result<&'c [u8], Error>
     {
         match *self {
-            Packet::Connected(ref p) => p.write(compression_buffer, buffer),
+            Packet::Connected(ref p) =>
+                with_buffer(compression_buffer, |cb|
+                    with_buffer(buffer, |b|
+                        p.write_impl(cb, b)
+                    )
+                ),
             Packet::Connless(ref d) => write_connless_packet(d, buffer),
         }
     }
 }
 
 impl<'a> ConnectedPacket<'a> {
-    fn write<B1: Buffer, B2: Buffer>(&self, compression_buffer: &mut B1, buffer: &mut B2)
-        -> Result<(), Error>
+    pub fn write<'b, 'c, B1: Buffer<'b>, B2: Buffer<'c>>(&self,
+                                                         compression_buffer: B1,
+                                                         buffer: B2)
+        -> Result<&'c [u8], Error>
+    {
+        with_buffer(compression_buffer, |cb|
+            with_buffer(buffer, |b|
+                self.write_impl(cb, b)
+            )
+        )
+    }
+
+    fn write_impl<'d1, 's1, 'd2, 's2>(&self,
+                                      mut compression_buffer: BufferRef<'d1, 's1>,
+                                      mut buffer: BufferRef<'d2, 's2>)
+        -> Result<&'d2 [u8], Error>
     {
         match self.type_ {
             ConnectedPacketType::Chunks(request_resend, num_chunks, payload) => {
                 assert!(compression_buffer.remaining() >= MAX_PAYLOAD);
                 let mut compression = 0;
-                compress(payload, compression_buffer).unwrap();
-                if compression_buffer.init().len() < payload.len() {
+                let comp_result = compress(payload, &mut compression_buffer);
+                if comp_result.map(|s| s.len() < payload.len()).unwrap_or(false) {
                     compression = PACKETFLAG_COMPRESSION;
                 }
                 let request_resend = if request_resend {
@@ -229,11 +326,11 @@ impl<'a> ConnectedPacket<'a> {
                     num_chunks: num_chunks,
                 }.pack().as_bytes()));
                 try!(buffer.write(if compression != 0 {
-                    compression_buffer.init()
+                    compression_buffer.initialized()
                 } else {
                     payload
                 }));
-                Ok(())
+                Ok(buffer.initialized())
             }
             ConnectedPacketType::Control(c) => {
                 c.write(self.ack, buffer)
@@ -243,8 +340,8 @@ impl<'a> ConnectedPacket<'a> {
 }
 
 impl<'a> ControlPacket<'a> {
-    fn write<B: Buffer>(&self, ack: u16, buffer: &mut B)
-        -> Result<(), Error>
+    fn write<'d, 's>(&self, ack: u16, mut buffer: BufferRef<'d, 's>)
+        -> Result<&'d [u8], Error>
     {
         try!(buffer.write(PacketHeader {
             flags: PACKETFLAG_CONTROL,
@@ -264,7 +361,7 @@ impl<'a> ControlPacket<'a> {
             ControlPacket::Close(m) => try!(buffer.write(m)),
             _ => {},
         }
-        Ok(())
+        Ok(buffer.initialized())
     }
 }
 

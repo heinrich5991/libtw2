@@ -1,13 +1,18 @@
 [package]
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 name = "net"
 version = "0.0.1"
-authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 arrayvec = "*"
-common = { path = "../common/" }
-huffman = { path = "../huffman/" }
+buffer = "0.1.4"
 num = "*"
+
+[dependencies.common]
+path = "../common/"
+
+[dependencies.huffman]
+path = "../huffman/"
 
 [dev-dependencies]
 quickcheck = "*"

@@ -1,6 +1,9 @@
 use arrayvec::ArrayVec;
-use common::Buffer;
-use common::buffer::SliceBuffer;
+use buffer::Buffer;
+use buffer::BufferRef;
+use buffer::with_buffer;
+use buffer;
+use protocol::ChunksIter;
 use protocol::ConnectedPacket;
 use protocol::ConnectedPacketType;
 use protocol::ControlPacket;
@@ -9,6 +12,7 @@ use protocol::MAX_PAYLOAD;
 use protocol::Packet;
 use protocol;
 use std::collections::VecDeque;
+use std::mem;
 
 pub trait Callback {
     type Error;
@@ -29,9 +33,134 @@ enum State {
     Disconnected,
 }
 
+impl State {
+    pub fn assert_online(&mut self) -> &mut OnlineState {
+        match *self {
+            State::Online(ref mut s) => s,
+            _ => panic!("state not online"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ResendPacket {
-    _unused: (),
+struct ResendChunk {
+    sequence: Sequence,
+    data: ArrayVec<[u8; 2048]>,
+}
+
+impl ResendChunk {
+    fn new(sequence: Sequence, data: &[u8]) -> ResendChunk {
+        let result = ResendChunk {
+            sequence: sequence,
+            data: data.iter().cloned().collect(),
+        };
+        assert!(result.data.len() == data.len(), "overlong resend packet {}", data.len());
+        result
+    }
+}
+
+pub struct ReceivePacket<'a> {
+    type_: ReceivePacketType<'a>,
+}
+
+impl<'a> Clone for ReceivePacket<'a> {
+    fn clone(&self) -> ReceivePacket<'a> {
+        ReceivePacket {
+            type_: self.type_.clone(),
+        }
+    }
+}
+
+impl<'a> ReceivePacket<'a> {
+    fn connless(data: &'a [u8]) -> ReceivePacket<'a> {
+        ReceivePacket {
+            type_: ReceivePacketType::Connless(data, false),
+        }
+    }
+    fn connected(online_state: &'a mut OnlineState, data: &'a [u8]) -> ReceivePacket<'a> {
+        ReceivePacket {
+            type_: ReceivePacketType::Connected(ReceiveChunks {
+                online_state: Some(online_state),
+                chunks: ChunksIter::new(data),
+            }),
+        }
+    }
+}
+
+#[derive(Clone)]
+enum ReceivePacketType<'a> {
+    // Connless(data, done)
+    Connless(&'a [u8], bool),
+    Connected(ReceiveChunks<'a>),
+}
+
+impl<'a> Drop for ReceivePacket<'a> {
+    fn drop(&mut self) {
+        for _ in self { }
+    }
+}
+
+impl<'a> Iterator for ReceivePacket<'a> {
+    type Item = ReceiveChunk<'a>;
+    fn next(&mut self) -> Option<ReceiveChunk<'a>> {
+        match self.type_ {
+            ReceivePacketType::Connless(data, ref mut done) => {
+                let done = mem::replace(done, true);
+                if !done {
+                    Some(ReceiveChunk::Connless(data))
+                } else {
+                    None
+                }
+            }
+            ReceivePacketType::Connected(ref mut chunks) => {
+                chunks.next()
+            }
+        }
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.clone().count();
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for ReceivePacket<'a> { }
+
+struct ReceiveChunks<'a> {
+    online_state: Option<&'a mut OnlineState>,
+    chunks: ChunksIter<'a>,
+}
+
+impl<'a> Iterator for ReceiveChunks<'a> {
+    type Item = ReceiveChunk<'a>;
+    fn next(&mut self) -> Option<ReceiveChunk<'a>> {
+        self.chunks.next().map(|c| {
+            if let Some(ref v) = c.vital {
+                // TODO: Update internal ack variable
+                unimplemented!();
+            }
+            ReceiveChunk::Connected(c.data, c.vital.is_some())
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.chunks.size_hint()
+    }
+}
+
+impl<'a> ExactSizeIterator for ReceiveChunks<'a> { }
+
+impl<'a> Clone for ReceiveChunks<'a> {
+    fn clone(&self) -> ReceiveChunks<'a> {
+        ReceiveChunks {
+            online_state: None,
+            chunks: self.chunks.clone(),
+        }
+    }
+}
+
+pub enum ReceiveChunk<'a> {
+    Connless(&'a [u8]),
+    // Connected(data, vital)
+    Connected(&'a [u8], bool),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,16 +170,7 @@ struct OnlineState {
     request_resend: bool,
     packet_num_chunks: u8,
     packet: ArrayVec<[u8; 2048]>,
-    resend_queue: VecDeque<ResendPacket>,
-}
-
-impl State {
-    pub fn assert_online(&mut self) -> &mut OnlineState {
-        match *self {
-            State::Online(ref mut s) => s,
-            _ => panic!("state not online"),
-        }
-    }
+    resend_queue: VecDeque<ResendChunk>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -62,11 +182,11 @@ impl Sequence {
     fn new() -> Sequence {
         Default::default()
     }
-    fn get(&self) -> u16 {
+    fn to_u16(self) -> u16 {
         self.seq
     }
-    fn next(&mut self) -> u16 {
-        let result = self.seq;
+    fn next(&mut self) -> Sequence {
+        let result = *self;
         self.seq = (self.seq + 1) % (1 << protocol::SEQUENCE_BITS);
         result
     }
@@ -87,15 +207,16 @@ impl PacketBuilder {
     fn send<CB: Callback>(&mut self, cb: &mut CB, packet: Packet)
         -> Result<(), Error<CB::Error>>
     {
-        let compression_buffer = &mut SliceBuffer::new(&mut self.compression_buffer);
-        let buffer = &mut SliceBuffer::new(&mut self.buffer);
-        match packet.write(compression_buffer, buffer) {
-            Ok(()) => {},
+        let data = match packet.write(&mut self.compression_buffer[..], &mut self.buffer[..]) {
+            Ok(d) => d,
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
             Err(protocol::Error::TooLongData) => return Err(Error::TooLongData),
-        }
-        try!(cb.send(buffer));
+        };
+        try!(cb.send(data));
         Ok(())
+    }
+    fn compression_buffer(&mut self) -> &mut [u8] {
+        &mut self.compression_buffer[..]
     }
 }
 
@@ -143,7 +264,7 @@ impl Connection {
             return Ok(());
         }
         let result = self.builder.send(cb, Packet::Connected(ConnectedPacket {
-            ack: online.ack.get(),
+            ack: online.ack.to_u16(),
             type_: ConnectedPacketType::Chunks(
                 online.request_resend,
                 online.packet_num_chunks,
@@ -159,8 +280,10 @@ impl Connection {
         let online = self.state.assert_online();
         let vital = if vital {
             let sequence = online.sequence.next();
-            // TODO: Put packet into resend buffer.
-            Some((sequence, resend))
+            if !resend {
+                online.resend_queue.push_back(ResendChunk::new(sequence, buffer));
+            }
+            Some((sequence.to_u16(), resend))
         } else {
             None
         };
@@ -182,13 +305,30 @@ impl Connection {
         self.queue(buffer, vital, false);
         result
     }
-    pub fn send_connless<CB: Callback>(&mut self, cb: &mut CB, buffer: &[u8])
+    pub fn send_connless<CB: Callback>(&mut self, cb: &mut CB, data: &[u8])
         -> Result<(), Error<CB::Error>>
     {
         self.state.assert_online();
-        self.builder.send(cb, Packet::Connless(buffer))
+        self.builder.send(cb, Packet::Connless(data))
     }
-    pub fn feed<CB: Callback>(&mut self, cb: &mut CB, buffer: &[u8]) {
+    pub fn feed<'a, CB: Callback>(&'a mut self, cb: &mut CB, data: &'a [u8])
+        -> Option<ReceivePacket<'a>>
+    {
+        if data.len() > protocol::MAX_PACKETSIZE {
+            // TODO: Warn?
+            return None;
+        }
+        let buf = self.builder.compression_buffer();
+        // TODO: Warn?
+        let packet = unwrap_or_return!(Packet::read(data, buf));
+
+        let connected = match packet {
+            Packet::Connless(data) => return Some(ReceivePacket::connless(data)),
+            Packet::Connected(c) => c,
+        };
+        let ConnectedPacket { ack, type_ } = connected;
+        // TODO: do something with ack
+        let _ = ack;
         unimplemented!();
     }
 }

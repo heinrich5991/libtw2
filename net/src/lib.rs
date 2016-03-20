@@ -3,6 +3,7 @@
 #[cfg(test)] extern crate quickcheck;
 
 extern crate arrayvec;
+extern crate buffer;
 #[macro_use] extern crate common;
 extern crate huffman;
 extern crate num;
