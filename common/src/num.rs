@@ -39,8 +39,8 @@ impl LeU16 {
 unsafe_boilerplate_packed!(BeU16, 2, test_size_beu16, test_align_beu16);
 unsafe_boilerplate_packed!(LeU16, 2, test_size_leu16, test_align_leu16);
 
-#[cfg(test)]
-mod test {
+#[cfg(all(test, feature="nightly-test"))]
+mod test_nigthly {
     use super::BeU16;
     use super::LeU16;
 
@@ -59,6 +59,12 @@ mod test {
         let bytes = &[v0, v1];
         LeU16::from_u16(LeU16::from_bytes(bytes).to_u16()).as_bytes() == bytes
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::BeU16;
+    use super::LeU16;
 
     #[test]
     fn order() {

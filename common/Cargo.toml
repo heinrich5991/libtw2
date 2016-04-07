@@ -5,7 +5,8 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 ref_slice = ">=0.1.0,<2.0"
+quickcheck = { version = "0.2.27", optional = true }
+quickcheck_macros = { version = "0.2.26", optional = true }
 
-[dev-dependencies]
-quickcheck = "0.2.26"
-quickcheck_macros = "0.2.26"
+[features]
+nightly-test = ["quickcheck", "quickcheck_macros"]

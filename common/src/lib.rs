@@ -1,6 +1,6 @@
-#![cfg_attr(test, feature(plugin))]
-#![cfg_attr(test, plugin(quickcheck_macros))]
-#[cfg(test)] extern crate quickcheck;
+#![cfg_attr(all(test, feature="nightly-test"), feature(plugin))]
+#![cfg_attr(all(test, feature="nightly-test"), plugin(quickcheck_macros))]
+#[cfg(all(test, feature="nightly-test"))] extern crate quickcheck;
 
 extern crate ref_slice;
 
