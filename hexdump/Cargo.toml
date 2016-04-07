@@ -4,10 +4,13 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
-arrayvec = "*"
-itertools = "*"
+arrayvec = "0.3.12"
+itertools = ">=0.3.0,<0.5.0"
+quickcheck = { version = "0.2.27", optional = true }
+quickcheck_macros = { version = "0.2.26", optional = true }
 
 [dev-dependencies]
-num = "*"
-quickcheck = "*"
-quickcheck_macros = "*"
+num = "0.1.27"
+
+[features]
+nightly-test = ["quickcheck", "quickcheck_macros"]

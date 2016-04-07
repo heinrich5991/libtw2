@@ -178,11 +178,10 @@ fn hexdump_chunk((i, chunk): (usize, &[u8])) -> Buffer {
     Buffer::new(buf)
 }
 
-#[cfg(test)]
-mod test {
+#[cfg(all(test, feature="nightly-test"))]
+mod test_nightly {
     use super::CHUNK_LENGTH;
     use super::hexdump_iter;
-    use super::sanitize_byte;
 
     use itertools::Itertools;
     use std::collections::HashSet;
@@ -224,6 +223,11 @@ mod test {
         hexdump_iter(&bytes).len() == expected
             && hexdump_iter(&bytes).count() == expected
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::sanitize_byte;
 
     #[test]
     fn test_sanitize_byte() {
