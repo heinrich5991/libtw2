@@ -11,8 +11,12 @@ huffman = { path = "../huffman/" }
 num = "0.1.27"
 void = ">=0.0.4,<2.0.0"
 
+quickcheck = { version = "0.2.27", optional = true }
+quickcheck_macros = { version = "0.2.26", optional = true }
+
 [dev-dependencies]
 hexdump = { path = "../hexdump/" }
 itertools = ">=0.3.0,<0.5.0"
-quickcheck = "*"
-quickcheck_macros = "*"
+
+[features]
+nightly-test = ["quickcheck", "quickcheck_macros"]

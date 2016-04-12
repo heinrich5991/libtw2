@@ -490,8 +490,8 @@ unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_p
 unsafe_boilerplate_packed!(ChunkHeaderPacked, 2, test_ch_size, test_ch_align);
 unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, 3, test_chv_size, test_chv_align);
 
-#[cfg(test)]
-mod test {
+#[cfg(all(feature = "nightly-test", test))]
+mod test_nightly {
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
     use super::ChunkHeader;
