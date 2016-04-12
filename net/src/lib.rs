@@ -7,6 +7,7 @@ extern crate buffer;
 #[macro_use] extern crate common;
 extern crate huffman;
 extern crate num;
+extern crate void;
 
 pub mod connection;
 pub mod protocol;

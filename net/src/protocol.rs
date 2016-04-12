@@ -36,6 +36,7 @@ pub const CHUNK_FLAGS_BITS: u32 = 2;
 pub const CHUNK_SIZE_BITS: u32 = 10;
 pub const PACKET_FLAGS_BITS: u32 = 4;
 pub const SEQUENCE_BITS: u32 = 10;
+pub const SEQUENCE_MODULUS: u16 = 1 << SEQUENCE_BITS;
 
 pub fn chunk_header_size(vital: bool) -> usize {
     if vital {
@@ -214,6 +215,7 @@ impl<'a> Packet<'a> {
     fn read_impl<'d, 's>(bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
         -> Option<Packet<'d>>
     {
+        assert!(buffer.remaining() >= MAX_PAYLOAD);
         if bytes.len() > MAX_PACKETSIZE {
             return None;
         }
@@ -503,8 +505,6 @@ mod test {
     use super::PacketHeaderPacked;
     use super::SEQUENCE_BITS;
 
-    use common::buffer::SliceBuffer;
-
     #[quickcheck]
     fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
         let flags = flags ^ (flags >> PACKET_FLAGS_BITS << PACKET_FLAGS_BITS);
@@ -555,8 +555,7 @@ mod test {
     #[quickcheck]
     fn packet_read_no_panic(data: Vec<u8>) -> bool {
         let mut buffer = [0; MAX_PACKETSIZE];
-        let mut buffer = SliceBuffer::new(&mut buffer);
-        Packet::read(&data, &mut buffer);
+        Packet::read(&data, &mut buffer[..]);
         true
     }
 }
