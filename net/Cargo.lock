@@ -7,7 +7,8 @@ dependencies = [
  "common 0.0.1",
  "hexdump 0.0.1",
  "huffman 0.0.1",
- "itertools 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "linear-map 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck_macros 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -70,7 +71,7 @@ name = "hexdump"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "itertools 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -80,18 +81,23 @@ dependencies = [
  "arrayvec 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
- "itertools 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "itertools"
-version = "0.4.7"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
 version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "linear-map"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]

@@ -6,8 +6,10 @@ extern crate arrayvec;
 extern crate buffer;
 #[macro_use] extern crate common;
 extern crate huffman;
+extern crate linear_map;
 extern crate num;
 extern crate void;
 
 pub mod connection;
+pub mod net;
 pub mod protocol;

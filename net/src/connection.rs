@@ -32,8 +32,7 @@ enum State {
     Connecting,
     Pending,
     Online(OnlineState),
-    // Disconnected(reason)
-    Disconnected(ArrayVec<[u8; 128]>),
+    Disconnected,
 }
 
 impl State {
@@ -75,7 +74,12 @@ impl<'a> Clone for ReceivePacket<'a> {
 }
 
 impl<'a> ReceivePacket<'a> {
-    fn connless(data: &'a [u8]) -> ReceivePacket<'a> {
+    fn none() -> ReceivePacket<'a> {
+        ReceivePacket {
+            type_: ReceivePacketType::None,
+        }
+    }
+    fn connless(data: &[u8]) -> ReceivePacket {
         ReceivePacket {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
@@ -100,21 +104,31 @@ impl<'a> ReceivePacket<'a> {
             }),
         }
     }
+    fn disconnect(reason: &[u8]) -> ReceivePacket {
+        ReceivePacket {
+            type_: ReceivePacketType::Close(iter::once(reason)),
+        }
+    }
 }
 
 #[derive(Clone)]
 enum ReceivePacketType<'a> {
+    None,
     Connless(iter::Once<&'a [u8]>),
     Connected(ReceiveChunks<'a>),
+    Close(iter::Once<&'a [u8]>),
 }
 
 impl<'a> Iterator for ReceivePacket<'a> {
     type Item = ReceiveChunk<'a>;
     fn next(&mut self) -> Option<ReceiveChunk<'a>> {
         match self.type_ {
+            ReceivePacketType::None => None,
             ReceivePacketType::Connless(ref mut once) =>
                 once.next().map(ReceiveChunk::Connless),
             ReceivePacketType::Connected(ref mut chunks) => chunks.next(),
+            ReceivePacketType::Close(ref mut once) =>
+                once.next().map(ReceiveChunk::Disconnect),
         }
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -159,6 +173,7 @@ pub enum ReceiveChunk<'a> {
     Connless(&'a [u8]),
     // Connected(data, vital)
     Connected(&'a [u8], bool),
+    Disconnect(&'a [u8]),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -327,7 +342,7 @@ impl<CE> From<CE> for Error<CE> {
 }
 
 impl<CE> Error<CE> {
-    fn unwrap_callback(self) -> CE {
+    pub fn unwrap_callback(self) -> CE {
         match self {
             Error::TooLongData => panic!("too long data"),
             Error::Callback(e) => e,
@@ -343,7 +358,7 @@ impl Connection {
         }
     }
     pub fn reset(&mut self) {
-        if let State::Disconnected(_) = self.state {
+        if let State::Disconnected = self.state {
         } else {
             assert!(false, "Can only call reset on a disconnected connection");
         }
@@ -358,14 +373,14 @@ impl Connection {
     pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8]) -> Result<(), CB::Error> {
         if let State::Unconnected = self.state {
             assert!(false, "Can't call disconnect on an unconnected connection");
-        } else if let State::Disconnected(_) = self.state {
+        } else if let State::Disconnected = self.state {
             assert!(false, "Can't call disconnect on an already disconnected connection");
         }
         assert!(reason.iter().all(|&b| b != 0), "reason must not contain NULs");
-        let mut vec: ArrayVec<_> = reason.iter().cloned().collect();
+        let mut vec: ArrayVec<[u8; 128]> = reason.iter().cloned().collect();
         assert!(vec.push(0).is_none(), "reason too long");
         let result = self.send_control(cb, ControlPacket::Close(&vec));
-        self.state = State::Disconnected(vec);
+        self.state = State::Disconnected;
         result
     }
     fn resend<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
@@ -455,16 +470,16 @@ impl Connection {
     /// Notifies the connection of incoming data.
     ///
     /// `buffer` must have at least size `MAX_PAYLOAD`.
-    pub fn feed<'a, B: Buffer<'a>, CB: Callback>(&mut self, cb: &mut CB, buffer: B, data: &'a [u8])
-        -> (Option<ReceivePacket<'a>>, Option<CB::Error>)
+    pub fn feed<'a, B: Buffer<'a>, CB: Callback>(&mut self, cb: &mut CB, data: &'a [u8], buf: B)
+        -> (ReceivePacket<'a>, Result<(), CB::Error>)
     {
-        with_buffer(buffer, |b| self.feed_impl(cb, b, data))
+        with_buffer(buf, |b| self.feed_impl(cb, data, b))
     }
 
-    pub fn feed_impl<'d, 's, CB: Callback>(&mut self, cb: &mut CB, mut buffer: BufferRef<'d, 's>, data: &'d [u8])
-        -> (Option<ReceivePacket<'d>>, Option<CB::Error>)
+    pub fn feed_impl<'d, 's, CB: Callback>(&mut self, cb: &mut CB, data: &'d [u8], mut buffer: BufferRef<'d, 's>)
+        -> (ReceivePacket<'d>, Result<(), CB::Error>)
     {
-        let none = (None, None);
+        let none = (ReceivePacket::none(), Ok(()));
         if data.len() > protocol::MAX_PACKETSIZE {
             // WARN
             return none;
@@ -477,7 +492,7 @@ impl Connection {
             let packet = unwrap_or_return!(Packet::read(data, &mut buffer), none);
 
             let connected = match packet {
-                Packet::Connless(data) => return (Some(ReceivePacket::connless(data)), None),
+                Packet::Connless(data) => return (ReceivePacket::connless(data), Ok(())),
                 Packet::Connected(c) => c,
             };
             let ConnectedPacket { ack, type_ } = connected;
@@ -491,19 +506,19 @@ impl Connection {
                     if let State::Pending = self.state {
                         self.state = State::Online(OnlineState::new());
                     }
-                    let error;
+                    let result;
                     if request_resend {
                         if let State::Online(_) = self.state {
-                            error = self.resend(cb).err();
+                            result = self.resend(cb);
                         } else {
-                            error = None;
+                            result = Ok(());
                         }
                     } else {
-                        error = None;
+                        result = Ok(())
                     }
                     match self.state {
                         State::Online(ref mut online) => {
-                            return (Some(ReceivePacket::connected(online, chunks)), error);
+                            return (ReceivePacket::connected(online, chunks), result);
                         }
                         State::Pending => unreachable!(),
                         // WARN: packet received while not online.
@@ -523,16 +538,16 @@ impl Connection {
                     if let State::Connecting = self.state {
                         self.state = State::Online(OnlineState::new());
                     }
-                    return (None, self.send_control(cb, ControlPacket::Accept).err());
+                    return (ReceivePacket::none(), self.send_control(cb, ControlPacket::Accept));
                 }
                 Control(Accept) => return none,
                 Control(Close(reason)) => {
-                    self.state = State::Disconnected(reason.iter().cloned().collect());
-                    return none;
+                    self.state = State::Disconnected;
+                    return (ReceivePacket::disconnect(reason), Ok(()));
                 }
             }
         }
-        (None, self.tick(cb).err())
+        (ReceivePacket::none(), self.tick(cb))
     }
 }
 
@@ -600,20 +615,20 @@ mod test {
         assert!(&packet == b"\x10\x00\x00\x01");
 
         // ConnectAccept
-        assert!(server.feed(cb, &mut buffer[..], &packet).0.is_none());
+        assert!(server.feed(cb, &packet, &mut buffer[..]).0.next().is_none());
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x02");
 
         // Accept
-        assert!(client.feed(cb, &mut buffer[..], &packet).0.is_none());
+        assert!(client.feed(cb, &packet, &mut buffer[..]).0.next().is_none());
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x03");
 
-        assert!(server.feed(cb, &mut buffer[..], &packet).0.is_none());
+        assert!(server.feed(cb, &packet, &mut buffer[..]).0.next().is_none());
         assert!(cb.0.is_empty());
 
         // Send
@@ -628,7 +643,7 @@ mod test {
         assert!(&packet == b"\x00\x00\x01\x40\x01\x00\x42");
 
         // Receive
-        assert!(server.feed(cb, &mut buffer[..], &packet).0.unwrap().collect_vec()
+        assert!(server.feed(cb, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ReceiveChunk::Connected(b"\x42", true)]);
         assert!(cb.0.is_empty());
 
@@ -638,7 +653,8 @@ mod test {
         hexdump(&packet);
         assert!(&packet == b"\x10\x01\x00\x0442\0");
 
-        assert!(client.feed(cb, &mut buffer[..], &packet).0.is_none());
+        assert!(client.feed(cb, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]);
 
         client.reset();
         server.reset();

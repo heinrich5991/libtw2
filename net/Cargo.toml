@@ -8,6 +8,7 @@ arrayvec = "0.3.12"
 buffer = "0.1.5"
 common = { path = "../common/" }
 huffman = { path = "../huffman/" }
+linear-map = "1.0.0"
 num = "0.1.27"
 void = ">=0.0.4,<2.0.0"
 

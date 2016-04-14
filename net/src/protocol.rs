@@ -5,6 +5,7 @@ use buffer;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use num::ToPrimitive;
+use std::cmp;
 
 pub const CHUNK_HEADER_SIZE: usize = 2;
 pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
@@ -32,6 +33,7 @@ pub const CTRLMSG_CONNECTACCEPT: u8 = 2;
 pub const CTRLMSG_ACCEPT:        u8 = 3;
 pub const CTRLMSG_CLOSE:         u8 = 4;
 
+pub const CTRLMSG_CLOSE_REASON_LENGTH: usize = 127;
 pub const CHUNK_FLAGS_BITS: u32 = 2;
 pub const CHUNK_SIZE_BITS: u32 = 10;
 pub const PACKET_FLAGS_BITS: u32 = 4;
@@ -259,7 +261,11 @@ impl<'a> Packet<'a> {
                 CTRLMSG_CONNECTACCEPT => ControlPacket::ConnectAccept,
                 CTRLMSG_ACCEPT => ControlPacket::Accept,
                 // TODO: Check for length
-                CTRLMSG_CLOSE => ControlPacket::Close(payload),
+                CTRLMSG_CLOSE => {
+                    let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
+                    let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
+                    ControlPacket::Close(&payload[..nul])
+                },
                 _ => return None, // Unrecognized control packet.
             };
 
