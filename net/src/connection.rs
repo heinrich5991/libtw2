@@ -553,12 +553,9 @@ impl Connection {
 
 #[cfg(test)]
 mod test {
-    extern crate hexdump;
-    extern crate itertools;
-
     use protocol;
-    use self::hexdump::hexdump;
-    use self::itertools::Itertools;
+    use hexdump::hexdump;
+    use itertools::Itertools;
     use std::collections::VecDeque;
     use super::Callback;
     use super::Connection;

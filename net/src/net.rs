@@ -113,27 +113,27 @@ impl<A: Address> ops::IndexMut<PeerId> for Peers<A> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum ChunkOrEvent<'a, A: Address> {
     Chunk(Chunk<'a, A>),
     Connect(PeerId),
-    Disconnect(&'a [u8]),
+    Disconnect(PeerId, &'a [u8]),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum ChunkType {
     Connless,
     Connected,
     Vital,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Chunk<'a, A: Address> {
     pub data: &'a [u8],
     pub addr: ChunkAddress<A>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum ChunkAddress<A: Address> {
     NonPeerConnless(A),
     Peer(PeerId, ChunkType),
@@ -190,7 +190,7 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
                             ChunkType::Connected
                         }),
                     }),
-                    ReceiveChunk::Disconnect(r) => ChunkOrEvent::Disconnect(r),
+                    ReceiveChunk::Disconnect(r) => ChunkOrEvent::Disconnect(pid, r),
                 }
             }),
             Connless(addr, ref mut once) => once.next().map(|data| {
@@ -350,5 +350,94 @@ impl<A: Address> Net<A> {
                 (ReceivePacket::none(), Ok(()))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use itertools::Itertools;
+    use protocol;
+    use std::collections::VecDeque;
+    use super::Callback;
+    use super::ChunkOrEvent;
+    use super::Net;
+    use void::ResultVoidExt;
+    use void::Void;
+
+    #[test]
+    fn establish_connection() {
+        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        enum Address {
+            Client,
+            Server,
+        }
+        struct Cb {
+            packets: VecDeque<Vec<u8>>,
+            recipient: Address,
+        }
+        impl Cb {
+            fn new() -> Cb {
+                Cb {
+                    packets: VecDeque::new(),
+                    recipient: Address::Server,
+                }
+            }
+        }
+        impl Callback<Address> for Cb {
+            type Error = Void;
+            fn send(&mut self, addr: Address, data: &[u8]) -> Result<(), Void> {
+                assert!(self.recipient == addr);
+                self.packets.push_back(data.to_owned());
+                Ok(())
+            }
+        }
+        let mut cb = Cb::new();
+        let cb = &mut cb;
+        let mut buffer = [0; protocol::MAX_PAYLOAD];
+
+        let mut net = Net::new();
+
+        // Connect
+        cb.recipient = Address::Server;
+        let (c_pid, res) = net.connect(cb, Address::Server);
+        res.void_unwrap();
+        let packet = cb.packets.pop_front().unwrap();
+        assert!(cb.packets.is_empty());
+
+        // ConnectAccept
+        cb.recipient = Address::Client;
+        let s_pid;
+        {
+            let p = net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
+            assert!(p.len() == 1);
+            if let ChunkOrEvent::Connect(s) = p[0] {
+                s_pid = s;
+            } else {
+                panic!();
+            }
+        }
+        let packet = cb.packets.pop_front().unwrap();
+        assert!(cb.packets.is_empty());
+
+        // Accept
+        cb.recipient = Address::Server;
+        assert!(net.feed(cb, Address::Server, &packet, &mut buffer[..]).0.next().is_none());
+        let packet = cb.packets.pop_front().unwrap();
+        assert!(cb.packets.is_empty());
+
+        cb.recipient = Address::Client;
+        assert!(net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(cb.packets.is_empty());
+
+        // Disconnect
+        cb.recipient = Address::Server;
+        net.disconnect(cb, c_pid, b"foobar").void_unwrap();
+        let packet = cb.packets.pop_front().unwrap();
+        assert!(cb.packets.is_empty());
+
+        cb.recipient = Address::Client;
+        assert!(net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ChunkOrEvent::Disconnect(s_pid, b"foobar")]);
+        assert!(cb.packets.is_empty());
     }
 }
