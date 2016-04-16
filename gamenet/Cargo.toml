@@ -1,0 +1,13 @@
+[package]
+name = "gamenet"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]
+arrayvec = "0.3.12"
+buffer = "0.1.5"
+common = { path = "../common/" }
+num = "0.1.27"
+
+[dev-dependencies]
+hexdump = "0.1.0"
