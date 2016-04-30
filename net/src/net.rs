@@ -14,12 +14,14 @@ use protocol;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
+use std::time::Duration;
 
 pub use connection::Error;
 
 pub trait Callback<A: Address> {
     type Error;
     fn send(&mut self, addr: A, data: &[u8]) -> Result<(), Self::Error>;
+    fn time_since_tick(&mut self) -> Duration;
 }
 
 pub trait Address: Copy + Eq + Hash + Ord { }
@@ -81,6 +83,12 @@ impl<A: Address> Peers<A> {
             }
         }
     }
+    fn iter(&self) -> linear_map::Iter<PeerId, Peer<A>> {
+        self.peers.iter()
+    }
+    fn iter_mut(&mut self) -> linear_map::IterMut<PeerId, Peer<A>> {
+        self.peers.iter_mut()
+    }
     fn remove_peer(&mut self, pid: PeerId) {
         self.peers.remove(&pid).unwrap_or_else(|| panic!("invalid pid"));
     }
@@ -113,27 +121,28 @@ impl<A: Address> ops::IndexMut<PeerId> for Peers<A> {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChunkOrEvent<'a, A: Address> {
     Chunk(Chunk<'a, A>),
     Connect(PeerId),
+    Ready(PeerId),
     Disconnect(PeerId, &'a [u8]),
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChunkType {
     Connless,
     Connected,
     Vital,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Chunk<'a, A: Address> {
     pub data: &'a [u8],
     pub addr: ChunkAddress<A>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChunkAddress<A: Address> {
     NonPeerConnless(A),
     Peer(PeerId, ChunkType),
@@ -190,6 +199,7 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
                             ChunkType::Connected
                         }),
                     }),
+                    ReceiveChunk::Ready => ChunkOrEvent::Ready(pid),
                     ReceiveChunk::Disconnect(r) => ChunkOrEvent::Disconnect(pid, r),
                 }
             }),
@@ -270,6 +280,9 @@ impl<'a, A: Address, CB: Callback<A>> connection::Callback for ConnectionCallbac
     fn send(&mut self, data: &[u8]) -> Result<(), CB::Error> {
         self.cb.send(self.addr, data)
     }
+    fn time_since_tick(&mut self) -> Duration {
+        self.cb.time_since_tick()
+    }
 }
 
 impl<A: Address> Net<A> {
@@ -278,6 +291,9 @@ impl<A: Address> Net<A> {
             peers: Peers::new(),
             builder: ConnlessBuilder::new(),
         }
+    }
+    pub fn needs_tick(&self) -> bool {
+        self.peers.iter().any(|(_, p)| p.conn.needs_tick())
     }
     pub fn connect<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A)
         -> (PeerId, Result<(), CB::Error>)
@@ -318,6 +334,15 @@ impl<A: Address> Net<A> {
             }
         }
     }
+    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB, delta: Duration)
+        -> Tick<A, CB>
+    {
+        Tick {
+            iter_mut: self.peers.iter_mut(),
+            cb: cb,
+            delta: delta,
+        }
+    }
     pub fn peer_addr(&self, pid: PeerId) -> Option<A> {
         self.peers.get(pid).map(|p| p.addr)
     }
@@ -326,7 +351,6 @@ impl<A: Address> Net<A> {
     {
         with_buffer(buf, |b| self.feed_impl(cb, addr, data, b))
     }
-
     fn feed_impl<'d, 's, CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, data: &'d [u8], mut buf: BufferRef<'d, 's>)
         -> (ReceivePacket<'d, A>, Result<(), CB::Error>)
     {
@@ -353,11 +377,31 @@ impl<A: Address> Net<A> {
     }
 }
 
+pub struct Tick<'a, A: Address+'a, CB: Callback<A>+'a> {
+    iter_mut: linear_map::IterMut<'a, PeerId, Peer<A>>,
+    cb: &'a mut CB,
+    delta: Duration,
+}
+
+impl<'a, A: Address+'a, CB: Callback<A>+'a> Iterator for Tick<'a, A, CB> {
+    type Item = CB::Error;
+    fn next(&mut self) -> Option<CB::Error> {
+        while let Some((_, p)) = self.iter_mut.next() {
+            match p.conn.tick(&mut cc(self.cb, p.addr), self.delta) {
+                Ok(()) => {},
+                Err(e) => return Some(e),
+            }
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
     use protocol;
     use std::collections::VecDeque;
+    use std::time::Duration;
     use super::Callback;
     use super::ChunkOrEvent;
     use super::Net;
@@ -390,6 +434,9 @@ mod test {
                 self.packets.push_back(data.to_owned());
                 Ok(())
             }
+            fn time_since_tick(&mut self) -> Duration {
+                Duration::from_millis(0)
+            }
         }
         let mut cb = Cb::new();
         let cb = &mut cb;
@@ -421,7 +468,8 @@ mod test {
 
         // Accept
         cb.recipient = Address::Server;
-        assert!(net.feed(cb, Address::Server, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(net.feed(cb, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ChunkOrEvent::Ready(c_pid)]);
         let packet = cb.packets.pop_front().unwrap();
         assert!(cb.packets.is_empty());
 

@@ -15,14 +15,47 @@ use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
 use std::mem;
+use std::time::Duration;
 
 pub trait Callback {
     type Error;
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
+    fn time_since_tick(&mut self) -> Duration;
+}
+
+struct Timeout {
+    timeout: Option<Duration>,
+}
+
+impl Timeout {
+    fn new() -> Timeout {
+        Timeout {
+            timeout: None,
+        }
+    }
+    fn set<CB: Callback>(&mut self, cb: &mut CB, value: Duration) {
+        self.timeout = Some(cb.time_since_tick() + value);
+    }
+    fn is_active(&self) -> bool {
+        self.timeout.is_some()
+    }
+    fn tick(&mut self, delta: Duration) -> bool {
+        let mut triggered = false;
+        self.timeout = self.timeout.and_then(|t| {
+            if delta >= t {
+                triggered = true;
+                None
+            } else {
+                Some(t - delta)
+            }
+        });
+        triggered
+    }
 }
 
 pub struct Connection {
     state: State,
+    send_: Timeout,
     builder: PacketBuilder,
 }
 
@@ -79,6 +112,11 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::None,
         }
     }
+    fn ready() -> ReceivePacket<'a> {
+        ReceivePacket {
+            type_: ReceivePacketType::Ready(iter::once(())),
+        }
+    }
     fn connless(data: &[u8]) -> ReceivePacket {
         ReceivePacket {
             type_: ReceivePacketType::Connless(iter::once(data)),
@@ -116,6 +154,7 @@ enum ReceivePacketType<'a> {
     None,
     Connless(iter::Once<&'a [u8]>),
     Connected(ReceiveChunks<'a>),
+    Ready(iter::Once<()>),
     Close(iter::Once<&'a [u8]>),
 }
 
@@ -124,6 +163,8 @@ impl<'a> Iterator for ReceivePacket<'a> {
     fn next(&mut self) -> Option<ReceiveChunk<'a>> {
         match self.type_ {
             ReceivePacketType::None => None,
+            ReceivePacketType::Ready(ref mut once) =>
+                once.next().map(|()| ReceiveChunk::Ready),
             ReceivePacketType::Connless(ref mut once) =>
                 once.next().map(ReceiveChunk::Connless),
             ReceivePacketType::Connected(ref mut chunks) => chunks.next(),
@@ -173,6 +214,7 @@ pub enum ReceiveChunk<'a> {
     Connless(&'a [u8]),
     // Connected(data, vital)
     Connected(&'a [u8], bool),
+    Ready,
     Disconnect(&'a [u8]),
 }
 
@@ -201,10 +243,13 @@ impl OnlineState {
             resend_queue: VecDeque::new(),
         }
     }
+    fn can_send(&self) -> bool {
+        self.packet.num_chunks != 0 || self.request_resend
+    }
     fn flush<CB: Callback>(&mut self, cb: &mut CB, builder: &mut PacketBuilder)
         -> Result<(), CB::Error>
     {
-        if self.packet.num_chunks == 0 && self.request_resend == false {
+        if !self.can_send() {
             return Ok(());
         }
         let result = builder.send(cb, Packet::Connected(ConnectedPacket {
@@ -354,6 +399,7 @@ impl Connection {
     pub fn new() -> Connection {
         Connection {
             state: State::Unconnected,
+            send_: Timeout::new(),
             builder: PacketBuilder::new(),
         }
     }
@@ -364,10 +410,13 @@ impl Connection {
         }
         *self = Connection::new();
     }
+    pub fn needs_tick(&self) -> bool {
+        self.send_.is_active()
+    }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         assert!(self.state == State::Unconnected);
         self.state = State::Connecting;
-        try!(self.tick(cb));
+        try!(self.tick_action(cb));
         Ok(())
     }
     pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8]) -> Result<(), CB::Error> {
@@ -402,12 +451,14 @@ impl Connection {
                 }
             }
             if !can_fit {
+                self.send_.set(cb, Duration::from_millis(500));
                 try!(online.flush(cb, &mut self.builder));
             }
         }
         Ok(())
     }
     pub fn flush<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
+        self.send_.set(cb, Duration::from_millis(500));
         self.state.assert_online().flush(cb, &mut self.builder)
     }
     fn queue(&mut self, buffer: &[u8], vital: bool) {
@@ -446,6 +497,7 @@ impl Connection {
         -> Result<(), Error<CB::Error>>
     {
         self.state.assert_online();
+        self.send_.set(cb, Duration::from_millis(500));
         self.builder.send(cb, Packet::Connless(data))
     }
     fn send_control<CB: Callback>(&mut self, cb: &mut CB, control: ControlPacket) -> Result<(), CB::Error> {
@@ -458,11 +510,26 @@ impl Connection {
             type_: ConnectedPacketType::Control(control),
         })).map_err(|e| e.unwrap_callback())
     }
-    pub fn tick<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
+    pub fn tick<CB: Callback>(&mut self, cb: &mut CB, delta: Duration)
+        -> Result<(), CB::Error>
+    {
+        if self.send_.tick(delta) {
+            self.tick_action(cb)
+        } else {
+            Ok(())
+        }
+    }
+    fn tick_action<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
+        self.send_.set(cb, Duration::from_millis(500));
         let control = match self.state {
             State::Connecting => ControlPacket::Connect,
             State::Pending => ControlPacket::ConnectAccept,
-            State::Online(_) => ControlPacket::KeepAlive,
+            State::Online(ref mut online) => {
+                if online.can_send() {
+                    return online.flush(cb, &mut self.builder);
+                }
+                ControlPacket::KeepAlive
+            },
             _ => return Ok(()),
         };
         self.send_control(cb, control)
@@ -537,8 +604,10 @@ impl Connection {
                 Control(ConnectAccept) => {
                     if let State::Connecting = self.state {
                         self.state = State::Online(OnlineState::new());
+                        return (ReceivePacket::ready(), self.send_control(cb, ControlPacket::Accept));
+                    } else {
+                        return none;
                     }
-                    return (ReceivePacket::none(), self.send_control(cb, ControlPacket::Accept));
                 }
                 Control(Accept) => return none,
                 Control(Close(reason)) => {
@@ -547,16 +616,18 @@ impl Connection {
                 }
             }
         }
-        (ReceivePacket::none(), self.tick(cb))
+        // Fall-through from `Control(Connect)`
+        (ReceivePacket::none(), self.tick_action(cb))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use protocol;
     use hexdump::hexdump;
     use itertools::Itertools;
+    use protocol;
     use std::collections::VecDeque;
+    use std::time::Duration;
     use super::Callback;
     use super::Connection;
     use super::ReceiveChunk;
@@ -595,6 +666,9 @@ mod test {
                 self.0.push_back(data.to_owned());
                 Ok(())
             }
+            fn time_since_tick(&mut self) -> Duration {
+                Duration::from_millis(0)
+            }
         }
         let mut buffer = [0; protocol::MAX_PAYLOAD];
         let mut cb = Cb::new();
@@ -619,7 +693,8 @@ mod test {
         assert!(&packet == b"\x10\x00\x00\x02");
 
         // Accept
-        assert!(client.feed(cb, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(client.feed(cb, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Ready]);
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
