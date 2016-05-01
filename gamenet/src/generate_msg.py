@@ -30,7 +30,7 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::with_packer;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IntegerData<'a> {
     inner: &'a [u8],
 }
@@ -46,7 +46,7 @@ impl<'a> IntegerData<'a> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy, Debug)]
 enum SystemOrGame<S, G> {
     System(S),
     Game(G),
@@ -218,7 +218,7 @@ def generate_constants(msgs):
 def generate_structs(msgs):
     result = []
     for _, name, members in msgs:
-        result.append("    #[derive(Clone, Copy)]")
+        result.append("    #[derive(Clone, Copy, Debug)]")
         if members:
             result.append("    pub struct {}{} {{".format(struct_name(name), lifetime(members)))
             for type_, opt, name in members:
@@ -286,7 +286,7 @@ def generate_system_extra(msgs):
 
 def generate_enum(msgs):
     result = []
-    result.append("#[derive(Clone, Copy)]")
+    result.append("#[derive(Clone, Copy, Debug)]")
     result.append("pub enum System<'a> {")
     for _, name, members in msgs:
         result.append("    {s}(system::{s}{}),".format(lifetime(members), s=struct_name(name)))

@@ -319,16 +319,15 @@ impl Sequence {
         self.seq
     }
     fn next(&mut self) -> Sequence {
-        let result = *self;
         self.seq = (self.seq + 1) % protocol::SEQUENCE_MODULUS;
-        result
+        *self
     }
     fn update(&mut self, other: Sequence) -> SequenceOrdering {
-        let result = self.compare(other);
-        println!("seq:{:?}", result);
+        let mut next_self = *self;
+        next_self.next();
+        let result = next_self.compare(other);
         if result == SequenceOrdering::Current {
-            println!("current");
-            self.next();
+            *self = next_self;
         }
         result
     }
@@ -411,6 +410,11 @@ impl Connection {
         *self = Connection::new();
     }
     pub fn needs_tick(&self) -> bool {
+        if let State::Unconnected = self.state {
+            return false;
+        } else if let State::Disconnected = self.state {
+            return false;
+        }
         self.send_.is_active()
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
@@ -513,6 +517,9 @@ impl Connection {
     pub fn tick<CB: Callback>(&mut self, cb: &mut CB, delta: Duration)
         -> Result<(), CB::Error>
     {
+        if !self.needs_tick() {
+            return Ok(());
+        }
         if self.send_.tick(delta) {
             self.tick_action(cb)
         } else {
@@ -533,6 +540,10 @@ impl Connection {
             _ => return Ok(()),
         };
         self.send_control(cb, control)
+    }
+    fn ack_chunks(&mut self, ack: Sequence) {
+        // TODO!!
+        //unimplemented!();
     }
     /// Notifies the connection of incoming data.
     ///
@@ -563,8 +574,8 @@ impl Connection {
                 Packet::Connected(c) => c,
             };
             let ConnectedPacket { ack, type_ } = connected;
-            // TODO: do something with ack
-            let _ = ack;
+            // TODO: Check ack for sanity.
+            self.ack_chunks(Sequence::from_u16(ack));
 
             match type_ {
                 Chunks(request_resend, num_chunks, chunks) => {
@@ -712,7 +723,7 @@ mod test {
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
-        assert!(&packet == b"\x00\x00\x01\x40\x01\x00\x42");
+        assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42");
 
         // Receive
         assert!(server.feed(cb, &packet, &mut buffer[..]).0.collect_vec()

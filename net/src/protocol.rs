@@ -113,21 +113,30 @@ impl<'a> Iterator for ChunksIter<'a> {
         if self.data.len() == 0 {
             return None;
         }
-        let (header, data) = unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data));
-        Some(if header.unpack().flags & CHUNKFLAG_VITAL != 0 {
-            let (header, data) = unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data));
+        let (header, mut chunk_data_and_rest) =
+            unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data));
+        let header = header.unpack();
+        let vital;
+        if header.flags & CHUNKFLAG_VITAL != 0 {
+            let (header, d) =
+                unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data));
             let header = header.unpack();
-            self.data = data;
-            Chunk {
-                data: data,
-                vital: Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0)),
-            }
+            chunk_data_and_rest = d;
+            vital = Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0));
         } else {
-            self.data = data;
-            Chunk {
-                data: data,
-                vital: None,
-            }
+            vital = None;
+        }
+        let size = header.size.to_usize().unwrap();
+        if chunk_data_and_rest.len() < size {
+            // WARN
+            self.data = &[];
+            return None;
+        }
+        let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
+        self.data = rest;
+        Some(Chunk {
+            data: chunk_data,
+            vital: vital,
         })
     }
     fn size_hint(&self) -> (usize, Option<usize>) {

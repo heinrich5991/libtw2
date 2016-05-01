@@ -4,7 +4,7 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::with_packer;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct IntegerData<'a> {
     inner: &'a [u8],
 }
@@ -20,7 +20,7 @@ impl<'a> IntegerData<'a> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy, Debug)]
 enum SystemOrGame<S, G> {
     System(S),
     Game(G),
@@ -107,20 +107,20 @@ pub mod system {
     pub const RCON_CMD_ADD: i32 = 25;
     pub const RCON_CMD_REMOVE: i32 = 26;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Info<'a> {
         pub version: &'a [u8],
         pub password: Option<&'a [u8]>,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct MapChange<'a> {
         pub name: &'a [u8],
         pub crc: i32,
         pub size: i32,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct MapData<'a> {
         pub last: i32,
         pub crc: i32,
@@ -128,10 +128,10 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct ConReady;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Snap<'a> {
         pub tick: i32,
         pub delta_tick: i32,
@@ -141,13 +141,13 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct SnapEmpty {
         pub tick: i32,
         pub delta_tick: i32,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct SnapSingle<'a> {
         pub tick: i32,
         pub delta_tick: i32,
@@ -155,67 +155,67 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct InputTiming {
         pub input_pred_tick: i32,
         pub time_left: i32,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconAuthStatus {
         pub auth_level: Option<i32>,
         pub receive_commands: Option<i32>,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconLine<'a> {
         pub line: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Ready;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct EnterGame;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Input<'a> {
         pub ack_snapshot: i32,
         pub intended_tick: i32,
         pub input: IntegerData<'a>,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconCmd<'a> {
         pub cmd: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconAuth<'a> {
         pub _unused: &'a [u8],
         pub password: &'a [u8],
         pub request_commands: Option<i32>,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RequestMapData {
         pub chunk: i32,
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct Ping;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct PingReply;
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconCmdAdd<'a> {
         pub name: &'a [u8],
         pub help: &'a [u8],
         pub params: &'a [u8],
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub struct RconCmdRemove<'a> {
         pub name: &'a [u8],
     }
@@ -541,7 +541,7 @@ pub mod system {
 
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum System<'a> {
     Info(system::Info<'a>),
     MapChange(system::MapChange<'a>),
