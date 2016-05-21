@@ -229,6 +229,8 @@ struct OnlineState {
     // non-vital ones. This is important for resending.
     packet: PacketContents,
     packet_nonvital: PacketContents,
+    // This contains the unacked chunks that we sent, starting from the most
+    // recently sent chunk.
     resend_queue: VecDeque<ResendChunk>,
 }
 
@@ -245,6 +247,11 @@ impl OnlineState {
     }
     fn can_send(&self) -> bool {
         self.packet.num_chunks != 0 || self.request_resend
+    }
+    fn ack_chunks(&mut self, ack: Sequence) {
+        let index = self.resend_queue.iter().position(|chunk| chunk.sequence == ack);
+        // FIXME(rust#27788): Replace with `truncate`.
+        index.map(|i| self.resend_queue.drain(i..));
     }
     fn flush<CB: Callback>(&mut self, cb: &mut CB, builder: &mut PacketBuilder)
         -> Result<(), CB::Error>
@@ -294,7 +301,7 @@ impl PacketContents {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct Sequence {
+struct Sequence {
     seq: u16, // u10
 }
 
@@ -423,7 +430,9 @@ impl Connection {
         try!(self.tick_action(cb));
         Ok(())
     }
-    pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8]) -> Result<(), CB::Error> {
+    pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8])
+        -> Result<(), CB::Error>
+    {
         if let State::Unconnected = self.state {
             assert!(false, "Can't call disconnect on an unconnected connection");
         } else if let State::Disconnected = self.state {
@@ -443,10 +452,10 @@ impl Connection {
         }
         online.packet = online.packet_nonvital.clone();
         let mut i = 0;
-        while i <= online.resend_queue.len() {
+        while i < online.resend_queue.len() {
             let can_fit;
             {
-                let chunk = &online.resend_queue[i];
+                let chunk = &online.resend_queue[online.resend_queue.len() - i - 1];
                 can_fit = online.packet.can_fit_chunk(&chunk.data, true);
                 if can_fit {
                     let vital = (chunk.sequence.to_u16(), true);
@@ -469,7 +478,7 @@ impl Connection {
         let online = self.state.assert_online();
         let vital = if vital {
             let sequence = online.sequence.next();
-            online.resend_queue.push_back(ResendChunk::new(sequence, buffer));
+            online.resend_queue.push_front(ResendChunk::new(sequence, buffer));
             Some((sequence.to_u16(), false))
         } else {
             None
@@ -541,10 +550,6 @@ impl Connection {
         };
         self.send_control(cb, control)
     }
-    fn ack_chunks(&mut self, ack: Sequence) {
-        // TODO!!
-        //unimplemented!();
-    }
     /// Notifies the connection of incoming data.
     ///
     /// `buffer` must have at least size `MAX_PAYLOAD`.
@@ -575,7 +580,9 @@ impl Connection {
             };
             let ConnectedPacket { ack, type_ } = connected;
             // TODO: Check ack for sanity.
-            self.ack_chunks(Sequence::from_u16(ack));
+            if let State::Online(ref mut online) = self.state {
+                online.ack_chunks(Sequence::from_u16(ack));
+            }
 
             match type_ {
                 Chunks(request_resend, num_chunks, chunks) => {
