@@ -5,6 +5,7 @@ extern crate hexdump;
 extern crate itertools;
 extern crate mio;
 extern crate net;
+extern crate num;
 
 use arrayvec::ArrayVec;
 use buffer::Buffer;
@@ -26,8 +27,11 @@ use net::net::ChunkOrEvent;
 use net::net::ChunkType;
 use net::net::Net;
 use net::net::PeerId;
+use num::ToPrimitive;
 use std::collections::HashMap;
 use std::env;
+use std::fmt;
+use std::io::Write;
 use std::io;
 use std::mem;
 use std::net::IpAddr;
@@ -39,10 +43,37 @@ use std::time::Instant;
 
 const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug)]
+enum Direction {
+    Send,
+    Receive,
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Direction::Send => "->",
+            Direction::Receive => "<-",
+        }.fmt(f)
+    }
+}
+
+fn dump(dir: Direction, addr: Addr, data: &[u8]) {
+    let _ = (dir, addr, data);
+    //println!("{} {}", dir, addr);
+    //hexdump(data);
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Addr {
     ip: IpAddr,
     port: u16,
+}
+
+impl fmt::Display for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        SocketAddr::new(self.ip, self.port).fmt(f)
+    }
 }
 
 impl From<SocketAddr> for Addr {
@@ -125,6 +156,7 @@ impl Socket {
 impl net::net::Callback<Addr> for Socket {
     type Error = io::Error;
     fn send(&mut self, addr: Addr, data: &[u8]) -> Result<(), io::Error> {
+        dump(Direction::Send, addr, data);
         let sock_addr = SocketAddr::new(addr.ip, addr.port);
         let socket = if let IpAddr::V4(..) = addr.ip {
             &mut self.v4
@@ -144,9 +176,25 @@ fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>>
     iter.map(|s| Addr::from_str(&s).ok()).collect()
 }
 
-enum Peer {
+#[derive(Clone, Debug)]
+struct Peer {
+    state: PeerState,
+}
+
+impl Peer {
+    fn new() -> Peer {
+        Peer {
+            state: PeerState::Connecting,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum PeerState {
     Connecting,
     SentInfo,
+    // DownloadingMap(crc, chunk)
+    DownloadingMap(i32, i32),
 }
 
 struct Main {
@@ -172,46 +220,69 @@ impl Main {
         for &addr in addresses {
             let (pid, err) = main.net.connect(&mut main.socket, addr);
             err.unwrap();
-            main.peers.insert(pid, Peer::Connecting);
+            main.peers.insert(pid, Peer::new());
         }
         main
     }
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
-        let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
-        match System::decode_complete(&mut Unpacker::new(data)).unwrap() {
-            System::MapChange(MapChange { .. }) => {
-                with_packer(&mut buf, |p| System::RequestMapData(RequestMapData {
-                    chunk: 0,
-                }).encode_complete(p));
+        let msg;
+        if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
+            msg = m;
+        } else {
+            println!("decode error:");
+            hexdump(data);
+            return;
+        }
+        if !vital {
+            println!("nonvital: {:?}", msg);
+            return;
+        }
+        let mut send = None;
+        let mut disconnect = false;
+        match self.peers.get_mut(&pid).expect("invalid pid").state {
+            PeerState::Connecting => unreachable!(),
+            ref mut state @ PeerState::SentInfo => {
+                if let System::MapChange(MapChange { crc, size, .. }) = msg {
+                    if let Some(_) = size.to_usize() {
+                        send = Some(System::RequestMapData(RequestMapData { chunk: 0 }));
+                        *state = PeerState::DownloadingMap(crc, 0);
+                    }
+                }
+            }
+            PeerState::DownloadingMap(cur_crc, ref mut cur_chunk) => {
+                if let System::MapData(MapData { last, crc, chunk, .. }) = msg {
+                    if cur_crc == crc && *cur_chunk == chunk {
+                        if last != 0 {
+                            disconnect = true;
+                        } else {
+                            *cur_chunk = cur_chunk.checked_add(1).unwrap();
+                            send = Some(System::RequestMapData(RequestMapData { chunk: *cur_chunk }));
+                            print!("{}\r", cur_chunk);
+                            io::stdout().flush().unwrap();
+                        }
+                    }
+                }
+            }
+        }
+        if disconnect {
+            self.net.disconnect(&mut self.socket, pid, b"disconnected").unwrap();
+        } else {
+            send.map(|m| {
+                let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
+                with_packer(&mut buf, |p| m.encode_complete(p).unwrap());
                 self.net.send(&mut self.socket, Chunk {
                     data: &buf,
                     addr: ChunkAddr::Peer(pid, ChunkType::Vital),
                 }).unwrap();
                 self.net.flush(&mut self.socket, pid).unwrap();
-            }
-            System::MapData(MapData { last, chunk, data, .. }) => {
-                hexdump(data);
-                if last == 0 {
-                    with_packer(&mut buf, |p| System::RequestMapData(RequestMapData {
-                        chunk: chunk + 1,
-                    }).encode_complete(p));
-                    self.net.send(&mut self.socket, Chunk {
-                        data: &buf,
-                        addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-                    }).unwrap();
-                    self.net.flush(&mut self.socket, pid).unwrap();
-                } else {
-                    self.net.disconnect(&mut self.socket, pid, b"done downloading");
-                }
-            }
-            c => println!("{:?}", c),
+            });
         }
     }
     fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) {
         match chunk {
             ChunkOrEvent::Ready(pid) => {
                 let p = self.peers.get_mut(&pid).expect("invalid pid");
-                *p = Peer::SentInfo;
+                p.state = PeerState::SentInfo;
                 self.net.send(&mut self.socket, Chunk {
                     data: &self.version_msg,
                     addr: ChunkAddr::Peer(pid, ChunkType::Vital)
@@ -235,6 +306,7 @@ impl Main {
         while self.net.needs_tick() {
             while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
                 let (addr, data) = res.unwrap();
+                dump(Direction::Receive, addr, data);
                 buf2.clear();
                 let (iter, res) = self.net.feed(&mut self.socket, addr, data, &mut buf2);
                 res.unwrap();
@@ -244,7 +316,7 @@ impl Main {
             }
             let delta = self.socket.next_tick_delta();
             self.net.tick(&mut self.socket, delta).foreach(|e| panic!("{:?}", e));
-            thread::sleep(Duration::from_millis(50));
+            thread::sleep(Duration::from_millis(5));
         }
     }
 }
@@ -253,4 +325,5 @@ fn main() {
     let args = env::args().dropping(1);
     let addresses = parse_connections(args).expect("invalid addresses");
     Main::init(&addresses).run();
+    println!("Finished");
 }
