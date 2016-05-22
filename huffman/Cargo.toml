@@ -4,17 +4,16 @@ name = "huffman"
 version = "0.0.1"
 
 [dependencies]
-arrayvec = "*"
+arrayvec = "0.3.12"
 buffer = "0.1.2"
-itertools = "*"
-num = "*"
-
-[dependencies.common]
-path = "../common/"
+common = { path = "../common/" }
+itertools = ">=0.3.0,<0.5.0"
+num = "0.1.27"
+quickcheck = { version = "0.2.27", optional = true }
+quickcheck_macros = { version = "0.2.26", optional = true }
 
 [dev-dependencies]
-quickcheck = "*"
-quickcheck_macros = "*"
+huffman-reference = { path = "reference" }
 
-[dev-dependencies.huffman-reference]
-path = "reference"
+[features]
+nightly-test = ["quickcheck", "quickcheck_macros"]
