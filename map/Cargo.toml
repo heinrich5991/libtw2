@@ -5,6 +5,6 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 common = { path = "../common/" }
-env_logger = "*"
-num = "*"
 datafile = { path = "../datafile/" }
+env_logger = "0.3.0"
+num = "0.1.27"
