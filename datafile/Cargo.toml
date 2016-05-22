@@ -5,11 +5,11 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 common = { path = "../common/" }
-env_logger = "*"
+env_logger = "0.3.0"
 hexdump = "0.1.0"
-itertools = "*"
-log = "*"
-num = "*"
+itertools = ">=0.3.0,<0.5.0"
+log = "0.3.0"
+num = "0.1.27"
 zlib_minimal = { path = "../zlib_minimal" }
 
 [[bin]]
