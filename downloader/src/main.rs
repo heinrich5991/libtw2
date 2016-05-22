@@ -37,9 +37,24 @@ use std::mem;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::thread;
 use std::time::Duration;
 use std::time::Instant;
+use std::u32;
+
+trait DurationToMs {
+    fn to_milliseconds_saturating(&self) -> u32;
+}
+
+impl DurationToMs for Duration {
+    fn to_milliseconds_saturating(&self) -> u32 {
+        (self.as_secs()
+            .to_u32().unwrap_or(u32::max_value())
+            .to_u64().unwrap()
+            * 1000
+            + self.subsec_nanos().to_u64().unwrap() / 1000 / 1000
+        ).to_u32().unwrap_or(u32::max_value())
+    }
+}
 
 const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
@@ -95,6 +110,7 @@ impl FromStr for Addr {
 
 struct Socket {
     last_tick: Instant,
+    poll: mio::Poll,
     v4: UdpSocket,
     v6: UdpSocket,
 }
@@ -117,10 +133,23 @@ fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
 
 impl Socket {
     fn new() -> io::Result<Socket> {
+        fn register(poll: &mut mio::Poll, socket: &UdpSocket) -> io::Result<()> {
+            use mio::EventSet;
+            use mio::PollOpt;
+            use mio::Token;
+            poll.register(socket, Token(0), EventSet::readable(), PollOpt::level())
+        }
+
+        let v4 = try!(udp_socket("0.0.0.0:0"));
+        let v6 = try!(udp_socket("[::]:0"));
+        let mut poll = try!(mio::Poll::new());
+        try!(register(&mut poll, &v4));
+        try!(register(&mut poll, &v6));
         Ok(Socket {
             last_tick: Instant::now(),
-            v4: try!(udp_socket("0.0.0.0:0")),
-            v6: try!(udp_socket("[::]:0")),
+            poll: poll,
+            v4: v4,
+            v6: v6,
         })
     }
     fn next_tick_delta(&mut self) -> Duration {
@@ -150,6 +179,16 @@ impl Socket {
             buf.advance(len);
             (Addr::from(addr), buf.initialized())
         }))
+    }
+    fn sleep(&mut self, duration: Duration) -> io::Result<()> {
+        let milliseconds = duration.to_milliseconds_saturating().to_usize().unwrap();
+        try!(self.poll.poll(Some(milliseconds)));
+        // TODO: Add a verification that this also works with
+        // ```
+        // try!(self.poll.poll(None));
+        // ```
+        // on loss-free networks.
+        Ok(())
     }
 }
 
@@ -304,6 +343,10 @@ impl Main {
         let mut buf1: ArrayVec<[u8; 4096]> = ArrayVec::new();
         let mut buf2: ArrayVec<[u8; 4096]> = ArrayVec::new();
         while self.net.needs_tick() {
+            let delta = self.socket.next_tick_delta();
+            self.net.tick(&mut self.socket, delta).foreach(|e| panic!("{:?}", e));
+            self.socket.sleep(Duration::from_millis(50)).unwrap();
+
             while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
                 let (addr, data) = res.unwrap();
                 dump(Direction::Receive, addr, data);
@@ -314,9 +357,6 @@ impl Main {
                     self.process_event(chunk);
                 }
             }
-            let delta = self.socket.next_tick_delta();
-            self.net.tick(&mut self.socket, delta).foreach(|e| panic!("{:?}", e));
-            thread::sleep(Duration::from_millis(5));
         }
     }
 }
