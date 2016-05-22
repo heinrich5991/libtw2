@@ -1,8 +1,10 @@
 extern crate arrayvec;
 extern crate buffer;
+extern crate env_logger;
 extern crate gamenet;
 extern crate hexdump;
 extern crate itertools;
+#[macro_use] extern crate log;
 extern crate mio;
 extern crate net;
 extern crate num;
@@ -18,8 +20,9 @@ use gamenet::msg::system::MapData;
 use gamenet::msg::system::RequestMapData;
 use gamenet::packer::Unpacker;
 use gamenet::packer::with_packer;
-use hexdump::hexdump;
+use hexdump::hexdump_iter;
 use itertools::Itertools;
+use log::LogLevel;
 use mio::udp::UdpSocket;
 use net::net::Chunk;
 use net::net::ChunkAddr;
@@ -73,10 +76,15 @@ impl fmt::Display for Direction {
     }
 }
 
+fn hexdump(level: LogLevel, data: &[u8]) {
+    if log_enabled!(level) {
+        hexdump_iter(data).foreach(|s| log!(level, "{}", s));
+    }
+}
+
 fn dump(dir: Direction, addr: Addr, data: &[u8]) {
-    let _ = (dir, addr, data);
-    //println!("{} {}", dir, addr);
-    //hexdump(data);
+    debug!("{} {}", dir, addr);
+    hexdump(LogLevel::Debug, data);
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -268,23 +276,28 @@ impl Main {
         if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
             msg = m;
         } else {
-            println!("decode error:");
-            hexdump(data);
+            warn!("decode error:");
+            hexdump(LogLevel::Warn, data);
             return;
         }
+        debug!("{:?}", msg);
         if !vital {
-            println!("nonvital: {:?}", msg);
+            warn!("nonvital: {:?}", msg);
             return;
         }
-        let mut send = None;
+        let mut request_chunk = None;
         let mut disconnect = false;
         match self.peers.get_mut(&pid).expect("invalid pid").state {
             PeerState::Connecting => unreachable!(),
             ref mut state @ PeerState::SentInfo => {
-                if let System::MapChange(MapChange { crc, size, .. }) = msg {
+                if let System::MapChange(MapChange { crc, size, name }) = msg {
                     if let Some(_) = size.to_usize() {
-                        send = Some(System::RequestMapData(RequestMapData { chunk: 0 }));
+
+                        request_chunk = Some(0);
                         *state = PeerState::DownloadingMap(crc, 0);
+                        info!("map change: {:?}", String::from_utf8_lossy(name));
+                    } else {
+                        warn!("map change message with negative size");
                     }
                 }
             }
@@ -292,10 +305,11 @@ impl Main {
                 if let System::MapData(MapData { last, crc, chunk, .. }) = msg {
                     if cur_crc == crc && *cur_chunk == chunk {
                         if last != 0 {
+                            println!("Finished");
                             disconnect = true;
                         } else {
                             *cur_chunk = cur_chunk.checked_add(1).unwrap();
-                            send = Some(System::RequestMapData(RequestMapData { chunk: *cur_chunk }));
+                            request_chunk = Some(*cur_chunk);
                             print!("{}\r", cur_chunk);
                             io::stdout().flush().unwrap();
                         }
@@ -304,9 +318,10 @@ impl Main {
             }
         }
         if disconnect {
-            self.net.disconnect(&mut self.socket, pid, b"disconnected").unwrap();
+            self.net.disconnect(&mut self.socket, pid, b"maps").unwrap();
         } else {
-            send.map(|m| {
+            request_chunk.map(|c| {
+                let m = System::RequestMapData(RequestMapData { chunk: c });
                 let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
                 with_packer(&mut buf, |p| m.encode_complete(p).unwrap());
                 self.net.send(&mut self.socket, Chunk {
@@ -362,8 +377,8 @@ impl Main {
 }
 
 fn main() {
+    env_logger::init().unwrap();
     let args = env::args().dropping(1);
     let addresses = parse_connections(args).expect("invalid addresses");
     Main::init(&addresses).run();
-    println!("Finished");
 }
