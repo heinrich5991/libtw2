@@ -29,6 +29,7 @@ use error::Error;
 use packer::Packer;
 use packer::Unpacker;
 use packer::with_packer;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug)]
 pub struct IntegerData<'a> {
@@ -199,9 +200,11 @@ def generate_mod_start(msgs):
     return """\
 pub mod system {
     use buffer::CapacityError;
+    use bytes::PrettyBytes;
     use error::Error;
     use packer::Packer;
     use packer::Unpacker;
+    use std::fmt;
     use super::IntegerData;
 """
 
@@ -218,7 +221,7 @@ def generate_constants(msgs):
 def generate_structs(msgs):
     result = []
     for _, name, members in msgs:
-        result.append("    #[derive(Clone, Copy, Debug)]")
+        result.append("    #[derive(Clone, Copy)]")
         if members:
             result.append("    pub struct {}{} {{".format(struct_name(name), lifetime(members)))
             for type_, opt, name in members:
@@ -234,6 +237,29 @@ def generate_struct_impl(msgs):
     for _, name, members in msgs:
         n = struct_name(name)
         l = lifetime(members)
+        result.append("    impl{l} fmt::Debug for {}{l} {{".format(n, l=l))
+        result.append("        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+        result.append("            f.debug_struct(\"{}\")".format(n))
+        for type_, opt, name in members:
+            if not opt:
+                conv = ".field(\"{name}\", &{conv}(self.{name})".format
+            else:
+                conv = "{}.ok()".format
+            pretty = None
+            if type_ == 'string' or type_ == 'data':
+                pretty = "PrettyBytes::new"
+            if not pretty:
+                conv = ".field(\"{name}\", &self.{name})"
+            elif pretty and not opt:
+                conv = ".field(\"{name}\", &{pretty}(&self.{name}))"
+            elif pretty and opt:
+                conv = ".field(\"{name}\", &self.{name}.as_ref().map(|{name}| {pretty}({name})))"
+            else:
+                raise RuntimeError("unreachable")
+            result.append(" "*4*4 + conv.format(name=name, pretty=pretty))
+        result.append("                .finish()")
+        result.append("        }")
+        result.append("    }")
         result.append("    impl{l} {}{l} {{".format(n, l=l))
         result.append("        pub fn decode(_p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(n, l=l))
         if members:
@@ -286,7 +312,7 @@ def generate_system_extra(msgs):
 
 def generate_enum(msgs):
     result = []
-    result.append("#[derive(Clone, Copy, Debug)]")
+    result.append("#[derive(Clone, Copy)]")
     result.append("pub enum System<'a> {")
     for _, name, members in msgs:
         result.append("    {s}(system::{s}{}),".format(lifetime(members), s=struct_name(name)))
@@ -316,6 +342,14 @@ def generate_enum_impl(msgs):
     result.append("        match *self {")
     for _, name, _ in msgs:
         result.append("            System::{}(ref i) => i.encode(p),".format(struct_name(name), const_name(name)))
+    result.append("        }")
+    result.append("    }")
+    result.append("}")
+    result.append("impl<'a> fmt::Debug for System<'a> {")
+    result.append("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+    result.append("        match *self {")
+    for _, name, members in msgs:
+        result.append("            System::{}(m) => m.fmt(f),".format(struct_name(name)))
     result.append("        }")
     result.append("    }")
     result.append("}")

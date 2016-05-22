@@ -3,6 +3,7 @@ use error::Error;
 use packer::Packer;
 use packer::Unpacker;
 use packer::with_packer;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug)]
 pub struct IntegerData<'a> {
@@ -81,9 +82,11 @@ impl<'a> System<'a> {
 
 pub mod system {
     use buffer::CapacityError;
+    use bytes::PrettyBytes;
     use error::Error;
     use packer::Packer;
     use packer::Unpacker;
+    use std::fmt;
     use super::IntegerData;
 
     pub const INFO: i32 = 1;
@@ -107,20 +110,20 @@ pub mod system {
     pub const RCON_CMD_ADD: i32 = 25;
     pub const RCON_CMD_REMOVE: i32 = 26;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct Info<'a> {
         pub version: &'a [u8],
         pub password: Option<&'a [u8]>,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct MapChange<'a> {
         pub name: &'a [u8],
         pub crc: i32,
         pub size: i32,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct MapData<'a> {
         pub last: i32,
         pub crc: i32,
@@ -128,10 +131,10 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct ConReady;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct Snap<'a> {
         pub tick: i32,
         pub delta_tick: i32,
@@ -141,13 +144,13 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct SnapEmpty {
         pub tick: i32,
         pub delta_tick: i32,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct SnapSingle<'a> {
         pub tick: i32,
         pub delta_tick: i32,
@@ -155,71 +158,79 @@ pub mod system {
         pub data: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct InputTiming {
         pub input_pred_tick: i32,
         pub time_left: i32,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconAuthStatus {
         pub auth_level: Option<i32>,
         pub receive_commands: Option<i32>,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconLine<'a> {
         pub line: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct Ready;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct EnterGame;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct Input<'a> {
         pub ack_snapshot: i32,
         pub intended_tick: i32,
         pub input: IntegerData<'a>,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconCmd<'a> {
         pub cmd: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconAuth<'a> {
         pub _unused: &'a [u8],
         pub password: &'a [u8],
         pub request_commands: Option<i32>,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RequestMapData {
         pub chunk: i32,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct Ping;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct PingReply;
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconCmdAdd<'a> {
         pub name: &'a [u8],
         pub help: &'a [u8],
         pub params: &'a [u8],
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy)]
     pub struct RconCmdRemove<'a> {
         pub name: &'a [u8],
     }
 
+    impl<'a> fmt::Debug for Info<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("Info")
+                .field("version", &PrettyBytes::new(&self.version))
+                .field("password", &self.password.as_ref().map(|password| PrettyBytes::new(password)))
+                .finish()
+        }
+    }
     impl<'a> Info<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
             Ok(Info {
@@ -229,6 +240,15 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for MapChange<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("MapChange")
+                .field("name", &PrettyBytes::new(&self.name))
+                .field("crc", &self.crc)
+                .field("size", &self.size)
+                .finish()
+        }
+    }
     impl<'a> MapChange<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<MapChange<'a>, Error> {
             Ok(MapChange {
@@ -247,6 +267,16 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for MapData<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("MapData")
+                .field("last", &self.last)
+                .field("crc", &self.crc)
+                .field("chunk", &self.chunk)
+                .field("data", &PrettyBytes::new(&self.data))
+                .finish()
+        }
+    }
     impl<'a> MapData<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<MapData<'a>, Error> {
             Ok(MapData {
@@ -267,6 +297,12 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for ConReady {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("ConReady")
+                .finish()
+        }
+    }
     impl ConReady {
         pub fn decode(_p: &mut Unpacker) -> Result<ConReady, Error> {
             Ok(ConReady)
@@ -278,6 +314,18 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for Snap<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("Snap")
+                .field("tick", &self.tick)
+                .field("delta_tick", &self.delta_tick)
+                .field("num_parts", &self.num_parts)
+                .field("part", &self.part)
+                .field("crc", &self.crc)
+                .field("data", &PrettyBytes::new(&self.data))
+                .finish()
+        }
+    }
     impl<'a> Snap<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<Snap<'a>, Error> {
             Ok(Snap {
@@ -302,6 +350,14 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for SnapEmpty {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("SnapEmpty")
+                .field("tick", &self.tick)
+                .field("delta_tick", &self.delta_tick)
+                .finish()
+        }
+    }
     impl SnapEmpty {
         pub fn decode(_p: &mut Unpacker) -> Result<SnapEmpty, Error> {
             Ok(SnapEmpty {
@@ -318,6 +374,16 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for SnapSingle<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("SnapSingle")
+                .field("tick", &self.tick)
+                .field("delta_tick", &self.delta_tick)
+                .field("crc", &self.crc)
+                .field("data", &PrettyBytes::new(&self.data))
+                .finish()
+        }
+    }
     impl<'a> SnapSingle<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<SnapSingle<'a>, Error> {
             Ok(SnapSingle {
@@ -338,6 +404,14 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for InputTiming {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("InputTiming")
+                .field("input_pred_tick", &self.input_pred_tick)
+                .field("time_left", &self.time_left)
+                .finish()
+        }
+    }
     impl InputTiming {
         pub fn decode(_p: &mut Unpacker) -> Result<InputTiming, Error> {
             Ok(InputTiming {
@@ -354,6 +428,14 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for RconAuthStatus {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconAuthStatus")
+                .field("auth_level", &self.auth_level)
+                .field("receive_commands", &self.receive_commands)
+                .finish()
+        }
+    }
     impl RconAuthStatus {
         pub fn decode(_p: &mut Unpacker) -> Result<RconAuthStatus, Error> {
             Ok(RconAuthStatus {
@@ -363,6 +445,13 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for RconLine<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconLine")
+                .field("line", &PrettyBytes::new(&self.line))
+                .finish()
+        }
+    }
     impl<'a> RconLine<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconLine<'a>, Error> {
             Ok(RconLine {
@@ -377,6 +466,12 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for Ready {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("Ready")
+                .finish()
+        }
+    }
     impl Ready {
         pub fn decode(_p: &mut Unpacker) -> Result<Ready, Error> {
             Ok(Ready)
@@ -388,6 +483,12 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for EnterGame {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("EnterGame")
+                .finish()
+        }
+    }
     impl EnterGame {
         pub fn decode(_p: &mut Unpacker) -> Result<EnterGame, Error> {
             Ok(EnterGame)
@@ -399,6 +500,15 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for Input<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("Input")
+                .field("ack_snapshot", &self.ack_snapshot)
+                .field("intended_tick", &self.intended_tick)
+                .field("input", &self.input)
+                .finish()
+        }
+    }
     impl<'a> Input<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<Input<'a>, Error> {
             Ok(Input {
@@ -417,6 +527,13 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for RconCmd<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconCmd")
+                .field("cmd", &PrettyBytes::new(&self.cmd))
+                .finish()
+        }
+    }
     impl<'a> RconCmd<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmd<'a>, Error> {
             Ok(RconCmd {
@@ -431,6 +548,15 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for RconAuth<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconAuth")
+                .field("_unused", &PrettyBytes::new(&self._unused))
+                .field("password", &PrettyBytes::new(&self.password))
+                .field("request_commands", &self.request_commands)
+                .finish()
+        }
+    }
     impl<'a> RconAuth<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconAuth<'a>, Error> {
             Ok(RconAuth {
@@ -441,6 +567,13 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for RequestMapData {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RequestMapData")
+                .field("chunk", &self.chunk)
+                .finish()
+        }
+    }
     impl RequestMapData {
         pub fn decode(_p: &mut Unpacker) -> Result<RequestMapData, Error> {
             Ok(RequestMapData {
@@ -455,6 +588,12 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for Ping {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("Ping")
+                .finish()
+        }
+    }
     impl Ping {
         pub fn decode(_p: &mut Unpacker) -> Result<Ping, Error> {
             Ok(Ping)
@@ -466,6 +605,12 @@ pub mod system {
         }
     }
 
+    impl fmt::Debug for PingReply {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("PingReply")
+                .finish()
+        }
+    }
     impl PingReply {
         pub fn decode(_p: &mut Unpacker) -> Result<PingReply, Error> {
             Ok(PingReply)
@@ -477,6 +622,15 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for RconCmdAdd<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconCmdAdd")
+                .field("name", &PrettyBytes::new(&self.name))
+                .field("help", &PrettyBytes::new(&self.help))
+                .field("params", &PrettyBytes::new(&self.params))
+                .finish()
+        }
+    }
     impl<'a> RconCmdAdd<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmdAdd<'a>, Error> {
             Ok(RconCmdAdd {
@@ -495,6 +649,13 @@ pub mod system {
         }
     }
 
+    impl<'a> fmt::Debug for RconCmdRemove<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RconCmdRemove")
+                .field("name", &PrettyBytes::new(&self.name))
+                .finish()
+        }
+    }
     impl<'a> RconCmdRemove<'a> {
         pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmdRemove<'a>, Error> {
             Ok(RconCmdRemove {
@@ -541,7 +702,7 @@ pub mod system {
 
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum System<'a> {
     Info(system::Info<'a>),
     MapChange(system::MapChange<'a>),
@@ -639,6 +800,32 @@ impl<'a> System<'a> {
             System::PingReply(ref i) => i.encode(p),
             System::RconCmdAdd(ref i) => i.encode(p),
             System::RconCmdRemove(ref i) => i.encode(p),
+        }
+    }
+}
+impl<'a> fmt::Debug for System<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            System::Info(m) => m.fmt(f),
+            System::MapChange(m) => m.fmt(f),
+            System::MapData(m) => m.fmt(f),
+            System::ConReady(m) => m.fmt(f),
+            System::Snap(m) => m.fmt(f),
+            System::SnapEmpty(m) => m.fmt(f),
+            System::SnapSingle(m) => m.fmt(f),
+            System::InputTiming(m) => m.fmt(f),
+            System::RconAuthStatus(m) => m.fmt(f),
+            System::RconLine(m) => m.fmt(f),
+            System::Ready(m) => m.fmt(f),
+            System::EnterGame(m) => m.fmt(f),
+            System::Input(m) => m.fmt(f),
+            System::RconCmd(m) => m.fmt(f),
+            System::RconAuth(m) => m.fmt(f),
+            System::RequestMapData(m) => m.fmt(f),
+            System::Ping(m) => m.fmt(f),
+            System::PingReply(m) => m.fmt(f),
+            System::RconCmdAdd(m) => m.fmt(f),
+            System::RconCmdRemove(m) => m.fmt(f),
         }
     }
 }

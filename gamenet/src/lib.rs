@@ -9,3 +9,5 @@ extern crate num;
 pub mod error;
 pub mod msg;
 pub mod packer;
+
+mod bytes;
