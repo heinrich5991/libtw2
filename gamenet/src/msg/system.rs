@@ -25,6 +25,9 @@ impl<'a> System<'a> {
     }
 }
 
+/// Default input data for use with `Input`.
+pub const INPUT_DATA_EMPTY: IntegerData<'static> = IntegerData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
+
 pub const INFO: i32 = 1;
 pub const MAP_CHANGE: i32 = 2;
 pub const MAP_DATA: i32 = 3;
@@ -606,35 +609,35 @@ impl<'a> RconCmdRemove<'a> {
     }
 }
 
-    impl<'a> Info<'a> {
-        pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
-            -> Result<&'d [u8], CapacityError>
-        {
-            try!(_p.write_string(self.version));
-            try!(_p.write_string(self.password.expect("Info needs a password")));
-            Ok(_p.written())
-        }
+impl<'a> Info<'a> {
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(_p.write_string(self.version));
+        try!(_p.write_string(self.password.expect("Info needs a password")));
+        Ok(_p.written())
     }
-    impl RconAuthStatus {
-        pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
-            -> Result<&'d [u8], CapacityError>
-        {
-            assert!(self.auth_level.is_some() || self.receive_commands.is_none());
-            try!(self.auth_level.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
-            try!(self.receive_commands.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
-            Ok(_p.written())
-        }
+}
+impl RconAuthStatus {
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        assert!(self.auth_level.is_some() || self.receive_commands.is_none());
+        try!(self.auth_level.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
+        try!(self.receive_commands.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
+        Ok(_p.written())
     }
-    impl<'a> RconAuth<'a> {
-        pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
-            -> Result<&'d [u8], CapacityError>
-        {
-            try!(_p.write_string(self._unused));
-            try!(_p.write_string(self.password));
-            try!(self.request_commands.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
-            Ok(_p.written())
-        }
+}
+impl<'a> RconAuth<'a> {
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(_p.write_string(self._unused));
+        try!(_p.write_string(self.password));
+        try!(self.request_commands.map(|v| _p.write_int(v)).unwrap_or(Ok(())));
+        Ok(_p.written())
     }
+}
 
 #[derive(Clone, Copy)]
 pub enum System<'a> {
