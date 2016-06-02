@@ -15,9 +15,15 @@ use buffer::BufferRef;
 use buffer::with_buffer;
 use gamenet::msg::System;
 use gamenet::msg::system::Info;
+use gamenet::msg::system::Input;
 use gamenet::msg::system::MapChange;
 use gamenet::msg::system::MapData;
+use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
+use gamenet::msg::system::Snap;
+use gamenet::msg::system::SnapEmpty;
+use gamenet::msg::system::SnapSingle;
+use gamenet::msg::system;
 use gamenet::packer::Unpacker;
 use gamenet::packer::with_packer;
 use hexdump::hexdump_iter;
@@ -240,8 +246,10 @@ impl Peer {
 enum PeerState {
     Connecting,
     SentInfo,
-    // DownloadingMap(crc, chunk)
-    DownloadingMap(i32, i32),
+    // DownloadingMap(dummy, crc, chunk)
+    DownloadingMap(bool, i32, i32),
+    // SentReady(dummy, num_chunks)
+    SentReady(bool, u32),
 }
 
 struct Main {
@@ -271,68 +279,104 @@ impl Main {
         }
         main
     }
-    fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
+    fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
+        fn send(msg: System, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
+            let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
+            with_packer(&mut buf, |p| msg.encode_complete(p).unwrap());
+            net.send(socket, Chunk {
+                data: &buf,
+                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+            }).unwrap();
+            net.flush(socket, pid).unwrap();
+        }
         let msg;
         if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
             msg = m;
         } else {
             warn!("decode error:");
             hexdump(LogLevel::Warn, data);
-            return;
+            return false;
         }
         debug!("{:?}", msg);
-        if !vital {
-            warn!("nonvital: {:?}", msg);
-            return;
-        }
         let mut request_chunk = None;
         let mut disconnect = false;
-        match self.peers.get_mut(&pid).expect("invalid pid").state {
-            PeerState::Connecting => unreachable!(),
-            ref mut state @ PeerState::SentInfo => {
-                if let System::MapChange(MapChange { crc, size, name }) = msg {
-                    if let Some(_) = size.to_usize() {
-
-                        request_chunk = Some(0);
-                        *state = PeerState::DownloadingMap(crc, 0);
-                        info!("map change: {:?}", String::from_utf8_lossy(name));
-                    } else {
-                        warn!("map change message with negative size");
+        let mut processed = false;
+        {
+            let state = &mut self.peers.get_mut(&pid).expect("invalid pid").state;
+            if let System::MapChange(MapChange { crc, size, name }) = msg {
+                if let Some(_) = size.to_usize() {
+                    request_chunk = Some(0);
+                    match *state {
+                        PeerState::SentInfo => {}
+                        PeerState::SentReady(true, _) => info!("now getting real map"),
+                        _ => warn!("map change from state {:?}", *state),
                     }
+                    let dummy = name == b"dummy" && crc == 0xbeae0b9f;
+                    *state = PeerState::DownloadingMap(dummy, crc, 0);
+                    info!("map change: {:?}", String::from_utf8_lossy(name));
+                    processed = true;
                 }
             }
-            PeerState::DownloadingMap(cur_crc, ref mut cur_chunk) => {
-                if let System::MapData(MapData { last, crc, chunk, .. }) = msg {
-                    if cur_crc == crc && *cur_chunk == chunk {
-                        if last != 0 {
-                            println!("Finished");
-                            disconnect = true;
-                        } else {
-                            *cur_chunk = cur_chunk.checked_add(1).unwrap();
-                            request_chunk = Some(*cur_chunk);
-                            print!("{}\r", cur_chunk);
-                            io::stdout().flush().unwrap();
+            match *state {
+                PeerState::Connecting => unreachable!(),
+                PeerState::SentInfo => {}, // Handled above.
+                PeerState::DownloadingMap(dummy, cur_crc, cur_chunk) => {
+                    if let System::MapData(MapData { last, crc, chunk, .. }) = msg {
+                        if cur_crc == crc && cur_chunk == chunk {
+                            if last != 0 {
+                                *state = PeerState::SentReady(dummy, 0);
+                                let m = System::Ready(Ready);
+                                send(m, pid, &mut self.net, &mut self.socket);
+                                info!("finished");
+                            } else {
+                                let cur_chunk = cur_chunk.checked_add(1).unwrap();
+                                *state = PeerState::DownloadingMap(dummy, cur_crc, cur_chunk);
+                                request_chunk = Some(cur_chunk);
+                                print!("{}\r", cur_chunk);
+                                io::stdout().flush().unwrap();
+                            }
                         }
+                        processed = true;
                     }
                 }
+                PeerState::SentReady(dummy, num_snaps) => {
+                    match msg {
+                        System::ConReady(..) => {
+                            if !dummy {
+                                disconnect = true;
+                            }
+                            processed = true;
+                        }
+                        System::Snap(Snap { tick, .. })
+                        | System::SnapEmpty(SnapEmpty { tick, .. })
+                        | System::SnapSingle(SnapSingle { tick, .. })
+                        => {
+                            let num_snaps = num_snaps.checked_add(1).unwrap();
+                            *state = PeerState::SentReady(dummy, num_snaps);
+                            if num_snaps == 3 {
+                                send(System::Input(Input {
+                                    ack_snapshot: tick,
+                                    intended_tick: tick,
+                                    input: system::INPUT_DATA_EMPTY,
+                                }), pid, &mut self.net, &mut self.socket);
+                            }
+                            processed = true;
+                        }
+                        _ => {},
+                    }
+                },
             }
         }
-        if disconnect {
-            self.net.disconnect(&mut self.socket, pid, b"maps").unwrap();
-        } else {
-            request_chunk.map(|c| {
-                let m = System::RequestMapData(RequestMapData { chunk: c });
-                let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
-                with_packer(&mut buf, |p| m.encode_complete(p).unwrap());
-                self.net.send(&mut self.socket, Chunk {
-                    data: &buf,
-                    addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-                }).unwrap();
-                self.net.flush(&mut self.socket, pid).unwrap();
-            });
+        if !processed {
+            warn!("unprocessed message {:?}", msg);
         }
+        request_chunk.map(|c| {
+            let m = System::RequestMapData(RequestMapData { chunk: c });
+            send(m, pid, &mut self.net, &mut self.socket);
+        });
+        disconnect
     }
-    fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) {
+    fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) -> bool {
         match chunk {
             ChunkOrEvent::Ready(pid) => {
                 let p = self.peers.get_mut(&pid).expect("invalid pid");
@@ -342,16 +386,19 @@ impl Main {
                     addr: ChunkAddr::Peer(pid, ChunkType::Vital)
                 }).unwrap();
                 self.net.flush(&mut self.socket, pid).unwrap();
+                false
             }
             ChunkOrEvent::Chunk(Chunk {
                 addr: ChunkAddr::Peer(pid, type_),
                 data,
             }) => {
                 if type_ != ChunkType::Connless {
-                    self.process_connected_packet(pid, type_ == ChunkType::Vital, data);
+                    self.process_connected_packet(pid, type_ == ChunkType::Vital, data)
+                } else {
+                    false
                 }
             }
-            _ => {}
+            _ => false,
         }
     }
     fn run(&mut self) {
@@ -369,7 +416,19 @@ impl Main {
                 let (iter, res) = self.net.feed(&mut self.socket, addr, data, &mut buf2);
                 res.unwrap();
                 for chunk in iter {
-                    self.process_event(chunk);
+                    if self.process_event(chunk) {
+                        let pid = match chunk {
+                            ChunkOrEvent::Chunk(Chunk {
+                                addr: ChunkAddr::Peer(pid, _), ..
+                            }) => pid,
+                            ChunkOrEvent::Connect(pid) => pid,
+                            ChunkOrEvent::Disconnect(pid, _) => pid,
+                            ChunkOrEvent::Ready(pid) => pid,
+                            _ => unreachable!(),
+                        };
+                        self.net.disconnect(&mut self.socket, pid, b"maps").unwrap();
+                        break;
+                    }
                 }
             }
         }
