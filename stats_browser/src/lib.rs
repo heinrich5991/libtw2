@@ -1,7 +1,5 @@
 #![cfg(not(test))]
 
-#![feature(lookup_host)]
-
 #[macro_use] extern crate log;
 extern crate num;
 extern crate rustc_serialize;
