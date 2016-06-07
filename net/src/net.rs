@@ -28,7 +28,7 @@ pub trait Callback<A: Address> {
 #[derive(Debug)]
 pub enum Warning<A: Address> {
     Peer(A, PeerId, connection::Warning),
-    Connless(A, protocol::Warning),
+    Connless(A, connection::Warning),
 }
 
 impl<A: Address> Warning<A> {
@@ -286,9 +286,15 @@ fn cc<A: Address, CB: Callback<A>>(cb: &mut CB, addr: A) -> ConnectionCallback<A
     }
 }
 
+impl<'a, A: Address, W: Warn<Warning<A>>> Warn<connection::Warning> for WarnCallback<'a, A, W> {
+    fn warn(&mut self, warning: connection::Warning) {
+        self.warn.warn(Warning::Connless(self.addr, warning))
+    }
+}
+
 impl<'a, A: Address, W: Warn<Warning<A>>> Warn<protocol::Warning> for WarnCallback<'a, A, W> {
     fn warn(&mut self, warning: protocol::Warning) {
-        self.warn.warn(Warning::Connless(self.addr, warning))
+        self.warn.warn(Warning::Connless(self.addr, connection::Warning::Packet(warning)))
     }
 }
 
@@ -420,19 +426,25 @@ impl<A: Address> Net<A> {
             let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), &mut wp(warn, addr, pid), data, &mut buf);
             (ReceivePacket::connected(pid, packet, self), e)
         } else {
-            let packet = Packet::read(&mut w(warn, addr), data, &mut buf);
-            if let Some(Packet::Connless(d)) = packet {
+            let packet = match Packet::read(&mut w(warn, addr), data, &mut buf) {
+                Ok(p) => p,
+                Err(e) => {
+                    w(warn, addr).warn(connection::Warning::Read(e));
+                    return (ReceivePacket::none(), Ok(()));
+                }
+            };
+            if let Packet::Connless(d) = packet {
                 (ReceivePacket::connless(addr, d), Ok(()))
-            } else if let Some(Packet::Connected(ConnectedPacket {
+            } else if let Packet::Connected(ConnectedPacket {
                     type_: ConnectedPacketType::Control(ControlPacket::Connect), ..
-                })) = packet
+                }) = packet
             {
                 let (pid, peer) = self.peers.new_peer(addr);
                 let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), &mut wp(warn, addr, pid), data, &mut buf);
                 assert!(none.next().is_none());
                 (ReceivePacket::connect(pid), e)
             } else {
-                // WARN
+                w(warn, addr).warn(connection::Warning::Unexpected);
                 (ReceivePacket::none(), Ok(()))
             }
         }
@@ -469,6 +481,7 @@ mod test {
     use super::Net;
     use void::ResultVoidExt;
     use void::Void;
+    use warning::NoWarn;
 
     #[test]
     fn establish_connection() {
@@ -517,7 +530,7 @@ mod test {
         cb.recipient = Address::Client;
         let s_pid;
         {
-            let p = net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
+            let p = net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
             assert!(p.len() == 1);
             if let ChunkOrEvent::Connect(s) = p[0] {
                 s_pid = s;
@@ -530,13 +543,13 @@ mod test {
 
         // Accept
         cb.recipient = Address::Server;
-        assert!(net.feed(cb, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
+        assert!(net.feed(cb, &mut NoWarn, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ChunkOrEvent::Ready(c_pid)]);
         let packet = cb.packets.pop_front().unwrap();
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
         assert!(cb.packets.is_empty());
 
         // Disconnect
@@ -546,7 +559,7 @@ mod test {
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
+        assert!(net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ChunkOrEvent::Disconnect(s_pid, b"foobar")]);
         assert!(cb.packets.is_empty());
     }

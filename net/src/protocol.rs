@@ -63,15 +63,29 @@ impl From<buffer::CapacityError> for Error {
 }
 
 #[derive(Debug)]
-pub struct Warning;
-
-trait WarnExt: Warn<Warning> {
-    fn warn_(&mut self) {
-        self.warn(Warning)
-    }
+pub enum Warning {
+    ChunkHeaderPadding,
+    ChunkHeaderSequence,
+    ChunksUnknownData,
+    ChunksNumChunks,
+    ConnlessPadding,
+    ControlExcessData,
+    ControlFlags,
+    ControlNulTermination,
+    ControlNumChunks,
+    PacketHeaderPadding,
 }
 
-impl<W: Warn<Warning>> WarnExt for W { }
+#[derive(Debug)]
+pub enum PacketReadError {
+    Compression,
+    CompressionTooLong,
+    ControlMissing,
+    ShortConnless,
+    TooLong,
+    TooShort,
+    UnknownControl,
+}
 
 #[derive(Clone, Copy)]
 pub enum ControlPacket<'a> {
@@ -118,6 +132,11 @@ impl<'a> ChunksIter<'a> {
             data: data,
         }
     }
+    fn excess_data<W: Warn<Warning>>(&mut self, warn: &mut W) -> Option<Chunk<'static>> {
+        warn.warn(Warning::ChunksUnknownData);
+        self.data = &[];
+        None
+    }
     pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
         where W: Warn<Warning>
     {
@@ -126,13 +145,13 @@ impl<'a> ChunksIter<'a> {
         }
         let (raw_header, mut chunk_data_and_rest) =
             unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data),
-                              { warn.warn_(); None });
+                              self.excess_data(warn));
         let header = raw_header.unpack_warn(&mut NoWarn);
         let vital;
         if header.flags & CHUNKFLAG_VITAL != 0 {
             let (header, d) =
                 unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data),
-                                  { warn.warn_(); None });
+                                  self.excess_data(warn));
             let header = header.unpack_warn(warn);
             chunk_data_and_rest = d;
             vital = Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0));
@@ -142,9 +161,7 @@ impl<'a> ChunksIter<'a> {
         }
         let size = header.size.to_usize().unwrap();
         if chunk_data_and_rest.len() < size {
-            self.data = &[];
-            warn.warn_();
-            return None;
+            return self.excess_data(warn);
         }
         let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
         self.data = rest;
@@ -244,59 +261,62 @@ impl<'a> Packet<'a> {
     /// Parse a packet.
     ///
     /// `buffer` needs to have at least size `MAX_PAYLOAD`.
-    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B) -> Option<Packet<'b>>
+    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B)
+        -> Result<Packet<'b>, PacketReadError>
         where B: Buffer<'b>,
               W: Warn<Warning>,
     {
         with_buffer(buffer, |b| Packet::read_impl(warn, bytes, b))
     }
     fn read_impl<'d, 's, W>(warn: &mut W, bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
-        -> Option<Packet<'d>>
+        -> Result<Packet<'d>, PacketReadError>
         where W: Warn<Warning>,
     {
+        use self::PacketReadError::*;
+
         assert!(buffer.remaining() >= MAX_PAYLOAD);
         if bytes.len() > MAX_PACKETSIZE {
-            return None;
+            return Err(TooLong);
         }
-        let (header, payload) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes));
+        let (header, payload) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes), Err(TooShort));
         let header = header.unpack_warn(warn);
         if header.flags & PACKETFLAG_CONNLESS != 0 {
             if payload.len() < PADDING_SIZE_CONNLESS {
-                return None;
+                return Err(ShortConnless);
             }
             let (padding, payload) = payload.split_at(PADDING_SIZE_CONNLESS);
             if !padding.iter().all(|&b| b == 0xff) {
-                warn.warn_();
+                warn.warn(Warning::ConnlessPadding);
             }
-            return Some(Packet::Connless(payload));
+            return Ok(Packet::Connless(payload));
         }
 
         let payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
-            unwrap_or_return!(decompress(payload, &mut buffer).ok())
+            unwrap_or_return!(decompress(payload, &mut buffer).ok(), Err(Compression))
         } else {
             payload
         };
 
         if payload.len() > MAX_PAYLOAD {
-            return None;
+            return Err(CompressionTooLong);
         }
 
         let ack = header.ack;
         let type_ = if header.flags & PACKETFLAG_CONTROL != 0 {
             if header.num_chunks != 0 {
-                warn.warn_();
+                warn.warn(Warning::ControlNumChunks);
             }
             if header.flags & PACKETFLAG_COMPRESSION != 0
                 || header.flags & PACKETFLAG_REQUEST_RESEND != 0
             {
                 // TODO: Should we handle these flags? Vanilla does that too.
-                warn.warn_();
+                warn.warn(Warning::ControlFlags);
             }
 
             let (&control, payload) = unwrap_or_return!(payload.split_first(),
-                                                        { warn.warn_(); None });
+                                                        Err(ControlMissing));
             if control != CTRLMSG_CLOSE && payload.len() != 0 {
-                warn.warn_();
+                warn.warn(Warning::ControlExcessData);
             }
             let control = match control {
                 CTRLMSG_KEEPALIVE => ControlPacket::KeepAlive,
@@ -307,13 +327,13 @@ impl<'a> Packet<'a> {
                     let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
                     let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
                     if nul + 1 != payload.len() {
-                        warn.warn_();
+                        warn.warn(Warning::ControlNulTermination);
                     }
                     ControlPacket::Close(&payload[..nul])
                 },
                 _ => {
                     // Unrecognized control packet.
-                    return None;
+                    return Err(UnknownControl);
                 },
             };
 
@@ -323,7 +343,7 @@ impl<'a> Packet<'a> {
             ConnectedPacketType::Chunks(request_resend, header.num_chunks, payload)
         };
 
-        Some(Packet::Connected(ConnectedPacket {
+        Ok(Packet::Connected(ConnectedPacket {
             ack: ack,
             type_: type_,
         }))
@@ -445,7 +465,7 @@ impl PacketHeaderPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> PacketHeader {
         let PacketHeaderPacked { flags_padding_ack, ack, num_chunks } = self;
         if flags_padding_ack & 0b0000_1100 != 0 {
-            warn.warn_();
+            warn.warn(Warning::PacketHeaderPadding);
         }
         PacketHeader {
             flags: (flags_padding_ack & 0b1111_0000) >> 4,
@@ -503,7 +523,7 @@ impl ChunkHeaderPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeader {
         let ChunkHeaderPacked { flags_size, padding_size } = self;
         if padding_size & 0b1111_0000 != 0 {
-            warn.warn_();
+            warn.warn(Warning::ChunkHeaderPadding);
         }
         ChunkHeader {
             flags: (flags_size & 0b1100_0000) >> 6,
@@ -533,7 +553,7 @@ impl ChunkHeaderVitalPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeaderVital {
         let ChunkHeaderVitalPacked { flags_size, sequence_size, sequence } = self;
         if (sequence_size & 0b0011_0000) >> 4 != (sequence & 0b1100_0000) >> 6 {
-            warn.warn_();
+            warn.warn(Warning::ChunkHeaderSequence);
         }
         ChunkHeaderVital {
             h: ChunkHeaderPacked {
