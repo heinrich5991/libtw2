@@ -481,7 +481,7 @@ mod test {
     use super::Net;
     use void::ResultVoidExt;
     use void::Void;
-    use warning::NoWarn;
+    use warning::Panic;
 
     #[test]
     fn establish_connection() {
@@ -530,7 +530,7 @@ mod test {
         cb.recipient = Address::Client;
         let s_pid;
         {
-            let p = net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
+            let p = net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
             assert!(p.len() == 1);
             if let ChunkOrEvent::Connect(s) = p[0] {
                 s_pid = s;
@@ -543,13 +543,13 @@ mod test {
 
         // Accept
         cb.recipient = Address::Server;
-        assert!(net.feed(cb, &mut NoWarn, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
+        assert!(net.feed(cb, &mut Panic, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ChunkOrEvent::Ready(c_pid)]);
         let packet = cb.packets.pop_front().unwrap();
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
         assert!(cb.packets.is_empty());
 
         // Disconnect
@@ -559,7 +559,7 @@ mod test {
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, &mut NoWarn, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
+        assert!(net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ChunkOrEvent::Disconnect(s_pid, b"foobar")]);
         assert!(cb.packets.is_empty());
     }
