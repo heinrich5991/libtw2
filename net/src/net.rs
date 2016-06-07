@@ -15,6 +15,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops;
 use std::time::Duration;
+use warning::NoWarn;
 
 pub use connection::Error;
 
@@ -358,7 +359,7 @@ impl<A: Address> Net<A> {
             let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), data, &mut buf);
             (ReceivePacket::connected(pid, packet, self), e)
         } else {
-            let packet = Packet::read(data, &mut buf);
+            let packet = Packet::read(&mut NoWarn, data, &mut buf);
             if let Some(Packet::Connless(d)) = packet {
                 (ReceivePacket::connless(addr, d), Ok(()))
             } else if let Some(Packet::Connected(ConnectedPacket {

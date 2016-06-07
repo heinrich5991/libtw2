@@ -15,3 +15,8 @@ extern crate void;
 pub mod connection;
 pub mod net;
 pub mod protocol;
+pub mod warning;
+
+trait WarnExt {
+    fn warn_(&mut self);
+}

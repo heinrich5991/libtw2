@@ -1,3 +1,4 @@
+use WarnExt;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
@@ -6,6 +7,8 @@ use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use num::ToPrimitive;
 use std::cmp;
+use warning::NoWarn;
+use warning::Warn;
 
 pub const CHUNK_HEADER_SIZE: usize = 2;
 pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
@@ -105,31 +108,30 @@ impl<'a> ChunksIter<'a> {
             data: data,
         }
     }
-}
-
-impl<'a> Iterator for ChunksIter<'a> {
-    type Item = Chunk<'a>;
-    fn next(&mut self) -> Option<Chunk<'a>> {
+    pub fn next_warn<W: Warn>(&mut self, warn: &mut W) -> Option<Chunk<'a>> {
         if self.data.len() == 0 {
             return None;
         }
-        let (header, mut chunk_data_and_rest) =
-            unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data));
-        let header = header.unpack();
+        let (raw_header, mut chunk_data_and_rest) =
+            unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data),
+                              { warn.warn_(); None });
+        let header = raw_header.unpack_warn(&mut NoWarn);
         let vital;
         if header.flags & CHUNKFLAG_VITAL != 0 {
             let (header, d) =
-                unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data));
-            let header = header.unpack();
+                unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data),
+                                  { warn.warn_(); None });
+            let header = header.unpack_warn(warn);
             chunk_data_and_rest = d;
             vital = Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0));
         } else {
+            raw_header.unpack_warn(warn);
             vital = None;
         }
         let size = header.size.to_usize().unwrap();
         if chunk_data_and_rest.len() < size {
-            // WARN
             self.data = &[];
+            warn.warn_();
             return None;
         }
         let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
@@ -138,6 +140,13 @@ impl<'a> Iterator for ChunksIter<'a> {
             data: chunk_data,
             vital: vital,
         })
+    }
+}
+
+impl<'a> Iterator for ChunksIter<'a> {
+    type Item = Chunk<'a>;
+    fn next(&mut self) -> Option<Chunk<'a>> {
+        self.next_warn(&mut NoWarn)
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.clone().count();
@@ -220,24 +229,33 @@ fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
 }
 
 impl<'a> Packet<'a> {
-    pub fn read<'b, B: Buffer<'b>>(bytes: &'b [u8], buffer: B) -> Option<Packet<'b>> {
-        with_buffer(buffer, |b| Packet::read_impl(bytes, b))
+    /// Parse a packet.
+    ///
+    /// `buffer` needs to have at least size `MAX_PAYLOAD`.
+    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B) -> Option<Packet<'b>>
+        where B: Buffer<'b>,
+              W: Warn,
+    {
+        with_buffer(buffer, |b| Packet::read_impl(warn, bytes, b))
     }
-    fn read_impl<'d, 's>(bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
+    fn read_impl<'d, 's, W>(warn: &mut W, bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
         -> Option<Packet<'d>>
+        where W: Warn,
     {
         assert!(buffer.remaining() >= MAX_PAYLOAD);
         if bytes.len() > MAX_PACKETSIZE {
             return None;
         }
         let (header, payload) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes));
-        let header = header.unpack();
-        // TODO: Maybe warn on "interesting" bytes here.
+        let header = header.unpack_warn(warn);
         if header.flags & PACKETFLAG_CONNLESS != 0 {
             if payload.len() < PADDING_SIZE_CONNLESS {
                 return None;
             }
-            let payload = &payload[PADDING_SIZE_CONNLESS..];
+            let (padding, payload) = payload.split_at(PADDING_SIZE_CONNLESS);
+            if !padding.iter().all(|&b| b == 0xff) {
+                warn.warn_();
+            }
             return Some(Packet::Connless(payload));
         }
 
@@ -253,29 +271,38 @@ impl<'a> Packet<'a> {
 
         let ack = header.ack;
         let type_ = if header.flags & PACKETFLAG_CONTROL != 0 {
-            // TODO: Check that header.num_chunks is 0.
-            // TODO: Vanilla recognizes PACKETFLAG_COMPRESSION and
-            //       PACKETFLAG_REQUEST_RESEND for PACKETFLAG_CONTROL, but does
-            //       not set them. What should we do?
-
-            if payload.len() < 1 {
-                return None;
+            if header.num_chunks != 0 {
+                warn.warn_();
+            }
+            if header.flags & PACKETFLAG_COMPRESSION != 0
+                || header.flags & PACKETFLAG_REQUEST_RESEND != 0
+            {
+                // TODO: Should we handle these flags? Vanilla does that too.
+                warn.warn_();
             }
 
-            let control = payload[0];
-            let payload = &payload[1..];
+            let (&control, payload) = unwrap_or_return!(payload.split_first(),
+                                                        { warn.warn_(); None });
+            if control != CTRLMSG_CLOSE && payload.len() != 0 {
+                warn.warn_();
+            }
             let control = match control {
                 CTRLMSG_KEEPALIVE => ControlPacket::KeepAlive,
                 CTRLMSG_CONNECT => ControlPacket::Connect,
                 CTRLMSG_CONNECTACCEPT => ControlPacket::ConnectAccept,
                 CTRLMSG_ACCEPT => ControlPacket::Accept,
-                // TODO: Check for length
                 CTRLMSG_CLOSE => {
                     let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
                     let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
+                    if nul + 1 != payload.len() {
+                        warn.warn_();
+                    }
                     ControlPacket::Close(&payload[..nul])
                 },
-                _ => return None, // Unrecognized control packet.
+                _ => {
+                    // Unrecognized control packet.
+                    return None;
+                },
             };
 
             ConnectedPacketType::Control(control)
@@ -374,11 +401,16 @@ impl<'a> ControlPacket<'a> {
         };
         try!(buffer.write(&[magic]));
         match *self {
-            // TODO: null termination
-            ControlPacket::Close(m) => try!(buffer.write(m)),
+            ControlPacket::Close(m) => {
+                assert!(m.iter().all(|&b| b != 0));
+                try!(buffer.write(m));
+                try!(buffer.write(&[0]));
+            },
             _ => {},
         }
-        Ok(buffer.initialized())
+        let result = buffer.initialized();
+        assert!(result.len() <= MAX_PACKETSIZE);
+        Ok(result)
     }
 }
 
@@ -398,13 +430,19 @@ pub struct PacketHeader {
 }
 
 impl PacketHeaderPacked {
-    pub fn unpack(self) -> PacketHeader {
+    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> PacketHeader {
         let PacketHeaderPacked { flags_padding_ack, ack, num_chunks } = self;
+        if flags_padding_ack & 0b0000_1100 != 0 {
+            warn.warn_();
+        }
         PacketHeader {
             flags: (flags_padding_ack & 0b1111_0000) >> 4,
             ack: (((flags_padding_ack & 0b0000_0011) as u16) << 8) | (ack as u16),
             num_chunks: num_chunks,
         }
+    }
+    pub fn unpack(self) -> PacketHeader {
+        self.unpack_warn(&mut NoWarn)
     }
 }
 
@@ -450,13 +488,19 @@ pub struct ChunkHeaderVitalPacked {
 }
 
 impl ChunkHeaderPacked {
-    pub fn unpack(self) -> ChunkHeader {
+    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> ChunkHeader {
         let ChunkHeaderPacked { flags_size, padding_size } = self;
+        if padding_size & 0b1111_0000 != 0 {
+            warn.warn_();
+        }
         ChunkHeader {
             flags: (flags_size & 0b1100_0000) >> 6,
             size: ((((flags_size & 0b0011_1111) as u16) << 4)
                 | (padding_size & 0b0000_1111) as u16),
         }
+    }
+    pub fn unpack(self) -> ChunkHeader {
+        self.unpack_warn(&mut NoWarn)
     }
 }
 
@@ -474,16 +518,22 @@ impl ChunkHeader {
 }
 
 impl ChunkHeaderVitalPacked {
-    pub fn unpack(self) -> ChunkHeaderVital {
+    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> ChunkHeaderVital {
         let ChunkHeaderVitalPacked { flags_size, sequence_size, sequence } = self;
+        if (sequence_size & 0b0011_0000) >> 4 != (sequence & 0b1100_0000) >> 6 {
+            warn.warn_();
+        }
         ChunkHeaderVital {
             h: ChunkHeaderPacked {
                 flags_size: flags_size,
                 padding_size: sequence_size & 0b0000_1111,
-            }.unpack(),
+            }.unpack_warn(warn),
             sequence: ((sequence_size & 0b1111_0000) as u16) << 2
                 | ((sequence & 0b1111_1111) as u16),
         }
+    }
+    pub fn unpack(self) -> ChunkHeaderVital {
+        self.unpack_warn(&mut NoWarn)
     }
 }
 
@@ -502,8 +552,8 @@ impl ChunkHeaderVital {
 }
 
 unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_ph_align);
-unsafe_boilerplate_packed!(ChunkHeaderPacked, 2, test_ch_size, test_ch_align);
-unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, 3, test_chv_size, test_chv_align);
+unsafe_boilerplate_packed!(ChunkHeaderPacked, CHUNK_HEADER_SIZE, test_ch_size, test_ch_align);
+unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, CHUNK_HEADER_SIZE_VITAL, test_chv_size, test_chv_align);
 
 #[cfg(all(feature = "nightly-test", test))]
 mod test_nightly {

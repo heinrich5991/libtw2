@@ -1,3 +1,4 @@
+use WarnExt;
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
@@ -16,6 +17,8 @@ use std::collections::VecDeque;
 use std::iter;
 use std::mem;
 use std::time::Duration;
+use warning::NoWarn;
+use warning::Warn;
 
 pub trait Callback {
     type Error;
@@ -122,10 +125,17 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
     }
-    fn connected(online: &mut OnlineState, data: &'a [u8]) -> ReceivePacket<'a> {
+    fn connected<W: Warn>(warn: &mut W, online: &mut OnlineState, num_chunks: u8, data: &'a [u8])
+        -> ReceivePacket<'a>
+    {
         let chunks_iter = ChunksIter::new(data);
+        let actual_num_chunks = chunks_iter.clone().count();
+        if actual_num_chunks != num_chunks.to_usize().unwrap() {
+            warn.warn_();
+        }
         let ack = online.ack.clone();
-        for c in chunks_iter.clone() {
+        let mut iter = chunks_iter.clone();
+        while let Some(c) = iter.next_warn(warn) {
             if let Some((sequence, resend)) = c.vital {
                 let _ = resend;
                 if online.ack.update(Sequence::from_u16(sequence))
@@ -439,9 +449,7 @@ impl Connection {
             assert!(false, "Can't call disconnect on an already disconnected connection");
         }
         assert!(reason.iter().all(|&b| b != 0), "reason must not contain NULs");
-        let mut vec: ArrayVec<[u8; 128]> = reason.iter().cloned().collect();
-        assert!(vec.push(0).is_none(), "reason too long");
-        let result = self.send_control(cb, ControlPacket::Close(&vec));
+        let result = self.send_control(cb, ControlPacket::Close(reason));
         self.state = State::Disconnected;
         result
     }
@@ -572,7 +580,7 @@ impl Connection {
             use protocol::ControlPacket::*;
 
             // WARN
-            let packet = unwrap_or_return!(Packet::read(data, &mut buffer), none);
+            let packet = unwrap_or_return!(Packet::read(&mut NoWarn, data, &mut buffer), none);
 
             let connected = match packet {
                 Packet::Connless(data) => return (ReceivePacket::connless(data), Ok(())),
@@ -603,7 +611,8 @@ impl Connection {
                     }
                     match self.state {
                         State::Online(ref mut online) => {
-                            return (ReceivePacket::connected(online, chunks), result);
+                            // TODO: Use Warn.
+                            return (ReceivePacket::connected(&mut NoWarn, online, num_chunks, chunks), result);
                         }
                         State::Pending => unreachable!(),
                         // WARN: packet received while not online.
