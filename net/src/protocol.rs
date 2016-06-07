@@ -601,6 +601,7 @@ mod test_nightly {
     use super::PacketHeader;
     use super::PacketHeaderPacked;
     use super::SEQUENCE_BITS;
+    use warning::NoWarn;
 
     #[quickcheck]
     fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
@@ -652,7 +653,7 @@ mod test_nightly {
     #[quickcheck]
     fn packet_read_no_panic(data: Vec<u8>) -> bool {
         let mut buffer = [0; MAX_PACKETSIZE];
-        Packet::read(&data, &mut buffer[..]);
+        let _ = Packet::read(&mut NoWarn, &data, &mut buffer[..]);
         true
     }
 }
