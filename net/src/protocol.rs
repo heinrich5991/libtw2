@@ -326,7 +326,7 @@ impl<'a> Packet<'a> {
                 CTRLMSG_CLOSE => {
                     let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
                     let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
-                    if nul + 1 != payload.len() {
+                    if nul != 0 && nul + 1 != payload.len() {
                         warn.warn(Warning::ControlNulTermination);
                     }
                     ControlPacket::Close(&payload[..nul])
