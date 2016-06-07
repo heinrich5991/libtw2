@@ -1,4 +1,3 @@
-use WarnExt;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
@@ -63,6 +62,17 @@ impl From<buffer::CapacityError> for Error {
     }
 }
 
+#[derive(Debug)]
+pub struct Warning;
+
+trait WarnExt: Warn<Warning> {
+    fn warn_(&mut self) {
+        self.warn(Warning)
+    }
+}
+
+impl<W: Warn<Warning>> WarnExt for W { }
+
 #[derive(Clone, Copy)]
 pub enum ControlPacket<'a> {
     KeepAlive,
@@ -108,7 +118,9 @@ impl<'a> ChunksIter<'a> {
             data: data,
         }
     }
-    pub fn next_warn<W: Warn>(&mut self, warn: &mut W) -> Option<Chunk<'a>> {
+    pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
+        where W: Warn<Warning>
+    {
         if self.data.len() == 0 {
             return None;
         }
@@ -234,13 +246,13 @@ impl<'a> Packet<'a> {
     /// `buffer` needs to have at least size `MAX_PAYLOAD`.
     pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B) -> Option<Packet<'b>>
         where B: Buffer<'b>,
-              W: Warn,
+              W: Warn<Warning>,
     {
         with_buffer(buffer, |b| Packet::read_impl(warn, bytes, b))
     }
     fn read_impl<'d, 's, W>(warn: &mut W, bytes: &'d [u8], mut buffer: BufferRef<'d, 's>)
         -> Option<Packet<'d>>
-        where W: Warn,
+        where W: Warn<Warning>,
     {
         assert!(buffer.remaining() >= MAX_PAYLOAD);
         if bytes.len() > MAX_PACKETSIZE {
@@ -430,7 +442,7 @@ pub struct PacketHeader {
 }
 
 impl PacketHeaderPacked {
-    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> PacketHeader {
+    pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> PacketHeader {
         let PacketHeaderPacked { flags_padding_ack, ack, num_chunks } = self;
         if flags_padding_ack & 0b0000_1100 != 0 {
             warn.warn_();
@@ -488,7 +500,7 @@ pub struct ChunkHeaderVitalPacked {
 }
 
 impl ChunkHeaderPacked {
-    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> ChunkHeader {
+    pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeader {
         let ChunkHeaderPacked { flags_size, padding_size } = self;
         if padding_size & 0b1111_0000 != 0 {
             warn.warn_();
@@ -518,7 +530,7 @@ impl ChunkHeader {
 }
 
 impl ChunkHeaderVitalPacked {
-    pub fn unpack_warn<W: Warn>(self, warn: &mut W) -> ChunkHeaderVital {
+    pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeaderVital {
         let ChunkHeaderVitalPacked { flags_size, sequence_size, sequence } = self;
         if (sequence_size & 0b0011_0000) >> 4 != (sequence & 0b1100_0000) >> 6 {
             warn.warn_();

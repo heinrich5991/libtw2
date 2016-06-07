@@ -1,4 +1,3 @@
-use WarnExt;
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
@@ -17,7 +16,6 @@ use std::collections::VecDeque;
 use std::iter;
 use std::mem;
 use std::time::Duration;
-use warning::NoWarn;
 use warning::Warn;
 
 pub trait Callback {
@@ -25,6 +23,40 @@ pub trait Callback {
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
     fn time_since_tick(&mut self) -> Duration;
 }
+
+#[derive(Debug)]
+pub enum Error<CE> {
+    TooLongData,
+    Callback(CE),
+}
+
+impl<CE> From<CE> for Error<CE> {
+    fn from(e: CE) -> Error<CE> {
+        Error::Callback(e)
+    }
+}
+
+impl<CE> Error<CE> {
+    pub fn unwrap_callback(self) -> CE {
+        match self {
+            Error::TooLongData => panic!("too long data"),
+            Error::Callback(e) => e,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Warning {
+    Packet(protocol::Warning),
+}
+
+trait WarnExt: Warn<Warning> {
+    fn warn_(&mut self) {
+        self.warn(Warning::Packet(protocol::Warning))
+    }
+}
+
+impl<W: Warn<Warning>> WarnExt for W { }
 
 struct Timeout {
     timeout: Option<Duration>,
@@ -125,8 +157,9 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
     }
-    fn connected<W: Warn>(warn: &mut W, online: &mut OnlineState, num_chunks: u8, data: &'a [u8])
+    fn connected<W>(warn: &mut W, online: &mut OnlineState, num_chunks: u8, data: &'a [u8])
         -> ReceivePacket<'a>
+        where W: Warn<Warning>,
     {
         let chunks_iter = ChunksIter::new(data);
         let actual_num_chunks = chunks_iter.clone().count();
@@ -135,7 +168,7 @@ impl<'a> ReceivePacket<'a> {
         }
         let ack = online.ack.clone();
         let mut iter = chunks_iter.clone();
-        while let Some(c) = iter.next_warn(warn) {
+        while let Some(c) = iter.next_warn(&mut w(warn)) {
             if let Some((sequence, resend)) = c.vital {
                 let _ = resend;
                 if online.ack.update(Sequence::from_u16(sequence))
@@ -390,24 +423,19 @@ impl PacketBuilder {
     }
 }
 
-#[derive(Debug)]
-pub enum Error<CE> {
-    TooLongData,
-    Callback(CE),
+struct WarnCallback<'a, W: Warn<Warning>+'a> {
+    warn: &'a mut W,
 }
 
-impl<CE> From<CE> for Error<CE> {
-    fn from(e: CE) -> Error<CE> {
-        Error::Callback(e)
+fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<W> {
+    WarnCallback {
+        warn: warn,
     }
 }
 
-impl<CE> Error<CE> {
-    pub fn unwrap_callback(self) -> CE {
-        match self {
-            Error::TooLongData => panic!("too long data"),
-            Error::Callback(e) => e,
-        }
+impl<'a, W: Warn<Warning>> Warn<protocol::Warning> for WarnCallback<'a, W> {
+    fn warn(&mut self, warning: protocol::Warning) {
+        self.warn.warn(Warning::Packet(warning))
     }
 }
 
@@ -561,26 +589,27 @@ impl Connection {
     /// Notifies the connection of incoming data.
     ///
     /// `buffer` must have at least size `MAX_PAYLOAD`.
-    pub fn feed<'a, B: Buffer<'a>, CB: Callback>(&mut self, cb: &mut CB, data: &'a [u8], buf: B)
+    pub fn feed<'a, B, CB, W>(&mut self, cb: &mut CB, warn: &mut W, data: &'a [u8], buf: B)
         -> (ReceivePacket<'a>, Result<(), CB::Error>)
+        where B: Buffer<'a>,
+              CB: Callback,
+              W: Warn<Warning>,
     {
-        with_buffer(buf, |b| self.feed_impl(cb, data, b))
+        with_buffer(buf, |b| self.feed_impl(cb, warn, data, b))
     }
 
-    pub fn feed_impl<'d, 's, CB: Callback>(&mut self, cb: &mut CB, data: &'d [u8], mut buffer: BufferRef<'d, 's>)
+    pub fn feed_impl<'d, 's, CB, W>(&mut self, cb: &mut CB, warn: &mut W, data: &'d [u8], mut buffer: BufferRef<'d, 's>)
         -> (ReceivePacket<'d>, Result<(), CB::Error>)
+        where CB: Callback,
+              W: Warn<Warning>,
     {
         let none = (ReceivePacket::none(), Ok(()));
-        if data.len() > protocol::MAX_PACKETSIZE {
-            // WARN
-            return none;
-        }
         {
             use protocol::ConnectedPacketType::*;
             use protocol::ControlPacket::*;
 
-            // WARN
-            let packet = unwrap_or_return!(Packet::read(&mut NoWarn, data, &mut buffer), none);
+            let packet = unwrap_or_return!(Packet::read(&mut w(warn), data, &mut buffer),
+                                           { warn.warn_(); none });
 
             let connected = match packet {
                 Packet::Connless(data) => return (ReceivePacket::connless(data), Ok(())),
@@ -611,8 +640,7 @@ impl Connection {
                     }
                     match self.state {
                         State::Online(ref mut online) => {
-                            // TODO: Use Warn.
-                            return (ReceivePacket::connected(&mut NoWarn, online, num_chunks, chunks), result);
+                            return (ReceivePacket::connected(warn, online, num_chunks, chunks), result);
                         }
                         State::Pending => unreachable!(),
                         // WARN: packet received while not online.

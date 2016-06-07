@@ -15,7 +15,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops;
 use std::time::Duration;
-use warning::NoWarn;
+use warning::Warn;
 
 pub use connection::Error;
 
@@ -23,6 +23,21 @@ pub trait Callback<A: Address> {
     type Error;
     fn send(&mut self, addr: A, data: &[u8]) -> Result<(), Self::Error>;
     fn time_since_tick(&mut self) -> Duration;
+}
+
+#[derive(Debug)]
+pub enum Warning<A: Address> {
+    Peer(A, PeerId, connection::Warning),
+    Connless(A, protocol::Warning),
+}
+
+impl<A: Address> Warning<A> {
+    pub fn addr(&self) -> A {
+        match *self {
+            Warning::Peer(addr, _, _) => addr,
+            Warning::Connless(addr, _) => addr,
+        }
+    }
 }
 
 pub trait Address: Copy + Eq + Hash + Ord { }
@@ -263,10 +278,51 @@ struct ConnectionCallback<'a, A: Address, CB: Callback<A>+'a> {
     addr: A,
 }
 
+// Create `ConnectionCallback`.
 fn cc<A: Address, CB: Callback<A>>(cb: &mut CB, addr: A) -> ConnectionCallback<A, CB> {
     ConnectionCallback {
         cb: cb,
         addr: addr,
+    }
+}
+
+impl<'a, A: Address, W: Warn<Warning<A>>> Warn<protocol::Warning> for WarnCallback<'a, A, W> {
+    fn warn(&mut self, warning: protocol::Warning) {
+        self.warn.warn(Warning::Connless(self.addr, warning))
+    }
+}
+
+struct WarnCallback<'a, A: Address, W: Warn<Warning<A>>+'a> {
+    warn: &'a mut W,
+    addr: A,
+}
+
+fn w<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A) -> WarnCallback<A, W> {
+    WarnCallback {
+        warn: warn,
+        addr: addr,
+    }
+}
+
+impl<'a, A: Address, W: Warn<Warning<A>>> Warn<connection::Warning> for WarnPeerCallback<'a, A, W> {
+    fn warn(&mut self, warning: connection::Warning) {
+        self.warn.warn(Warning::Peer(self.addr, self.pid, warning))
+    }
+}
+
+struct WarnPeerCallback<'a, A: Address, W: Warn<Warning<A>>+'a> {
+    warn: &'a mut W,
+    addr: A,
+    pid: PeerId,
+}
+
+fn wp<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A, pid: PeerId)
+    -> WarnPeerCallback<A, W>
+{
+    WarnPeerCallback {
+        warn: warn,
+        addr: addr,
+        pid: pid,
     }
 }
 
@@ -347,19 +403,24 @@ impl<A: Address> Net<A> {
     pub fn peer_addr(&self, pid: PeerId) -> Option<A> {
         self.peers.get(pid).map(|p| p.addr)
     }
-    pub fn feed<'a, CB: Callback<A>, B: Buffer<'a>>(&mut self, cb: &mut CB, addr: A, data: &'a [u8], buf: B)
+    pub fn feed<'a, CB, B, W>(&mut self, cb: &mut CB, warn: &mut W, addr: A, data: &'a [u8], buf: B)
         -> (ReceivePacket<'a, A>, Result<(), CB::Error>)
+        where CB: Callback<A>,
+              B: Buffer<'a>,
+              W: Warn<Warning<A>>,
     {
-        with_buffer(buf, |b| self.feed_impl(cb, addr, data, b))
+        with_buffer(buf, |b| self.feed_impl(cb, warn, addr, data, b))
     }
-    fn feed_impl<'d, 's, CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, data: &'d [u8], mut buf: BufferRef<'d, 's>)
+    fn feed_impl<'d, 's, CB, W>(&mut self, cb: &mut CB, warn: &mut W, addr: A, data: &'d [u8], mut buf: BufferRef<'d, 's>)
         -> (ReceivePacket<'d, A>, Result<(), CB::Error>)
+        where CB: Callback<A>,
+              W: Warn<Warning<A>>,
     {
         if let Some(pid) = self.peers.pid_from_addr(addr) {
-            let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), data, &mut buf);
+            let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), &mut wp(warn, addr, pid), data, &mut buf);
             (ReceivePacket::connected(pid, packet, self), e)
         } else {
-            let packet = Packet::read(&mut NoWarn, data, &mut buf);
+            let packet = Packet::read(&mut w(warn, addr), data, &mut buf);
             if let Some(Packet::Connless(d)) = packet {
                 (ReceivePacket::connless(addr, d), Ok(()))
             } else if let Some(Packet::Connected(ConnectedPacket {
@@ -367,7 +428,7 @@ impl<A: Address> Net<A> {
                 })) = packet
             {
                 let (pid, peer) = self.peers.new_peer(addr);
-                let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), data, &mut buf);
+                let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), &mut wp(warn, addr, pid), data, &mut buf);
                 assert!(none.next().is_none());
                 (ReceivePacket::connect(pid), e)
             } else {

@@ -1,31 +1,10 @@
-use WarnExt;
-
-#[derive(Debug)]
-pub struct Warning {
-    _unused: (),
-}
-
-impl Warning {
-    fn new() -> Warning {
-        Warning {
-            _unused: (),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, Ord, Hash, PartialEq, PartialOrd)]
 pub struct NoWarn;
 
-impl Warn for NoWarn { }
+impl<W> Warn<W> for NoWarn { }
 
-pub trait Warn {
-    fn warn(&mut self, warning: Warning) {
+pub trait Warn<W> {
+    fn warn(&mut self, warning: W) {
         let _ = warning;
-    }
-}
-
-impl<W: Warn> WarnExt for W {
-    fn warn_(&mut self) {
-        self.warn(Warning::new())
     }
 }

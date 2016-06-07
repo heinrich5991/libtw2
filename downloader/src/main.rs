@@ -36,6 +36,8 @@ use net::net::ChunkOrEvent;
 use net::net::ChunkType;
 use net::net::Net;
 use net::net::PeerId;
+use net::net::Warning;
+use net::warning;
 use num::ToPrimitive;
 use std::collections::HashMap;
 use std::env;
@@ -225,6 +227,15 @@ impl net::net::Callback<Addr> for Socket {
     }
 }
 
+struct Warn<'a>(&'a [u8]);
+
+impl<'a> warning::Warn<Warning<Addr>> for Warn<'a> {
+    fn warn(&mut self, w: Warning<Addr>) {
+        warn!("{:?}", w);
+        hexdump(LogLevel::Warn, self.0);
+    }
+}
+
 fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>> {
     iter.map(|s| Addr::from_str(&s).ok()).collect()
 }
@@ -293,13 +304,16 @@ impl Main {
         if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
             msg = m;
         } else {
+            if data.len() >= 1 && data[0] == b'\x02' {
+                // MOTD message, we successfully connected.
+                return true;
+            }
             warn!("decode error:");
             hexdump(LogLevel::Warn, data);
             return false;
         }
         debug!("{:?}", msg);
         let mut request_chunk = None;
-        let mut disconnect = false;
         let mut processed = false;
         {
             let state = &mut self.peers.get_mut(&pid).expect("invalid pid").state;
@@ -342,9 +356,6 @@ impl Main {
                 PeerState::SentReady(dummy, num_snaps) => {
                     match msg {
                         System::ConReady(..) => {
-                            if !dummy {
-                                disconnect = true;
-                            }
                             processed = true;
                         }
                         System::Snap(Snap { tick, .. })
@@ -374,7 +385,7 @@ impl Main {
             let m = System::RequestMapData(RequestMapData { chunk: c });
             send(m, pid, &mut self.net, &mut self.socket);
         });
-        disconnect
+        false
     }
     fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) -> bool {
         match chunk {
@@ -413,7 +424,7 @@ impl Main {
                 let (addr, data) = res.unwrap();
                 dump(Direction::Receive, addr, data);
                 buf2.clear();
-                let (iter, res) = self.net.feed(&mut self.socket, addr, data, &mut buf2);
+                let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(data), addr, data, &mut buf2);
                 res.unwrap();
                 for chunk in iter {
                     if self.process_event(chunk) {
