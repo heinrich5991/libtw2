@@ -155,11 +155,7 @@ impl<'a> ReceivePacket<'a> {
         -> ReceivePacket<'a>
         where W: Warn<Warning>,
     {
-        let chunks_iter = ChunksIter::new(data);
-        let actual_num_chunks = chunks_iter.clone().count();
-        if actual_num_chunks != num_chunks.to_usize().unwrap() {
-            warn.warn(Warning::Packet(protocol::Warning::ChunksNumChunks));
-        }
+        let chunks_iter = ChunksIter::new(data, num_chunks);
         let ack = online.ack.clone();
         let mut iter = chunks_iter.clone();
         while let Some(c) = iter.next_warn(&mut w(warn)) {

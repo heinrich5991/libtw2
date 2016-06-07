@@ -62,7 +62,7 @@ impl From<buffer::CapacityError> for Error {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Warning {
     ChunkHeaderPadding,
     ChunkHeaderSequence,
@@ -124,12 +124,16 @@ pub struct Chunk<'a> {
 #[derive(Clone)]
 pub struct ChunksIter<'a> {
     data: &'a [u8],
+    num_remaining_chunks: i32,
+    checked_num_chunks_warning: bool,
 }
 
 impl<'a> ChunksIter<'a> {
-    pub fn new(data: &'a [u8]) -> ChunksIter<'a> {
+    pub fn new(data: &'a [u8], num_chunks: u8) -> ChunksIter<'a> {
         ChunksIter {
             data: data,
+            num_remaining_chunks: num_chunks.to_i32().unwrap(),
+            checked_num_chunks_warning: false,
         }
     }
     fn excess_data<W: Warn<Warning>>(&mut self, warn: &mut W) -> Option<Chunk<'static>> {
@@ -141,6 +145,12 @@ impl<'a> ChunksIter<'a> {
         where W: Warn<Warning>
     {
         if self.data.len() == 0 {
+            if !self.checked_num_chunks_warning {
+                self.checked_num_chunks_warning = true;
+                if self.num_remaining_chunks != 0 {
+                    warn.warn(Warning::ChunksNumChunks);
+                }
+            }
             return None;
         }
         let (raw_header, mut chunk_data_and_rest) =
@@ -165,6 +175,7 @@ impl<'a> ChunksIter<'a> {
         }
         let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
         self.data = rest;
+        self.num_remaining_chunks -= 1;
         Some(Chunk {
             data: chunk_data,
             vital: vital,
@@ -285,7 +296,9 @@ impl<'a> Packet<'a> {
                 return Err(ShortConnless);
             }
             let (padding, payload) = payload.split_at(PADDING_SIZE_CONNLESS);
-            if !padding.iter().all(|&b| b == 0xff) {
+            if !padding.iter().all(|&b| b == 0xff)
+                || !bytes[..3].iter().all(|&b| b == 0xff)
+            {
                 warn.warn(Warning::ConnlessPadding);
             }
             return Ok(Packet::Connless(payload));
@@ -326,8 +339,12 @@ impl<'a> Packet<'a> {
                 CTRLMSG_CLOSE => {
                     let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
                     let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
-                    if nul != 0 && nul + 1 != payload.len() {
-                        warn.warn(Warning::ControlNulTermination);
+                    if payload.len() != 0 && nul + 1 != payload.len() {
+                        if nul + 1 < payload.len() {
+                            warn.warn(Warning::ControlExcessData);
+                        } else {
+                            warn.warn(Warning::ControlNulTermination);
+                        }
                     }
                     ControlPacket::Close(&payload[..nul])
                 },
@@ -464,7 +481,8 @@ pub struct PacketHeader {
 impl PacketHeaderPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> PacketHeader {
         let PacketHeaderPacked { flags_padding_ack, ack, num_chunks } = self;
-        if flags_padding_ack & 0b0000_1100 != 0 {
+        // First clause checks whether PACKETFLAG_CONNLESS is set.
+        if flags_padding_ack & 0b0010_0000 == 0 && flags_padding_ack & 0b0000_1100 != 0 {
             warn.warn(Warning::PacketHeaderPadding);
         }
         PacketHeader {
@@ -586,6 +604,69 @@ impl ChunkHeaderVital {
 unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_ph_align);
 unsafe_boilerplate_packed!(ChunkHeaderPacked, CHUNK_HEADER_SIZE, test_ch_size, test_ch_align);
 unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, CHUNK_HEADER_SIZE_VITAL, test_chv_size, test_chv_align);
+
+#[cfg(test)]
+mod test {
+    use super::ChunksIter;
+    use super::ConnectedPacket;
+    use super::ConnectedPacketType;
+    use super::Packet;
+    use super::Warning::*;
+    use super::Warning;
+    use warning::Warn;
+
+    struct WarnVec<'a>(&'a mut Vec<Warning>);
+
+    impl<'a> Warn<Warning> for WarnVec<'a> {
+        fn warn(&mut self, warning: Warning) {
+            self.0.push(warning);
+        }
+    }
+
+    fn assert_warnings(input: &[u8], warnings: &[Warning]) {
+        let mut vec = vec![];
+        let mut buffer = Vec::with_capacity(4096);
+        let packet = Packet::read(&mut WarnVec(&mut vec), input, &mut buffer).unwrap();
+        if let Packet::Connected(ConnectedPacket {
+            type_: ConnectedPacketType::Chunks(_, num_chunks, chunk_data),
+            ..
+        }) = packet {
+            let mut chunks = ChunksIter::new(chunk_data, num_chunks);
+            while let Some(_) = chunks.next_warn(&mut WarnVec(&mut vec)) { }
+        }
+        assert_eq!(vec, warnings);
+    }
+
+    fn assert_warn(input: &[u8], warning: Warning) {
+        assert_warnings(input, &[warning]);
+    }
+
+    fn assert_no_warn(input: &[u8]) {
+        assert_warnings(input, &[]);
+    }
+
+    #[test] fn w_chp() { assert_warn(b"\x00\x00\x01\x00\xf0", ChunkHeaderPadding) }
+    #[test] fn w_chs1() { assert_warn(b"\x00\x00\x01\x40\x20\x00", ChunkHeaderSequence) }
+    #[test] fn w_chs2() { assert_warn(b"\x00\x00\x01\x40\x10\x00", ChunkHeaderSequence) }
+    #[test] fn w_chs3() { assert_no_warn(b"\x00\x00\x01\x40\x70\xcf") }
+    #[test] fn w_cud1() { assert_warn(b"\x00\x00\x00\xff", ChunksUnknownData) }
+    #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00", ChunksUnknownData) }
+    #[test] fn w_cnc1() { assert_warn(b"\x00\x00\x01", ChunksNumChunks) }
+    #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00", ChunksNumChunks) }
+    #[test] fn w_cp1() { assert_warn(b"xe\x01\x02\x03\x04", ConnlessPadding) }
+    #[test] fn w_cp2() { assert_warn(b"\xff\xff\xff\xff\xff\xfe", ConnlessPadding) }
+    #[test] fn w_cp3() { assert_warn(b"\x7f\xff\xff\xff\xff\xff", ConnlessPadding) }
+    #[test] fn w_cp4() { assert_no_warn(b"\xff\xff\xff\xff\xff\xff") }
+    #[test] fn w_ced1() { assert_warn(b"\x10\x00\x00\x00\x00", ControlExcessData) }
+    #[test] fn w_ced2() { assert_warn(b"\x10\x00\x00\x04\x00\x00", ControlExcessData) }
+    #[test] fn w_cf1() { assert_warn(b"\x90\x00\x00\x15\x37", ControlFlags) }
+    #[test] fn w_cf2() { assert_warn(b"\x50\x00\x00\x00", ControlFlags) }
+    #[test] fn w_cnt1() { assert_warn(b"\x10\x00\x00\x04\x01", ControlNulTermination) }
+    #[test] fn w_cnt2() { assert_no_warn(b"\x10\x00\x00\x04") }
+    #[test] fn w_cnc() { assert_warn(b"\x10\x00\xff\x00", ControlNumChunks) }
+    #[test] fn w_php1() { assert_warn(b"\x08\x00\x00", PacketHeaderPadding) }
+    #[test] fn w_php2() { assert_warn(b"\x04\x00\x00", PacketHeaderPadding) }
+}
 
 #[cfg(all(feature = "nightly-test", test))]
 mod test_nightly {
