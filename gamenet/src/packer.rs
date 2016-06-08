@@ -237,6 +237,8 @@ mod test {
     #[test] fn int_1() { assert_int(b"\x01", 1) }
     #[test] fn int_63() { assert_int(b"\x3f", 63) }
     #[test] fn int_m1() { assert_int(b"\x40", -1) }
+    #[test] fn int_64() { assert_int(b"\x80\x01", 64) }
+    #[test] fn int_m65() { assert_int(b"\xc0\x01", -65) }
     #[test] fn int_m64() { assert_int(b"\x7f", -64) }
     #[test] fn int_min() { assert_int(b"\xff\xff\xff\xff\x0f", i32::min_value()) }
     #[test] fn int_max() { assert_int(b"\xbf\xff\xff\xff\x0f", i32::max_value()) }
