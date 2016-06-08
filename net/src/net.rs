@@ -270,6 +270,7 @@ enum ReceivePacketType<'a, A: Address> {
 pub struct Net<A: Address> {
     peers: Peers<A>,
     builder: ConnlessBuilder,
+    accept_connections: bool,
 }
 
 struct ConnectionCallback<'a, A: Address, CB: Callback<A>+'a> {
@@ -342,11 +343,18 @@ impl<'a, A: Address, CB: Callback<A>> connection::Callback for ConnectionCallbac
 }
 
 impl<A: Address> Net<A> {
-    pub fn new() -> Net<A> {
+    fn new(accept_connections: bool) -> Net<A> {
         Net {
             peers: Peers::new(),
             builder: ConnlessBuilder::new(),
+            accept_connections: accept_connections,
         }
+    }
+    pub fn server() -> Net<A> {
+        Net::new(true)
+    }
+    pub fn client() -> Net<A> {
+        Net::new(false)
     }
     pub fn needs_tick(&self) -> bool {
         self.peers.iter().any(|(_, p)| p.conn.needs_tick())
@@ -437,10 +445,15 @@ impl<A: Address> Net<A> {
                     type_: ConnectedPacketType::Control(ControlPacket::Connect), ..
                 }) = packet
             {
-                let (pid, peer) = self.peers.new_peer(addr);
-                let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), &mut wp(warn, addr, pid), data, &mut buf);
-                assert!(none.next().is_none());
-                (ReceivePacket::connect(pid), e)
+                if self.accept_connections {
+                    let (pid, peer) = self.peers.new_peer(addr);
+                    let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), &mut wp(warn, addr, pid), data, &mut buf);
+                    assert!(none.next().is_none());
+                    (ReceivePacket::connect(pid), e)
+                } else {
+                    w(warn, addr).warn(connection::Warning::Unexpected);
+                    (ReceivePacket::none(), Ok(()))
+                }
             } else {
                 w(warn, addr).warn(connection::Warning::Unexpected);
                 (ReceivePacket::none(), Ok(()))
@@ -514,7 +527,7 @@ mod test {
         let cb = &mut cb;
         let mut buffer = [0; protocol::MAX_PAYLOAD];
 
-        let mut net = Net::new();
+        let mut net = Net::server();
 
         // Connect
         cb.recipient = Address::Server;

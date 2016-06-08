@@ -296,7 +296,7 @@ impl Main {
         let mut main = Main {
             socket: Socket::new().unwrap(),
             peers: HashMap::with_capacity(addresses.len()),
-            net: Net::new(),
+            net: Net::client(),
             version_msg: version_msg,
         };
         for &addr in addresses {
