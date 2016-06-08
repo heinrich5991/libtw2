@@ -9,6 +9,7 @@ extern crate mio;
 extern crate net;
 extern crate num;
 extern crate rand;
+extern crate warn;
 
 use arrayvec::ArrayVec;
 use buffer::Buffer;
@@ -38,7 +39,6 @@ use net::net::ChunkType;
 use net::net::Net;
 use net::net::PeerId;
 use net::net::Warning;
-use net::warning;
 use num::ToPrimitive;
 use std::collections::HashMap;
 use std::env;
@@ -245,7 +245,7 @@ impl net::net::Callback<Addr> for Socket {
 
 struct Warn<'a>(&'a [u8]);
 
-impl<'a> warning::Warn<Warning<Addr>> for Warn<'a> {
+impl<'a> warn::Warn<Warning<Addr>> for Warn<'a> {
     fn warn(&mut self, w: Warning<Addr>) {
         warn!("{:?}", w);
         hexdump(LogLevel::Warn, self.0);

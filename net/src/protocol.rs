@@ -6,8 +6,8 @@ use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use num::ToPrimitive;
 use std::cmp;
-use warning::NoWarn;
-use warning::Warn;
+use warn::Ignore;
+use warn::Warn;
 
 pub const CHUNK_HEADER_SIZE: usize = 2;
 pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
@@ -157,7 +157,7 @@ impl<'a> ChunksIter<'a> {
         let (raw_header, mut chunk_data_and_rest) =
             unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data),
                               self.excess_data(warn));
-        let header = raw_header.unpack_warn(&mut NoWarn);
+        let header = raw_header.unpack_warn(&mut Ignore);
         let vital;
         if header.flags & CHUNKFLAG_VITAL != 0 {
             let (header, d) =
@@ -187,7 +187,7 @@ impl<'a> ChunksIter<'a> {
 impl<'a> Iterator for ChunksIter<'a> {
     type Item = Chunk<'a>;
     fn next(&mut self) -> Option<Chunk<'a>> {
-        self.next_warn(&mut NoWarn)
+        self.next_warn(&mut Ignore)
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.clone().count();
@@ -496,7 +496,7 @@ impl PacketHeaderPacked {
         }
     }
     pub fn unpack(self) -> PacketHeader {
-        self.unpack_warn(&mut NoWarn)
+        self.unpack_warn(&mut Ignore)
     }
 }
 
@@ -554,7 +554,7 @@ impl ChunkHeaderPacked {
         }
     }
     pub fn unpack(self) -> ChunkHeader {
-        self.unpack_warn(&mut NoWarn)
+        self.unpack_warn(&mut Ignore)
     }
 }
 
@@ -587,7 +587,7 @@ impl ChunkHeaderVitalPacked {
         }
     }
     pub fn unpack(self) -> ChunkHeaderVital {
-        self.unpack_warn(&mut NoWarn)
+        self.unpack_warn(&mut Ignore)
     }
 }
 
@@ -620,8 +620,8 @@ mod test {
     use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
-    use warning::Panic;
-    use warning::Warn;
+    use warn::Panic;
+    use warn::Warn;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);
 
@@ -708,7 +708,7 @@ mod test_nightly {
     use super::PacketHeader;
     use super::PacketHeaderPacked;
     use super::SEQUENCE_BITS;
-    use warning::NoWarn;
+    use warn::Ignore;
 
     #[quickcheck]
     fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
@@ -760,7 +760,7 @@ mod test_nightly {
     #[quickcheck]
     fn packet_read_no_panic(data: Vec<u8>) -> bool {
         let mut buffer = [0; MAX_PACKETSIZE];
-        let _ = Packet::read(&mut NoWarn, &data, &mut buffer[..]);
+        let _ = Packet::read(&mut Ignore, &data, &mut buffer[..]);
         true
     }
 }

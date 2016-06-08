@@ -13,6 +13,7 @@ dependencies = [
  "quickcheck 0.2.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck_macros 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "warn 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -201,6 +202,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "void"
 version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "warn"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "winapi"

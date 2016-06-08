@@ -11,12 +11,8 @@ extern crate huffman;
 extern crate linear_map;
 extern crate num;
 extern crate void;
+extern crate warn;
 
 pub mod connection;
 pub mod net;
 pub mod protocol;
-pub mod warning;
-
-trait WarnExt {
-    fn warn_(&mut self);
-}

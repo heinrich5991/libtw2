@@ -15,7 +15,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops;
 use std::time::Duration;
-use warning::Warn;
+use warn::Warn;
 
 pub use connection::Error;
 
@@ -479,7 +479,7 @@ mod test {
     use super::Net;
     use void::ResultVoidExt;
     use void::Void;
-    use warning::Panic;
+    use warn::Panic;
 
     #[test]
     fn establish_connection() {

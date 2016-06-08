@@ -16,7 +16,7 @@ use std::collections::VecDeque;
 use std::iter;
 use std::mem;
 use std::time::Duration;
-use warning::Warn;
+use warn::Warn;
 
 pub trait Callback {
     type Error;
@@ -716,7 +716,7 @@ mod test {
     use super::SequenceOrdering;
     use void::ResultVoidExt;
     use void::Void;
-    use warning::Panic;
+    use warn::Panic;
 
     #[test]
     fn sequence_compare() {
