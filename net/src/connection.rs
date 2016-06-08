@@ -21,7 +21,7 @@ use warning::Warn;
 pub trait Callback {
     type Error;
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
-    fn time_since_tick(&mut self) -> Duration;
+    fn time(&mut self) -> Duration;
 }
 
 #[derive(Debug)]
@@ -52,6 +52,7 @@ pub enum Warning {
     Unexpected,
 }
 
+#[derive(Clone, Debug)]
 struct Timeout {
     timeout: Option<Duration>,
 }
@@ -63,21 +64,19 @@ impl Timeout {
         }
     }
     fn set<CB: Callback>(&mut self, cb: &mut CB, value: Duration) {
-        self.timeout = Some(cb.time_since_tick() + value);
+        self.timeout = Some(cb.time() + value);
     }
     fn is_active(&self) -> bool {
         self.timeout.is_some()
     }
-    fn tick(&mut self, delta: Duration) -> bool {
-        let mut triggered = false;
-        self.timeout = self.timeout.and_then(|t| {
-            if delta >= t {
-                triggered = true;
-                None
-            } else {
-                Some(t - delta)
-            }
-        });
+    fn has_triggered_level<CB: Callback>(&self, cb: &mut CB) -> bool {
+        self.timeout.map(|time| time <= cb.time()).unwrap_or(false)
+    }
+    fn has_triggered_edge<CB: Callback>(&mut self, cb: &mut CB) -> bool {
+        let triggered = self.has_triggered_level(cb);
+        if triggered {
+            self.timeout = None;
+        }
         triggered
     }
 }
@@ -88,7 +87,7 @@ pub struct Connection {
     builder: PacketBuilder,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 enum State {
     Unconnected,
     Connecting,
@@ -98,6 +97,18 @@ enum State {
 }
 
 impl State {
+    pub fn is_disconnected(&self) -> bool {
+        match *self {
+            State::Disconnected => true,
+            _ => false,
+        }
+    }
+    pub fn is_unconnected(&self) -> bool {
+        match *self {
+            State::Unconnected => true,
+            _ => false,
+        }
+    }
     pub fn assert_online(&mut self) -> &mut OnlineState {
         match *self {
             State::Online(ref mut s) => s,
@@ -106,20 +117,26 @@ impl State {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct ResendChunk {
+    next_send: Timeout,
     sequence: Sequence,
     data: ArrayVec<[u8; 2048]>,
 }
 
 impl ResendChunk {
-    fn new(sequence: Sequence, data: &[u8]) -> ResendChunk {
-        let result = ResendChunk {
+    fn new<CB: Callback>(cb: &mut CB, sequence: Sequence, data: &[u8]) -> ResendChunk {
+        let mut result = ResendChunk {
+            next_send: Timeout::new(),
             sequence: sequence,
             data: data.iter().cloned().collect(),
         };
         assert!(result.data.len() == data.len(), "overlong resend packet {}", data.len());
+        result.start_timeout(cb);
         result
+    }
+    fn start_timeout<CB: Callback>(&mut self, cb: &mut CB) {
+        self.next_send.set(cb, Duration::from_millis(1_000));
     }
 }
 
@@ -251,7 +268,7 @@ pub enum ReceiveChunk<'a> {
     Disconnect(&'a [u8]),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 struct OnlineState {
     // `ack` is the vital chunk from the peer we want to acknowledge.
     ack: Sequence,
@@ -438,10 +455,7 @@ impl Connection {
         }
     }
     pub fn reset(&mut self) {
-        if let State::Disconnected = self.state {
-        } else {
-            assert!(false, "Can only call reset on a disconnected connection");
-        }
+        assert!(self.state.is_disconnected());
         *self = Connection::new();
     }
     pub fn needs_tick(&self) -> bool {
@@ -450,10 +464,14 @@ impl Connection {
         } else if let State::Disconnected = self.state {
             return false;
         }
-        self.send_.is_active()
+        let resends = match self.state {
+            State::Online(ref online) => !online.resend_queue.is_empty(),
+            _ => false,
+        };
+        self.send_.is_active() || resends
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        assert!(self.state == State::Unconnected);
+        assert!(self.state.is_unconnected());
         self.state = State::Connecting;
         try!(self.tick_action(cb));
         Ok(())
@@ -478,6 +496,9 @@ impl Connection {
         }
         online.packet = online.packet_nonvital.clone();
         let mut i = 0;
+        for chunk in &mut online.resend_queue {
+            chunk.start_timeout(cb);
+        }
         while i < online.resend_queue.len() {
             let can_fit;
             {
@@ -500,11 +521,11 @@ impl Connection {
         self.send_.set(cb, Duration::from_millis(500));
         self.state.assert_online().flush(cb, &mut self.builder)
     }
-    fn queue(&mut self, buffer: &[u8], vital: bool) {
+    fn queue<CB: Callback>(&mut self, cb: &mut CB, buffer: &[u8], vital: bool) {
         let online = self.state.assert_online();
         let vital = if vital {
             let sequence = online.sequence.next();
-            online.resend_queue.push_front(ResendChunk::new(sequence, buffer));
+            online.resend_queue.push_front(ResendChunk::new(cb, sequence, buffer));
             Some((sequence.to_u16(), false))
         } else {
             None
@@ -529,7 +550,7 @@ impl Connection {
                 result = Ok(());
             }
         }
-        self.queue(buffer, vital);
+        self.queue(cb, buffer, vital);
         result
     }
     pub fn send_connless<CB: Callback>(&mut self, cb: &mut CB, data: &[u8])
@@ -549,13 +570,23 @@ impl Connection {
             type_: ConnectedPacketType::Control(control),
         })).map_err(|e| e.unwrap_callback())
     }
-    pub fn tick<CB: Callback>(&mut self, cb: &mut CB, delta: Duration)
+    pub fn tick<CB: Callback>(&mut self, cb: &mut CB)
         -> Result<(), CB::Error>
     {
         if !self.needs_tick() {
             return Ok(());
         }
-        if self.send_.tick(delta) {
+        let do_resend = match self.state {
+            State::Online(ref online) => {
+                online.resend_queue.back()
+                    .map(|c| c.next_send.has_triggered_level(cb))
+                    .unwrap_or(false)
+            }
+            _ => false,
+        };
+        if do_resend {
+            self.resend(cb)
+        } else if self.send_.has_triggered_edge(cb) {
             self.tick_action(cb)
         } else {
             Ok(())
@@ -568,6 +599,7 @@ impl Connection {
             State::Pending => ControlPacket::ConnectAccept,
             State::Online(ref mut online) => {
                 if online.can_send() {
+                    // TODO: Warn if this happens on reliable networks.
                     return online.flush(cb, &mut self.builder);
                 }
                 ControlPacket::KeepAlive
@@ -618,7 +650,6 @@ impl Connection {
 
             match type_ {
                 Chunks(request_resend, num_chunks, chunks) => {
-                    // WARN: Do something with `num_chunks`
                     let _ = num_chunks;
                     if let State::Pending = self.state {
                         self.state = State::Online(OnlineState::new());
@@ -717,7 +748,7 @@ mod test {
                 self.0.push_back(data.to_owned());
                 Ok(())
             }
-            fn time_since_tick(&mut self) -> Duration {
+            fn time(&mut self) -> Duration {
                 Duration::from_millis(0)
             }
         }

@@ -22,7 +22,7 @@ pub use connection::Error;
 pub trait Callback<A: Address> {
     type Error;
     fn send(&mut self, addr: A, data: &[u8]) -> Result<(), Self::Error>;
-    fn time_since_tick(&mut self) -> Duration;
+    fn time(&mut self) -> Duration;
 }
 
 #[derive(Debug)]
@@ -337,8 +337,8 @@ impl<'a, A: Address, CB: Callback<A>> connection::Callback for ConnectionCallbac
     fn send(&mut self, data: &[u8]) -> Result<(), CB::Error> {
         self.cb.send(self.addr, data)
     }
-    fn time_since_tick(&mut self) -> Duration {
-        self.cb.time_since_tick()
+    fn time(&mut self) -> Duration {
+        self.cb.time()
     }
 }
 
@@ -397,13 +397,12 @@ impl<A: Address> Net<A> {
         let peer = &mut self.peers[pid];
         peer.conn.flush(&mut cc(cb, peer.addr))
     }
-    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB, delta: Duration)
+    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB)
         -> Tick<A, CB>
     {
         Tick {
             iter_mut: self.peers.iter_mut(),
             cb: cb,
-            delta: delta,
         }
     }
     pub fn peer_addr(&self, pid: PeerId) -> Option<A> {
@@ -454,14 +453,13 @@ impl<A: Address> Net<A> {
 pub struct Tick<'a, A: Address+'a, CB: Callback<A>+'a> {
     iter_mut: linear_map::IterMut<'a, PeerId, Peer<A>>,
     cb: &'a mut CB,
-    delta: Duration,
 }
 
 impl<'a, A: Address+'a, CB: Callback<A>+'a> Iterator for Tick<'a, A, CB> {
     type Item = CB::Error;
     fn next(&mut self) -> Option<CB::Error> {
         while let Some((_, p)) = self.iter_mut.next() {
-            match p.conn.tick(&mut cc(self.cb, p.addr), self.delta) {
+            match p.conn.tick(&mut cc(self.cb, p.addr)) {
                 Ok(()) => {},
                 Err(e) => return Some(e),
             }
@@ -509,7 +507,7 @@ mod test {
                 self.packets.push_back(data.to_owned());
                 Ok(())
             }
-            fn time_since_tick(&mut self) -> Duration {
+            fn time(&mut self) -> Duration {
                 Duration::from_millis(0)
             }
         }
