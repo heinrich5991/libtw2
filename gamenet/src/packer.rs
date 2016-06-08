@@ -195,10 +195,12 @@ impl<'a> Unpacker<'a> {
 
 #[cfg(test)]
 mod test {
+    use arrayvec::ArrayVec;
     use std::i32;
     use super::Unpacker;
     use super::Warning::*;
     use super::Warning;
+    use super::with_packer;
     use warn::Panic;
 
     fn assert_int_err(bytes: &[u8]) {
@@ -212,6 +214,17 @@ mod test {
         assert_eq!(unpacker.read_int(&mut vec).unwrap(), int);
         assert!(unpacker.as_slice().is_empty());
         assert_eq!(vec, warnings);
+
+        let mut buf: ArrayVec<[u8; 5]> = ArrayVec::new();
+        let written = with_packer(&mut buf, |mut p| {
+            p.write_int(int).unwrap();
+            p.written()
+        });
+        if warnings.is_empty() {
+            assert_eq!(written, bytes);
+        } else {
+            assert!(written != bytes);
+        }
     }
 
     fn assert_int_warn(bytes: &[u8], int: i32, warning: Warning) {
@@ -226,6 +239,14 @@ mod test {
         let mut unpacker = Unpacker::new(bytes);
         assert_eq!(unpacker.read_string().unwrap(), string);
         assert_eq!(unpacker.as_slice(), remaining);
+
+        let mut buf = Vec::with_capacity(4096);
+        let written = with_packer(&mut buf, |mut p| {
+            p.write_string(string).unwrap();
+            p.write_rest(remaining).unwrap();
+            p.written()
+        });
+        assert_eq!(written, bytes);
     }
 
     fn assert_str_err(bytes: &[u8]) {
