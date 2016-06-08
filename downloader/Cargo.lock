@@ -90,6 +90,7 @@ dependencies = [
  "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "warn 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

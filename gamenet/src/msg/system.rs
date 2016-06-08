@@ -3,24 +3,30 @@ use bytes::PrettyBytes;
 use error::Error;
 use packer::Packer;
 use packer::Unpacker;
+use packer::Warning;
 use packer::with_packer;
 use std::fmt;
 use super::IntegerData;
 use super::SystemOrGame;
+use warn::Warn;
 
 impl<'a> System<'a> {
-    pub fn decode_complete(p: &mut Unpacker<'a>) -> Result<System<'a>, Error> {
-        if let SystemOrGame::System(msg_id) = SystemOrGame::decode_id(try!(p.read_int())) {
-            System::decode(msg_id, p)
+    pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>
+        where W: Warn<Warning>
+    {
+        if let SystemOrGame::System(msg_id) =
+            SystemOrGame::decode_id(try!(p.read_int(warn)))
+        {
+            System::decode_msg(warn, msg_id, p)
         } else {
             Err(Error::new())
         }
     }
-    pub fn encode_complete<'d, 's>(&self, mut p: Packer<'d, 's>)
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
         try!(p.write_int(SystemOrGame::System(self.msg_id()).encode_id()));
-        try!(with_packer(&mut p, |p| self.encode(p)));
+        try!(with_packer(&mut p, |p| self.encode_msg(p)));
         Ok(p.written())
     }
 }
@@ -171,11 +177,13 @@ impl<'a> fmt::Debug for Info<'a> {
     }
 }
 impl<'a> Info<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
-        Ok(Info {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
+        let result = Ok(Info {
             version: try!(_p.read_string()),
             password: _p.read_string().ok(),
-        })
+        });
+        _p.finish(warn);
+        result
     }
 }
 
@@ -189,12 +197,14 @@ impl<'a> fmt::Debug for MapChange<'a> {
     }
 }
 impl<'a> MapChange<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<MapChange<'a>, Error> {
-        Ok(MapChange {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<MapChange<'a>, Error> {
+        let result = Ok(MapChange {
             name: try!(_p.read_string()),
-            crc: try!(_p.read_int()),
-            size: try!(_p.read_int()),
-        })
+            crc: try!(_p.read_int(warn)),
+            size: try!(_p.read_int(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -217,13 +227,15 @@ impl<'a> fmt::Debug for MapData<'a> {
     }
 }
 impl<'a> MapData<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<MapData<'a>, Error> {
-        Ok(MapData {
-            last: try!(_p.read_int()),
-            crc: try!(_p.read_int()),
-            chunk: try!(_p.read_int()),
-            data: try!(_p.read_data()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<MapData<'a>, Error> {
+        let result = Ok(MapData {
+            last: try!(_p.read_int(warn)),
+            crc: try!(_p.read_int(warn)),
+            chunk: try!(_p.read_int(warn)),
+            data: try!(_p.read_data(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -243,8 +255,10 @@ impl fmt::Debug for ConReady {
     }
 }
 impl ConReady {
-    pub fn decode(_p: &mut Unpacker) -> Result<ConReady, Error> {
-        Ok(ConReady)
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ConReady, Error> {
+        let result = Ok(ConReady);
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -266,15 +280,17 @@ impl<'a> fmt::Debug for Snap<'a> {
     }
 }
 impl<'a> Snap<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<Snap<'a>, Error> {
-        Ok(Snap {
-            tick: try!(_p.read_int()),
-            delta_tick: try!(_p.read_int()),
-            num_parts: try!(_p.read_int()),
-            part: try!(_p.read_int()),
-            crc: try!(_p.read_int()),
-            data: try!(_p.read_data()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Snap<'a>, Error> {
+        let result = Ok(Snap {
+            tick: try!(_p.read_int(warn)),
+            delta_tick: try!(_p.read_int(warn)),
+            num_parts: try!(_p.read_int(warn)),
+            part: try!(_p.read_int(warn)),
+            crc: try!(_p.read_int(warn)),
+            data: try!(_p.read_data(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -298,11 +314,13 @@ impl fmt::Debug for SnapEmpty {
     }
 }
 impl SnapEmpty {
-    pub fn decode(_p: &mut Unpacker) -> Result<SnapEmpty, Error> {
-        Ok(SnapEmpty {
-            tick: try!(_p.read_int()),
-            delta_tick: try!(_p.read_int()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SnapEmpty, Error> {
+        let result = Ok(SnapEmpty {
+            tick: try!(_p.read_int(warn)),
+            delta_tick: try!(_p.read_int(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -324,13 +342,15 @@ impl<'a> fmt::Debug for SnapSingle<'a> {
     }
 }
 impl<'a> SnapSingle<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<SnapSingle<'a>, Error> {
-        Ok(SnapSingle {
-            tick: try!(_p.read_int()),
-            delta_tick: try!(_p.read_int()),
-            crc: try!(_p.read_int()),
-            data: try!(_p.read_data()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SnapSingle<'a>, Error> {
+        let result = Ok(SnapSingle {
+            tick: try!(_p.read_int(warn)),
+            delta_tick: try!(_p.read_int(warn)),
+            crc: try!(_p.read_int(warn)),
+            data: try!(_p.read_data(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -352,11 +372,13 @@ impl fmt::Debug for InputTiming {
     }
 }
 impl InputTiming {
-    pub fn decode(_p: &mut Unpacker) -> Result<InputTiming, Error> {
-        Ok(InputTiming {
-            input_pred_tick: try!(_p.read_int()),
-            time_left: try!(_p.read_int()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<InputTiming, Error> {
+        let result = Ok(InputTiming {
+            input_pred_tick: try!(_p.read_int(warn)),
+            time_left: try!(_p.read_int(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -376,11 +398,13 @@ impl fmt::Debug for RconAuthStatus {
     }
 }
 impl RconAuthStatus {
-    pub fn decode(_p: &mut Unpacker) -> Result<RconAuthStatus, Error> {
-        Ok(RconAuthStatus {
-            auth_level: _p.read_int().ok(),
-            receive_commands: _p.read_int().ok(),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RconAuthStatus, Error> {
+        let result = Ok(RconAuthStatus {
+            auth_level: _p.read_int(warn).ok(),
+            receive_commands: _p.read_int(warn).ok(),
+        });
+        _p.finish(warn);
+        result
     }
 }
 
@@ -392,10 +416,12 @@ impl<'a> fmt::Debug for RconLine<'a> {
     }
 }
 impl<'a> RconLine<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconLine<'a>, Error> {
-        Ok(RconLine {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<RconLine<'a>, Error> {
+        let result = Ok(RconLine {
             line: try!(_p.read_string()),
-        })
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -412,8 +438,10 @@ impl fmt::Debug for Ready {
     }
 }
 impl Ready {
-    pub fn decode(_p: &mut Unpacker) -> Result<Ready, Error> {
-        Ok(Ready)
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Ready, Error> {
+        let result = Ok(Ready);
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -429,8 +457,10 @@ impl fmt::Debug for EnterGame {
     }
 }
 impl EnterGame {
-    pub fn decode(_p: &mut Unpacker) -> Result<EnterGame, Error> {
-        Ok(EnterGame)
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<EnterGame, Error> {
+        let result = Ok(EnterGame);
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -449,12 +479,14 @@ impl<'a> fmt::Debug for Input<'a> {
     }
 }
 impl<'a> Input<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<Input<'a>, Error> {
-        Ok(Input {
-            ack_snapshot: try!(_p.read_int()),
-            intended_tick: try!(_p.read_int()),
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Input<'a>, Error> {
+        let result = Ok(Input {
+            ack_snapshot: try!(_p.read_int(warn)),
+            intended_tick: try!(_p.read_int(warn)),
             input: try!(_p.read_rest().map(IntegerData::from_bytes)),
-        })
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -474,10 +506,12 @@ impl<'a> fmt::Debug for RconCmd<'a> {
     }
 }
 impl<'a> RconCmd<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmd<'a>, Error> {
-        Ok(RconCmd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<RconCmd<'a>, Error> {
+        let result = Ok(RconCmd {
             cmd: try!(_p.read_string()),
-        })
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -497,12 +531,14 @@ impl<'a> fmt::Debug for RconAuth<'a> {
     }
 }
 impl<'a> RconAuth<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconAuth<'a>, Error> {
-        Ok(RconAuth {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<RconAuth<'a>, Error> {
+        let result = Ok(RconAuth {
             _unused: try!(_p.read_string()),
             password: try!(_p.read_string()),
-            request_commands: _p.read_int().ok(),
-        })
+            request_commands: _p.read_int(warn).ok(),
+        });
+        _p.finish(warn);
+        result
     }
 }
 
@@ -514,10 +550,12 @@ impl fmt::Debug for RequestMapData {
     }
 }
 impl RequestMapData {
-    pub fn decode(_p: &mut Unpacker) -> Result<RequestMapData, Error> {
-        Ok(RequestMapData {
-            chunk: try!(_p.read_int()),
-        })
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RequestMapData, Error> {
+        let result = Ok(RequestMapData {
+            chunk: try!(_p.read_int(warn)),
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -534,8 +572,10 @@ impl fmt::Debug for Ping {
     }
 }
 impl Ping {
-    pub fn decode(_p: &mut Unpacker) -> Result<Ping, Error> {
-        Ok(Ping)
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Ping, Error> {
+        let result = Ok(Ping);
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -551,8 +591,10 @@ impl fmt::Debug for PingReply {
     }
 }
 impl PingReply {
-    pub fn decode(_p: &mut Unpacker) -> Result<PingReply, Error> {
-        Ok(PingReply)
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PingReply, Error> {
+        let result = Ok(PingReply);
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -571,12 +613,14 @@ impl<'a> fmt::Debug for RconCmdAdd<'a> {
     }
 }
 impl<'a> RconCmdAdd<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmdAdd<'a>, Error> {
-        Ok(RconCmdAdd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<RconCmdAdd<'a>, Error> {
+        let result = Ok(RconCmdAdd {
             name: try!(_p.read_string()),
             help: try!(_p.read_string()),
             params: try!(_p.read_string()),
-        })
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -596,10 +640,12 @@ impl<'a> fmt::Debug for RconCmdRemove<'a> {
     }
 }
 impl<'a> RconCmdRemove<'a> {
-    pub fn decode(_p: &mut Unpacker<'a>) -> Result<RconCmdRemove<'a>, Error> {
-        Ok(RconCmdRemove {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<RconCmdRemove<'a>, Error> {
+        let result = Ok(RconCmdRemove {
             name: try!(_p.read_string()),
-        })
+        });
+        _p.finish(warn);
+        result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
@@ -664,28 +710,31 @@ pub enum System<'a> {
 }
 
 impl<'a> System<'a> {
-    pub fn decode(msg_id: i32, p: &mut Unpacker<'a>) -> Result<System<'a>, Error> {
+    pub fn decode_msg<W>(warn: &mut W, msg_id: i32, p: &mut Unpacker<'a>)
+        -> Result<System<'a>, Error>
+        where W: Warn<Warning>
+    {
         Ok(match msg_id {
-            INFO => System::Info(try!(Info::decode(p))),
-            MAP_CHANGE => System::MapChange(try!(MapChange::decode(p))),
-            MAP_DATA => System::MapData(try!(MapData::decode(p))),
-            CON_READY => System::ConReady(try!(ConReady::decode(p))),
-            SNAP => System::Snap(try!(Snap::decode(p))),
-            SNAP_EMPTY => System::SnapEmpty(try!(SnapEmpty::decode(p))),
-            SNAP_SINGLE => System::SnapSingle(try!(SnapSingle::decode(p))),
-            INPUT_TIMING => System::InputTiming(try!(InputTiming::decode(p))),
-            RCON_AUTH_STATUS => System::RconAuthStatus(try!(RconAuthStatus::decode(p))),
-            RCON_LINE => System::RconLine(try!(RconLine::decode(p))),
-            READY => System::Ready(try!(Ready::decode(p))),
-            ENTER_GAME => System::EnterGame(try!(EnterGame::decode(p))),
-            INPUT => System::Input(try!(Input::decode(p))),
-            RCON_CMD => System::RconCmd(try!(RconCmd::decode(p))),
-            RCON_AUTH => System::RconAuth(try!(RconAuth::decode(p))),
-            REQUEST_MAP_DATA => System::RequestMapData(try!(RequestMapData::decode(p))),
-            PING => System::Ping(try!(Ping::decode(p))),
-            PING_REPLY => System::PingReply(try!(PingReply::decode(p))),
-            RCON_CMD_ADD => System::RconCmdAdd(try!(RconCmdAdd::decode(p))),
-            RCON_CMD_REMOVE => System::RconCmdRemove(try!(RconCmdRemove::decode(p))),
+            INFO => System::Info(try!(Info::decode(warn, p))),
+            MAP_CHANGE => System::MapChange(try!(MapChange::decode(warn, p))),
+            MAP_DATA => System::MapData(try!(MapData::decode(warn, p))),
+            CON_READY => System::ConReady(try!(ConReady::decode(warn, p))),
+            SNAP => System::Snap(try!(Snap::decode(warn, p))),
+            SNAP_EMPTY => System::SnapEmpty(try!(SnapEmpty::decode(warn, p))),
+            SNAP_SINGLE => System::SnapSingle(try!(SnapSingle::decode(warn, p))),
+            INPUT_TIMING => System::InputTiming(try!(InputTiming::decode(warn, p))),
+            RCON_AUTH_STATUS => System::RconAuthStatus(try!(RconAuthStatus::decode(warn, p))),
+            RCON_LINE => System::RconLine(try!(RconLine::decode(warn, p))),
+            READY => System::Ready(try!(Ready::decode(warn, p))),
+            ENTER_GAME => System::EnterGame(try!(EnterGame::decode(warn, p))),
+            INPUT => System::Input(try!(Input::decode(warn, p))),
+            RCON_CMD => System::RconCmd(try!(RconCmd::decode(warn, p))),
+            RCON_AUTH => System::RconAuth(try!(RconAuth::decode(warn, p))),
+            REQUEST_MAP_DATA => System::RequestMapData(try!(RequestMapData::decode(warn, p))),
+            PING => System::Ping(try!(Ping::decode(warn, p))),
+            PING_REPLY => System::PingReply(try!(PingReply::decode(warn, p))),
+            RCON_CMD_ADD => System::RconCmdAdd(try!(RconCmdAdd::decode(warn, p))),
+            RCON_CMD_REMOVE => System::RconCmdRemove(try!(RconCmdRemove::decode(warn, p))),
             _ => return Err(Error::new()),
         })
     }
@@ -713,7 +762,7 @@ impl<'a> System<'a> {
             System::RconCmdRemove(_) => RCON_CMD_REMOVE,
         }
     }
-    pub fn encode<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+    pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         match *self {
             System::Info(ref i) => i.encode(p),
             System::MapChange(ref i) => i.encode(p),

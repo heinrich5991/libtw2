@@ -38,7 +38,6 @@ use net::net::ChunkOrEvent;
 use net::net::ChunkType;
 use net::net::Net;
 use net::net::PeerId;
-use net::net::Warning;
 use num::ToPrimitive;
 use std::collections::HashMap;
 use std::env;
@@ -245,8 +244,8 @@ impl net::net::Callback<Addr> for Socket {
 
 struct Warn<'a>(&'a [u8]);
 
-impl<'a> warn::Warn<Warning<Addr>> for Warn<'a> {
-    fn warn(&mut self, w: Warning<Addr>) {
+impl<'a, W: fmt::Debug> warn::Warn<W> for Warn<'a> {
+    fn warn(&mut self, w: W) {
         warn!("{:?}", w);
         hexdump(LogLevel::Warn, self.0);
     }
@@ -292,7 +291,7 @@ impl Main {
         with_packer(&mut version_msg, |p| System::Info(Info {
             version: VERSION,
             password: Some(b""),
-        }).encode_complete(p).unwrap());
+        }).encode(p).unwrap());
         let mut main = Main {
             socket: Socket::new().unwrap(),
             peers: HashMap::with_capacity(addresses.len()),
@@ -309,7 +308,7 @@ impl Main {
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
         fn send(msg: System, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
             let mut buf: ArrayVec<[u8; 32]> = ArrayVec::new();
-            with_packer(&mut buf, |p| msg.encode_complete(p).unwrap());
+            with_packer(&mut buf, |p| msg.encode(p).unwrap());
             net.send(socket, Chunk {
                 data: &buf,
                 addr: ChunkAddr::Peer(pid, ChunkType::Vital),
@@ -318,7 +317,7 @@ impl Main {
         }
         let _ = vital;
         let msg;
-        if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
+        if let Ok(m) = System::decode(&mut Warn(data), &mut Unpacker::new(data)) {
             msg = m;
         } else {
             if data.len() >= 1 && data[0] == b'\x02' {

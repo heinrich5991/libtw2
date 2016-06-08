@@ -7,13 +7,28 @@ use buffer;
 use error::Error;
 use num::ToPrimitive;
 use std::slice;
+use warn::Warn;
 
-// Format: ESDDDDDD EDDDDDDD EDDDDDDD EDDDDDDD ...
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Warning {
+    OverlongIntEncoding,
+    IntPadding,
+    ExcessData,
+}
+
+// Format: ESDD_DDDD EDDD_DDDD EDDD_DDDD EDDD_DDDD PPPP_DDDD
 // E - Extend
 // S - Sign
 // D - Digit (little-endian)
-fn read_int(iter: &mut slice::Iter<u8>) -> Result<i32, Error> {
+// P - Padding
+//
+// Padding must be zeroed. The extend bit specifies whether another byte
+// follows.
+fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Error>
+    where W: Warn<Warning>
+{
     let mut result = 0;
+    let mut len = 1;
 
     let mut src = *unwrap_or_return!(iter.next(), Err(Error::new()));
     let sign = ((src >> 6) & 1) as i32;
@@ -21,12 +36,19 @@ fn read_int(iter: &mut slice::Iter<u8>) -> Result<i32, Error> {
     result |= (src & 0b0011_1111) as i32;
 
     for i in 0..4 {
-        // WARN
         if src & 0b1000_0000 == 0 {
             break;
         }
         src = *unwrap_or_return!(iter.next(), Err(Error::new()));
+        len += 1;
+        if i == 3 && src & 0b1111_0000 != 0 {
+            warn.warn(Warning::IntPadding);
+        }
         result |= ((src & 0b0111_1111) as i32) << (6 + 7 * i);
+    }
+
+    if len > 1 && src == 0b0000_0000 {
+        warn.warn(Warning::OverlongIntEncoding);
     }
 
     result ^= -sign;
@@ -126,19 +148,24 @@ impl<'a> Unpacker<'a> {
             iter: data.iter(),
         }
     }
-    pub fn error<T>(&mut self) -> Result<T, Error> {
+    fn use_up(&mut self) {
         // Advance the iterator to the end.
         self.iter.by_ref().count();
+    }
+    pub fn error<T>(&mut self) -> Result<T, Error> {
+        self.use_up();
         Err(Error::new())
     }
     pub fn read_string(&mut self) -> Result<&'a [u8], Error> {
         read_string(&mut self.iter)
     }
-    pub fn read_int(&mut self) -> Result<i32, Error> {
-        read_int(&mut self.iter)
+    pub fn read_int<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<i32, Error> {
+        read_int(warn, &mut self.iter)
     }
-    pub fn read_data(&mut self) -> Result<&'a [u8], Error> {
-        let len = match self.read_int().map(|l| l.to_usize()) {
+    pub fn read_data<W: Warn<Warning>>(&mut self, warn: &mut W)
+        -> Result<&'a [u8], Error>
+    {
+        let len = match self.read_int(warn).map(|l| l.to_usize()) {
             Ok(Some(l)) => l,
             _ => return self.error(),
         };
@@ -152,9 +179,14 @@ impl<'a> Unpacker<'a> {
     }
     pub fn read_rest(&mut self) -> Result<&'a [u8], Error> {
         let result = Ok(self.iter.as_slice());
-        // Use up the iterator.
-        self.iter.by_ref().count();
+        self.use_up();
         result
+    }
+    pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
+        if !self.as_slice().is_empty() {
+            warn.warn(Warning::ExcessData);
+        }
+        self.use_up();
     }
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
@@ -164,29 +196,41 @@ impl<'a> Unpacker<'a> {
 #[cfg(test)]
 mod test {
     use std::i32;
-    use super::read_int;
-    use super::read_string;
+    use super::Unpacker;
+    use super::Warning::*;
+    use super::Warning;
+    use warn::Panic;
 
     fn assert_int_err(bytes: &[u8]) {
-        let mut iter = bytes.iter();
-        read_int(&mut iter).unwrap_err();
+        let mut unpacker = Unpacker::new(bytes);
+        unpacker.read_int(&mut Panic).unwrap_err();
+    }
+
+    fn assert_int_warnings(bytes: &[u8], int: i32, warnings: &[Warning]) {
+        let mut vec = vec![];
+        let mut unpacker = Unpacker::new(bytes);
+        assert_eq!(unpacker.read_int(&mut vec).unwrap(), int);
+        assert!(unpacker.as_slice().is_empty());
+        assert_eq!(vec, warnings);
+    }
+
+    fn assert_int_warn(bytes: &[u8], int: i32, warning: Warning) {
+        assert_int_warnings(bytes, int, &[warning]);
     }
 
     fn assert_int(bytes: &[u8], int: i32) {
-        let mut iter = bytes.iter();
-        assert_eq!(read_int(&mut iter).unwrap(), int);
-        assert!(iter.as_slice().is_empty());
+        assert_int_warnings(bytes, int, &[]);
     }
 
     fn assert_str(bytes: &[u8], string: &[u8], remaining: &[u8]) {
-        let mut iter = bytes.iter();
-        assert_eq!(read_string(&mut iter).unwrap(), string);
-        assert_eq!(iter.as_slice(), remaining);
+        let mut unpacker = Unpacker::new(bytes);
+        assert_eq!(unpacker.read_string().unwrap(), string);
+        assert_eq!(unpacker.as_slice(), remaining);
     }
 
     fn assert_str_err(bytes: &[u8]) {
-        let mut iter = bytes.iter();
-        read_string(&mut iter).unwrap_err();
+        let mut unpacker = Unpacker::new(bytes);
+        unpacker.read_string().unwrap_err();
     }
 
     #[test] fn int_0() { assert_int(b"\x00", 0) }
@@ -196,10 +240,12 @@ mod test {
     #[test] fn int_m64() { assert_int(b"\x7f", -64) }
     #[test] fn int_min() { assert_int(b"\xff\xff\xff\xff\x0f", i32::min_value()) }
     #[test] fn int_max() { assert_int(b"\xbf\xff\xff\xff\x0f", i32::max_value()) }
-    #[test] fn int_quirk1() { assert_int(b"\xff\xff\xff\xff\xff", 0) }
-    #[test] fn int_quirk2() { assert_int(b"\xbf\xff\xff\xff\xff", -1) }
+    #[test] fn int_quirk1() { assert_int_warn(b"\xff\xff\xff\xff\xff", 0, IntPadding) }
+    #[test] fn int_quirk2() { assert_int_warn(b"\xbf\xff\xff\xff\xff", -1, IntPadding) }
     #[test] fn int_empty() { assert_int_err(b"") }
     #[test] fn int_extend_empty() { assert_int_err(b"\x80") }
+    #[test] fn int_overlong1() { assert_int_warn(b"\x80\x00", 0, OverlongIntEncoding) }
+    #[test] fn int_overlong2() { assert_int_warn(b"\xc0\x00", -1, OverlongIntEncoding) }
 
     #[test] fn str_empty() { assert_str(b"\0", b"", b"") }
     #[test] fn str_none() { assert_str_err(b"") }
@@ -208,4 +254,46 @@ mod test {
     #[test] fn str_rest2() { assert_str(b"abc\0", b"abc", b"") }
     #[test] fn str_rest3() { assert_str(b"abc\0\0", b"abc", b"\0") }
     #[test] fn str_rest4() { assert_str(b"\0\0", b"", b"\0") }
+
+    #[test]
+    fn excess_data() {
+        let mut warnings = vec![];
+        let mut unpacker = Unpacker::new(b"\x00");
+        unpacker.finish(&mut warnings);
+        assert_eq!(warnings, [ExcessData]);
+    }
+}
+
+#[cfg(all(feature = "nightly-test", test))]
+mod test_nightly {
+    use arrayvec::ArrayVec;
+    use super::Unpacker;
+    use super::with_packer;
+    use warn::Ignore;
+    use warn::Panic;
+
+    #[quickcheck]
+    fn int_roundtrip(int: i32) -> bool {
+        let mut buf: ArrayVec<[u8; 5]> = ArrayVec::new();
+        let mut unpacker = Unpacker::new(with_packer(&mut buf, |mut p| {
+            p.write_int(int).unwrap();
+            p.written()
+        }));
+        let read_int = unpacker.read_int(&mut Panic).unwrap();
+        int == read_int && unpacker.as_slice().is_empty()
+    }
+
+    #[quickcheck]
+    fn int_no_panic(data: Vec<u8>) -> bool {
+        let mut unpacker = Unpacker::new(&data);
+        let _ = unpacker.read_int(&mut Ignore);
+        true
+    }
+
+    #[quickcheck]
+    fn string_no_panic(data: Vec<u8>) -> bool {
+        let mut unpacker = Unpacker::new(&data);
+        let _ = unpacker.read_string();
+        true
+    }
 }

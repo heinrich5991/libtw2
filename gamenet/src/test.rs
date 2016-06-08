@@ -10,7 +10,7 @@ fn encode_info() {
     let result = with_packer(buf, |p| System::Info(Info {
         version: b"abc",
         password: Some(b"ok"),
-    }).encode_complete(p)).unwrap();
+    }).encode(p)).unwrap();
     println!("");
     hexdump(result);
     assert!(result == b"\x03abc\0ok\0");

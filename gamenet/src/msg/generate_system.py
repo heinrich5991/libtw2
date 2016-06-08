@@ -29,24 +29,30 @@ use bytes::PrettyBytes;
 use error::Error;
 use packer::Packer;
 use packer::Unpacker;
+use packer::Warning;
 use packer::with_packer;
 use std::fmt;
 use super::IntegerData;
 use super::SystemOrGame;
+use warn::Warn;
 
 impl<'a> System<'a> {
-    pub fn decode_complete(p: &mut Unpacker<'a>) -> Result<System<'a>, Error> {
-        if let SystemOrGame::System(msg_id) = SystemOrGame::decode_id(try!(p.read_int())) {
-            System::decode(msg_id, p)
+    pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>
+        where W: Warn<Warning>
+    {
+        if let SystemOrGame::System(msg_id) =
+            SystemOrGame::decode_id(try!(p.read_int(warn)))
+        {
+            System::decode_msg(warn, msg_id, p)
         } else {
             Err(Error::new())
         }
     }
-    pub fn encode_complete<'d, 's>(&self, mut p: Packer<'d, 's>)
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
         try!(p.write_int(SystemOrGame::System(self.msg_id()).encode_id()));
-        try!(with_packer(&mut p, |p| self.encode(p)));
+        try!(with_packer(&mut p, |p| self.encode_msg(p)));
         Ok(p.written())
     }
 }
@@ -194,9 +200,9 @@ def generate_struct_impl(msgs):
         result.append("    }")
         result.append("}")
         result.append("impl{l} {}{l} {{".format(n, l=l))
-        result.append("    pub fn decode(_p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(n, l=l))
+        result.append("    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(n, l=l))
         if members:
-            result.append("        Ok({} {{".format(n))
+            result.append("        let result = Ok({} {{".format(n))
             for type_, opt, name in members:
                 if not opt:
                     conv = "try!({})".format
@@ -205,17 +211,19 @@ def generate_struct_impl(msgs):
                 if type_ == 'string':
                     decode = "_p.read_string()"
                 elif type_ == 'integer':
-                    decode = "_p.read_int()"
+                    decode = "_p.read_int(warn)"
                 elif type_ == 'data':
-                    decode = "_p.read_data()"
+                    decode = "_p.read_data(warn)"
                 elif type_ == 'integer_data':
                     decode = "_p.read_rest().map(IntegerData::from_bytes)"
                 else:
                     raise ValueError("Invalid type: {}".format(type_))
                 result.append(" "*4*3 + "{}: {},".format(name, conv(decode)))
-            result.append("        })")
+            result.append("        });")
         else:
-            result.append("        Ok({})".format(n))
+            result.append("        let result = Ok({});".format(n))
+        result.append("        _p.finish(warn);".format(n))
+        result.append("        result".format(n))
         result.append("    }")
         if all(not opt for _, opt, _ in members):
             result.append("    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)")
@@ -256,10 +264,13 @@ def generate_enum(msgs):
 def generate_enum_impl(msgs):
     result = []
     result.append("impl<'a> System<'a> {")
-    result.append("    pub fn decode(msg_id: i32, p: &mut Unpacker<'a>) -> Result<System<'a>, Error> {")
+    result.append("    pub fn decode_msg<W>(warn: &mut W, msg_id: i32, p: &mut Unpacker<'a>)")
+    result.append("        -> Result<System<'a>, Error>")
+    result.append("        where W: Warn<Warning>")
+    result.append("    {")
     result.append("        Ok(match msg_id {")
     for _, name, _ in msgs:
-        result.append("            {} => System::{n}(try!({n}::decode(p))),".format(const_name(name), n=struct_name(name)))
+        result.append("            {} => System::{n}(try!({n}::decode(warn, p))),".format(const_name(name), n=struct_name(name)))
     result.append("            _ => return Err(Error::new()),")
     result.append("        })")
     result.append("    }")
@@ -269,7 +280,7 @@ def generate_enum_impl(msgs):
         result.append("            System::{}(_) => {},".format(struct_name(name), const_name(name)))
     result.append("        }")
     result.append("    }")
-    result.append("    pub fn encode<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {")
+    result.append("    pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {")
     result.append("        match *self {")
     for _, name, _ in msgs:
         result.append("            System::{}(ref i) => i.encode(p),".format(struct_name(name), const_name(name)))
