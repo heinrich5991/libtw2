@@ -52,7 +52,8 @@ use std::time::Duration;
 use std::time::Instant;
 use std::u32;
 
-pub const NETWORK_LOSS_RATE: f32 = 0.0;
+const NETWORK_LOSS_RATE: f32 = 0.0;
+const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
 fn loss() -> bool {
     assert!(0.0 <= NETWORK_LOSS_RATE && NETWORK_LOSS_RATE <= 1.0);
@@ -73,8 +74,6 @@ impl DurationToMs for Duration {
         ).to_u32().unwrap_or(u32::max_value())
     }
 }
-
-const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
 #[derive(Debug)]
 enum Direction {
