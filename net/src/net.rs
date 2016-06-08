@@ -81,8 +81,7 @@ impl<A: Address> Peers<A> {
         }
     }
     fn new_peer(&mut self, addr: A) -> (PeerId, &mut Peer<A>) {
-        // FIXME: Work around missing non-lexical borrows.
-        // TODO: Find issue number for this.
+        // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
         let raw_self: *mut Peers<A> = self;
         unsafe {
             loop {
