@@ -8,6 +8,7 @@ extern crate itertools;
 extern crate mio;
 extern crate net;
 extern crate num;
+extern crate rand;
 
 use arrayvec::ArrayVec;
 use buffer::Buffer;
@@ -44,13 +45,19 @@ use std::env;
 use std::fmt;
 use std::io::Write;
 use std::io;
-use std::mem;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 use std::u32;
+
+pub const NETWORK_LOSS_RATE: f32 = 0.0;
+
+fn loss() -> bool {
+    assert!(0.0 <= NETWORK_LOSS_RATE && NETWORK_LOSS_RATE <= 1.0);
+    NETWORK_LOSS_RATE != 0.0 && rand::random::<f32>() < NETWORK_LOSS_RATE
+}
 
 trait DurationToMs {
     fn to_milliseconds_saturating(&self) -> u32;
@@ -95,7 +102,7 @@ fn dump(dir: Direction, addr: Addr, data: &[u8]) {
     hexdump(LogLevel::Debug, data);
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Addr {
     ip: IpAddr,
     port: u16,
@@ -104,6 +111,12 @@ struct Addr {
 impl fmt::Display for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         SocketAddr::new(self.ip, self.port).fmt(f)
+    }
+}
+
+impl fmt::Debug for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
@@ -125,7 +138,8 @@ impl FromStr for Addr {
 }
 
 struct Socket {
-    last_tick: Instant,
+    start: Instant,
+    time_cached: Duration,
     poll: mio::Poll,
     v4: UdpSocket,
     v6: UdpSocket,
@@ -162,15 +176,12 @@ impl Socket {
         try!(register(&mut poll, &v4));
         try!(register(&mut poll, &v6));
         Ok(Socket {
-            last_tick: Instant::now(),
+            start: Instant::now(),
+            time_cached: Duration::from_millis(0),
             poll: poll,
             v4: v4,
             v6: v6,
         })
-    }
-    fn next_tick_delta(&mut self) -> Duration {
-        let now = Instant::now();
-        now.duration_since(mem::replace(&mut self.last_tick, now))
     }
     fn receive<'a, B: Buffer<'a>>(&mut self, buf: B)
         -> Option<Result<(Addr, &'a [u8]), io::Error>>
@@ -206,11 +217,17 @@ impl Socket {
         // on loss-free networks.
         Ok(())
     }
+    fn update_time_cached(&mut self) {
+        self.time_cached = self.start.elapsed()
+    }
 }
 
 impl net::net::Callback<Addr> for Socket {
     type Error = io::Error;
     fn send(&mut self, addr: Addr, data: &[u8]) -> Result<(), io::Error> {
+        if loss() {
+            return Ok(());
+        }
         dump(Direction::Send, addr, data);
         let sock_addr = SocketAddr::new(addr.ip, addr.port);
         let socket = if let IpAddr::V4(..) = addr.ip {
@@ -222,8 +239,8 @@ impl net::net::Callback<Addr> for Socket {
             .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
             .map(|s| assert!(data.len() == s))
     }
-    fn time_since_tick(&mut self) -> Duration {
-        self.last_tick.elapsed()
+    fn time(&mut self) -> Duration {
+        self.time_cached
     }
 }
 
@@ -300,6 +317,7 @@ impl Main {
             }).unwrap();
             net.flush(socket, pid).unwrap();
         }
+        let _ = vital;
         let msg;
         if let Ok(m) = System::decode_complete(&mut Unpacker::new(data)) {
             msg = m;
@@ -325,7 +343,7 @@ impl Main {
                         PeerState::SentReady(true, _) => info!("now getting real map"),
                         _ => warn!("map change from state {:?}", *state),
                     }
-                    let dummy = name == b"dummy" && crc == 0xbeae0b9f;
+                    let dummy = name == b"dummy" && crc as u32 == 0xbeae0b9f;
                     *state = PeerState::DownloadingMap(dummy, crc, 0);
                     info!("map change: {:?}", String::from_utf8_lossy(name));
                     processed = true;
@@ -409,18 +427,26 @@ impl Main {
                     false
                 }
             }
-            _ => false,
+            ChunkOrEvent::Chunk(..) => false,
+            ChunkOrEvent::Disconnect(pid, reason) => {
+                error!("disconnected pid={:?} error={:?}", pid, String::from_utf8_lossy(reason));
+                false
+            },
+            ChunkOrEvent::Connect(..) => unreachable!(),
         }
     }
     fn run(&mut self) {
         let mut buf1: ArrayVec<[u8; 4096]> = ArrayVec::new();
         let mut buf2: ArrayVec<[u8; 4096]> = ArrayVec::new();
         while self.net.needs_tick() {
-            let delta = self.socket.next_tick_delta();
-            self.net.tick(&mut self.socket, delta).foreach(|e| panic!("{:?}", e));
+            self.net.tick(&mut self.socket).foreach(|e| panic!("{:?}", e));
             self.socket.sleep(Duration::from_millis(50)).unwrap();
+            self.socket.update_time_cached();
 
             while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
+                if loss() {
+                    continue;
+                }
                 let (addr, data) = res.unwrap();
                 dump(Direction::Receive, addr, data);
                 buf2.clear();
