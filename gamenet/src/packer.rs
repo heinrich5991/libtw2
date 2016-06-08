@@ -160,3 +160,52 @@ impl<'a> Unpacker<'a> {
         self.iter.as_slice()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::i32;
+    use super::read_int;
+    use super::read_string;
+
+    fn assert_int_err(bytes: &[u8]) {
+        let mut iter = bytes.iter();
+        read_int(&mut iter).unwrap_err();
+    }
+
+    fn assert_int(bytes: &[u8], int: i32) {
+        let mut iter = bytes.iter();
+        assert_eq!(read_int(&mut iter).unwrap(), int);
+        assert!(iter.as_slice().is_empty());
+    }
+
+    fn assert_str(bytes: &[u8], string: &[u8], remaining: &[u8]) {
+        let mut iter = bytes.iter();
+        assert_eq!(read_string(&mut iter).unwrap(), string);
+        assert_eq!(iter.as_slice(), remaining);
+    }
+
+    fn assert_str_err(bytes: &[u8]) {
+        let mut iter = bytes.iter();
+        read_string(&mut iter).unwrap_err();
+    }
+
+    #[test] fn int_0() { assert_int(b"\x00", 0) }
+    #[test] fn int_1() { assert_int(b"\x01", 1) }
+    #[test] fn int_63() { assert_int(b"\x3f", 63) }
+    #[test] fn int_m1() { assert_int(b"\x40", -1) }
+    #[test] fn int_m64() { assert_int(b"\x7f", -64) }
+    #[test] fn int_min() { assert_int(b"\xff\xff\xff\xff\x0f", i32::min_value()) }
+    #[test] fn int_max() { assert_int(b"\xbf\xff\xff\xff\x0f", i32::max_value()) }
+    #[test] fn int_quirk1() { assert_int(b"\xff\xff\xff\xff\xff", 0) }
+    #[test] fn int_quirk2() { assert_int(b"\xbf\xff\xff\xff\xff", -1) }
+    #[test] fn int_empty() { assert_int_err(b"") }
+    #[test] fn int_extend_empty() { assert_int_err(b"\x80") }
+
+    #[test] fn str_empty() { assert_str(b"\0", b"", b"") }
+    #[test] fn str_none() { assert_str_err(b"") }
+    #[test] fn str_no_nul() { assert_str_err(b"abc") }
+    #[test] fn str_rest1() { assert_str(b"abc\0def", b"abc", b"def") }
+    #[test] fn str_rest2() { assert_str(b"abc\0", b"abc", b"") }
+    #[test] fn str_rest3() { assert_str(b"abc\0\0", b"abc", b"\0") }
+    #[test] fn str_rest4() { assert_str(b"\0\0", b"", b"\0") }
+}
