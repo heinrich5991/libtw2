@@ -66,8 +66,9 @@ impl From<buffer::CapacityError> for Error {
 pub enum Warning {
     ChunkHeaderPadding,
     ChunkHeaderSequence,
-    ChunksUnknownData,
+    ChunksNoChunks,
     ChunksNumChunks,
+    ChunksUnknownData,
     ConnlessPadding,
     ControlExcessData,
     ControlFlags,
@@ -76,10 +77,9 @@ pub enum Warning {
     PacketHeaderPadding,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum PacketReadError {
     Compression,
-    CompressionTooLong,
     ControlMissing,
     ShortConnless,
     TooLong,
@@ -87,7 +87,7 @@ pub enum PacketReadError {
     UnknownControl,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ControlPacket<'a> {
     KeepAlive,
     Connect,
@@ -96,32 +96,33 @@ pub enum ControlPacket<'a> {
     Close(&'a [u8]),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ConnectedPacket<'a> {
     pub ack: u16, // u10
     pub type_: ConnectedPacketType<'a>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ConnectedPacketType<'a> {
     // Chunks(request_resend, num_chunks, payload)
     Chunks(bool, u8, &'a [u8]),
     Control(ControlPacket<'a>),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Packet<'a> {
     Connless(&'a [u8]),
     Connected(ConnectedPacket<'a>),
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Chunk<'a> {
     pub data: &'a [u8],
     // vital: Some((sequence, resend))
     pub vital: Option<(u16, bool)>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ChunksIter<'a> {
     data: &'a [u8],
     num_remaining_chunks: i32,
@@ -311,7 +312,7 @@ impl<'a> Packet<'a> {
         };
 
         if payload.len() > MAX_PAYLOAD {
-            return Err(CompressionTooLong);
+            return Err(Compression);
         }
 
         let ack = header.ack;
@@ -357,6 +358,9 @@ impl<'a> Packet<'a> {
             ConnectedPacketType::Control(control)
         } else {
             let request_resend = header.flags & PACKETFLAG_REQUEST_RESEND != 0;
+            if header.num_chunks == 0 {
+                warn.warn(Warning::ChunksNoChunks);
+            }
             ConnectedPacketType::Chunks(request_resend, header.num_chunks, payload)
         };
 
@@ -610,9 +614,13 @@ mod test {
     use super::ChunksIter;
     use super::ConnectedPacket;
     use super::ConnectedPacketType;
+    use super::MAX_PACKETSIZE;
     use super::Packet;
+    use super::PacketReadError::*;
+    use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
+    use warning::Panic;
     use warning::Warn;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);
@@ -634,6 +642,9 @@ mod test {
             let mut chunks = ChunksIter::new(chunk_data, num_chunks);
             while let Some(_) = chunks.next_warn(&mut WarnVec(&mut vec)) { }
         }
+        if warnings != &[ChunksNoChunks] {
+            vec.retain(|w| *w != ChunksNoChunks);
+        }
         assert_eq!(vec, warnings);
     }
 
@@ -645,6 +656,11 @@ mod test {
         assert_warnings(input, &[]);
     }
 
+    fn assert_err(input: &[u8], error: PacketReadError) {
+        let mut buffer= Vec::with_capacity(4096);
+        assert_eq!(Packet::read(&mut Panic, input, &mut buffer).unwrap_err(), error);
+    }
+
     #[test] fn w_chp() { assert_warn(b"\x00\x00\x01\x00\xf0", ChunkHeaderPadding) }
     #[test] fn w_chs1() { assert_warn(b"\x00\x00\x01\x40\x20\x00", ChunkHeaderSequence) }
     #[test] fn w_chs2() { assert_warn(b"\x00\x00\x01\x40\x10\x00", ChunkHeaderSequence) }
@@ -653,6 +669,7 @@ mod test {
     #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00", ChunksUnknownData) }
     #[test] fn w_cnc1() { assert_warn(b"\x00\x00\x01", ChunksNumChunks) }
     #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00", ChunksNumChunks) }
+    #[test] fn w_cnc_() { assert_warn(b"\x00\x00\x00", ChunksNoChunks) }
     #[test] fn w_cp1() { assert_warn(b"xe\x01\x02\x03\x04", ConnlessPadding) }
     #[test] fn w_cp2() { assert_warn(b"\xff\xff\xff\xff\xff\xfe", ConnlessPadding) }
     #[test] fn w_cp3() { assert_warn(b"\x7f\xff\xff\xff\xff\xff", ConnlessPadding) }
@@ -666,6 +683,15 @@ mod test {
     #[test] fn w_cnc() { assert_warn(b"\x10\x00\xff\x00", ControlNumChunks) }
     #[test] fn w_php1() { assert_warn(b"\x08\x00\x00", PacketHeaderPadding) }
     #[test] fn w_php2() { assert_warn(b"\x04\x00\x00", PacketHeaderPadding) }
+
+    #[test] fn e_cm() { assert_err(b"\x10\x00\x00", ControlMissing) }
+    #[test] fn e_sc() { assert_err(b"\xff\xff\xff", ShortConnless) }
+    #[test] fn e_tl() { assert_err(&[0; MAX_PACKETSIZE+1], TooLong) }
+    #[test] fn e_ts1() { assert_err(b"\x00\x00", TooShort) }
+    #[test] fn e_ts2() { assert_err(b"", TooShort) }
+    #[test] fn e_uc1() { assert_err(b"\x10\x00\x00\x05", UnknownControl) }
+    #[test] fn e_uc2() { assert_err(b"\x10\x00\x00\xff", UnknownControl) }
+    #[test] fn e_c() { assert_err(b"\x80\x00\x00", Compression) }
 }
 
 #[cfg(all(feature = "nightly-test", test))]
