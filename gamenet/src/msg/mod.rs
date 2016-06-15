@@ -1,7 +1,13 @@
-pub use self::system::System;
-
 pub mod system;
 pub mod game;
+
+pub use self::game::Game;
+pub use self::system::System;
+
+use error::Error;
+use packer::Unpacker;
+use packer::Warning;
+use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
 pub struct IntegerData<'a> {
@@ -20,7 +26,7 @@ impl<'a> IntegerData<'a> {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum SystemOrGame<S, G> {
+pub enum SystemOrGame<S, G> {
     System(S),
     Game(G),
 }
@@ -58,5 +64,20 @@ impl SystemOrGame<i32, i32> {
         assert!((iid & (1 << 31)) == 0);
         let flag = self.is_system() as u32;
         ((iid << 1) | flag) as i32
+    }
+}
+
+impl<'a> SystemOrGame<System<'a>, Game<'a>> {
+    pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>)
+        -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
+        where W: Warn<Warning>
+    {
+        let msg_id = try!(p.read_int(warn));
+        Ok(match SystemOrGame::decode_id(msg_id) {
+            SystemOrGame::System(msg_id) =>
+                SystemOrGame::System(try!(System::decode_msg(warn, msg_id, p))),
+            SystemOrGame::Game(msg_id) =>
+                SystemOrGame::Game(try!(Game::decode_msg(warn, msg_id, p))),
+        })
     }
 }
