@@ -19,7 +19,7 @@ impl<'a> System<'a> {
         {
             System::decode_msg(warn, msg_id, p)
         } else {
-            Err(Error::new())
+            Err(Error::UnknownMessage)
         }
     }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
@@ -735,7 +735,7 @@ impl<'a> System<'a> {
             PING_REPLY => System::PingReply(try!(PingReply::decode(warn, p))),
             RCON_CMD_ADD => System::RconCmdAdd(try!(RconCmdAdd::decode(warn, p))),
             RCON_CMD_REMOVE => System::RconCmdRemove(try!(RconCmdRemove::decode(warn, p))),
-            _ => return Err(Error::new()),
+            _ => return Err(Error::UnknownMessage),
         })
     }
     pub fn msg_id(&self) -> i32 {

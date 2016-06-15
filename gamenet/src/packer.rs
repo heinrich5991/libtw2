@@ -30,7 +30,7 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Error>
     let mut result = 0;
     let mut len = 1;
 
-    let mut src = *unwrap_or_return!(iter.next(), Err(Error::new()));
+    let mut src = *unwrap_or_return!(iter.next(), Err(Error::UnexpectedEnd));
     let sign = ((src >> 6) & 1) as i32;
 
     result |= (src & 0b0011_1111) as i32;
@@ -39,7 +39,7 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Error>
         if src & 0b1000_0000 == 0 {
             break;
         }
-        src = *unwrap_or_return!(iter.next(), Err(Error::new()));
+        src = *unwrap_or_return!(iter.next(), Err(Error::UnexpectedEnd));
         len += 1;
         if i == 3 && src & 0b1111_0000 != 0 {
             warn.warn(Warning::IntPadding);
@@ -85,7 +85,7 @@ fn read_string<'a>(iter: &mut slice::Iter<'a, u8>) -> Result<&'a [u8], Error> {
             return Ok(&slice[..i]);
         }
     }
-    Err(Error::new())
+    Err(Error::UnexpectedEnd)
 }
 
 fn write_string<E, F: FnMut(&[u8]) -> Result<(), E>>(string: &[u8], f: F) -> Result<(), E> {
@@ -152,9 +152,9 @@ impl<'a> Unpacker<'a> {
         // Advance the iterator to the end.
         self.iter.by_ref().count();
     }
-    pub fn error<T>(&mut self) -> Result<T, Error> {
+    fn error<T>(&mut self) -> Result<T, Error> {
         self.use_up();
-        Err(Error::new())
+        Err(Error::UnexpectedEnd)
     }
     pub fn read_string(&mut self) -> Result<&'a [u8], Error> {
         read_string(&mut self.iter)

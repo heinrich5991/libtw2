@@ -1,12 +1,23 @@
 #[derive(Debug)]
-pub struct Error {
-    _unused: (),
+pub enum Error {
+    ControlCharacters,
+    IntOutOfRange,
+    UnexpectedEnd,
+    UnknownMessage,
 }
 
-impl Error {
-    pub fn new() -> Error {
-        Error {
-            _unused: (),
-        }
+#[derive(Debug)]
+pub struct IntOutOfRange;
+impl From<IntOutOfRange> for Error {
+    fn from(_: IntOutOfRange) -> Error {
+        Error::IntOutOfRange
+    }
+}
+
+#[derive(Debug)]
+pub struct ControlCharacters;
+impl From<ControlCharacters> for Error {
+    fn from(_: ControlCharacters) -> Error {
+        Error::ControlCharacters
     }
 }

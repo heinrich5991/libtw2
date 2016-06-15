@@ -56,7 +56,7 @@ impl SystemOrGame<i32, i32> {
     fn encode_id(self) -> i32 {
         let iid = self.internal_id() as u32;
         assert!((iid & (1 << 31)) == 0);
-        let flag = if self.is_system() { 1 } else { 0 };
+        let flag = self.is_system() as u32;
         ((iid << 1) | flag) as i32
     }
 }

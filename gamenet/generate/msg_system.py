@@ -45,7 +45,7 @@ impl<'a> System<'a> {
         {
             System::decode_msg(warn, msg_id, p)
         } else {
-            Err(Error::new())
+            Err(Error::UnknownMessage)
         }
     }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
@@ -271,7 +271,7 @@ def generate_enum_impl(msgs):
     result.append("        Ok(match msg_id {")
     for _, name, _ in msgs:
         result.append("            {} => System::{n}(try!({n}::decode(warn, p))),".format(const_name(name), n=struct_name(name)))
-    result.append("            _ => return Err(Error::new()),")
+    result.append("            _ => return Err(Error::UnknownMessage),")
     result.append("        })")
     result.append("    }")
     result.append("    pub fn msg_id(&self) -> i32 {")
