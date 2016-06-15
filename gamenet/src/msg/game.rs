@@ -1,4 +1,5 @@
 use buffer::CapacityError;
+use bytes::PrettyBytes;
 use error::ControlCharacters;
 use error::Error;
 use error::IntOutOfRange;
@@ -6,6 +7,7 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
+use std::fmt;
 use super::SystemOrGame;
 use warn::Panic;
 use warn::Warn;
@@ -490,6 +492,7 @@ pub const CL_EMOTICON: i32 = 23;
 pub const CL_VOTE: i32 = 24;
 pub const CL_CALL_VOTE: i32 = 25;
 
+#[derive(Clone, Copy)]
 pub enum Game<'a> {
     SvMotd(SvMotd<'a>),
     SvBroadcast(SvBroadcast<'a>),
@@ -608,20 +611,56 @@ impl<'a> Game<'a> {
         }
     }
 }
+
+impl<'a> fmt::Debug for Game<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Game::SvMotd(ref i) => i.fmt(f),
+            Game::SvBroadcast(ref i) => i.fmt(f),
+            Game::SvChat(ref i) => i.fmt(f),
+            Game::SvKillMsg(ref i) => i.fmt(f),
+            Game::SvSoundGlobal(ref i) => i.fmt(f),
+            Game::SvTuneParams(ref i) => i.fmt(f),
+            Game::SvExtraProjectile(ref i) => i.fmt(f),
+            Game::SvReadyToEnter(ref i) => i.fmt(f),
+            Game::SvWeaponPickup(ref i) => i.fmt(f),
+            Game::SvEmoticon(ref i) => i.fmt(f),
+            Game::SvVoteClearOptions(ref i) => i.fmt(f),
+            Game::SvVoteOptionListAdd(ref i) => i.fmt(f),
+            Game::SvVoteOptionAdd(ref i) => i.fmt(f),
+            Game::SvVoteOptionRemove(ref i) => i.fmt(f),
+            Game::SvVoteSet(ref i) => i.fmt(f),
+            Game::SvVoteStatus(ref i) => i.fmt(f),
+            Game::ClSay(ref i) => i.fmt(f),
+            Game::ClSetTeam(ref i) => i.fmt(f),
+            Game::ClSetSpectatorMode(ref i) => i.fmt(f),
+            Game::ClStartInfo(ref i) => i.fmt(f),
+            Game::ClChangeInfo(ref i) => i.fmt(f),
+            Game::ClKill(ref i) => i.fmt(f),
+            Game::ClEmoticon(ref i) => i.fmt(f),
+            Game::ClVote(ref i) => i.fmt(f),
+            Game::ClCallVote(ref i) => i.fmt(f),
+        }
+    }
+}
+#[derive(Clone, Copy)]
 pub struct SvMotd<'a> {
     pub message: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvBroadcast<'a> {
     pub message: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvChat<'a> {
     pub team: i32,
     pub client_id: i32,
     pub message: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvKillMsg {
     pub killer: i32,
     pub victim: i32,
@@ -629,27 +668,35 @@ pub struct SvKillMsg {
     pub mode_special: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct SvSoundGlobal {
     pub sound_id: Sound,
 }
 
+#[derive(Clone, Copy)]
 pub struct SvTuneParams;
 
+#[derive(Clone, Copy)]
 pub struct SvExtraProjectile;
 
+#[derive(Clone, Copy)]
 pub struct SvReadyToEnter;
 
+#[derive(Clone, Copy)]
 pub struct SvWeaponPickup {
     pub weapon: Weapon,
 }
 
+#[derive(Clone, Copy)]
 pub struct SvEmoticon {
     pub client_id: i32,
     pub emoticon: Emoticon,
 }
 
+#[derive(Clone, Copy)]
 pub struct SvVoteClearOptions;
 
+#[derive(Clone, Copy)]
 pub struct SvVoteOptionListAdd<'a> {
     pub num_options: i32,
     pub description0: &'a [u8],
@@ -669,20 +716,24 @@ pub struct SvVoteOptionListAdd<'a> {
     pub description14: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvVoteOptionAdd<'a> {
     pub description: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvVoteOptionRemove<'a> {
     pub description: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvVoteSet<'a> {
     pub timeout: i32,
     pub description: &'a [u8],
     pub reason: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct SvVoteStatus {
     pub yes: i32,
     pub no: i32,
@@ -690,19 +741,23 @@ pub struct SvVoteStatus {
     pub total: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClSay<'a> {
     pub team: bool,
     pub message: &'a [u8],
 }
 
+#[derive(Clone, Copy)]
 pub struct ClSetTeam {
     pub team: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClSetSpectatorMode {
     pub spectator_id: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClStartInfo<'a> {
     pub name: &'a [u8],
     pub clan: &'a [u8],
@@ -713,6 +768,7 @@ pub struct ClStartInfo<'a> {
     pub color_feet: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClChangeInfo<'a> {
     pub name: &'a [u8],
     pub clan: &'a [u8],
@@ -723,16 +779,20 @@ pub struct ClChangeInfo<'a> {
     pub color_feet: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClKill;
 
+#[derive(Clone, Copy)]
 pub struct ClEmoticon {
     pub emoticon: Emoticon,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClVote {
     pub vote: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct ClCallVote<'a> {
     pub type_: &'a [u8],
     pub value: &'a [u8],
@@ -752,6 +812,13 @@ impl<'a> SvMotd<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for SvMotd<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvMotd")
+            .field("message", &PrettyBytes::new(&self.message))
+            .finish()
+    }
+}
 
 impl<'a> SvBroadcast<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvBroadcast<'a>, Error> {
@@ -764,6 +831,13 @@ impl<'a> SvBroadcast<'a> {
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         try!(_p.write_string(self.message));
         Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvBroadcast<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvBroadcast")
+            .field("message", &PrettyBytes::new(&self.message))
+            .finish()
     }
 }
 
@@ -785,6 +859,15 @@ impl<'a> SvChat<'a> {
         try!(_p.write_int(self.client_id));
         try!(_p.write_string(self.message));
         Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvChat<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvChat")
+            .field("team", &self.team)
+            .field("client_id", &self.client_id)
+            .field("message", &PrettyBytes::new(&self.message))
+            .finish()
     }
 }
 
@@ -810,6 +893,16 @@ impl SvKillMsg {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for SvKillMsg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvKillMsg")
+            .field("killer", &self.killer)
+            .field("victim", &self.victim)
+            .field("weapon", &self.weapon)
+            .field("mode_special", &self.mode_special)
+            .finish()
+    }
+}
 
 impl SvSoundGlobal {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvSoundGlobal, Error> {
@@ -824,6 +917,13 @@ impl SvSoundGlobal {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for SvSoundGlobal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvSoundGlobal")
+            .field("sound_id", &self.sound_id)
+            .finish()
+    }
+}
 
 impl SvTuneParams {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTuneParams, Error> {
@@ -833,6 +933,12 @@ impl SvTuneParams {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvTuneParams {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvTuneParams")
+            .finish()
     }
 }
 
@@ -846,6 +952,12 @@ impl SvExtraProjectile {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for SvExtraProjectile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvExtraProjectile")
+            .finish()
+    }
+}
 
 impl SvReadyToEnter {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvReadyToEnter, Error> {
@@ -855,6 +967,12 @@ impl SvReadyToEnter {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvReadyToEnter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvReadyToEnter")
+            .finish()
     }
 }
 
@@ -869,6 +987,13 @@ impl SvWeaponPickup {
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         try!(_p.write_int(self.weapon.to_i32()));
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvWeaponPickup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvWeaponPickup")
+            .field("weapon", &self.weapon)
+            .finish()
     }
 }
 
@@ -888,6 +1013,14 @@ impl SvEmoticon {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for SvEmoticon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvEmoticon")
+            .field("client_id", &self.client_id)
+            .field("emoticon", &self.emoticon)
+            .finish()
+    }
+}
 
 impl SvVoteClearOptions {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteClearOptions, Error> {
@@ -897,6 +1030,12 @@ impl SvVoteClearOptions {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvVoteClearOptions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteClearOptions")
+            .finish()
     }
 }
 
@@ -959,6 +1098,28 @@ impl<'a> SvVoteOptionListAdd<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for SvVoteOptionListAdd<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteOptionListAdd")
+            .field("num_options", &self.num_options)
+            .field("description0", &PrettyBytes::new(&self.description0))
+            .field("description1", &PrettyBytes::new(&self.description1))
+            .field("description2", &PrettyBytes::new(&self.description2))
+            .field("description3", &PrettyBytes::new(&self.description3))
+            .field("description4", &PrettyBytes::new(&self.description4))
+            .field("description5", &PrettyBytes::new(&self.description5))
+            .field("description6", &PrettyBytes::new(&self.description6))
+            .field("description7", &PrettyBytes::new(&self.description7))
+            .field("description8", &PrettyBytes::new(&self.description8))
+            .field("description9", &PrettyBytes::new(&self.description9))
+            .field("description10", &PrettyBytes::new(&self.description10))
+            .field("description11", &PrettyBytes::new(&self.description11))
+            .field("description12", &PrettyBytes::new(&self.description12))
+            .field("description13", &PrettyBytes::new(&self.description13))
+            .field("description14", &PrettyBytes::new(&self.description14))
+            .finish()
+    }
+}
 
 impl<'a> SvVoteOptionAdd<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvVoteOptionAdd<'a>, Error> {
@@ -974,6 +1135,13 @@ impl<'a> SvVoteOptionAdd<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for SvVoteOptionAdd<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteOptionAdd")
+            .field("description", &PrettyBytes::new(&self.description))
+            .finish()
+    }
+}
 
 impl<'a> SvVoteOptionRemove<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvVoteOptionRemove<'a>, Error> {
@@ -987,6 +1155,13 @@ impl<'a> SvVoteOptionRemove<'a> {
         sanitize(&mut Panic, self.description).unwrap();
         try!(_p.write_string(self.description));
         Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvVoteOptionRemove<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteOptionRemove")
+            .field("description", &PrettyBytes::new(&self.description))
+            .finish()
     }
 }
 
@@ -1008,6 +1183,15 @@ impl<'a> SvVoteSet<'a> {
         try!(_p.write_string(self.description));
         try!(_p.write_string(self.reason));
         Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvVoteSet<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteSet")
+            .field("timeout", &self.timeout)
+            .field("description", &PrettyBytes::new(&self.description))
+            .field("reason", &PrettyBytes::new(&self.reason))
+            .finish()
     }
 }
 
@@ -1034,6 +1218,16 @@ impl SvVoteStatus {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for SvVoteStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteStatus")
+            .field("yes", &self.yes)
+            .field("no", &self.no)
+            .field("pass", &self.pass)
+            .field("total", &self.total)
+            .finish()
+    }
+}
 
 impl<'a> ClSay<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<ClSay<'a>, Error> {
@@ -1051,6 +1245,14 @@ impl<'a> ClSay<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for ClSay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClSay")
+            .field("team", &self.team)
+            .field("message", &PrettyBytes::new(&self.message))
+            .finish()
+    }
+}
 
 impl ClSetTeam {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetTeam, Error> {
@@ -1066,6 +1268,13 @@ impl ClSetTeam {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for ClSetTeam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClSetTeam")
+            .field("team", &self.team)
+            .finish()
+    }
+}
 
 impl ClSetSpectatorMode {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetSpectatorMode, Error> {
@@ -1079,6 +1288,13 @@ impl ClSetSpectatorMode {
         assert!(SPEC_FREEVIEW <= self.spectator_id && self.spectator_id <= MAX_CLIENTS-1);
         try!(_p.write_int(self.spectator_id));
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for ClSetSpectatorMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClSetSpectatorMode")
+            .field("spectator_id", &self.spectator_id)
+            .finish()
     }
 }
 
@@ -1110,6 +1326,19 @@ impl<'a> ClStartInfo<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for ClStartInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClStartInfo")
+            .field("name", &PrettyBytes::new(&self.name))
+            .field("clan", &PrettyBytes::new(&self.clan))
+            .field("country", &self.country)
+            .field("skin", &PrettyBytes::new(&self.skin))
+            .field("use_custom_color", &self.use_custom_color)
+            .field("color_body", &self.color_body)
+            .field("color_feet", &self.color_feet)
+            .finish()
+    }
+}
 
 impl<'a> ClChangeInfo<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<ClChangeInfo<'a>, Error> {
@@ -1139,6 +1368,19 @@ impl<'a> ClChangeInfo<'a> {
         Ok(_p.written())
     }
 }
+impl<'a> fmt::Debug for ClChangeInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClChangeInfo")
+            .field("name", &PrettyBytes::new(&self.name))
+            .field("clan", &PrettyBytes::new(&self.clan))
+            .field("country", &self.country)
+            .field("skin", &PrettyBytes::new(&self.skin))
+            .field("use_custom_color", &self.use_custom_color)
+            .field("color_body", &self.color_body)
+            .field("color_feet", &self.color_feet)
+            .finish()
+    }
+}
 
 impl ClKill {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClKill, Error> {
@@ -1148,6 +1390,12 @@ impl ClKill {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for ClKill {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClKill")
+            .finish()
     }
 }
 
@@ -1164,6 +1412,13 @@ impl ClEmoticon {
         Ok(_p.written())
     }
 }
+impl fmt::Debug for ClEmoticon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClEmoticon")
+            .field("emoticon", &self.emoticon)
+            .finish()
+    }
+}
 
 impl ClVote {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClVote, Error> {
@@ -1177,6 +1432,13 @@ impl ClVote {
         assert!(-1 <= self.vote && self.vote <= 1);
         try!(_p.write_int(self.vote));
         Ok(_p.written())
+    }
+}
+impl fmt::Debug for ClVote {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClVote")
+            .field("vote", &self.vote)
+            .finish()
     }
 }
 
@@ -1198,6 +1460,15 @@ impl<'a> ClCallVote<'a> {
         try!(_p.write_string(self.value));
         try!(_p.write_string(self.reason));
         Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for ClCallVote<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClCallVote")
+            .field("type_", &PrettyBytes::new(&self.type_))
+            .field("value", &PrettyBytes::new(&self.value))
+            .field("reason", &PrettyBytes::new(&self.reason))
+            .finish()
     }
 }
 

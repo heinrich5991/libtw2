@@ -37,5 +37,5 @@ for m in network.Messages:
     print()
 
 for m in network.Messages:
-    m.emit_encode_decode_impl()
+    m.emit_impl()
     print()

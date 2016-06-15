@@ -52,6 +52,7 @@ class NameValues:
 def emit_header():
     print("""\
 use buffer::CapacityError;
+use bytes::PrettyBytes;
 use error::ControlCharacters;
 use error::Error;
 use error::IntOutOfRange;
@@ -59,6 +60,7 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
+use std::fmt;
 use super::SystemOrGame;
 use warn::Panic;
 use warn::Warn;
@@ -103,6 +105,7 @@ pub const SPEC_FREEVIEW: i32 = -1;
 def emit_enum(name, structs):
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
+    print("#[derive(Clone, Copy)]")
     print("pub enum {}{} {{".format(title(name), lifetime))
     for s in structs:
         print("    {}({}{}),".format(title(s.name), title(s.name), s.lifetime()))
@@ -126,6 +129,15 @@ def emit_enum(name, structs):
     print("        match *self {")
     for s in structs:
         print("            {}::{}(ref i) => i.encode(p),".format(title(name), title(s.name)))
+    print("        }")
+    print("    }")
+    print("}")
+    print("")
+    print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
+    print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(ref i) => i.fmt(f),".format(title(name), title(s.name)))
     print("        }")
     print("    }")
     print("}")
@@ -190,6 +202,7 @@ class Struct(NameValues):
         else:
             super = None
 
+        print("#[derive(Clone, Copy)]")
         if self.values or super:
             lifetime = self.lifetime()
             print("pub struct {}{} {{".format(title(self.name), self.lifetime()))
@@ -200,7 +213,7 @@ class Struct(NameValues):
             print("}")
         else:
             print("pub struct {};".format(title(self.name)))
-    def emit_encode_decode_impl(self):
+    def emit_impl(self):
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
         if self.values:
@@ -219,6 +232,14 @@ class Struct(NameValues):
         for m in self.values:
             m.emit_encode()
         print("        Ok(_p.written())")
+        print("    }")
+        print("}")
+        print("impl{l} fmt::Debug for {}{l} {{".format(title(self.name), l=self.lifetime()))
+        print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+        print("        f.debug_struct(\"{}\")".format(title(self.name)))
+        for m in self.values:
+            m.emit_debug()
+        print("            .finish()")
         print("    }")
         print("}")
 
@@ -243,8 +264,12 @@ class Member:
             print("        {};".format(assertion))
     def emit_encode(self):
         print("        try!({});".format(self.encode_expr("self.{}".format(snake(self.name)))))
+    def emit_debug(self):
+        print("            .field(\"{}\", &{})".format(snake(self.name), self.debug_expr("self.{}".format(snake(self.name)))))
     def assert_expr(self, self_expr):
         pass
+    def debug_expr(self, self_expr):
+        return self_expr
 
 class NetString(Member):
     type_ = "&'a [u8]"
@@ -252,6 +277,8 @@ class NetString(Member):
         return "try!(_p.read_string())"
     def encode_expr(self, self_expr):
         return "_p.write_string({})".format(self_expr)
+    def debug_expr(self, self_expr):
+        return "PrettyBytes::new(&{})".format(self_expr)
 
 class NetStringStrict(NetString):
     def decode_expr(self):
