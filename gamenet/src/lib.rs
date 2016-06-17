@@ -15,4 +15,5 @@ pub mod error;
 pub mod msg;
 pub mod packer;
 
-mod bytes;
+// TODO: Remove me!
+pub mod bytes;

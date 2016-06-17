@@ -100,6 +100,10 @@ impl<'a> Game<'a> {
 
 pub const MAX_CLIENTS: i32 = 16;
 pub const SPEC_FREEVIEW: i32 = -1;
+
+pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
+pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
+pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
 """)
 
 def emit_enum(name, structs):

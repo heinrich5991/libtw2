@@ -48,6 +48,10 @@ impl<'a> Game<'a> {
 pub const MAX_CLIENTS: i32 = 16;
 pub const SPEC_FREEVIEW: i32 = -1;
 
+pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
+pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
+pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
+
 pub const EMOTE_NORMAL: i32 = 0;
 pub const EMOTE_PAIN: i32 = 1;
 pub const EMOTE_HAPPY: i32 = 2;
@@ -674,7 +678,41 @@ pub struct SvSoundGlobal {
 }
 
 #[derive(Clone, Copy)]
-pub struct SvTuneParams;
+pub struct SvTuneParams {
+    pub ground_control_speed: i32,
+    pub ground_control_accel: i32,
+    pub ground_friction: i32,
+    pub ground_jump_impulse: i32,
+    pub air_jump_impulse: i32,
+    pub air_control_speed: i32,
+    pub air_control_accel: i32,
+    pub air_friction: i32,
+    pub hook_length: i32,
+    pub hook_fire_speed: i32,
+    pub hook_drag_accel: i32,
+    pub hook_drag_speed: i32,
+    pub gravity: i32,
+    pub velramp_start: i32,
+    pub velramp_range: i32,
+    pub velramp_curvature: i32,
+    pub gun_curvature: i32,
+    pub gun_speed: i32,
+    pub gun_lifetime: i32,
+    pub shotgun_curvature: i32,
+    pub shotgun_speed: i32,
+    pub shotgun_speeddiff: i32,
+    pub shotgun_lifetime: i32,
+    pub grenade_curvature: i32,
+    pub grenade_speed: i32,
+    pub grenade_lifetime: i32,
+    pub laser_reach: i32,
+    pub laser_bounce_delay: i32,
+    pub laser_bounce_num: i32,
+    pub laser_bounce_cost: i32,
+    pub laser_damage: i32,
+    pub player_collision: i32,
+    pub player_hooking: i32,
+}
 
 #[derive(Clone, Copy)]
 pub struct SvExtraProjectile;
@@ -927,17 +965,117 @@ impl fmt::Debug for SvSoundGlobal {
 
 impl SvTuneParams {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTuneParams, Error> {
-        let result = Ok(SvTuneParams);
+        let result = Ok(SvTuneParams {
+            ground_control_speed: try!(_p.read_int(warn)),
+            ground_control_accel: try!(_p.read_int(warn)),
+            ground_friction: try!(_p.read_int(warn)),
+            ground_jump_impulse: try!(_p.read_int(warn)),
+            air_jump_impulse: try!(_p.read_int(warn)),
+            air_control_speed: try!(_p.read_int(warn)),
+            air_control_accel: try!(_p.read_int(warn)),
+            air_friction: try!(_p.read_int(warn)),
+            hook_length: try!(_p.read_int(warn)),
+            hook_fire_speed: try!(_p.read_int(warn)),
+            hook_drag_accel: try!(_p.read_int(warn)),
+            hook_drag_speed: try!(_p.read_int(warn)),
+            gravity: try!(_p.read_int(warn)),
+            velramp_start: try!(_p.read_int(warn)),
+            velramp_range: try!(_p.read_int(warn)),
+            velramp_curvature: try!(_p.read_int(warn)),
+            gun_curvature: try!(_p.read_int(warn)),
+            gun_speed: try!(_p.read_int(warn)),
+            gun_lifetime: try!(_p.read_int(warn)),
+            shotgun_curvature: try!(_p.read_int(warn)),
+            shotgun_speed: try!(_p.read_int(warn)),
+            shotgun_speeddiff: try!(_p.read_int(warn)),
+            shotgun_lifetime: try!(_p.read_int(warn)),
+            grenade_curvature: try!(_p.read_int(warn)),
+            grenade_speed: try!(_p.read_int(warn)),
+            grenade_lifetime: try!(_p.read_int(warn)),
+            laser_reach: try!(_p.read_int(warn)),
+            laser_bounce_delay: try!(_p.read_int(warn)),
+            laser_bounce_num: try!(_p.read_int(warn)),
+            laser_bounce_cost: try!(_p.read_int(warn)),
+            laser_damage: try!(_p.read_int(warn)),
+            player_collision: try!(_p.read_int(warn)),
+            player_hooking: try!(_p.read_int(warn)),
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        try!(_p.write_int(self.ground_control_speed));
+        try!(_p.write_int(self.ground_control_accel));
+        try!(_p.write_int(self.ground_friction));
+        try!(_p.write_int(self.ground_jump_impulse));
+        try!(_p.write_int(self.air_jump_impulse));
+        try!(_p.write_int(self.air_control_speed));
+        try!(_p.write_int(self.air_control_accel));
+        try!(_p.write_int(self.air_friction));
+        try!(_p.write_int(self.hook_length));
+        try!(_p.write_int(self.hook_fire_speed));
+        try!(_p.write_int(self.hook_drag_accel));
+        try!(_p.write_int(self.hook_drag_speed));
+        try!(_p.write_int(self.gravity));
+        try!(_p.write_int(self.velramp_start));
+        try!(_p.write_int(self.velramp_range));
+        try!(_p.write_int(self.velramp_curvature));
+        try!(_p.write_int(self.gun_curvature));
+        try!(_p.write_int(self.gun_speed));
+        try!(_p.write_int(self.gun_lifetime));
+        try!(_p.write_int(self.shotgun_curvature));
+        try!(_p.write_int(self.shotgun_speed));
+        try!(_p.write_int(self.shotgun_speeddiff));
+        try!(_p.write_int(self.shotgun_lifetime));
+        try!(_p.write_int(self.grenade_curvature));
+        try!(_p.write_int(self.grenade_speed));
+        try!(_p.write_int(self.grenade_lifetime));
+        try!(_p.write_int(self.laser_reach));
+        try!(_p.write_int(self.laser_bounce_delay));
+        try!(_p.write_int(self.laser_bounce_num));
+        try!(_p.write_int(self.laser_bounce_cost));
+        try!(_p.write_int(self.laser_damage));
+        try!(_p.write_int(self.player_collision));
+        try!(_p.write_int(self.player_hooking));
         Ok(_p.written())
     }
 }
 impl fmt::Debug for SvTuneParams {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvTuneParams")
+            .field("ground_control_speed", &self.ground_control_speed)
+            .field("ground_control_accel", &self.ground_control_accel)
+            .field("ground_friction", &self.ground_friction)
+            .field("ground_jump_impulse", &self.ground_jump_impulse)
+            .field("air_jump_impulse", &self.air_jump_impulse)
+            .field("air_control_speed", &self.air_control_speed)
+            .field("air_control_accel", &self.air_control_accel)
+            .field("air_friction", &self.air_friction)
+            .field("hook_length", &self.hook_length)
+            .field("hook_fire_speed", &self.hook_fire_speed)
+            .field("hook_drag_accel", &self.hook_drag_accel)
+            .field("hook_drag_speed", &self.hook_drag_speed)
+            .field("gravity", &self.gravity)
+            .field("velramp_start", &self.velramp_start)
+            .field("velramp_range", &self.velramp_range)
+            .field("velramp_curvature", &self.velramp_curvature)
+            .field("gun_curvature", &self.gun_curvature)
+            .field("gun_speed", &self.gun_speed)
+            .field("gun_lifetime", &self.gun_lifetime)
+            .field("shotgun_curvature", &self.shotgun_curvature)
+            .field("shotgun_speed", &self.shotgun_speed)
+            .field("shotgun_speeddiff", &self.shotgun_speeddiff)
+            .field("shotgun_lifetime", &self.shotgun_lifetime)
+            .field("grenade_curvature", &self.grenade_curvature)
+            .field("grenade_speed", &self.grenade_speed)
+            .field("grenade_lifetime", &self.grenade_lifetime)
+            .field("laser_reach", &self.laser_reach)
+            .field("laser_bounce_delay", &self.laser_bounce_delay)
+            .field("laser_bounce_num", &self.laser_bounce_num)
+            .field("laser_bounce_cost", &self.laser_bounce_cost)
+            .field("laser_damage", &self.laser_damage)
+            .field("player_collision", &self.player_collision)
+            .field("player_hooking", &self.player_hooking)
             .finish()
     }
 }
