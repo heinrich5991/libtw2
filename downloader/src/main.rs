@@ -282,6 +282,7 @@ struct Peer {
     previous_list_vote: Option<Vec<u8>>,
     previous_vote: Option<Vec<u8>>,
     num_snaps_since_reset: u32,
+    dummy_map: bool,
     state: PeerState,
 }
 
@@ -295,6 +296,7 @@ impl Peer {
             previous_list_vote: None,
             previous_vote: None,
             num_snaps_since_reset: 0,
+            dummy_map: false,
             state: PeerState::Connection,
         }
     }
@@ -489,8 +491,13 @@ impl Main {
                             match peer.state {
                                 PeerState::MapChange => {},
                                 PeerState::VoteResult(..) => {},
+                                PeerState::ReadyToEnter if peer.dummy_map => {},
                                 _ => warn!("map change from state {:?}", peer.state),
                             }
+                            peer.dummy_map =
+                                crc as u32 == 0xbeae0b9f
+                                && size == 549
+                                && name == b"dummy";
                             peer.current_votes.clear();
                             peer.state = PeerState::MapData(crc, 0);
                             peer.num_snaps_since_reset = 0;
