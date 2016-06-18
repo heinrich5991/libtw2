@@ -4,9 +4,9 @@ use format::Warning;
 use format::key;
 use format::key_to_id;
 use format::key_to_type_id;
-use gamenet::packer::Unpacker;
-use gamenet;
 use num::ToPrimitive;
+use packer;
+use packer::Unpacker;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map;
@@ -18,7 +18,8 @@ use warn::wrap;
 
 #[derive(Debug)]
 pub enum Error {
-    Packer(gamenet::error::Error),
+    UnexpectedEnd,
+    IntOutOfRange,
     DeletedItemsUnpacking,
     ItemDiffsUnpacking,
     TypeIdRange,
@@ -29,9 +30,15 @@ pub enum Error {
     DeltaDifferingSizes,
 }
 
-impl From<gamenet::error::Error> for Error {
-    fn from(err: gamenet::error::Error) -> Error {
-        Error::Packer(err)
+impl From<packer::IntOutOfRange> for Error {
+    fn from(_: packer::IntOutOfRange) -> Error {
+        Error::IntOutOfRange
+    }
+}
+
+impl From<packer::UnexpectedEnd> for Error {
+    fn from(_: packer::UnexpectedEnd) -> Error {
+        Error::UnexpectedEnd
     }
 }
 
@@ -219,9 +226,9 @@ impl DeltaReader {
             warn.warn(Warning::DuplicateDelete);
         }
 
+        let mut num_updates = 0;
         let mut buf = buf.iter();
         while buf.len() != 0 {
-            // WARN: num_updates not matching the number of updates
             let type_id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
             let id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
 
@@ -255,6 +262,11 @@ impl DeltaReader {
             if delta.deleted_items.contains(&key(type_id, id)) {
                 warn.warn(Warning::DeleteUpdate);
             }
+            num_updates += 1;
+        }
+
+        if num_updates != header.num_updated_items {
+            warn.warn(Warning::NumUpdatedItems);
         }
 
         Ok(())

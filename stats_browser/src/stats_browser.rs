@@ -1,4 +1,4 @@
-use common::format_bytes::Bytes;
+use common::pretty::Bytes;
 use serverbrowse::protocol::CountResponse;
 use serverbrowse::protocol::Info5Response;
 use serverbrowse::protocol::Info6Response;
@@ -265,7 +265,7 @@ impl<'a> StatsBrowser<'a> {
         match info {
             None => {
                 if server.num_malformed_resp < config::MAX_MALFORMED_RESP {
-                    warn!("Received unparsable info from {}, {:?}", from, Bytes(raw));
+                    warn!("Received unparsable info from {}, {:?}", from, Bytes::new(raw));
                 }
                 server.num_malformed_resp += 1;
             },

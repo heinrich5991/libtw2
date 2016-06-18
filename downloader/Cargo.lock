@@ -4,6 +4,7 @@ version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gamenet 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -12,6 +13,7 @@ dependencies = [
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "net 0.0.1",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "packer 0.0.1",
  "rand 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -70,6 +72,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "common"
 version = "0.0.1"
 dependencies = [
+ "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "ref_slice 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -90,6 +93,7 @@ dependencies = [
  "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "packer 0.0.1",
  "warn 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -246,6 +250,17 @@ dependencies = [
 name = "odds"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "packer"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
+ "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "warn 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "rand"

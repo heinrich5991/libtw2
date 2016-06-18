@@ -1,6 +1,6 @@
-use gamenet::error::Error;
-use gamenet::packer::Unpacker;
-use gamenet::packer;
+use packer::Unpacker;
+use packer;
+use snap::Error;
 use warn::Warn;
 use warn::wrap;
 
@@ -12,6 +12,7 @@ pub enum Warning {
     DuplicateUpdate,
     UnknownDelete,
     DeleteUpdate,
+    NumUpdatedItems,
 }
 
 impl From<packer::Warning> for Warning {

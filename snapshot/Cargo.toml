@@ -5,8 +5,8 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 common = { path = "../common/" }
-gamenet = { path = "../gamenet/" }
 num = "0.1.27"
+packer = { path = "../packer/" }
 warn = "0.1.1"
 
 [dev-dependencies]

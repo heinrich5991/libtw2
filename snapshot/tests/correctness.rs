@@ -1,11 +1,11 @@
 extern crate buffer;
-extern crate gamenet;
+extern crate packer;
 extern crate snapshot;
 extern crate warn;
 
 use buffer::CapacityError;
-use gamenet::packer::Unpacker;
-use gamenet::packer::with_packer;
+use packer::Unpacker;
+use packer::with_packer;
 use snapshot::snap::Delta;
 use snapshot::snap::DeltaReader;
 use snapshot::snap::Snap;

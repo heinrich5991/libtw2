@@ -1,7 +1,7 @@
 use buffer::CapacityError;
-use bytes::PrettyBytes;
+use common::pretty;
 use error::Error;
-use error::IntOutOfRange;
+use packer::IntOutOfRange;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
@@ -832,7 +832,7 @@ impl<'a> SvMotd<'a> {
 impl<'a> fmt::Debug for SvMotd<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvMotd")
-            .field("message", &PrettyBytes::new(&self.message))
+            .field("message", &pretty::Bytes::new(&self.message))
             .finish()
     }
 }
@@ -853,7 +853,7 @@ impl<'a> SvBroadcast<'a> {
 impl<'a> fmt::Debug for SvBroadcast<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvBroadcast")
-            .field("message", &PrettyBytes::new(&self.message))
+            .field("message", &pretty::Bytes::new(&self.message))
             .finish()
     }
 }
@@ -883,7 +883,7 @@ impl<'a> fmt::Debug for SvChat<'a> {
         f.debug_struct("SvChat")
             .field("team", &self.team)
             .field("client_id", &self.client_id)
-            .field("message", &PrettyBytes::new(&self.message))
+            .field("message", &pretty::Bytes::new(&self.message))
             .finish()
     }
 }
@@ -1219,21 +1219,21 @@ impl<'a> fmt::Debug for SvVoteOptionListAdd<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvVoteOptionListAdd")
             .field("num_options", &self.num_options)
-            .field("description0", &PrettyBytes::new(&self.description0))
-            .field("description1", &PrettyBytes::new(&self.description1))
-            .field("description2", &PrettyBytes::new(&self.description2))
-            .field("description3", &PrettyBytes::new(&self.description3))
-            .field("description4", &PrettyBytes::new(&self.description4))
-            .field("description5", &PrettyBytes::new(&self.description5))
-            .field("description6", &PrettyBytes::new(&self.description6))
-            .field("description7", &PrettyBytes::new(&self.description7))
-            .field("description8", &PrettyBytes::new(&self.description8))
-            .field("description9", &PrettyBytes::new(&self.description9))
-            .field("description10", &PrettyBytes::new(&self.description10))
-            .field("description11", &PrettyBytes::new(&self.description11))
-            .field("description12", &PrettyBytes::new(&self.description12))
-            .field("description13", &PrettyBytes::new(&self.description13))
-            .field("description14", &PrettyBytes::new(&self.description14))
+            .field("description0", &pretty::Bytes::new(&self.description0))
+            .field("description1", &pretty::Bytes::new(&self.description1))
+            .field("description2", &pretty::Bytes::new(&self.description2))
+            .field("description3", &pretty::Bytes::new(&self.description3))
+            .field("description4", &pretty::Bytes::new(&self.description4))
+            .field("description5", &pretty::Bytes::new(&self.description5))
+            .field("description6", &pretty::Bytes::new(&self.description6))
+            .field("description7", &pretty::Bytes::new(&self.description7))
+            .field("description8", &pretty::Bytes::new(&self.description8))
+            .field("description9", &pretty::Bytes::new(&self.description9))
+            .field("description10", &pretty::Bytes::new(&self.description10))
+            .field("description11", &pretty::Bytes::new(&self.description11))
+            .field("description12", &pretty::Bytes::new(&self.description12))
+            .field("description13", &pretty::Bytes::new(&self.description13))
+            .field("description14", &pretty::Bytes::new(&self.description14))
             .finish()
     }
 }
@@ -1255,7 +1255,7 @@ impl<'a> SvVoteOptionAdd<'a> {
 impl<'a> fmt::Debug for SvVoteOptionAdd<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvVoteOptionAdd")
-            .field("description", &PrettyBytes::new(&self.description))
+            .field("description", &pretty::Bytes::new(&self.description))
             .finish()
     }
 }
@@ -1277,7 +1277,7 @@ impl<'a> SvVoteOptionRemove<'a> {
 impl<'a> fmt::Debug for SvVoteOptionRemove<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvVoteOptionRemove")
-            .field("description", &PrettyBytes::new(&self.description))
+            .field("description", &pretty::Bytes::new(&self.description))
             .finish()
     }
 }
@@ -1306,8 +1306,8 @@ impl<'a> fmt::Debug for SvVoteSet<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvVoteSet")
             .field("timeout", &self.timeout)
-            .field("description", &PrettyBytes::new(&self.description))
-            .field("reason", &PrettyBytes::new(&self.reason))
+            .field("description", &pretty::Bytes::new(&self.description))
+            .field("reason", &pretty::Bytes::new(&self.reason))
             .finish()
     }
 }
@@ -1366,7 +1366,7 @@ impl<'a> fmt::Debug for ClSay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClSay")
             .field("team", &self.team)
-            .field("message", &PrettyBytes::new(&self.message))
+            .field("message", &pretty::Bytes::new(&self.message))
             .finish()
     }
 }
@@ -1446,10 +1446,10 @@ impl<'a> ClStartInfo<'a> {
 impl<'a> fmt::Debug for ClStartInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClStartInfo")
-            .field("name", &PrettyBytes::new(&self.name))
-            .field("clan", &PrettyBytes::new(&self.clan))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("clan", &pretty::Bytes::new(&self.clan))
             .field("country", &self.country)
-            .field("skin", &PrettyBytes::new(&self.skin))
+            .field("skin", &pretty::Bytes::new(&self.skin))
             .field("use_custom_color", &self.use_custom_color)
             .field("color_body", &self.color_body)
             .field("color_feet", &self.color_feet)
@@ -1488,10 +1488,10 @@ impl<'a> ClChangeInfo<'a> {
 impl<'a> fmt::Debug for ClChangeInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClChangeInfo")
-            .field("name", &PrettyBytes::new(&self.name))
-            .field("clan", &PrettyBytes::new(&self.clan))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("clan", &pretty::Bytes::new(&self.clan))
             .field("country", &self.country)
-            .field("skin", &PrettyBytes::new(&self.skin))
+            .field("skin", &pretty::Bytes::new(&self.skin))
             .field("use_custom_color", &self.use_custom_color)
             .field("color_body", &self.color_body)
             .field("color_feet", &self.color_feet)
@@ -1582,9 +1582,9 @@ impl<'a> ClCallVote<'a> {
 impl<'a> fmt::Debug for ClCallVote<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClCallVote")
-            .field("type_", &PrettyBytes::new(&self.type_))
-            .field("value", &PrettyBytes::new(&self.value))
-            .field("reason", &PrettyBytes::new(&self.reason))
+            .field("type_", &pretty::Bytes::new(&self.type_))
+            .field("value", &pretty::Bytes::new(&self.value))
+            .field("reason", &pretty::Bytes::new(&self.reason))
             .finish()
     }
 }

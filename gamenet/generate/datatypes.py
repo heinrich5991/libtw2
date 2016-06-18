@@ -52,9 +52,9 @@ class NameValues:
 def emit_header():
     print("""\
 use buffer::CapacityError;
-use bytes::PrettyBytes;
+use common::pretty;
 use error::Error;
-use error::IntOutOfRange;
+use packer::IntOutOfRange;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
@@ -261,7 +261,7 @@ class NetString(Member):
     def encode_expr(self, self_expr):
         return "_p.write_string({})".format(self_expr)
     def debug_expr(self, self_expr):
-        return "PrettyBytes::new(&{})".format(self_expr)
+        return "pretty::Bytes::new(&{})".format(self_expr)
 
 class NetStringStrict(NetString):
     def decode_expr(self):

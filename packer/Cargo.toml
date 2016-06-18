@@ -1,13 +1,20 @@
 [package]
-name = "common"
+name = "packer"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 arrayvec = "0.3.12"
-ref_slice = ">=0.1.0,<2.0"
+buffer = "0.1.5"
+common = { path = "../common/" }
+num = "0.1.27"
+warn = "0.1.0"
+
 quickcheck = { version = "0.2.27", optional = true }
 quickcheck_macros = { version = "0.2.26", optional = true }
+
+[dev-dependencies]
+hexdump = "0.1.0"
 
 [features]
 nightly-test = ["quickcheck", "quickcheck_macros"]

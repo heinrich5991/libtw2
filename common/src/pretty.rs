@@ -5,22 +5,22 @@ use std::mem;
 use std::ops;
 use std::str;
 
-pub struct PrettyBytes([u8]);
+pub struct Bytes([u8]);
 
-impl PrettyBytes {
-    pub fn new(bytes: &[u8]) -> &PrettyBytes {
+impl Bytes {
+    pub fn new(bytes: &[u8]) -> &Bytes {
         unsafe {
             mem::transmute(bytes)
         }
     }
 }
 
-struct PrettyByte {
+struct Byte {
     string: ArrayVec<[u8; 4]>,
 }
 
-impl PrettyByte {
-    fn new(byte: u8) -> PrettyByte {
+impl Byte {
+    fn new(byte: u8) -> Byte {
         let mut string = ArrayVec::new();
         if byte == b'\\' || byte == b'\"' {
             string.push(b'\\');
@@ -28,13 +28,13 @@ impl PrettyByte {
         } else {
             string.extend(ascii::escape_default(byte));
         }
-        PrettyByte {
+        Byte {
             string: string,
         }
     }
 }
 
-impl ops::Deref for PrettyByte {
+impl ops::Deref for Byte {
     type Target = str;
     fn deref(&self) -> &str {
         unsafe {
@@ -43,11 +43,11 @@ impl ops::Deref for PrettyByte {
     }
 }
 
-impl fmt::Debug for PrettyBytes {
+impl fmt::Debug for Bytes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(f.write_str("b\""));
         for &byte in &self.0 {
-            try!(f.write_str(&PrettyByte::new(byte)));
+            try!(f.write_str(&Byte::new(byte)));
         }
         try!(f.write_str("\""));
         Ok(())

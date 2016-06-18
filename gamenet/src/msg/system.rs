@@ -1,5 +1,5 @@
 use buffer::CapacityError;
-use bytes::PrettyBytes;
+use common::pretty;
 use error::Error;
 use packer::Packer;
 use packer::Unpacker;
@@ -171,8 +171,8 @@ pub struct RconCmdRemove<'a> {
 impl<'a> fmt::Debug for Info<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Info")
-            .field("version", &PrettyBytes::new(&self.version))
-            .field("password", &self.password.as_ref().map(|password| PrettyBytes::new(password)))
+            .field("version", &pretty::Bytes::new(&self.version))
+            .field("password", &self.password.as_ref().map(|password| pretty::Bytes::new(password)))
             .finish()
     }
 }
@@ -190,7 +190,7 @@ impl<'a> Info<'a> {
 impl<'a> fmt::Debug for MapChange<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("MapChange")
-            .field("name", &PrettyBytes::new(&self.name))
+            .field("name", &pretty::Bytes::new(&self.name))
             .field("crc", &self.crc)
             .field("size", &self.size)
             .finish()
@@ -222,7 +222,7 @@ impl<'a> fmt::Debug for MapData<'a> {
             .field("last", &self.last)
             .field("crc", &self.crc)
             .field("chunk", &self.chunk)
-            .field("data", &PrettyBytes::new(&self.data))
+            .field("data", &pretty::Bytes::new(&self.data))
             .finish()
     }
 }
@@ -275,7 +275,7 @@ impl<'a> fmt::Debug for Snap<'a> {
             .field("num_parts", &self.num_parts)
             .field("part", &self.part)
             .field("crc", &self.crc)
-            .field("data", &PrettyBytes::new(&self.data))
+            .field("data", &pretty::Bytes::new(&self.data))
             .finish()
     }
 }
@@ -337,7 +337,7 @@ impl<'a> fmt::Debug for SnapSingle<'a> {
             .field("tick", &self.tick)
             .field("delta_tick", &self.delta_tick)
             .field("crc", &self.crc)
-            .field("data", &PrettyBytes::new(&self.data))
+            .field("data", &pretty::Bytes::new(&self.data))
             .finish()
     }
 }
@@ -411,7 +411,7 @@ impl RconAuthStatus {
 impl<'a> fmt::Debug for RconLine<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RconLine")
-            .field("line", &PrettyBytes::new(&self.line))
+            .field("line", &pretty::Bytes::new(&self.line))
             .finish()
     }
 }
@@ -501,7 +501,7 @@ impl<'a> Input<'a> {
 impl<'a> fmt::Debug for RconCmd<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RconCmd")
-            .field("cmd", &PrettyBytes::new(&self.cmd))
+            .field("cmd", &pretty::Bytes::new(&self.cmd))
             .finish()
     }
 }
@@ -524,8 +524,8 @@ impl<'a> RconCmd<'a> {
 impl<'a> fmt::Debug for RconAuth<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RconAuth")
-            .field("_unused", &PrettyBytes::new(&self._unused))
-            .field("password", &PrettyBytes::new(&self.password))
+            .field("_unused", &pretty::Bytes::new(&self._unused))
+            .field("password", &pretty::Bytes::new(&self.password))
             .field("request_commands", &self.request_commands)
             .finish()
     }
@@ -606,9 +606,9 @@ impl PingReply {
 impl<'a> fmt::Debug for RconCmdAdd<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RconCmdAdd")
-            .field("name", &PrettyBytes::new(&self.name))
-            .field("help", &PrettyBytes::new(&self.help))
-            .field("params", &PrettyBytes::new(&self.params))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("help", &pretty::Bytes::new(&self.help))
+            .field("params", &pretty::Bytes::new(&self.params))
             .finish()
     }
 }
@@ -635,7 +635,7 @@ impl<'a> RconCmdAdd<'a> {
 impl<'a> fmt::Debug for RconCmdRemove<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RconCmdRemove")
-            .field("name", &PrettyBytes::new(&self.name))
+            .field("name", &pretty::Bytes::new(&self.name))
             .finish()
     }
 }

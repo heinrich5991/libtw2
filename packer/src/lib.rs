@@ -1,12 +1,18 @@
+#![cfg_attr(all(feature = "nightly-test", test), feature(plugin))]
+#![cfg_attr(all(feature = "nightly-test", test), plugin(quickcheck_macros))]
+#[cfg(all(feature = "nightly-test", test))] extern crate quickcheck;
+
+extern crate arrayvec;
+#[macro_use] extern crate common;
+extern crate buffer;
+extern crate num;
+extern crate warn;
+
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::CapacityError;
 use buffer::with_buffer;
-use buffer;
-use error::ControlCharacters;
-use error::Error;
-use error::IntOutOfRange;
 use num::ToPrimitive;
 use std::slice;
 use warn::Warn;
@@ -18,6 +24,10 @@ pub enum Warning {
     ExcessData,
 }
 
+#[derive(Clone, Copy, Debug)] pub struct ControlCharacters;
+#[derive(Clone, Copy, Debug)] pub struct IntOutOfRange;
+#[derive(Clone, Copy, Debug)] pub struct UnexpectedEnd;
+
 // Format: ESDD_DDDD EDDD_DDDD EDDD_DDDD EDDD_DDDD PPPP_DDDD
 // E - Extend
 // S - Sign
@@ -26,13 +36,13 @@ pub enum Warning {
 //
 // Padding must be zeroed. The extend bit specifies whether another byte
 // follows.
-fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Error>
+fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, UnexpectedEnd>
     where W: Warn<Warning>
 {
     let mut result = 0;
     let mut len = 1;
 
-    let mut src = *unwrap_or_return!(iter.next(), Err(Error::UnexpectedEnd));
+    let mut src = *unwrap_or_return!(iter.next(), Err(UnexpectedEnd));
     let sign = ((src >> 6) & 1) as i32;
 
     result |= (src & 0b0011_1111) as i32;
@@ -41,7 +51,7 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Error>
         if src & 0b1000_0000 == 0 {
             break;
         }
-        src = *unwrap_or_return!(iter.next(), Err(Error::UnexpectedEnd));
+        src = *unwrap_or_return!(iter.next(), Err(UnexpectedEnd));
         len += 1;
         if i == 3 && src & 0b1111_0000 != 0 {
             warn.warn(Warning::IntPadding);
@@ -79,7 +89,7 @@ fn write_int<E, F: FnMut(&[u8]) -> Result<(), E>>(int: i32, f: F) -> Result<(), 
     f(&buf)
 }
 
-fn read_string<'a>(iter: &mut slice::Iter<'a, u8>) -> Result<&'a [u8], Error> {
+fn read_string<'a>(iter: &mut slice::Iter<'a, u8>) -> Result<&'a [u8], UnexpectedEnd> {
     let slice = iter.as_slice();
     // `by_ref` is needed as the iterator is silently copied otherwise.
     for (i, b) in iter.by_ref().cloned().enumerate() {
@@ -87,7 +97,7 @@ fn read_string<'a>(iter: &mut slice::Iter<'a, u8>) -> Result<&'a [u8], Error> {
             return Ok(&slice[..i]);
         }
     }
-    Err(Error::UnexpectedEnd)
+    Err(UnexpectedEnd)
 }
 
 fn write_string<E, F: FnMut(&[u8]) -> Result<(), E>>(string: &[u8], f: F) -> Result<(), E> {
@@ -154,18 +164,18 @@ impl<'a> Unpacker<'a> {
         // Advance the iterator to the end.
         self.iter.by_ref().count();
     }
-    fn error<T>(&mut self) -> Result<T, Error> {
+    fn error<T>(&mut self) -> Result<T, UnexpectedEnd> {
         self.use_up();
-        Err(Error::UnexpectedEnd)
+        Err(UnexpectedEnd)
     }
-    pub fn read_string(&mut self) -> Result<&'a [u8], Error> {
+    pub fn read_string(&mut self) -> Result<&'a [u8], UnexpectedEnd> {
         read_string(&mut self.iter)
     }
-    pub fn read_int<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<i32, Error> {
+    pub fn read_int<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<i32, UnexpectedEnd> {
         read_int(warn, &mut self.iter)
     }
     pub fn read_data<W: Warn<Warning>>(&mut self, warn: &mut W)
-        -> Result<&'a [u8], Error>
+        -> Result<&'a [u8], UnexpectedEnd>
     {
         let len = match self.read_int(warn).map(|l| l.to_usize()) {
             Ok(Some(l)) => l,
@@ -179,7 +189,7 @@ impl<'a> Unpacker<'a> {
         self.iter = remaining.iter();
         Ok(data)
     }
-    pub fn read_rest(&mut self) -> Result<&'a [u8], Error> {
+    pub fn read_rest(&mut self) -> Result<&'a [u8], UnexpectedEnd> {
         let result = Ok(self.iter.as_slice());
         self.use_up();
         result

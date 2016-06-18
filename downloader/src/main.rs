@@ -1,5 +1,6 @@
 extern crate arrayvec;
 extern crate buffer;
+extern crate common;
 extern crate env_logger;
 extern crate gamenet;
 extern crate hexdump;
@@ -8,6 +9,7 @@ extern crate itertools;
 extern crate mio;
 extern crate net;
 extern crate num;
+extern crate packer;
 extern crate rand;
 extern crate warn;
 
@@ -15,7 +17,7 @@ use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
-use gamenet::bytes::PrettyBytes;
+use common::pretty;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
@@ -35,8 +37,6 @@ use gamenet::msg::system::Snap;
 use gamenet::msg::system::SnapEmpty;
 use gamenet::msg::system::SnapSingle;
 use gamenet::msg::system;
-use gamenet::packer::Unpacker;
-use gamenet::packer::with_packer;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -49,6 +49,8 @@ use net::net::ChunkType;
 use net::net::Net;
 use net::net::PeerId;
 use num::ToPrimitive;
+use packer::Unpacker;
+use packer::with_packer;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
@@ -312,7 +314,7 @@ impl Peer {
         self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
         if let Some(ref vote) = self.previous_vote {
             send_vote(&mut self.visited_votes, vote, pid, net, socket);
-            info!("voting for {:?}", PrettyBytes::new(vote));
+            info!("voting for {:?}", pretty::Bytes::new(vote));
         } else {
             self.previous_vote = None;
             for vote in &self.current_votes {
@@ -328,7 +330,7 @@ impl Peer {
             }
             if let Some(vote) = self.previous_vote.as_ref() {
                 self.previous_list_vote = Some(vote.to_owned());
-                info!("list-voting for {:?}", PrettyBytes::new(vote));
+                info!("list-voting for {:?}", pretty::Bytes::new(vote));
                 send_vote(&mut self.visited_votes, &vote, pid, net, socket);
             } else {
                 info!("voting done");
@@ -476,7 +478,7 @@ impl Main {
             SystemOrGame::Game(Game::SvChat(chat)) => {
                 if chat.team == 0 && chat.client_id == -1 {
                     processed = true;
-                    info!("*** {:?}", PrettyBytes::new(chat.message));
+                    info!("*** {:?}", pretty::Bytes::new(chat.message));
                 }
             }
             _ => {},
@@ -649,7 +651,7 @@ impl Main {
                         processed = true;
                         let prev = peer.previous_vote.as_ref().unwrap();
                         if peer.list_votes.insert(prev.to_owned()) {
-                            info!("list vote {:?}", PrettyBytes::new(prev));
+                            info!("list vote {:?}", pretty::Bytes::new(prev));
                         }
                     },
                     _ => {},

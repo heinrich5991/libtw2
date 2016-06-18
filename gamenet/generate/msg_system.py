@@ -25,7 +25,7 @@ NETMSGS_SYSTEM = [
 
 header = """\
 use buffer::CapacityError;
-use bytes::PrettyBytes;
+use common::pretty;
 use error::Error;
 use packer::Packer;
 use packer::Unpacker;
@@ -186,7 +186,7 @@ def generate_struct_impl(msgs):
                 conv = "{}.ok()".format
             pretty = None
             if type_ == 'string' or type_ == 'data':
-                pretty = "PrettyBytes::new"
+                pretty = "pretty::Bytes::new"
             if not pretty:
                 conv = ".field(\"{name}\", &self.{name})"
             elif pretty and not opt:
