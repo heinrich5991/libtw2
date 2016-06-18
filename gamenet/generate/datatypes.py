@@ -53,40 +53,19 @@ def emit_header():
     print("""\
 use buffer::CapacityError;
 use bytes::PrettyBytes;
-use error::ControlCharacters;
 use error::Error;
 use error::IntOutOfRange;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use packer::in_range;
+use packer::sanitize;
+use packer::to_bool;
 use packer::with_packer;
 use std::fmt;
 use super::SystemOrGame;
 use warn::Panic;
 use warn::Warn;
-
-fn in_range(v: i32, min: i32, max: i32) -> Result<i32, IntOutOfRange> {
-    if min <= v && v <= max {
-        Ok(v)
-    } else {
-        Err(IntOutOfRange)
-    }
-}
-
-fn to_bool(v: i32) -> Result<bool, IntOutOfRange> {
-    Ok(try!(in_range(v, 0, 1)) != 0)
-}
-
-fn sanitize<'a, W: Warn<Warning>>(warn: &mut W, v: &'a [u8])
-    -> Result<&'a [u8], ControlCharacters>
-{
-    if v.iter().any(|&b| b < b' ') {
-        return Err(ControlCharacters);
-    }
-    let _ = warn;
-    // TODO: Implement whitespace skipping.
-    Ok(v)
-}
 
 impl<'a> Game<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)

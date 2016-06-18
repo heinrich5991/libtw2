@@ -1,0 +1,13 @@
+[package]
+name = "snapshot"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]
+common = { path = "../common/" }
+gamenet = { path = "../gamenet/" }
+num = "0.1.27"
+warn = "0.1.1"
+
+[dev-dependencies]
+buffer = "0.1.5"

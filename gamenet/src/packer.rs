@@ -4,7 +4,9 @@ use buffer::BufferRef;
 use buffer::CapacityError;
 use buffer::with_buffer;
 use buffer;
+use error::ControlCharacters;
 use error::Error;
+use error::IntOutOfRange;
 use num::ToPrimitive;
 use std::slice;
 use warn::Warn;
@@ -190,6 +192,37 @@ impl<'a> Unpacker<'a> {
     }
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
+    }
+}
+
+pub fn in_range(v: i32, min: i32, max: i32) -> Result<i32, IntOutOfRange> {
+    if min <= v && v <= max {
+        Ok(v)
+    } else {
+        Err(IntOutOfRange)
+    }
+}
+
+pub fn to_bool(v: i32) -> Result<bool, IntOutOfRange> {
+    Ok(try!(in_range(v, 0, 1)) != 0)
+}
+
+pub fn sanitize<'a, W: Warn<Warning>>(warn: &mut W, v: &'a [u8])
+    -> Result<&'a [u8], ControlCharacters>
+{
+    if v.iter().any(|&b| b < b' ') {
+        return Err(ControlCharacters);
+    }
+    let _ = warn;
+    // TODO: Implement whitespace skipping.
+    Ok(v)
+}
+
+pub fn positive(v: i32) -> Result<i32, IntOutOfRange> {
+    if v >= 0 {
+        Ok(v)
+    } else {
+        Err(IntOutOfRange)
     }
 }
 
