@@ -532,26 +532,11 @@ impl Main {
                     },
                     Game::SvVoteOptionListAdd(l) => {
                         processed = true;
-                        let current_votes = &mut peer.current_votes;
-                        let mut ins = |v: &[u8]| {
-                            current_votes.insert(v.to_owned());
-                        };
-                        let len = l.num_options;
-                        if len >  0 { ins(l.description0); }
-                        if len >  1 { ins(l.description1); }
-                        if len >  2 { ins(l.description2); }
-                        if len >  3 { ins(l.description3); }
-                        if len >  4 { ins(l.description4); }
-                        if len >  5 { ins(l.description5); }
-                        if len >  6 { ins(l.description6); }
-                        if len >  7 { ins(l.description7); }
-                        if len >  8 { ins(l.description8); }
-                        if len >  9 { ins(l.description9); }
-                        if len > 10 { ins(l.description10); }
-                        if len > 11 { ins(l.description11); }
-                        if len > 12 { ins(l.description12); }
-                        if len > 13 { ins(l.description13); }
-                        if len > 14 { ins(l.description14); }
+                        // `len` is bounded by the unpacking.
+                        let len = l.num_options.to_usize().unwrap();
+                        for &desc in l.description.iter().take(len) {
+                            peer.current_votes.insert(desc.to_owned());
+                        }
                     },
                     Game::SvVoteOptionAdd(SvVoteOptionAdd { description }) => {
                         processed = true;

@@ -12,5 +12,9 @@ extern crate warn;
 #[cfg(test)] extern crate hexdump;
 #[cfg(test)] mod test;
 
+pub mod enums;
 pub mod error;
 pub mod msg;
+pub mod snap_obj;
+
+mod debug;

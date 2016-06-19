@@ -5,14 +5,15 @@ use format::key;
 use format::key_to_id;
 use format::key_to_type_id;
 use num::ToPrimitive;
-use packer;
 use packer::Unpacker;
+use packer;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map;
 use std::fmt;
 use std::iter;
 use std::ops;
+use to_usize;
 use warn::Warn;
 use warn::wrap;
 
@@ -40,10 +41,6 @@ impl From<packer::UnexpectedEnd> for Error {
     fn from(_: packer::UnexpectedEnd) -> Error {
         Error::UnexpectedEnd
     }
-}
-
-fn to_usize(r: ops::Range<u32>) -> ops::Range<usize> {
-    r.start.to_usize().unwrap()..r.end.to_usize().unwrap()
 }
 
 fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32])

@@ -49,12 +49,41 @@ class NameValues:
         self.enums = enums
         self.structs = structs
 
-def emit_header():
+def emit_header_enums():
+    print("""\
+use packer::IntOutOfRange;
+
+pub const MAX_CLIENTS: i32 = 16;
+pub const SPEC_FREEVIEW: i32 = -1;
+
+pub const FLAG_MISSING: i32 = -3;
+pub const FLAG_ATSTAND: i32 = -2;
+pub const FLAG_TAKEN: i32 = -1;
+""")
+
+def emit_header_snap_obj():
+    print("""\
+use debug::DebugSlice;
+use enums::*;
+use error::Error;
+use packer::ExcessData;
+use packer::IntUnpacker;
+use packer::in_range;
+use packer::positive;
+use std::fmt;
+use warn::Warn;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Tick(i32);
+""")
+
+def emit_header_msg_game():
     print("""\
 use buffer::CapacityError;
 use common::pretty;
+use debug::DebugSlice;
+use enums::*;
 use error::Error;
-use packer::IntOutOfRange;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
@@ -76,9 +105,6 @@ impl<'a> Game<'a> {
         Ok(p.written())
     }
 }
-
-pub const MAX_CLIENTS: i32 = 16;
-pub const SPEC_FREEVIEW: i32 = -1;
 
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
@@ -135,8 +161,11 @@ class Enum(NameValues):
         print()
         print("#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]")
         print("pub enum {} {{".format(title(self.name)))
-        for name in self.values:
-            print("    {},".format(title(name)))
+        for i, name in enumerate(self.values):
+            if self.offset == 0 or i != 0:
+                print("    {},".format(title(name)))
+            else:
+                print("    {} = {},".format(title(name), self.offset))
         print("}")
 
     def emit_impl(self):
@@ -176,18 +205,40 @@ class Struct(NameValues):
         return result
     def init(self, index, enums, structs):
         super().init(index, enums, structs)
+
+        old_members = self.values
+        self.values = []
+        array_type = None
+        array_len = 0
+        for m in old_members + [None]:
+            s_name = m and snake(m.name)
+            a_name = m and s_name.rstrip("0123456789")
+            if (m is not None
+                    and (array_type is None or snake(array_type.name) == a_name)
+                    and s_name == a_name + str(array_len)):
+                array_type = m
+                array_type.name = canonicalize(a_name)
+                array_len += 1
+            else:
+                if array_type is not None:
+                    self.values.append(NetArray(array_type.name, array_type, array_len))
+                array_type = None
+                array_len = 0
+                if m is not None:
+                    self.values.append(m)
+
         self.values = [member.update(enums, structs) for member in self.values]
+
     def emit_consts(self):
         print("pub const {}: i32 = {};".format(caps(self.name), self.index))
     def emit_definition(self):
         if self.super:
-            super = structs[self.super]
+            super = self.structs[self.super]
         else:
             super = None
 
         print("#[derive(Clone, Copy)]")
         if self.values or super:
-            lifetime = self.lifetime()
             print("pub struct {}{} {{".format(title(self.name), self.lifetime()))
             if super:
                 print("    pub {}: {}{},".format(snake(super.name), title(super.name), super.lifetime()))
@@ -196,7 +247,7 @@ class Struct(NameValues):
             print("}")
         else:
             print("pub struct {};".format(title(self.name)))
-    def emit_impl(self):
+    def emit_impl_encode_decode(self):
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
         if self.values:
@@ -217,17 +268,46 @@ class Struct(NameValues):
         print("        Ok(_p.written())")
         print("    }")
         print("}")
+    def emit_impl_debug(self):
         print("impl{l} fmt::Debug for {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
         print("        f.debug_struct(\"{}\")".format(title(self.name)))
+        if self.super:
+            super = self.structs[self.super]
+            print("            .field(\"{n}\", &self.{n})".format(n=snake(super.name)))
         for m in self.values:
             m.emit_debug()
         print("            .finish()")
         print("    }")
         print("}")
 
-class NetObject(Struct): pass
-class NetEvent(Struct): pass
+class NetObject(Struct):
+    def emit_impl_encode_decode_int(self):
+        if self.super:
+            super = self.structs[self.super]
+        else:
+            super = None
+
+        print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
+        print("    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
+        print("        let result = try!(Self::decode_inner(p));")
+        print("        p.finish(warn);")
+        print("        Ok(result)")
+        print("    }")
+        print("    pub fn decode_inner(_p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
+        if self.values or super:
+            print("        Ok({} {{".format(title(self.name)))
+            if super:
+                print("            {}: try!({}::decode_inner(_p)),".format(snake(super.name), title(super.name), super.lifetime()))
+            for m in self.values:
+                m.emit_decode_int()
+            print("        })")
+        else:
+            print("        Ok({})".format(title(self.name)))
+        print("    }")
+        print("}")
+
+class NetEvent(NetObject): pass
 class NetMessage(Struct): pass
 
 class Member:
@@ -241,6 +321,8 @@ class Member:
         return self
     def emit_decode(self):
         print("            {}: {},".format(snake(self.name), self.decode_expr()))
+    def emit_decode_int(self):
+        print("            {}: {},".format(snake(self.name), self.decode_int_expr()))
     def emit_assert(self):
         assertion = self.assert_expr("self.{}".format(snake(self.name)))
         if assertion is not None:
@@ -249,10 +331,41 @@ class Member:
         print("        try!({});".format(self.encode_expr("self.{}".format(snake(self.name)))))
     def emit_debug(self):
         print("            .field(\"{}\", &{})".format(snake(self.name), self.debug_expr("self.{}".format(snake(self.name)))))
+    def validate_expr(self, self_expr):
+        pass
     def assert_expr(self, self_expr):
         pass
     def debug_expr(self, self_expr):
         return self_expr
+
+class NetArray(Member):
+    def __init__(self, name, inner, count):
+        super().__init__(name)
+        self.inner = inner
+        self.count = count
+        self.type_ = "[{}; {}]".format(inner.type_, count)
+    def decode_expr(self):
+        indent = "\n" + 4*4*" "
+        return "[{}{},\n            ]".format(
+                indent,
+                (","+indent).join(self.inner.decode_expr() for _ in range(self.count))
+        )
+    def emit_assert(self):
+        print("        for e in &self.{} {{".format(snake(self.name)))
+        print("            {};".format(self.inner.assert_expr("e")))
+        print("        }")
+    def emit_encode(self):
+        print("        for e in &self.{} {{".format(snake(self.name)))
+        print("            try!({});".format(self.inner.encode_expr("e")))
+        print("        }")
+    def decode_int_expr(self):
+        indent = "\n" + 4*4*" "
+        return "[{}{},\n            ]".format(
+                indent,
+                (","+indent).join(self.inner.decode_int_expr() for _ in range(self.count))
+        )
+    def debug_expr(self, self_expr):
+        return "DebugSlice::new(&{}, |e| {})".format(self_expr, self.inner.debug_expr("e"))
 
 class NetString(Member):
     type_ = "&'a [u8]"
@@ -275,6 +388,8 @@ class NetIntAny(Member):
         return "try!(_p.read_int(warn))"
     def encode_expr(self, self_expr):
         return "_p.write_int({})".format(self_expr)
+    def decode_int_expr(self):
+        return "try!(_p.read_int())"
 
 class NetIntRange(NetIntAny):
     def __init__(self, name, min, max):
@@ -282,7 +397,12 @@ class NetIntRange(NetIntAny):
         self.min = min
         self.max = max
     def update(self, enums, structs):
+        min = str(self.min)
         max = str(self.max)
+        if min == "0" and max == "max_int":
+            return NetIntPositive(self.name)
+        if self.name == "emote" and max == str(len(enums[("emote",)]) - 1):
+            max = "NUM_EMOTES-1"
         if str(self.min) == "0" and max.startswith("NUM_") and max.endswith("S-1"):
             enum_name = canonicalize(self.max[4:-3])
             return NetEnum(self.name, enum_name)
@@ -293,6 +413,20 @@ class NetIntRange(NetIntAny):
         return "try!(in_range({}, {}, {}))".format(super().decode_expr(), self.min, self.max)
     def assert_expr(self, self_expr):
         return "assert!({} <= {s} && {s} <= {})".format(self.min, self.max, s=self_expr)
+    def decode_int_expr(self):
+        return "try!(in_range({}, {}, {}))".format(super().decode_int_expr(), self.min, self.max)
+
+class NetIntPositive(NetIntAny):
+    def __init__(self, name):
+        super().__init__(name)
+    def update(self, enums, structs):
+        return self
+    def decode_expr(self):
+        return "try!(positive({}))".format(super().decode_expr())
+    def assert_expr(self, self_expr):
+        return "assert!({} >= 0)".format(self_expr)
+    def decode_int_expr(self):
+        return "try!(positive({}))".format(super().decode_int_expr())
 
 class NetEnum(NetIntAny):
     def __init__(self, name, enum_name):
@@ -303,6 +437,8 @@ class NetEnum(NetIntAny):
         return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.to_i32()".format(self_expr))
+    def decode_int_expr(self):
+        return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_int_expr())
 
 class NetBool(NetIntAny):
     type_ = "bool"
@@ -311,5 +447,7 @@ class NetBool(NetIntAny):
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
 
-class NetTick(Member):
+class NetTick(NetIntAny):
     type_ = "Tick"
+    def decode_int_expr(self):
+        return "Tick({})".format(super().decode_int_expr())

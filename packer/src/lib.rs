@@ -14,6 +14,7 @@ use buffer::BufferRef;
 use buffer::CapacityError;
 use buffer::with_buffer;
 use num::ToPrimitive;
+use std::iter;
 use std::slice;
 use warn::Warn;
 
@@ -22,6 +23,15 @@ pub enum Warning {
     OverlongIntEncoding,
     IntPadding,
     ExcessData,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExcessData;
+
+impl From<ExcessData> for Warning {
+    fn from(_: ExcessData) -> Warning {
+        Warning::ExcessData
+    }
 }
 
 #[derive(Clone, Copy, Debug)] pub struct ControlCharacters;
@@ -202,6 +212,27 @@ impl<'a> Unpacker<'a> {
     }
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
+    }
+}
+
+pub struct IntUnpacker<'a> {
+    iter: iter::Cloned<slice::Iter<'a, i32>>,
+}
+
+impl<'a> IntUnpacker<'a> {
+    pub fn new(slice: &[i32]) -> IntUnpacker {
+        IntUnpacker {
+            iter: slice.iter().cloned(),
+        }
+    }
+    pub fn read_int(&mut self) -> Result<i32, UnexpectedEnd> {
+        self.iter.next().ok_or(UnexpectedEnd)
+    }
+    pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
+        // TODO: replace with !self.is_empty()
+        if self.iter.len() != 0 {
+            warn.warn(ExcessData);
+        }
     }
 }
 
