@@ -1,9 +1,11 @@
 extern crate buffer;
+extern crate gamenet;
 extern crate packer;
 extern crate snapshot;
 extern crate warn;
 
 use buffer::CapacityError;
+use gamenet::snap_obj::obj_size;
 use packer::Unpacker;
 use packer::with_packer;
 use snapshot::snap::Delta;
@@ -32,31 +34,7 @@ fn simple() {
         Ok(p.written())
     }).unwrap();
 
-    let mut object_sizes = |type_id| Some(match type_id {
-         1 => 10,
-         2 =>  6,
-         3 =>  5,
-         4 =>  4,
-         5 =>  3,
-         6 =>  8,
-         7 =>  4,
-         8 => 15,
-         9 => 22,
-        10 =>  5,
-        11 => 17,
-        12 =>  3,
-        13 =>  2,
-        14 =>  2,
-        15 =>  2,
-        16 =>  2,
-        17 =>  3,
-        18 =>  3,
-        19 =>  3,
-        20 =>  3,
-        _  => return None,
-    });
-
-    reader.read(&mut Panic, &mut delta, &mut object_sizes, &mut Unpacker::new(&buf)).unwrap();
+    reader.read(&mut Panic, &mut delta, obj_size, &mut Unpacker::new(&buf)).unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), FIRST_CRC);
@@ -72,7 +50,7 @@ fn simple() {
         Ok(p.written())
     }).unwrap();
 
-    reader.read(&mut Panic, &mut delta, &mut object_sizes, &mut Unpacker::new(&buf)).unwrap();
+    reader.read(&mut Panic, &mut delta, obj_size, &mut Unpacker::new(&buf)).unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), SECOND_CRC);
