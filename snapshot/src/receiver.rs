@@ -160,7 +160,6 @@ impl DeltaReceiver {
         self.receive_buf.extend(snap.data);
         assert!(self.parts.insert(part, start..end).is_none());
 
-        println!("{} {}", self.parts.len(), num_parts);
         if self.parts.len().to_i32().unwrap() != num_parts {
             return Ok(None);
         }
