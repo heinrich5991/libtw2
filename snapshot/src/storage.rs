@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 use warn::Warn;
 use warn::wrap;
 
+#[derive(Clone)]
 struct StoredSnap {
     snap: Snap,
     tick: i32,
@@ -35,7 +36,7 @@ impl From<format::Warning> for Warning {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Storage {
     /// Queue that stores received snaps.
     ///
@@ -48,6 +49,12 @@ pub struct Storage {
 impl Storage {
     pub fn new() -> Storage {
         Default::default()
+    }
+    pub fn reset(&mut self) {
+        let self_free = &mut self.free;
+        // FIXME: Replace with something like `exhaust`.
+        self.snaps.drain(..).map(|s| self_free.push(s.snap)).count();
+        self.ack_tick = None;
     }
     pub fn ack_tick(&self) -> Option<i32> {
         self.ack_tick

@@ -6,10 +6,12 @@ extern crate vec_map;
 extern crate warn;
 
 pub mod format;
+pub mod manager;
 pub mod receiver;
 pub mod snap;
 pub mod storage;
 
+pub use manager::Manager;
 pub use receiver::DeltaReceiver;
 pub use receiver::ReceivedDelta;
 pub use snap::Delta;
