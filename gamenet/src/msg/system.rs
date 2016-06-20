@@ -6,7 +6,7 @@ use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
 use std::fmt;
-use super::IntegerData;
+use super::InputData;
 use super::SystemOrGame;
 use warn::Warn;
 
@@ -32,7 +32,7 @@ impl<'a> System<'a> {
 }
 
 /// Default input data for use with `Input`.
-pub const INPUT_DATA_EMPTY: IntegerData<'static> = IntegerData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
+pub const INPUT_DATA_EMPTY: InputData<'static> = InputData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
 
 pub const INFO: i32 = 1;
 pub const MAP_CHANGE: i32 = 2;
@@ -130,7 +130,7 @@ pub struct EnterGame;
 pub struct Input<'a> {
     pub ack_snapshot: i32,
     pub intended_tick: i32,
-    pub input: IntegerData<'a>,
+    pub input: InputData<'a>,
 }
 
 #[derive(Clone, Copy)]
@@ -483,7 +483,7 @@ impl<'a> Input<'a> {
         let result = Ok(Input {
             ack_snapshot: try!(_p.read_int(warn)),
             intended_tick: try!(_p.read_int(warn)),
-            input: try!(_p.read_rest().map(IntegerData::from_bytes)),
+            input: try!(_p.read_rest().map(InputData::from_bytes)),
         });
         _p.finish(warn);
         result

@@ -10,13 +10,13 @@ use packer::Warning;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
-pub struct IntegerData<'a> {
+pub struct InputData<'a> {
     inner: &'a [u8],
 }
 
-impl<'a> IntegerData<'a> {
-    fn from_bytes(bytes: &[u8]) -> IntegerData {
-        IntegerData {
+impl<'a> InputData<'a> {
+    fn from_bytes(bytes: &[u8]) -> InputData {
+        InputData {
             inner: bytes,
         }
     }

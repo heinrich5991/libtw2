@@ -32,7 +32,7 @@ use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
 use std::fmt;
-use super::IntegerData;
+use super::InputData;
 use super::SystemOrGame;
 use warn::Warn;
 
@@ -58,7 +58,7 @@ impl<'a> System<'a> {
 }
 
 /// Default input data for use with `Input`.
-pub const INPUT_DATA_EMPTY: IntegerData<'static> = IntegerData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
+pub const INPUT_DATA_EMPTY: InputData<'static> = InputData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
 """
 
 system_extra = """\
@@ -111,7 +111,7 @@ def make_msgs(msgs):
             elif type_ == 'd':
                 new_type = 'data'
             elif type_ == 'is':
-                new_type = 'integer_data'
+                new_type = 'input_data'
             else:
                 raise ValueError("Invalid member: {:?}".format(member))
             result_members.append((new_type, optional, member_name))
@@ -132,8 +132,8 @@ def rust_type(type_, optional):
         result = "i32"
     elif type_ == 'data':
         result = "&'a [u8]"
-    elif type_ == 'integer_data':
-        result = "IntegerData<'a>"
+    elif type_ == 'input_data':
+        result = "InputData<'a>"
     else:
         raise ValueError("Invalid type: {}".format(type_))
     if not optional:
@@ -214,8 +214,8 @@ def generate_struct_impl(msgs):
                     decode = "_p.read_int(warn)"
                 elif type_ == 'data':
                     decode = "_p.read_data(warn)"
-                elif type_ == 'integer_data':
-                    decode = "_p.read_rest().map(IntegerData::from_bytes)"
+                elif type_ == 'input_data':
+                    decode = "_p.read_rest().map(InputData::from_bytes)"
                 else:
                     raise ValueError("Invalid type: {}".format(type_))
                 result.append(" "*4*3 + "{}: {},".format(name, conv(decode)))
@@ -237,7 +237,7 @@ def generate_struct_impl(msgs):
                         encode = "_p.write_int({})".format
                     elif type_ == 'data':
                         encode = "_p.write_data({})".format
-                    elif type_ == 'integer_data':
+                    elif type_ == 'input_data':
                         encode = "_p.write_rest({}.as_bytes())".format
                     else:
                         raise ValueError("Invalid type: {}".format(type_))
