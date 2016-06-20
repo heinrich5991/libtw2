@@ -23,6 +23,27 @@ pub const GAMESTATEFLAG_GAMEOVER: i32 = 1 << 0;
 pub const GAMESTATEFLAG_SUDDENDEATH: i32 = 1 << 1;
 pub const GAMESTATEFLAG_PAUSED: i32 = 1 << 2;
 
+pub const PLAYER_INPUT: u16 = 1;
+pub const PROJECTILE: u16 = 2;
+pub const LASER: u16 = 3;
+pub const PICKUP: u16 = 4;
+pub const FLAG: u16 = 5;
+pub const GAME_INFO: u16 = 6;
+pub const GAME_DATA: u16 = 7;
+pub const CHARACTER_CORE: u16 = 8;
+pub const CHARACTER: u16 = 9;
+pub const PLAYER_INFO: u16 = 10;
+pub const CLIENT_INFO: u16 = 11;
+pub const SPECTATOR_INFO: u16 = 12;
+pub const COMMON: u16 = 13;
+pub const EXPLOSION: u16 = 14;
+pub const SPAWN: u16 = 15;
+pub const HAMMER_HIT: u16 = 16;
+pub const DEATH: u16 = 17;
+pub const SOUND_GLOBAL: u16 = 18;
+pub const SOUND_WORLD: u16 = 19;
+pub const DAMAGE_IND: u16 = 20;
+
 #[derive(Clone, Copy)]
 pub struct PlayerInput {
     pub direction: i32,
@@ -754,3 +775,28 @@ impl DamageInd {
     }
 }
 
+pub fn obj_size(type_: u16) -> Option<u32> {
+    Some(match type_ {
+        PLAYER_INPUT => 10,
+        PROJECTILE => 6,
+        LASER => 5,
+        PICKUP => 4,
+        FLAG => 3,
+        GAME_INFO => 8,
+        GAME_DATA => 4,
+        CHARACTER_CORE => 15,
+        CHARACTER => 22,
+        PLAYER_INFO => 5,
+        CLIENT_INFO => 17,
+        SPECTATOR_INFO => 3,
+        COMMON => 2,
+        EXPLOSION => 2,
+        SPAWN => 2,
+        HAMMER_HIT => 2,
+        DEATH => 3,
+        SOUND_GLOBAL => 3,
+        SOUND_WORLD => 3,
+        DAMAGE_IND => 3,
+        _ => return None,
+    })
+}

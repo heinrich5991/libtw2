@@ -151,6 +151,15 @@ def emit_enum(name, structs):
     print("    }")
     print("}")
 
+def emit_snap_obj_sizes(objects):
+    print("pub fn obj_size(type_: u16) -> Option<u32> {")
+    print("    Some(match type_ {")
+    for o in objects:
+        print("        {} => {},".format(caps(o.name), o.int_size()))
+    print("        _ => return None,")
+    print("    })")
+    print("}")
+
 class Enum(NameValues):
     def __init__(self, name, values, offset=0):
         super().__init__(name, [canonicalize(v) for v in values])
@@ -230,7 +239,7 @@ class Struct(NameValues):
         self.values = [member.update(enums, structs) for member in self.values]
 
     def emit_consts(self):
-        print("pub const {}: i32 = {};".format(caps(self.name), self.index))
+        print("pub const {}: {} = {};".format(caps(self.name), self.const_type, self.index))
     def emit_definition(self):
         if self.super:
             super = self.structs[self.super]
@@ -282,6 +291,7 @@ class Struct(NameValues):
         print("}")
 
 class NetObject(Struct):
+    const_type = "u16"
     def emit_impl_encode_decode_int(self):
         if self.super:
             super = self.structs[self.super]
@@ -306,9 +316,15 @@ class NetObject(Struct):
             print("        Ok({})".format(title(self.name)))
         print("    }")
         print("}")
+    def int_size(self):
+        size = sum(m.int_size() for m in self.values)
+        if self.super:
+            size += self.structs[self.super].int_size()
+        return size
 
 class NetEvent(NetObject): pass
-class NetMessage(Struct): pass
+class NetMessage(Struct):
+    const_type = "i32"
 
 class Member:
     def __init__(self, name):
@@ -366,6 +382,8 @@ class NetArray(Member):
         )
     def debug_expr(self, self_expr):
         return "DebugSlice::new(&{}, |e| {})".format(self_expr, self.inner.debug_expr("e"))
+    def int_size(self):
+        return self.inner.int_size() * self.count
 
 class NetString(Member):
     type_ = "&'a [u8]"
@@ -390,6 +408,8 @@ class NetIntAny(Member):
         return "_p.write_int({})".format(self_expr)
     def decode_int_expr(self):
         return "try!(_p.read_int())"
+    def int_size(self):
+        return 1
 
 class NetIntRange(NetIntAny):
     def __init__(self, name, min, max):
