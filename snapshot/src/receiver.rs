@@ -79,7 +79,7 @@ impl DeltaReceiver {
         self.init_delta();
         self.finish_delta(snap.tick);
         Ok(Some(ReceivedDelta {
-            delta_tick: snap.delta_tick,
+            delta_tick: snap.tick.wrapping_sub(snap.delta_tick),
             tick: snap.tick,
             data: &self.result,
             crc: None,
@@ -99,7 +99,7 @@ impl DeltaReceiver {
         self.finish_delta(snap.tick);
         self.result.extend(snap.data);
         Ok(Some(ReceivedDelta {
-            delta_tick: snap.delta_tick,
+            delta_tick: snap.tick.wrapping_sub(snap.delta_tick),
             tick: snap.tick,
             data: &self.result,
             crc: Some(snap.crc),
@@ -125,7 +125,7 @@ impl DeltaReceiver {
             self.init_delta();
             self.current = Some(CurrentDelta {
                 tick: snap.tick,
-                delta_tick: snap.delta_tick,
+                delta_tick: snap.tick.wrapping_sub(snap.delta_tick),
                 num_parts: snap.num_parts,
                 crc: snap.crc,
             });
@@ -201,7 +201,7 @@ mod test {
             }).unwrap();
 
             assert_eq!(result, Some(ReceivedDelta {
-                delta_tick: 2,
+                delta_tick: -1,
                 tick: 1,
                 data: b"",
                 crc: None,
@@ -228,8 +228,8 @@ mod test {
         ];
         for &(i, c) in chunks {
             let result = receiver.snap(&mut Panic, Snap {
-                tick: 1,
-                delta_tick: 2,
+                tick: 2,
+                delta_tick: 1,
                 num_parts: chunks.len().to_i32().unwrap(),
                 part: i,
                 crc: 3,
@@ -239,8 +239,8 @@ mod test {
                 assert_eq!(result, None);
             } else {
                 assert_eq!(result, Some(ReceivedDelta {
-                    delta_tick: 2,
-                    tick: 1,
+                    delta_tick: 1,
+                    tick: 2,
                     data: b"01__234_",
                     crc: Some(3),
                 }));
