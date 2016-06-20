@@ -13,12 +13,14 @@ use storage;
 use warn::Warn;
 use warn::wrap;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     Receiver(receiver::Error),
     Snap(snap::Error),
     Storage(storage::Error),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
     Receiver(receiver::Warning),
     Snap(format::Warning),
@@ -126,7 +128,12 @@ impl ManagerInner {
         where W: Warn<Warning>,
               O: FnMut(u16) -> Option<u32>,
     {
-        try!(self.reader.read(wrap(warn), &mut self.temp_delta, object_size, &mut Unpacker::new(delta.data)));
-        Ok(try!(self.storage.add_delta(wrap(warn), delta.crc, delta.delta_tick, delta.tick, &self.temp_delta)))
+        let crc = delta.data_and_crc.map(|d| d.1);
+        if let Some((data, _)) = delta.data_and_crc {
+            try!(self.reader.read(wrap(warn), &mut self.temp_delta, object_size, &mut Unpacker::new(data)));
+        } else {
+            self.temp_delta.clear();
+        }
+        Ok(try!(self.storage.add_delta(wrap(warn), crc, delta.delta_tick, delta.tick, &self.temp_delta)))
     }
 }

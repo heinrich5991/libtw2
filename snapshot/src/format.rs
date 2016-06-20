@@ -4,7 +4,7 @@ use snap::Error;
 use warn::Warn;
 use warn::wrap;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
     Packer(packer::Warning),
     NonZeroPadding,

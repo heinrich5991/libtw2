@@ -17,7 +17,7 @@ use to_usize;
 use warn::Warn;
 use warn::wrap;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     UnexpectedEnd,
     IntOutOfRange,
@@ -180,7 +180,7 @@ impl Delta {
     pub fn new() -> Delta {
         Default::default()
     }
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.deleted_items.clear();
         self.updated_items.clear();
         self.buf.clear();

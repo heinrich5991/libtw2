@@ -32,8 +32,7 @@ struct CurrentDelta {
 pub struct ReceivedDelta<'a> {
     pub delta_tick: i32,
     pub tick: i32,
-    pub data: &'a [u8],
-    pub crc: Option<i32>,
+    pub data_and_crc: Option<(&'a [u8], i32)>,
 }
 
 #[derive(Clone, Default)]
@@ -81,8 +80,7 @@ impl DeltaReceiver {
         Ok(Some(ReceivedDelta {
             delta_tick: snap.tick.wrapping_sub(snap.delta_tick),
             tick: snap.tick,
-            data: &self.result,
-            crc: None,
+            data_and_crc: None,
         }))
     }
     pub fn snap_single<W>(&mut self, warn: &mut W, snap: system::SnapSingle)
@@ -101,8 +99,7 @@ impl DeltaReceiver {
         Ok(Some(ReceivedDelta {
             delta_tick: snap.tick.wrapping_sub(snap.delta_tick),
             tick: snap.tick,
-            data: &self.result,
-            crc: Some(snap.crc),
+            data_and_crc: Some((&self.result, snap.crc)),
         }))
     }
     pub fn snap<W>(&mut self, warn: &mut W, snap: system::Snap)
@@ -173,8 +170,7 @@ impl DeltaReceiver {
         Ok(Some(ReceivedDelta {
             delta_tick: delta_tick,
             tick: tick,
-            data: &self.result,
-            crc: Some(crc),
+            data_and_crc: Some((&self.result, crc)),
         }))
     }
 }
@@ -202,16 +198,15 @@ mod test {
             assert_eq!(result, Some(ReceivedDelta {
                 delta_tick: -1,
                 tick: 1,
-                data: b"",
-                crc: None,
+                data_and_crc: None,
             }));
         }
 
         assert_eq!(receiver.snap_single(&mut Panic, SnapSingle {
             tick: 0,
             delta_tick: 0,
-            crc: 0,
             data: b"123",
+            crc: 0,
         }).unwrap_err(), Error::OldDelta);
     }
 
@@ -240,8 +235,7 @@ mod test {
                 assert_eq!(result, Some(ReceivedDelta {
                     delta_tick: 1,
                     tick: 2,
-                    data: b"01__234_",
-                    crc: Some(3),
+                    data_and_crc: Some((b"01__234_", 3)),
                 }));
             }
         }

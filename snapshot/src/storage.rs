@@ -12,6 +12,7 @@ struct StoredSnap {
     tick: i32,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     OldDelta,
     UnknownSnap,
@@ -25,6 +26,7 @@ impl From<snap::Error> for Error {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
     WeirdNegativeDeltaTick,
     Unpack(format::Warning),
@@ -70,7 +72,7 @@ impl Storage {
             let empty = Snap::empty();
             let delta_snap;
             if delta_tick >= 0 {
-                if let Some(i) = self.snaps.iter().position(|s| s.tick < tick) {
+                if let Some(i) = self.snaps.iter().position(|s| s.tick < delta_tick) {
                     let self_free = &mut self.free;
                     // FIXME: Replace with something like `exhaust`.
                     self.snaps.drain(i..).map(|s| self_free.push(s.snap)).count();
