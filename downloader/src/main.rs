@@ -11,6 +11,7 @@ extern crate net;
 extern crate num;
 extern crate packer;
 extern crate rand;
+extern crate snapshot;
 extern crate warn;
 
 use arrayvec::ArrayVec;
@@ -33,10 +34,9 @@ use gamenet::msg::system::MapChange;
 use gamenet::msg::system::MapData;
 use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
-use gamenet::msg::system::Snap;
-use gamenet::msg::system::SnapEmpty;
-use gamenet::msg::system::SnapSingle;
 use gamenet::msg::system;
+use gamenet::snap_obj::obj_size;
+use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -51,6 +51,7 @@ use net::net::PeerId;
 use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
+use snapshot::Snap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
@@ -65,6 +66,7 @@ use std::str;
 use std::time::Duration;
 use std::time::Instant;
 use std::u32;
+use warn::Log;
 
 const NETWORK_LOSS_RATE: f32 = 0.0;
 const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
@@ -275,7 +277,7 @@ fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>>
     iter.map(|s| Addr::from_str(&s).ok()).collect()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct Peer {
     visited_votes: HashSet<Vec<u8>>,
     current_votes: HashSet<Vec<u8>>,
@@ -283,7 +285,8 @@ struct Peer {
     completed_list_votes: HashSet<Vec<u8>>,
     previous_list_vote: Option<Vec<u8>>,
     previous_vote: Option<Vec<u8>>,
-    num_snaps_since_reset: u32,
+    snaps: snapshot::Manager,
+    num_snaps_since_reset: u64,
     dummy_map: bool,
     state: PeerState,
 }
@@ -297,6 +300,7 @@ impl Peer {
             completed_list_votes: HashSet::new(),
             previous_list_vote: None,
             previous_vote: None,
+            snaps: snapshot::Manager::new(),
             num_snaps_since_reset: 0,
             dummy_map: false,
             state: PeerState::Connection,
@@ -403,6 +407,9 @@ fn sendg(msg: Game, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
     }).unwrap();
     net.flush(socket, pid).unwrap();
 }
+fn num_players(snap: &Snap) -> u32 {
+    snap.items().filter(|i| i.type_id == snap_obj::CLIENT_INFO).count().to_u32().unwrap()
+}
 
 struct Main {
     socket: Socket,
@@ -507,14 +514,31 @@ impl Main {
                             processed = true;
                         }
                     },
-                    System::Snap(Snap { tick, .. })
-                        | System::SnapEmpty(SnapEmpty { tick, .. })
-                        | System::SnapSingle(SnapSingle { tick, ..})
+                    System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_)
                     => {
-                        if peer.num_snaps_since_reset <= 3 {
-                            peer.num_snaps_since_reset += 1;
+                        let mut check_num_snaps = false;
+                        {
+                            let res = match *msg {
+                                System::Snap(s) => peer.snaps.snap(&mut Log, obj_size, s),
+                                System::SnapEmpty(s) => peer.snaps.snap_empty(&mut Log, obj_size, s),
+                                System::SnapSingle(s) => peer.snaps.snap_single(&mut Log, obj_size, s),
+                                _ => unreachable!(),
+                            };
+                            match res {
+                                Ok(Some(snap)) => {
+                                    peer.num_snaps_since_reset += 1;
+                                    check_num_snaps = true;
+                                    if num_players(snap) > 1 {
+                                        error!("more than one player detected, quitting");
+                                        return true;
+                                    }
+                                },
+                                Ok(None) => {},
+                                Err(err) => warn!("snapshot error {:?}", err),
+                            }
                         }
-                        if peer.num_snaps_since_reset == 3 {
+                        if check_num_snaps && peer.num_snaps_since_reset % 10 == 3 {
+                            let tick = peer.snaps.ack_tick().unwrap_or(-1);
                             send(System::Input(Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,

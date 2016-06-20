@@ -17,4 +17,5 @@ net = { path = "../net/" }
 num = "0.1.27"
 packer = { path = "../packer/" }
 rand = "0.3.10"
-warn = ">=0.1.0,<0.3.0"
+snapshot = { path = "../snapshot/" }
+warn = ">=0.1.1,<0.3.0"
