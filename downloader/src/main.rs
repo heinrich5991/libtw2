@@ -12,6 +12,7 @@ extern crate num;
 extern crate packer;
 extern crate rand;
 extern crate snapshot;
+extern crate tempfile;
 extern crate warn;
 
 use arrayvec::ArrayVec;
@@ -52,20 +53,25 @@ use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
 use snapshot::Snap;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fmt;
+use std::fs;
 use std::io::Write;
 use std::io;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::ops;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
 use std::u32;
+use tempfile::NamedTempFile;
+use tempfile::NamedTempFileOptions;
 use warn::Log;
 
 const NETWORK_LOSS_RATE: f32 = 0.0;
@@ -277,7 +283,12 @@ fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>>
     iter.map(|s| Addr::from_str(&s).ok()).collect()
 }
 
-#[derive(Clone)]
+struct Download {
+    file: NamedTempFile,
+    crc: i32,
+    name: String,
+}
+
 struct Peer {
     visited_votes: HashSet<Vec<u8>>,
     current_votes: HashSet<Vec<u8>>,
@@ -289,6 +300,14 @@ struct Peer {
     num_snaps_since_reset: u64,
     dummy_map: bool,
     state: PeerState,
+    download: Option<Download>,
+}
+
+fn need_file(crc: i32, name: &str) -> bool {
+    let mut path = PathBuf::new();
+    path.push("maps");
+    path.push(format!("{}_{:08x}.map", name, crc));
+    !path.exists()
 }
 
 impl Peer {
@@ -304,6 +323,7 @@ impl Peer {
             num_snaps_since_reset: 0,
             dummy_map: false,
             state: PeerState::Connection,
+            download: None,
         }
     }
     fn vote(&mut self, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) -> bool {
@@ -315,6 +335,7 @@ impl Peer {
             }), pid, net, socket);
             visited_votes.insert(vote.to_owned());
         }
+        // TODO: This probably has bad performance:
         self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
         if let Some(ref vote) = self.previous_vote {
             send_vote(&mut self.visited_votes, vote, pid, net, socket);
@@ -342,6 +363,28 @@ impl Peer {
         }
         self.state = PeerState::VoteSet(socket.time() + Duration::from_secs(5));
         false
+    }
+    fn open_file(&mut self, crc: i32, name: String) -> Result<(), io::Error> {
+        self.download = Some(Download {
+            file: try!(NamedTempFileOptions::new()
+                .prefix(&format!("{}_{:08x}_", name, crc))
+                .suffix(".map")
+                .create_in("downloading")
+            ),
+            crc: crc,
+            name: name,
+        });
+        Ok(())
+    }
+    fn write_file(&mut self, data: &[u8]) -> Result<(), io::Error> {
+        self.download.as_mut().unwrap().file.write_all(data)
+    }
+    fn finish_file(&mut self) -> Result<(), io::Error> {
+        let download = self.download.take().unwrap();
+        let mut path = PathBuf::new();
+        path.push("maps");
+        path.push(format!("{}_{:08x}.map", &download.name, download.crc));
+        download.file.persist(&path).map(|_| ()).map_err(|e| e.error)
     }
 }
 
@@ -435,6 +478,8 @@ impl Main {
             err.unwrap();
             main.peers.insert(pid, Peer::new());
         }
+        fs::create_dir_all("maps").unwrap();
+        fs::create_dir_all("downloading").unwrap();
         main
     }
     fn tick_peer(&mut self, pid: PeerId) -> bool {
@@ -489,7 +534,10 @@ impl Main {
                 SystemOrGame::System(ref msg) => match *msg {
                     System::MapChange(MapChange { crc, size, name }) => {
                         if let Some(_) = size.to_usize() {
-                            request_chunk = Some(0);
+                            if name.iter().any(|&b| b == b'/' || b == b'\\') {
+                                error!("invalid map name");
+                                return true;
+                            }
                             match peer.state {
                                 PeerState::MapChange => {},
                                 PeerState::VoteResult(..) => {},
@@ -501,11 +549,34 @@ impl Main {
                                 && size == 549
                                 && name == b"dummy";
                             peer.current_votes.clear();
-                            peer.state = PeerState::MapData(crc, 0);
                             peer.num_snaps_since_reset = 0;
                             peer.snaps.reset();
-                            info!("map change: {:?}", String::from_utf8_lossy(name));
+                            let name = String::from_utf8_lossy(name);
+                            info!("map change: {:?}", name);
+                            if let Cow::Owned(..) = name {
+                                warn!("weird characters in map name");
+                            }
+                            let mut start_download = false;
+                            if need_file(crc, &name) {
+                                if let Err(e) = peer.open_file(crc, name.into_owned()) {
+                                    error!("error opening file {:?}", e);
+                                } else {
+                                    start_download = true;
+                                }
+                            }
+                            if start_download {
+                                info!("download starting");
+                                request_chunk = Some(0);
+                                peer.state = PeerState::MapData(crc, 0);
+                            } else {
+                                peer.state = PeerState::ConReady;
+                                let m = System::Ready(Ready);
+                                send(m, pid, &mut self.net, &mut self.socket);
+                            }
                             processed = true;
+                        } else {
+                            error!("invalid map size");
+                            return true;
                         }
                     },
                     System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_)
@@ -565,8 +636,9 @@ impl Main {
                     },
                     Game::SvVoteOptionRemove(SvVoteOptionRemove { description }) => {
                         processed = true;
-                        // WARN: If vote doesn't exist.
-                        peer.current_votes.remove(description);
+                        if !peer.current_votes.remove(description) {
+                            warn!("vote option removed even though it didn't exist");
+                        }
                     }
                     _ => {},
                 }
@@ -575,11 +647,20 @@ impl Main {
                 PeerState::Connection => unreachable!(),
                 PeerState::MapChange => {}, // Handled above.
                 PeerState::MapData(cur_crc, cur_chunk) => match msg {
-                    SystemOrGame::System(System::MapData(MapData { last, crc, chunk, .. })) => {
+                    SystemOrGame::System(System::MapData(MapData { last, crc, chunk, data })) => {
                         if cur_crc == crc && cur_chunk == chunk {
-                            if last != 0 {
-                                if last != 1 {
-                                    warn!("weird map data packet");
+                            let res = peer.write_file(data);
+                            if let Err(ref err) = res {
+                                error!("error writing file {:?}", err);
+                            }
+                            if last != 0 || res.is_err() {
+                                if !res.is_err() {
+                                    if let Err(err) = peer.finish_file() {
+                                        error!("error finishing file {:?}", err);
+                                    }
+                                    if last != 1 {
+                                        warn!("weird map data packet");
+                                    }
                                 }
                                 peer.state = PeerState::ConReady;
                                 let m = System::Ready(Ready);
@@ -589,8 +670,6 @@ impl Main {
                                 let cur_chunk = cur_chunk.checked_add(1).unwrap();
                                 peer.state = PeerState::MapData(cur_crc, cur_chunk);
                                 request_chunk = Some(cur_chunk);
-                                print!("{}\r", cur_chunk);
-                                io::stdout().flush().unwrap();
                             }
                         } else {
                             if cur_crc != crc || cur_chunk < chunk {
@@ -650,8 +729,6 @@ impl Main {
                 },
                 PeerState::VoteEnd => match msg {
                     SystemOrGame::Game(Game::SvVoteSet(vote_set)) => {
-                        // TODO: Currently, we're assuming that we're the only
-                        // people on the server.
                         if vote_set.timeout == 0 {
                             processed = true;
                             peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
