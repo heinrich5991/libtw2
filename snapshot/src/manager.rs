@@ -81,7 +81,8 @@ impl Manager {
         Default::default()
     }
     pub fn reset(&mut self) {
-        self.inner.storage.reset()
+        self.inner.storage.reset();
+        self.receiver.reset();
     }
     pub fn ack_tick(&self) -> Option<i32> {
         self.inner.storage.ack_tick()

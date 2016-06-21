@@ -510,6 +510,7 @@ impl Main {
                             peer.current_votes.clear();
                             peer.state = PeerState::MapData(crc, 0);
                             peer.num_snaps_since_reset = 0;
+                            peer.snaps.reset();
                             info!("map change: {:?}", String::from_utf8_lossy(name));
                             processed = true;
                         }

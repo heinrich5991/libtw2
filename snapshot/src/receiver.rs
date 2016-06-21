@@ -20,7 +20,7 @@ pub enum Error {
 }
 
 // TODO: How to handle `tick` overflowing?
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct CurrentDelta {
     tick: i32,
     delta_tick: i32,
@@ -50,6 +50,10 @@ pub struct DeltaReceiver {
 impl DeltaReceiver {
     pub fn new() -> DeltaReceiver {
         Default::default()
+    }
+    pub fn reset(&mut self) {
+        self.previous_tick = None;
+        self.current = None;
     }
     fn can_receive(&self, tick: i32) -> bool {
         self.current.as_ref().map(|c| c.tick <= tick)
