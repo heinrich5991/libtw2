@@ -38,6 +38,8 @@ impl From<format::Warning> for Warning {
     }
 }
 
+// TODO: Do something against the unbounded growth!
+
 #[derive(Clone, Default)]
 pub struct Storage {
     /// Queue that stores received snaps.
