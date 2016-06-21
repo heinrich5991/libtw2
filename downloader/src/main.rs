@@ -301,6 +301,7 @@ struct Peer {
     dummy_map: bool,
     state: PeerState,
     download: Option<Download>,
+    progress_timeout: Duration,
 }
 
 fn need_file(crc: i32, name: &str) -> bool {
@@ -311,8 +312,8 @@ fn need_file(crc: i32, name: &str) -> bool {
 }
 
 impl Peer {
-    fn new() -> Peer {
-        Peer {
+    fn new(socket: &mut Socket) -> Peer {
+        let mut result = Peer {
             visited_votes: HashSet::new(),
             current_votes: HashSet::new(),
             list_votes: HashSet::new(),
@@ -324,7 +325,10 @@ impl Peer {
             dummy_map: false,
             state: PeerState::Connection,
             download: None,
-        }
+            progress_timeout: Duration::new(0, 0),
+        };
+        result.progress(socket);
+        result
     }
     fn vote(&mut self, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) -> bool {
         fn send_vote(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
@@ -362,7 +366,14 @@ impl Peer {
             }
         }
         self.state = PeerState::VoteSet(socket.time() + Duration::from_secs(5));
+        self.progress(socket);
         false
+    }
+    fn has_timed_out(&self, socket: &mut Socket) -> bool {
+        socket.time() >= self.progress_timeout
+    }
+    fn progress(&mut self, socket: &mut Socket) {
+        self.progress_timeout = socket.time() + Duration::from_secs(120);
     }
     fn open_file(&mut self, crc: i32, name: String) -> Result<(), io::Error> {
         self.download = Some(Download {
@@ -476,7 +487,7 @@ impl Main {
         for &addr in addresses {
             let (pid, err) = main.net.connect(&mut main.socket, addr);
             err.unwrap();
-            main.peers.insert(pid, Peer::new());
+            main.peers.insert(pid, Peer::new(&mut main.socket));
         }
         fs::create_dir_all("maps").unwrap();
         fs::create_dir_all("downloading").unwrap();
@@ -496,6 +507,10 @@ impl Main {
                 return true;
             }
         }
+        if peer.has_timed_out(&mut self.socket) {
+            error!("timed out due to lack of progress");
+            return true;
+        }
         false
     }
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
@@ -510,7 +525,8 @@ impl Main {
         }
         debug!("{:?}", msg);
         let mut request_chunk = None;
-        let mut processed = false;
+        let mut ignored = false;
+        let mut progress = false;
         match msg {
             SystemOrGame::Game(Game::SvMotd(..))
                 | SystemOrGame::Game(Game::SvKillMsg(..))
@@ -518,11 +534,11 @@ impl Main {
                 | SystemOrGame::Game(Game::SvWeaponPickup(..))
                 | SystemOrGame::System(System::InputTiming(..))
             => {
-                processed = true;
+                ignored = true;
             },
             SystemOrGame::Game(Game::SvChat(chat)) => {
                 if chat.team == 0 && chat.client_id == -1 {
-                    processed = true;
+                    ignored = true;
                     info!("*** {:?}", pretty::Bytes::new(chat.message));
                 }
             }
@@ -573,7 +589,7 @@ impl Main {
                                 let m = System::Ready(Ready);
                                 send(m, pid, &mut self.net, &mut self.socket);
                             }
-                            processed = true;
+                            progress = true;
                         } else {
                             error!("invalid map size");
                             return true;
@@ -613,17 +629,17 @@ impl Main {
                                 input: system::INPUT_DATA_EMPTY,
                             }), pid, &mut self.net, &mut self.socket);
                         }
-                        processed = true;
+                        ignored = true;
                     },
                     _ => {},
                 },
                 SystemOrGame::Game(ref msg) => match *msg {
                     Game::SvVoteClearOptions(..) => {
-                        processed = true;
+                        ignored = true;
                         peer.current_votes.clear();
                     },
                     Game::SvVoteOptionListAdd(l) => {
-                        processed = true;
+                        ignored = true;
                         // `len` is bounded by the unpacking.
                         let len = l.num_options.to_usize().unwrap();
                         for &desc in l.description.iter().take(len) {
@@ -631,11 +647,11 @@ impl Main {
                         }
                     },
                     Game::SvVoteOptionAdd(SvVoteOptionAdd { description }) => {
-                        processed = true;
+                        ignored = true;
                         peer.current_votes.insert(description.to_owned());
                     },
                     Game::SvVoteOptionRemove(SvVoteOptionRemove { description }) => {
-                        processed = true;
+                        ignored = true;
                         if !peer.current_votes.remove(description) {
                             warn!("vote option removed even though it didn't exist");
                         }
@@ -677,13 +693,13 @@ impl Main {
                                 warn!("want crc={:08x} chunk={}", cur_crc, cur_chunk);
                             }
                         }
-                        processed = true;
+                        progress = true;
                     }
                     _ => {},
                 },
                 PeerState::ConReady => match msg {
                     SystemOrGame::System(System::ConReady(..)) => {
-                        processed = true;
+                        progress = true;
                         sendg(Game::ClStartInfo(ClStartInfo {
                             name: b"downloader",
                             clan: b"",
@@ -699,7 +715,7 @@ impl Main {
                 },
                 PeerState::ReadyToEnter => match msg {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
-                        processed = true;
+                        progress = true;
                         send(System::EnterGame(EnterGame), pid, &mut self.net, &mut self.socket);
                         if peer.vote(pid, &mut self.net, &mut self.socket) {
                             peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
@@ -710,18 +726,18 @@ impl Main {
                 PeerState::VoteSet(_) => match msg {
                     SystemOrGame::Game(Game::SvChat(chat)) => {
                         if chat.client_id == -1 && chat.team == 0 {
-                            // TODO: Remove the crash
-                            let message = str::from_utf8(chat.message).unwrap();
-                            if message.contains("Wait") || message.contains("wait") {
-                                processed = true;
-                                peer.visited_votes.remove(peer.previous_vote.as_ref().unwrap());
-                                peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(5));
+                            if let Ok(message) = str::from_utf8(chat.message) {
+                                if message.contains("Wait") || message.contains("wait") {
+                                    progress = true;
+                                    peer.visited_votes.remove(peer.previous_vote.as_ref().unwrap());
+                                    peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(5));
+                                }
                             }
                         }
                     }
                     SystemOrGame::Game(Game::SvVoteSet(vote_set)) => {
                         if vote_set.timeout != 0 {
-                            processed = true;
+                            progress = true;
                             peer.state = PeerState::VoteEnd;
                         }
                     },
@@ -730,7 +746,7 @@ impl Main {
                 PeerState::VoteEnd => match msg {
                     SystemOrGame::Game(Game::SvVoteSet(vote_set)) => {
                         if vote_set.timeout == 0 {
-                            processed = true;
+                            progress = true;
                             peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
                         }
                     },
@@ -739,7 +755,7 @@ impl Main {
                         | SystemOrGame::Game(Game::SvVoteOptionListAdd(..))
                         | SystemOrGame::Game(Game::SvVoteOptionRemove(..))
                     => {
-                        processed = true;
+                        ignored = true;
                         let prev = peer.previous_vote.as_ref().unwrap();
                         if peer.list_votes.insert(prev.to_owned()) {
                             info!("list vote {:?}", pretty::Bytes::new(prev));
@@ -749,8 +765,11 @@ impl Main {
                 },
                 PeerState::VoteResult(..) => {},
             }
+            if progress {
+                peer.progress(&mut self.socket);
+            }
         }
-        if !processed {
+        if !progress && !ignored {
             warn!("unprocessed message {:?}", msg);
         }
         request_chunk.map(|c| {
