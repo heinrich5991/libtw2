@@ -337,7 +337,6 @@ impl Peer {
                 info!("list-voting for {:?}", pretty::Bytes::new(vote));
                 send_vote(&mut self.visited_votes, &vote, pid, net, socket);
             } else {
-                info!("voting done");
                 return true;
             }
         }
@@ -408,7 +407,7 @@ fn sendg(msg: Game, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
     net.flush(socket, pid).unwrap();
 }
 fn num_players(snap: &Snap) -> u32 {
-    snap.items().filter(|i| i.type_id == snap_obj::CLIENT_INFO).count().to_u32().unwrap()
+    snap.items().filter(|i| i.type_id == snap_obj::PLAYER_INFO).count().to_u32().unwrap()
 }
 
 struct Main {
@@ -440,25 +439,19 @@ impl Main {
     }
     fn tick_peer(&mut self, pid: PeerId) -> bool {
         let peer = &mut self.peers[pid];
+        let vote;
         match peer.state {
-            PeerState::VoteSet(timeout) => {
-                if self.socket.time() >= timeout {
-                    if peer.vote(pid, &mut self.net, &mut self.socket) {
-                        return true;
-                    }
-                }
-                false
-            },
-            PeerState::VoteResult(timeout) => {
-                if self.socket.time() >= timeout {
-                    if peer.vote(pid, &mut self.net, &mut self.socket) {
-                        return true;
-                    }
-                }
-                false
-            },
-            _ => false,
+            PeerState::VoteSet(timeout) => vote = self.socket.time() >= timeout,
+            PeerState::VoteResult(timeout) => vote = self.socket.time() >= timeout,
+            _ => vote = false,
         }
+        if vote {
+            if peer.vote(pid, &mut self.net, &mut self.socket) {
+                info!("voting done");
+                return true;
+            }
+        }
+        false
     }
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
         let _ = vital;
@@ -517,7 +510,8 @@ impl Main {
                     },
                     System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_)
                     => {
-                        let mut check_num_snaps = false;
+                        let mut check_num_snaps = true;
+                        peer.num_snaps_since_reset += 1;
                         {
                             let res = match *msg {
                                 System::Snap(s) => peer.snaps.snap(&mut Log, obj_size, s),
@@ -527,18 +521,20 @@ impl Main {
                             };
                             match res {
                                 Ok(Some(snap)) => {
-                                    peer.num_snaps_since_reset += 1;
-                                    check_num_snaps = true;
-                                    if num_players(snap) > 1 {
-                                        error!("more than one player detected, quitting");
+                                    let num_players = num_players(snap);
+                                    if num_players > 1 {
+                                        error!("more than one player ({}) detected, quitting", num_players);
                                         return true;
                                     }
                                 },
-                                Ok(None) => {},
+                                Ok(None) => {
+                                    peer.num_snaps_since_reset -= 1;
+                                    check_num_snaps = false;
+                                },
                                 Err(err) => warn!("snapshot error {:?}", err),
                             }
                         }
-                        if check_num_snaps && peer.num_snaps_since_reset % 10 == 3 {
+                        if check_num_snaps && peer.num_snaps_since_reset % 50 == 3 {
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
                             send(System::Input(Input {
                                 ack_snapshot: tick,
@@ -582,16 +578,24 @@ impl Main {
                     SystemOrGame::System(System::MapData(MapData { last, crc, chunk, .. })) => {
                         if cur_crc == crc && cur_chunk == chunk {
                             if last != 0 {
+                                if last != 1 {
+                                    warn!("weird map data packet");
+                                }
                                 peer.state = PeerState::ConReady;
                                 let m = System::Ready(Ready);
                                 send(m, pid, &mut self.net, &mut self.socket);
-                                info!("finished");
+                                info!("download finished");
                             } else {
                                 let cur_chunk = cur_chunk.checked_add(1).unwrap();
                                 peer.state = PeerState::MapData(cur_crc, cur_chunk);
                                 request_chunk = Some(cur_chunk);
                                 print!("{}\r", cur_chunk);
                                 io::stdout().flush().unwrap();
+                            }
+                        } else {
+                            if cur_crc != crc || cur_chunk < chunk {
+                                warn!("unsolicited map data crc={:08x} chunk={}", crc, chunk);
+                                warn!("want crc={:08x} chunk={}", cur_crc, cur_chunk);
                             }
                         }
                         processed = true;
