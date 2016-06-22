@@ -45,8 +45,6 @@ pub struct DeltaReceiver {
     result: Vec<u8>,
 }
 
-// TODO: Test behavior if snapshots arrive in bad order.
-
 impl DeltaReceiver {
     pub fn new() -> DeltaReceiver {
         Default::default()
