@@ -12,6 +12,8 @@ struct StoredSnap {
     tick: i32,
 }
 
+const MAX_STORED_SNAPSHOT: usize = 100;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     OldDelta,
@@ -37,8 +39,6 @@ impl From<format::Warning> for Warning {
         Warning::Unpack(w)
     }
 }
-
-// TODO: Do something against the unbounded growth!
 
 #[derive(Clone, Default)]
 pub struct Storage {
@@ -112,6 +112,9 @@ impl Storage {
             tick: tick,
             snap: self.free.pop().unwrap(),
         });
+        if self.snaps.len() > MAX_STORED_SNAPSHOT {
+            self.free.push(self.snaps.pop_back().unwrap().snap);
+        }
         Ok(&self.snaps.front().unwrap().snap)
     }
 }
