@@ -233,8 +233,12 @@ class Struct(NameValues):
                     self.values.append(NetArray(array_type.name, array_type, array_len))
                 array_type = None
                 array_len = 0
-                if m is not None:
+                if m is not None and s_name != a_name + "0":
                     self.values.append(m)
+                elif m is not None:
+                    array_type = m
+                    array_type.name = canonicalize(a_name)
+                    array_len += 1
 
         self.values = [member.update(enums, structs) for member in self.values]
 

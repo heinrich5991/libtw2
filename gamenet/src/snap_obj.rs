@@ -155,9 +155,7 @@ pub struct PlayerInfo {
 #[derive(Clone, Copy)]
 pub struct ClientInfo {
     pub name: [i32; 4],
-    pub clan0: i32,
-    pub clan1: i32,
-    pub clan2: i32,
+    pub clan: [i32; 3],
     pub country: i32,
     pub skin: [i32; 6],
     pub use_custom_color: i32,
@@ -537,9 +535,7 @@ impl fmt::Debug for ClientInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClientInfo")
             .field("name", &DebugSlice::new(&self.name, |e| e))
-            .field("clan0", &self.clan0)
-            .field("clan1", &self.clan1)
-            .field("clan2", &self.clan2)
+            .field("clan", &DebugSlice::new(&self.clan, |e| e))
             .field("country", &self.country)
             .field("skin", &DebugSlice::new(&self.skin, |e| e))
             .field("use_custom_color", &self.use_custom_color)
@@ -562,9 +558,11 @@ impl ClientInfo {
                 try!(_p.read_int()),
                 try!(_p.read_int()),
             ],
-            clan0: try!(_p.read_int()),
-            clan1: try!(_p.read_int()),
-            clan2: try!(_p.read_int()),
+            clan: [
+                try!(_p.read_int()),
+                try!(_p.read_int()),
+                try!(_p.read_int()),
+            ],
             country: try!(_p.read_int()),
             skin: [
                 try!(_p.read_int()),
