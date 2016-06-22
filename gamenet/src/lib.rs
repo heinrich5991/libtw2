@@ -17,4 +17,6 @@ pub mod error;
 pub mod msg;
 pub mod snap_obj;
 
+pub use snap_obj::SnapObj;
+
 mod debug;

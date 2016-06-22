@@ -5,7 +5,7 @@ pub enum Error {
     ControlCharacters,
     IntOutOfRange,
     UnexpectedEnd,
-    UnknownMessage,
+    UnknownId,
 }
 
 impl From<packer::ControlCharacters> for Error {

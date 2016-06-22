@@ -8,7 +8,7 @@ for m in network.Messages:
     m.emit_consts()
 print()
 
-datatypes.emit_enum("Game", network.Messages)
+datatypes.emit_enum_msg("Game", network.Messages)
 
 for m in network.Messages:
     m.emit_definition()

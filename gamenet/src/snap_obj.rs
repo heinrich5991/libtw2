@@ -45,6 +45,109 @@ pub const SOUND_WORLD: u16 = 19;
 pub const DAMAGE_IND: u16 = 20;
 
 #[derive(Clone, Copy)]
+pub enum SnapObj {
+    PlayerInput(PlayerInput),
+    Projectile(Projectile),
+    Laser(Laser),
+    Pickup(Pickup),
+    Flag(Flag),
+    GameInfo(GameInfo),
+    GameData(GameData),
+    CharacterCore(CharacterCore),
+    Character(Character),
+    PlayerInfo(PlayerInfo),
+    ClientInfo(ClientInfo),
+    SpectatorInfo(SpectatorInfo),
+    Common(Common),
+    Explosion(Explosion),
+    Spawn(Spawn),
+    HammerHit(HammerHit),
+    Death(Death),
+    SoundGlobal(SoundGlobal),
+    SoundWorld(SoundWorld),
+    DamageInd(DamageInd),
+}
+
+impl SnapObj {
+    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker) -> Result<SnapObj, Error> {
+        Ok(match obj_type_id {
+            PLAYER_INPUT => SnapObj::PlayerInput(try!(PlayerInput::decode(warn, _p))),
+            PROJECTILE => SnapObj::Projectile(try!(Projectile::decode(warn, _p))),
+            LASER => SnapObj::Laser(try!(Laser::decode(warn, _p))),
+            PICKUP => SnapObj::Pickup(try!(Pickup::decode(warn, _p))),
+            FLAG => SnapObj::Flag(try!(Flag::decode(warn, _p))),
+            GAME_INFO => SnapObj::GameInfo(try!(GameInfo::decode(warn, _p))),
+            GAME_DATA => SnapObj::GameData(try!(GameData::decode(warn, _p))),
+            CHARACTER_CORE => SnapObj::CharacterCore(try!(CharacterCore::decode(warn, _p))),
+            CHARACTER => SnapObj::Character(try!(Character::decode(warn, _p))),
+            PLAYER_INFO => SnapObj::PlayerInfo(try!(PlayerInfo::decode(warn, _p))),
+            CLIENT_INFO => SnapObj::ClientInfo(try!(ClientInfo::decode(warn, _p))),
+            SPECTATOR_INFO => SnapObj::SpectatorInfo(try!(SpectatorInfo::decode(warn, _p))),
+            COMMON => SnapObj::Common(try!(Common::decode(warn, _p))),
+            EXPLOSION => SnapObj::Explosion(try!(Explosion::decode(warn, _p))),
+            SPAWN => SnapObj::Spawn(try!(Spawn::decode(warn, _p))),
+            HAMMER_HIT => SnapObj::HammerHit(try!(HammerHit::decode(warn, _p))),
+            DEATH => SnapObj::Death(try!(Death::decode(warn, _p))),
+            SOUND_GLOBAL => SnapObj::SoundGlobal(try!(SoundGlobal::decode(warn, _p))),
+            SOUND_WORLD => SnapObj::SoundWorld(try!(SoundWorld::decode(warn, _p))),
+            DAMAGE_IND => SnapObj::DamageInd(try!(DamageInd::decode(warn, _p))),
+            _ => return Err(Error::UnknownId),
+        })
+    }
+    pub fn obj_type_id(&self) -> u16 {
+        match *self {
+            SnapObj::PlayerInput(_) => PLAYER_INPUT,
+            SnapObj::Projectile(_) => PROJECTILE,
+            SnapObj::Laser(_) => LASER,
+            SnapObj::Pickup(_) => PICKUP,
+            SnapObj::Flag(_) => FLAG,
+            SnapObj::GameInfo(_) => GAME_INFO,
+            SnapObj::GameData(_) => GAME_DATA,
+            SnapObj::CharacterCore(_) => CHARACTER_CORE,
+            SnapObj::Character(_) => CHARACTER,
+            SnapObj::PlayerInfo(_) => PLAYER_INFO,
+            SnapObj::ClientInfo(_) => CLIENT_INFO,
+            SnapObj::SpectatorInfo(_) => SPECTATOR_INFO,
+            SnapObj::Common(_) => COMMON,
+            SnapObj::Explosion(_) => EXPLOSION,
+            SnapObj::Spawn(_) => SPAWN,
+            SnapObj::HammerHit(_) => HAMMER_HIT,
+            SnapObj::Death(_) => DEATH,
+            SnapObj::SoundGlobal(_) => SOUND_GLOBAL,
+            SnapObj::SoundWorld(_) => SOUND_WORLD,
+            SnapObj::DamageInd(_) => DAMAGE_IND,
+        }
+    }
+}
+
+impl fmt::Debug for SnapObj {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SnapObj::PlayerInput(ref i) => i.fmt(f),
+            SnapObj::Projectile(ref i) => i.fmt(f),
+            SnapObj::Laser(ref i) => i.fmt(f),
+            SnapObj::Pickup(ref i) => i.fmt(f),
+            SnapObj::Flag(ref i) => i.fmt(f),
+            SnapObj::GameInfo(ref i) => i.fmt(f),
+            SnapObj::GameData(ref i) => i.fmt(f),
+            SnapObj::CharacterCore(ref i) => i.fmt(f),
+            SnapObj::Character(ref i) => i.fmt(f),
+            SnapObj::PlayerInfo(ref i) => i.fmt(f),
+            SnapObj::ClientInfo(ref i) => i.fmt(f),
+            SnapObj::SpectatorInfo(ref i) => i.fmt(f),
+            SnapObj::Common(ref i) => i.fmt(f),
+            SnapObj::Explosion(ref i) => i.fmt(f),
+            SnapObj::Spawn(ref i) => i.fmt(f),
+            SnapObj::HammerHit(ref i) => i.fmt(f),
+            SnapObj::Death(ref i) => i.fmt(f),
+            SnapObj::SoundGlobal(ref i) => i.fmt(f),
+            SnapObj::SoundWorld(ref i) => i.fmt(f),
+            SnapObj::DamageInd(ref i) => i.fmt(f),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct PlayerInput {
     pub direction: i32,
     pub target_x: i32,

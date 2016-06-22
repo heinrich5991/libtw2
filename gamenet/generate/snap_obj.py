@@ -12,6 +12,9 @@ for o in network.Objects:
     o.emit_consts()
 print()
 
+datatypes.emit_enum_obj("SnapObj", network.Objects)
+print()
+
 for o in network.Objects:
     o.emit_definition()
     print()

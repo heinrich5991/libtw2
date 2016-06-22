@@ -112,7 +112,7 @@ impl<'a> Game<'a> {
             CL_EMOTICON => Game::ClEmoticon(try!(ClEmoticon::decode(warn, _p))),
             CL_VOTE => Game::ClVote(try!(ClVote::decode(warn, _p))),
             CL_CALL_VOTE => Game::ClCallVote(try!(ClCallVote::decode(warn, _p))),
-            _ => return Err(Error::UnknownMessage),
+            _ => return Err(Error::UnknownId),
         })
     }
     pub fn msg_id(&self) -> i32 {

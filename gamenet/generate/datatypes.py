@@ -111,7 +111,7 @@ pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
 """)
 
-def emit_enum(name, structs):
+def emit_enum_msg(name, structs):
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     print("#[derive(Clone, Copy)]")
@@ -125,7 +125,7 @@ def emit_enum(name, structs):
     print("        Ok(match msg_id {")
     for s in structs:
         print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
-    print("            _ => return Err(Error::UnknownMessage),".format(caps(s.name), title(name), s=title(s.name)))
+    print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
     print("    pub fn msg_id(&self) -> i32 {")
@@ -138,6 +138,40 @@ def emit_enum(name, structs):
     print("        match *self {")
     for s in structs:
         print("            {}::{}(ref i) => i.encode(p),".format(title(name), title(s.name)))
+    print("        }")
+    print("    }")
+    print("}")
+    print("")
+    print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
+    print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(ref i) => i.fmt(f),".format(title(name), title(s.name)))
+    print("        }")
+    print("    }")
+    print("}")
+
+def emit_enum_obj(name, structs):
+    name = canonicalize(name)
+    lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
+    print("#[derive(Clone, Copy)]")
+    print("pub enum {}{} {{".format(title(name), lifetime))
+    for s in structs:
+        print("    {}({}{}),".format(title(s.name), title(s.name), s.lifetime()))
+    print("}")
+    print()
+    print("impl{l} {}{l} {{".format(title(name), l=lifetime))
+    print("    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("        Ok(match obj_type_id {")
+    for s in structs:
+        print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
+    print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
+    print("        })")
+    print("    }")
+    print("    pub fn obj_type_id(&self) -> u16 {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(_) => {},".format(title(name), title(s.name), caps(s.name)))
     print("        }")
     print("    }")
     print("}")
