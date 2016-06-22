@@ -17,6 +17,8 @@ use to_usize;
 use warn::Warn;
 use warn::wrap;
 
+pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     UnexpectedEnd,
@@ -95,8 +97,11 @@ impl Snap {
             hash_map::Entry::Occupied(o) => o.into_mut(),
             hash_map::Entry::Vacant(v) => {
                 let offset = self.buf.len();
-                let start = try!(offset.to_u32().ok_or(Error::TooLongSnap));
-                let end = try!((offset + size).to_u32().ok_or(Error::TooLongSnap));
+                if offset + size > MAX_SNAPSHOT_SIZE {
+                    return Err(Error::TooLongSnap);
+                }
+                let start = offset.to_u32().unwrap();
+                let end = (offset + size).to_u32().unwrap();
                 self.buf.extend(iter::repeat(0).take(size));
                 v.insert(start..end)
             },
