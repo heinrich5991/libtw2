@@ -533,6 +533,7 @@ impl Main {
                 | SystemOrGame::Game(Game::SvTuneParams(..))
                 | SystemOrGame::Game(Game::SvWeaponPickup(..))
                 | SystemOrGame::System(System::InputTiming(..))
+                | SystemOrGame::Game(Game::SvExtraProjectile(..))
             => {
                 ignored = true;
             },
@@ -541,6 +542,9 @@ impl Main {
                     ignored = true;
                     info!("*** {:?}", pretty::Bytes::new(chat.message));
                 }
+            }
+            SystemOrGame::Game(Game::SvBroadcast(broadcast)) => {
+                info!("broadcast: {:?}", pretty::Bytes::new(broadcast.message));
             }
             _ => {},
         }
@@ -621,7 +625,7 @@ impl Main {
                                 Err(err) => warn!("snapshot error {:?}", err),
                             }
                         }
-                        if check_num_snaps && peer.num_snaps_since_reset % 50 == 3 {
+                        if check_num_snaps && peer.num_snaps_since_reset % 25 == 3 {
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
                             send(System::Input(Input {
                                 ack_snapshot: tick,
