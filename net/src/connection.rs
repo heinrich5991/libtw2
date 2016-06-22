@@ -97,18 +97,6 @@ enum State {
 }
 
 impl State {
-    pub fn is_disconnected(&self) -> bool {
-        match *self {
-            State::Disconnected => true,
-            _ => false,
-        }
-    }
-    pub fn is_unconnected(&self) -> bool {
-        match *self {
-            State::Unconnected => true,
-            _ => false,
-        }
-    }
     pub fn assert_online(&mut self) -> &mut OnlineState {
         match *self {
             State::Online(ref mut s) => s,
@@ -455,14 +443,13 @@ impl Connection {
         }
     }
     pub fn reset(&mut self) {
-        assert!(self.state.is_disconnected());
+        assert_matches!(self.state, State::Disconnected);
         *self = Connection::new();
     }
     pub fn needs_tick(&self) -> bool {
-        if let State::Unconnected = self.state {
-            return false;
-        } else if let State::Disconnected = self.state {
-            return false;
+        match self.state {
+            State::Unconnected | State::Disconnected => return false,
+            _ => {},
         }
         let resends = match self.state {
             State::Online(ref online) => !online.resend_queue.is_empty(),
@@ -471,7 +458,7 @@ impl Connection {
         self.send_.is_active() || resends
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        assert!(self.state.is_unconnected());
+        assert_matches!(self.state, State::Unconnected);
         self.state = State::Connecting;
         try!(self.tick_action(cb));
         Ok(())
