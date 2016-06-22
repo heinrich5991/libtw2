@@ -15,6 +15,7 @@ use buffer::CapacityError;
 use buffer::with_buffer;
 use num::ToPrimitive;
 use std::iter;
+use std::mem;
 use std::slice;
 use warn::Warn;
 
@@ -27,6 +28,9 @@ pub enum Warning {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExcessData;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct WeirdStringTermination;
 
 impl From<ExcessData> for Warning {
     fn from(_: ExcessData) -> Warning {
@@ -265,6 +269,31 @@ pub fn positive(v: i32) -> Result<i32, IntOutOfRange> {
     } else {
         Err(IntOutOfRange)
     }
+}
+
+pub fn ints_to_bytes(result: &mut [u8], input: &[i32]) {
+    assert!(result.len() == input.len() * mem::size_of::<i32>());
+    for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
+        output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
+        output[1] = (((input >> 16) & 0xff) - 0x80) as u8;
+        output[2] = (((input >>  8) & 0xff) - 0x80) as u8;
+        output[3] = (((input >>  0) & 0xff) - 0x80) as u8;
+    }
+}
+
+pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
+    where W: Warn<WeirdStringTermination>,
+{
+    if bytes.is_empty() {
+        warn.warn(WeirdStringTermination);
+        return bytes;
+    }
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len() - 1);
+    let (string, nuls) = bytes.split_at(end);
+    if !nuls.iter().all(|&b| b == 0) {
+        warn.warn(WeirdStringTermination);
+    }
+    string
 }
 
 #[cfg(test)]
