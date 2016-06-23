@@ -222,6 +222,7 @@ impl Socket {
         // try!(self.poll.poll(None));
         // ```
         // on loss-free networks.
+        self.update_time_cached();
         Ok(())
     }
     pub fn update_time_cached(&mut self) {
