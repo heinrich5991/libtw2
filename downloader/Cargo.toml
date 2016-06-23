@@ -5,18 +5,17 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 arrayvec = "0.3.12"
-buffer = "0.1.5"
 common = { path = "../common/" }
 env_logger = "0.3.0"
 gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
-mio = "0.5.0"
 net = { path = "../net/" }
 num = "0.1.27"
 packer = { path = "../packer/" }
 rand = "0.3.10"
 snapshot = { path = "../snapshot/" }
+socket = { path = "../socket/" }
 tempfile = "2.0.0"
 warn = ">=0.1.1,<0.3.0"

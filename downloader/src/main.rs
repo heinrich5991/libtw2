@@ -1,24 +1,20 @@
 extern crate arrayvec;
-extern crate buffer;
 extern crate common;
 extern crate env_logger;
 extern crate gamenet;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
-extern crate mio;
 extern crate net;
 extern crate num;
 extern crate packer;
 extern crate rand;
 extern crate snapshot;
+extern crate socket;
 extern crate tempfile;
 extern crate warn;
 
 use arrayvec::ArrayVec;
-use buffer::Buffer;
-use buffer::BufferRef;
-use buffer::with_buffer;
 use common::pretty;
 use gamenet::enums;
 use gamenet::msg::Game;
@@ -43,7 +39,6 @@ use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use mio::udp::UdpSocket;
 use net::net::Callback;
 use net::net::Chunk;
 use net::net::ChunkAddr;
@@ -55,6 +50,8 @@ use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
 use snapshot::Snap;
+use socket::Addr;
+use socket::Socket;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -63,14 +60,11 @@ use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::io;
-use std::net::IpAddr;
-use std::net::SocketAddr;
 use std::ops;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::str;
 use std::time::Duration;
-use std::time::Instant;
 use std::u32;
 use tempfile::NamedTempFile;
 use tempfile::NamedTempFileOptions;
@@ -79,196 +73,9 @@ use warn::Log;
 const NETWORK_LOSS_RATE: f32 = 0.0;
 const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
-fn loss() -> bool {
-    assert!(0.0 <= NETWORK_LOSS_RATE && NETWORK_LOSS_RATE <= 1.0);
-    NETWORK_LOSS_RATE != 0.0 && rand::random::<f32>() < NETWORK_LOSS_RATE
-}
-
-trait DurationToMs {
-    fn to_milliseconds_saturating(&self) -> u32;
-}
-
-impl DurationToMs for Duration {
-    fn to_milliseconds_saturating(&self) -> u32 {
-        (self.as_secs()
-            .to_u32().unwrap_or(u32::max_value())
-            .to_u64().unwrap()
-            * 1000
-            + self.subsec_nanos().to_u64().unwrap() / 1000 / 1000
-        ).to_u32().unwrap_or(u32::max_value())
-    }
-}
-
-#[derive(Debug)]
-enum Direction {
-    Send,
-    Receive,
-}
-
-impl fmt::Display for Direction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Direction::Send => "->",
-            Direction::Receive => "<-",
-        }.fmt(f)
-    }
-}
-
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
         hexdump_iter(data).foreach(|s| log!(level, "{}", s));
-    }
-}
-
-fn dump(dir: Direction, addr: Addr, data: &[u8]) {
-    debug!("{} {}", dir, addr);
-    hexdump(LogLevel::Debug, data);
-}
-
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct Addr {
-    ip: IpAddr,
-    port: u16,
-}
-
-impl fmt::Display for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        SocketAddr::new(self.ip, self.port).fmt(f)
-    }
-}
-
-impl fmt::Debug for Addr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-impl From<SocketAddr> for Addr {
-    fn from(sock_addr: SocketAddr) -> Addr {
-        Addr {
-            ip: sock_addr.ip(),
-            port: sock_addr.port(),
-        }
-    }
-}
-
-impl FromStr for Addr {
-    type Err = std::net::AddrParseError;
-    fn from_str(s: &str) -> Result<Addr, std::net::AddrParseError> {
-        let sock_addr: SocketAddr = try!(s.parse());
-        Ok(Addr::from(sock_addr))
-    }
-}
-
-struct Socket {
-    start: Instant,
-    time_cached: Duration,
-    poll: mio::Poll,
-    v4: UdpSocket,
-    v6: UdpSocket,
-}
-
-fn udp_socket(bindaddr: &str) -> io::Result<UdpSocket> {
-    match bindaddr {
-        "0.0.0.0:0" => UdpSocket::v4(),
-        "[::]:0" => UdpSocket::v6(),
-        _ => panic!("invalid bindaddr {}", bindaddr),
-    }
-}
-
-fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
-    match res {
-        Ok(Some(x)) => Some(Ok(x)),
-        Ok(None) => None,
-        Err(x) => Some(Err(x)),
-    }
-}
-
-impl Socket {
-    fn new() -> io::Result<Socket> {
-        fn register(poll: &mut mio::Poll, socket: &UdpSocket) -> io::Result<()> {
-            use mio::EventSet;
-            use mio::PollOpt;
-            use mio::Token;
-            poll.register(socket, Token(0), EventSet::readable(), PollOpt::level())
-        }
-
-        let v4 = try!(udp_socket("0.0.0.0:0"));
-        let v6 = try!(udp_socket("[::]:0"));
-        let mut poll = try!(mio::Poll::new());
-        try!(register(&mut poll, &v4));
-        try!(register(&mut poll, &v6));
-        Ok(Socket {
-            start: Instant::now(),
-            time_cached: Duration::from_millis(0),
-            poll: poll,
-            v4: v4,
-            v6: v6,
-        })
-    }
-    fn receive<'a, B: Buffer<'a>>(&mut self, buf: B)
-        -> Option<Result<(Addr, &'a [u8]), io::Error>>
-    {
-        with_buffer(buf, |b| self.receive_impl(b))
-    }
-    fn receive_impl<'d, 's>(&mut self, mut buf: BufferRef<'d, 's>)
-        -> Option<Result<(Addr, &'d [u8]), io::Error>>
-    {
-        let result;
-        {
-            let buf_slice = unsafe { buf.uninitialized_mut() };
-            if let Some(r) = swap(self.v4.recv_from(buf_slice)) {
-                result = r;
-            } else if let Some(r) = swap(self.v6.recv_from(buf_slice)) {
-                result = r;
-            } else {
-                return None;
-            }
-        }
-        Some(result.map(|(len, addr)| unsafe {
-            buf.advance(len);
-            (Addr::from(addr), buf.initialized())
-        }))
-    }
-    fn sleep(&mut self, duration: Duration) -> io::Result<()> {
-        let milliseconds = duration.to_milliseconds_saturating().to_usize().unwrap();
-        try!(self.poll.poll(Some(milliseconds)));
-        // TODO: Add a verification that this also works with
-        // ```
-        // try!(self.poll.poll(None));
-        // ```
-        // on loss-free networks.
-        Ok(())
-    }
-    fn update_time_cached(&mut self) {
-        self.time_cached = self.start.elapsed()
-    }
-}
-
-impl Callback<Addr> for Socket {
-    type Error = io::Error;
-    fn send(&mut self, addr: Addr, data: &[u8]) -> Result<(), io::Error> {
-        if loss() {
-            return Ok(());
-        }
-        dump(Direction::Send, addr, data);
-        let sock_addr = SocketAddr::new(addr.ip, addr.port);
-        let socket = if let IpAddr::V4(..) = addr.ip {
-            &mut self.v4
-        } else {
-            &mut self.v6
-        };
-        swap(socket.send_to(data, &sock_addr))
-            .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
-            .map(|s| assert!(data.len() == s))
-        // TODO: Check for these errors and decide what to do with them
-        // EHOSTUNREACH
-        // ENETDOWN
-        // ENTUNREACH
-        // EAGAIN EWOULDBLOCK
-    }
-    fn time(&mut self) -> Duration {
-        self.time_cached
     }
 }
 
@@ -487,7 +294,7 @@ impl Main {
             password: Some(b""),
         }).encode(p).unwrap());
         let mut main = Main {
-            socket: Socket::new().unwrap(),
+            socket: Socket::with_loss_rate(NETWORK_LOSS_RATE).unwrap(),
             peers: Peers::with_capacity(addresses.len()),
             net: Net::client(),
             version_msg: version_msg,
@@ -814,7 +621,7 @@ impl Main {
             }
             ChunkOrEvent::Chunk(..) => false,
             ChunkOrEvent::Disconnect(pid, reason) => {
-                error!("disconnected pid={:?} error={:?}", pid, String::from_utf8_lossy(reason));
+                error!("disconnected pid={:?} error={:?}", pid, pretty::Bytes::new(reason));
                 false
             },
             ChunkOrEvent::Connect(..) => unreachable!(),
@@ -838,11 +645,7 @@ impl Main {
             }
 
             while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
-                if loss() {
-                    continue;
-                }
                 let (addr, data) = res.unwrap();
-                dump(Direction::Receive, addr, data);
                 buf2.clear();
                 let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(data), addr, data, &mut buf2);
                 res.unwrap();

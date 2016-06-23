@@ -3,19 +3,18 @@ name = "downloader"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gamenet 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "net 0.0.1",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
  "rand 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "snapshot 0.0.1",
+ "socket 0.0.1",
  "tempfile 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -322,6 +321,20 @@ dependencies = [
  "packer 0.0.1",
  "vec_map 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "socket"
+version = "0.0.1"
+dependencies = [
+ "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net 0.0.1",
+ "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
