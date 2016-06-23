@@ -20,10 +20,12 @@ use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
 use common::pretty;
+use gamenet::enums;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
 use gamenet::msg::game::ClCallVote;
+use gamenet::msg::game::ClSetTeam;
 use gamenet::msg::game::ClStartInfo;
 use gamenet::msg::game::SvVoteOptionAdd;
 use gamenet::msg::game::SvVoteOptionRemove;
@@ -721,6 +723,9 @@ impl Main {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
                         progress = true;
                         send(System::EnterGame(EnterGame), pid, &mut self.net, &mut self.socket);
+                        sendg(Game::ClSetTeam(ClSetTeam {
+                            team: enums::TEAM_RED,
+                        }), pid, &mut self.net, &mut self.socket);
                         if peer.vote(pid, &mut self.net, &mut self.socket) {
                             peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
                         }
