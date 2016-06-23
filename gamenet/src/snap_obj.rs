@@ -147,6 +147,126 @@ impl fmt::Debug for SnapObj {
     }
 }
 
+impl From<PlayerInput> for SnapObj {
+    fn from(i: PlayerInput) -> SnapObj {
+        SnapObj::PlayerInput(i)
+    }
+}
+
+impl From<Projectile> for SnapObj {
+    fn from(i: Projectile) -> SnapObj {
+        SnapObj::Projectile(i)
+    }
+}
+
+impl From<Laser> for SnapObj {
+    fn from(i: Laser) -> SnapObj {
+        SnapObj::Laser(i)
+    }
+}
+
+impl From<Pickup> for SnapObj {
+    fn from(i: Pickup) -> SnapObj {
+        SnapObj::Pickup(i)
+    }
+}
+
+impl From<Flag> for SnapObj {
+    fn from(i: Flag) -> SnapObj {
+        SnapObj::Flag(i)
+    }
+}
+
+impl From<GameInfo> for SnapObj {
+    fn from(i: GameInfo) -> SnapObj {
+        SnapObj::GameInfo(i)
+    }
+}
+
+impl From<GameData> for SnapObj {
+    fn from(i: GameData) -> SnapObj {
+        SnapObj::GameData(i)
+    }
+}
+
+impl From<CharacterCore> for SnapObj {
+    fn from(i: CharacterCore) -> SnapObj {
+        SnapObj::CharacterCore(i)
+    }
+}
+
+impl From<Character> for SnapObj {
+    fn from(i: Character) -> SnapObj {
+        SnapObj::Character(i)
+    }
+}
+
+impl From<PlayerInfo> for SnapObj {
+    fn from(i: PlayerInfo) -> SnapObj {
+        SnapObj::PlayerInfo(i)
+    }
+}
+
+impl From<ClientInfo> for SnapObj {
+    fn from(i: ClientInfo) -> SnapObj {
+        SnapObj::ClientInfo(i)
+    }
+}
+
+impl From<SpectatorInfo> for SnapObj {
+    fn from(i: SpectatorInfo) -> SnapObj {
+        SnapObj::SpectatorInfo(i)
+    }
+}
+
+impl From<Common> for SnapObj {
+    fn from(i: Common) -> SnapObj {
+        SnapObj::Common(i)
+    }
+}
+
+impl From<Explosion> for SnapObj {
+    fn from(i: Explosion) -> SnapObj {
+        SnapObj::Explosion(i)
+    }
+}
+
+impl From<Spawn> for SnapObj {
+    fn from(i: Spawn) -> SnapObj {
+        SnapObj::Spawn(i)
+    }
+}
+
+impl From<HammerHit> for SnapObj {
+    fn from(i: HammerHit) -> SnapObj {
+        SnapObj::HammerHit(i)
+    }
+}
+
+impl From<Death> for SnapObj {
+    fn from(i: Death) -> SnapObj {
+        SnapObj::Death(i)
+    }
+}
+
+impl From<SoundGlobal> for SnapObj {
+    fn from(i: SoundGlobal) -> SnapObj {
+        SnapObj::SoundGlobal(i)
+    }
+}
+
+impl From<SoundWorld> for SnapObj {
+    fn from(i: SoundWorld) -> SnapObj {
+        SnapObj::SoundWorld(i)
+    }
+}
+
+impl From<DamageInd> for SnapObj {
+    fn from(i: DamageInd) -> SnapObj {
+        SnapObj::DamageInd(i)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct PlayerInput {
     pub direction: i32,

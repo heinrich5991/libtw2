@@ -295,6 +295,13 @@ def generate_enum_impl(msgs):
     result.append("        }")
     result.append("    }")
     result.append("}")
+    for _, name, members in msgs:
+        l = lifetime(members)
+        result.append("impl<'a> From<{}{}> for System<'a> {{".format(struct_name(name), l))
+        result.append("    fn from(i: {}{}) -> System<'a> {{".format(struct_name(name), l))
+        result.append("        System::{}(i)".format(struct_name(name)))
+        result.append("    }")
+        result.append("}")
     result.append("")
     return "\n".join(result)
 

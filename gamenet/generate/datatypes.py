@@ -111,6 +111,16 @@ pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
 """)
 
+def emit_enum_from(name, structs):
+    lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
+    for s in structs:
+        print()
+        print("impl{l} From<{}{}> for {}{l} {{".format(title(s.name), s.lifetime(), title(name), l=lifetime))
+        print("    fn from(i: {}{}) -> {}{l} {{".format(title(s.name), s.lifetime(), title(name), l=lifetime))
+        print("        {}::{}(i)".format(title(name), title(s.name)))
+        print("    }")
+        print("}")
+
 def emit_enum_msg(name, structs):
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -141,7 +151,7 @@ def emit_enum_msg(name, structs):
     print("        }")
     print("    }")
     print("}")
-    print("")
+    print()
     print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
     print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
     print("        match *self {")
@@ -150,6 +160,7 @@ def emit_enum_msg(name, structs):
     print("        }")
     print("    }")
     print("}")
+    emit_enum_from(name, structs)
 
 def emit_enum_obj(name, structs):
     name = canonicalize(name)
@@ -184,6 +195,7 @@ def emit_enum_obj(name, structs):
     print("        }")
     print("    }")
     print("}")
+    emit_enum_from(name, structs)
 
 def emit_snap_obj_sizes(objects):
     print("pub fn obj_size(type_: u16) -> Option<u32> {")

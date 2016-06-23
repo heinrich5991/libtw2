@@ -813,4 +813,104 @@ impl<'a> fmt::Debug for System<'a> {
         }
     }
 }
+impl<'a> From<Info<'a>> for System<'a> {
+    fn from(i: Info<'a>) -> System<'a> {
+        System::Info(i)
+    }
+}
+impl<'a> From<MapChange<'a>> for System<'a> {
+    fn from(i: MapChange<'a>) -> System<'a> {
+        System::MapChange(i)
+    }
+}
+impl<'a> From<MapData<'a>> for System<'a> {
+    fn from(i: MapData<'a>) -> System<'a> {
+        System::MapData(i)
+    }
+}
+impl<'a> From<ConReady> for System<'a> {
+    fn from(i: ConReady) -> System<'a> {
+        System::ConReady(i)
+    }
+}
+impl<'a> From<Snap<'a>> for System<'a> {
+    fn from(i: Snap<'a>) -> System<'a> {
+        System::Snap(i)
+    }
+}
+impl<'a> From<SnapEmpty> for System<'a> {
+    fn from(i: SnapEmpty) -> System<'a> {
+        System::SnapEmpty(i)
+    }
+}
+impl<'a> From<SnapSingle<'a>> for System<'a> {
+    fn from(i: SnapSingle<'a>) -> System<'a> {
+        System::SnapSingle(i)
+    }
+}
+impl<'a> From<InputTiming> for System<'a> {
+    fn from(i: InputTiming) -> System<'a> {
+        System::InputTiming(i)
+    }
+}
+impl<'a> From<RconAuthStatus> for System<'a> {
+    fn from(i: RconAuthStatus) -> System<'a> {
+        System::RconAuthStatus(i)
+    }
+}
+impl<'a> From<RconLine<'a>> for System<'a> {
+    fn from(i: RconLine<'a>) -> System<'a> {
+        System::RconLine(i)
+    }
+}
+impl<'a> From<Ready> for System<'a> {
+    fn from(i: Ready) -> System<'a> {
+        System::Ready(i)
+    }
+}
+impl<'a> From<EnterGame> for System<'a> {
+    fn from(i: EnterGame) -> System<'a> {
+        System::EnterGame(i)
+    }
+}
+impl<'a> From<Input<'a>> for System<'a> {
+    fn from(i: Input<'a>) -> System<'a> {
+        System::Input(i)
+    }
+}
+impl<'a> From<RconCmd<'a>> for System<'a> {
+    fn from(i: RconCmd<'a>) -> System<'a> {
+        System::RconCmd(i)
+    }
+}
+impl<'a> From<RconAuth<'a>> for System<'a> {
+    fn from(i: RconAuth<'a>) -> System<'a> {
+        System::RconAuth(i)
+    }
+}
+impl<'a> From<RequestMapData> for System<'a> {
+    fn from(i: RequestMapData) -> System<'a> {
+        System::RequestMapData(i)
+    }
+}
+impl<'a> From<Ping> for System<'a> {
+    fn from(i: Ping) -> System<'a> {
+        System::Ping(i)
+    }
+}
+impl<'a> From<PingReply> for System<'a> {
+    fn from(i: PingReply) -> System<'a> {
+        System::PingReply(i)
+    }
+}
+impl<'a> From<RconCmdAdd<'a>> for System<'a> {
+    fn from(i: RconCmdAdd<'a>) -> System<'a> {
+        System::RconCmdAdd(i)
+    }
+}
+impl<'a> From<RconCmdRemove<'a>> for System<'a> {
+    fn from(i: RconCmdRemove<'a>) -> System<'a> {
+        System::RconCmdRemove(i)
+    }
+}
 

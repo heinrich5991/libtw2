@@ -206,6 +206,156 @@ impl<'a> fmt::Debug for Game<'a> {
         }
     }
 }
+
+impl<'a> From<SvMotd<'a>> for Game<'a> {
+    fn from(i: SvMotd<'a>) -> Game<'a> {
+        Game::SvMotd(i)
+    }
+}
+
+impl<'a> From<SvBroadcast<'a>> for Game<'a> {
+    fn from(i: SvBroadcast<'a>) -> Game<'a> {
+        Game::SvBroadcast(i)
+    }
+}
+
+impl<'a> From<SvChat<'a>> for Game<'a> {
+    fn from(i: SvChat<'a>) -> Game<'a> {
+        Game::SvChat(i)
+    }
+}
+
+impl<'a> From<SvKillMsg> for Game<'a> {
+    fn from(i: SvKillMsg) -> Game<'a> {
+        Game::SvKillMsg(i)
+    }
+}
+
+impl<'a> From<SvSoundGlobal> for Game<'a> {
+    fn from(i: SvSoundGlobal) -> Game<'a> {
+        Game::SvSoundGlobal(i)
+    }
+}
+
+impl<'a> From<SvTuneParams> for Game<'a> {
+    fn from(i: SvTuneParams) -> Game<'a> {
+        Game::SvTuneParams(i)
+    }
+}
+
+impl<'a> From<SvExtraProjectile> for Game<'a> {
+    fn from(i: SvExtraProjectile) -> Game<'a> {
+        Game::SvExtraProjectile(i)
+    }
+}
+
+impl<'a> From<SvReadyToEnter> for Game<'a> {
+    fn from(i: SvReadyToEnter) -> Game<'a> {
+        Game::SvReadyToEnter(i)
+    }
+}
+
+impl<'a> From<SvWeaponPickup> for Game<'a> {
+    fn from(i: SvWeaponPickup) -> Game<'a> {
+        Game::SvWeaponPickup(i)
+    }
+}
+
+impl<'a> From<SvEmoticon> for Game<'a> {
+    fn from(i: SvEmoticon) -> Game<'a> {
+        Game::SvEmoticon(i)
+    }
+}
+
+impl<'a> From<SvVoteClearOptions> for Game<'a> {
+    fn from(i: SvVoteClearOptions) -> Game<'a> {
+        Game::SvVoteClearOptions(i)
+    }
+}
+
+impl<'a> From<SvVoteOptionListAdd<'a>> for Game<'a> {
+    fn from(i: SvVoteOptionListAdd<'a>) -> Game<'a> {
+        Game::SvVoteOptionListAdd(i)
+    }
+}
+
+impl<'a> From<SvVoteOptionAdd<'a>> for Game<'a> {
+    fn from(i: SvVoteOptionAdd<'a>) -> Game<'a> {
+        Game::SvVoteOptionAdd(i)
+    }
+}
+
+impl<'a> From<SvVoteOptionRemove<'a>> for Game<'a> {
+    fn from(i: SvVoteOptionRemove<'a>) -> Game<'a> {
+        Game::SvVoteOptionRemove(i)
+    }
+}
+
+impl<'a> From<SvVoteSet<'a>> for Game<'a> {
+    fn from(i: SvVoteSet<'a>) -> Game<'a> {
+        Game::SvVoteSet(i)
+    }
+}
+
+impl<'a> From<SvVoteStatus> for Game<'a> {
+    fn from(i: SvVoteStatus) -> Game<'a> {
+        Game::SvVoteStatus(i)
+    }
+}
+
+impl<'a> From<ClSay<'a>> for Game<'a> {
+    fn from(i: ClSay<'a>) -> Game<'a> {
+        Game::ClSay(i)
+    }
+}
+
+impl<'a> From<ClSetTeam> for Game<'a> {
+    fn from(i: ClSetTeam) -> Game<'a> {
+        Game::ClSetTeam(i)
+    }
+}
+
+impl<'a> From<ClSetSpectatorMode> for Game<'a> {
+    fn from(i: ClSetSpectatorMode) -> Game<'a> {
+        Game::ClSetSpectatorMode(i)
+    }
+}
+
+impl<'a> From<ClStartInfo<'a>> for Game<'a> {
+    fn from(i: ClStartInfo<'a>) -> Game<'a> {
+        Game::ClStartInfo(i)
+    }
+}
+
+impl<'a> From<ClChangeInfo<'a>> for Game<'a> {
+    fn from(i: ClChangeInfo<'a>) -> Game<'a> {
+        Game::ClChangeInfo(i)
+    }
+}
+
+impl<'a> From<ClKill> for Game<'a> {
+    fn from(i: ClKill) -> Game<'a> {
+        Game::ClKill(i)
+    }
+}
+
+impl<'a> From<ClEmoticon> for Game<'a> {
+    fn from(i: ClEmoticon) -> Game<'a> {
+        Game::ClEmoticon(i)
+    }
+}
+
+impl<'a> From<ClVote> for Game<'a> {
+    fn from(i: ClVote) -> Game<'a> {
+        Game::ClVote(i)
+    }
+}
+
+impl<'a> From<ClCallVote<'a>> for Game<'a> {
+    fn from(i: ClCallVote<'a>) -> Game<'a> {
+        Game::ClCallVote(i)
+    }
+}
 #[derive(Clone, Copy)]
 pub struct SvMotd<'a> {
     pub message: &'a [u8],
