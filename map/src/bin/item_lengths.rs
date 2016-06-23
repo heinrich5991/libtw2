@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
 extern crate datafile as df;
-extern crate env_logger;
+extern crate logger;
 extern crate map;
 
 use map::format::*;
@@ -241,7 +241,7 @@ fn print_results(results: &HashMap<WeirdItem,u64>) {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
 
     let mut args = env::args_os();
     let mut have_args = false;

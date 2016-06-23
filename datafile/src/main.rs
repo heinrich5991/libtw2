@@ -1,13 +1,13 @@
 #![cfg(not(test))]
 
 extern crate datafile;
-extern crate env_logger;
+extern crate logger;
 
 use std::fs::File;
 use std::path::Path;
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
     let file = File::open(&Path::new("../dm1.map")).unwrap();
 
     let mut df = match datafile::Reader::new(file) {

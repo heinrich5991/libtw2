@@ -2,7 +2,7 @@
 
 #[macro_use]
 extern crate log;
-extern crate env_logger;
+extern crate logger;
 
 extern crate serverbrowse;
 
@@ -22,7 +22,7 @@ fn to_socket_addr_or_panic(addr: &str) -> SocketAddr {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
 
     let bindaddr = "0.0.0.0:0";
     //let addr = "198.251.81.153:8300";

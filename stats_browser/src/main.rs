@@ -1,13 +1,13 @@
 #![cfg(not(test))]
 
-extern crate env_logger;
+extern crate logger;
 extern crate stats_browser;
 
 use stats_browser::StatsBrowser;
 use stats_browser::tracker_fstd;
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
 
     let mut tracker = tracker_fstd::Tracker::new();
     tracker.start();

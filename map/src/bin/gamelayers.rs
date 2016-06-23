@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
 extern crate datafile as df;
-extern crate env_logger;
+extern crate logger;
 extern crate map;
 extern crate num;
 
@@ -78,7 +78,7 @@ fn print_stats(error_stats: &ErrorStats, stats: &Stats) {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
 
     let mut args = env::args_os();
     let mut have_args = false;

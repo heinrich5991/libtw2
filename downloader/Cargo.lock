@@ -4,11 +4,11 @@ version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
- "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gamenet 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger 0.0.1",
  "net 0.0.1",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
@@ -158,6 +158,13 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "logger"
+version = "0.0.1"
+dependencies = [
+ "env_logger 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

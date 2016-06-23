@@ -1,10 +1,10 @@
 extern crate arrayvec;
 extern crate common;
-extern crate env_logger;
 extern crate gamenet;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
+extern crate logger;
 extern crate net;
 extern crate num;
 extern crate packer;
@@ -670,7 +670,7 @@ impl Main {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
     let args = env::args().dropping(1);
     let addresses = parse_connections(args).expect("invalid addresses");
     Main::init(&addresses).run();

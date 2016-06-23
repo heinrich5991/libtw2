@@ -9,8 +9,8 @@ doc = false
 
 [dependencies]
 common = { path = "../common/" }
-env_logger = "*"
 log = "*"
+logger = { path = "../logger/" }
 mio = "*"
 num = "*"
 rustc-serialize = "*"

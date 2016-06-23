@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
 extern crate datafile;
-extern crate env_logger;
+extern crate logger;
 extern crate map;
 
 use std::env;
@@ -110,7 +110,7 @@ fn process(path: &Path) -> Result<(),datafile::Error> {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    logger::init();
 
     let mut args = env::args_os();
     let mut have_args = false;
