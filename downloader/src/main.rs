@@ -633,7 +633,7 @@ impl Main {
         let mut temp_peer_ids = vec![];
         while self.net.needs_tick() {
             self.net.tick(&mut self.socket).foreach(|e| panic!("{:?}", e));
-            self.socket.sleep(Duration::from_millis(50)).unwrap();
+            self.socket.sleep(Some(Duration::from_millis(50))).unwrap();
             self.socket.update_time_cached();
 
             temp_peer_ids.clear();

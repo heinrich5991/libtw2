@@ -1,6 +1,7 @@
 extern crate buffer;
 extern crate hexdump;
 extern crate itertools;
+extern crate libc;
 #[macro_use] extern crate log;
 extern crate mio;
 extern crate net;
@@ -19,12 +20,16 @@ use num::ToPrimitive;
 use std::fmt;
 use std::io;
 use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::Ipv6Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
 use std::u32;
+
+mod system;
 
 trait DurationToMs {
     fn to_milliseconds_saturating(&self) -> u32;
@@ -111,12 +116,18 @@ pub struct Socket {
     loss_rate: f32,
 }
 
-fn udp_socket(bindaddr: &str) -> io::Result<UdpSocket> {
-    match bindaddr {
-        "0.0.0.0:0" => UdpSocket::v4(),
-        "[::]:0" => UdpSocket::v6(),
-        _ => panic!("invalid bindaddr {}", bindaddr),
+fn udp_socket(bindaddr: &SocketAddr) -> io::Result<UdpSocket> {
+    debug!("binding to {}", bindaddr);
+    let result;
+    match *bindaddr {
+        SocketAddr::V4(..) => result = try!(UdpSocket::v4()),
+        SocketAddr::V6(..) => {
+            result = try!(UdpSocket::v6());
+            try!(system::set_ipv6_only(&result));
+        }
     }
+    try!(result.bind(bindaddr));
+    Ok(result)
 }
 
 fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
@@ -129,9 +140,20 @@ fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
 
 impl Socket {
     pub fn new() -> io::Result<Socket> {
-        Socket::with_loss_rate(0.0)
+        Socket::construct(None, 0.0)
     }
     pub fn with_loss_rate(loss_rate: f32) -> io::Result<Socket> {
+        Socket::construct(None, loss_rate)
+    }
+    pub fn bound(port: u16) -> io::Result<Socket> {
+        Socket::construct(Some(port), 0.0)
+    }
+    pub fn bound_with_loss_rate(port: u16, loss_rate: f32) -> io::Result<Socket> {
+        Socket::construct(Some(port), loss_rate)
+    }
+    pub fn construct(port: Option<u16>, loss_rate: f32) -> io::Result<Socket> {
+        assert!(port != Some(0));
+        let port = port.unwrap_or(0);
         assert!(0.0 <= loss_rate && loss_rate <= 1.0);
 
         fn register(poll: &mut mio::Poll, socket: &UdpSocket) -> io::Result<()> {
@@ -141,8 +163,12 @@ impl Socket {
             poll.register(socket, Token(0), EventSet::readable(), PollOpt::level())
         }
 
-        let v4 = try!(udp_socket("0.0.0.0:0"));
-        let v6 = try!(udp_socket("[::]:0"));
+        let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+        let addr_v6 = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0));
+
+        // TODO: Handle the error if either of these doesn't exist:
+        let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
+        let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
         let mut poll = try!(mio::Poll::new());
         try!(register(&mut poll, &v4));
         try!(register(&mut poll, &v6));
@@ -188,9 +214,9 @@ impl Socket {
             (addr, initialized)
         }))
     }
-    pub fn sleep(&mut self, duration: Duration) -> io::Result<()> {
-        let milliseconds = duration.to_milliseconds_saturating().to_usize().unwrap();
-        try!(self.poll.poll(Some(milliseconds)));
+    pub fn sleep(&mut self, duration: Option<Duration>) -> io::Result<()> {
+        let ms = duration.map(|d| d.to_milliseconds_saturating().to_usize().unwrap());
+        try!(self.poll.poll(ms));
         // TODO: Add a verification that this also works with
         // ```
         // try!(self.poll.poll(None));
