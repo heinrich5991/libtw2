@@ -17,3 +17,6 @@ extern crate warn;
 pub mod connection;
 pub mod net;
 pub mod protocol;
+
+pub use connection::Connection;
+pub use net::Net;
