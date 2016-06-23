@@ -334,11 +334,11 @@ impl Peer {
     }
     fn vote(&mut self, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) -> bool {
         fn send_vote(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-            sendg(Game::ClCallVote(ClCallVote {
+            sendg(ClCallVote {
                 type_: game::CL_CALL_VOTE_TYPE_OPTION,
                 value: vote,
                 reason: b"downloader",
-            }), pid, net, socket);
+            }, pid, net, socket);
             visited_votes.insert(vote.to_owned());
         }
         // TODO: This probably has bad performance:
@@ -444,23 +444,29 @@ impl ops::IndexMut<PeerId> for Peers {
     }
 }
 
-fn send(msg: System, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-    let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
-    with_packer(&mut buf, |p| msg.encode(p).unwrap());
-    net.send(socket, Chunk {
-        data: &buf,
-        addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-    }).unwrap();
-    net.flush(socket, pid).unwrap();
+fn send<'a, S: Into<System<'a>>>(msg: S, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
+    fn inner(msg: System, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
+        let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+        with_packer(&mut buf, |p| msg.encode(p).unwrap());
+        net.send(socket, Chunk {
+            data: &buf,
+            addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+        }).unwrap();
+        net.flush(socket, pid).unwrap();
+    }
+    inner(msg.into(), pid, net, socket)
 }
-fn sendg(msg: Game, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-    let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
-    with_packer(&mut buf, |p| msg.encode(p).unwrap());
-    net.send(socket, Chunk {
-        data: &buf,
-        addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-    }).unwrap();
-    net.flush(socket, pid).unwrap();
+fn sendg<'a, G: Into<Game<'a>>>(msg: G, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
+    fn inner(msg: Game, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
+        let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+        with_packer(&mut buf, |p| msg.encode(p).unwrap());
+        net.send(socket, Chunk {
+            data: &buf,
+            addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+        }).unwrap();
+        net.flush(socket, pid).unwrap();
+    }
+    inner(msg.into(), pid, net, socket)
 }
 fn num_players(snap: &Snap) -> u32 {
     snap.items().filter(|i| i.type_id == snap_obj::PLAYER_INFO).count().to_u32().unwrap()
@@ -592,8 +598,7 @@ impl Main {
                                 peer.state = PeerState::MapData(crc, 0);
                             } else {
                                 peer.state = PeerState::ConReady;
-                                let m = System::Ready(Ready);
-                                send(m, pid, &mut self.net, &mut self.socket);
+                                send(Ready, pid, &mut self.net, &mut self.socket);
                             }
                             progress = true;
                         } else {
@@ -629,11 +634,11 @@ impl Main {
                         }
                         if check_num_snaps && peer.num_snaps_since_reset % 25 == 3 {
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
-                            send(System::Input(Input {
+                            send(Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,
                                 input: system::INPUT_DATA_EMPTY,
-                            }), pid, &mut self.net, &mut self.socket);
+                            }, pid, &mut self.net, &mut self.socket);
                         }
                         ignored = true;
                     },
@@ -685,8 +690,7 @@ impl Main {
                                     }
                                 }
                                 peer.state = PeerState::ConReady;
-                                let m = System::Ready(Ready);
-                                send(m, pid, &mut self.net, &mut self.socket);
+                                send(Ready, pid, &mut self.net, &mut self.socket);
                                 info!("download finished");
                             } else {
                                 let cur_chunk = cur_chunk.checked_add(1).unwrap();
@@ -706,7 +710,7 @@ impl Main {
                 PeerState::ConReady => match msg {
                     SystemOrGame::System(System::ConReady(..)) => {
                         progress = true;
-                        sendg(Game::ClStartInfo(ClStartInfo {
+                        sendg(ClStartInfo {
                             name: b"downloader",
                             clan: b"",
                             country: -1,
@@ -714,7 +718,7 @@ impl Main {
                             use_custom_color: false,
                             color_body: 0,
                             color_feet: 0,
-                        }), pid, &mut self.net, &mut self.socket);
+                        }, pid, &mut self.net, &mut self.socket);
                         peer.state = PeerState::ReadyToEnter;
                     }
                     _ => {},
@@ -722,10 +726,10 @@ impl Main {
                 PeerState::ReadyToEnter => match msg {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
                         progress = true;
-                        send(System::EnterGame(EnterGame), pid, &mut self.net, &mut self.socket);
-                        sendg(Game::ClSetTeam(ClSetTeam {
+                        send(EnterGame, pid, &mut self.net, &mut self.socket);
+                        sendg(ClSetTeam {
                             team: enums::TEAM_RED,
-                        }), pid, &mut self.net, &mut self.socket);
+                        }, pid, &mut self.net, &mut self.socket);
                         if peer.vote(pid, &mut self.net, &mut self.socket) {
                             peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
                         }
@@ -782,8 +786,7 @@ impl Main {
             warn!("unprocessed message {:?}", msg);
         }
         request_chunk.map(|c| {
-            let m = System::RequestMapData(RequestMapData { chunk: c });
-            send(m, pid, &mut self.net, &mut self.socket);
+            send(RequestMapData { chunk: c }, pid, &mut self.net, &mut self.socket);
         });
         false
     }
