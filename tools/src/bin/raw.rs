@@ -3,18 +3,14 @@
 extern crate datafile;
 extern crate logger;
 extern crate map;
+extern crate tools;
 
-use std::env;
 use std::fmt::Debug;
-use std::fs::File;
 use std::path::Path;
 
 use map::format::*;
 
-fn process(path: &Path) -> Result<(),datafile::Error> {
-    let file = try!(File::open(path));
-    let dfr = try!(datafile::Reader::new(file));
-
+fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error> {
     let mut env_version = None;
 
     for item in dfr.items() {
@@ -109,22 +105,8 @@ fn process(path: &Path) -> Result<(),datafile::Error> {
     Ok(())
 }
 
+fn nothing(_: &()) {}
+
 fn main() {
-    logger::init();
-
-    let mut args = env::args_os();
-    let mut have_args = false;
-    let program_name = args.next().unwrap();
-
-    for (_, arg) in args.enumerate() {
-        have_args = true;
-        match process(Path::new(&arg)) {
-            Ok(()) => {},
-            Err(e) => println!("{}: {:?}", arg.to_string_lossy(), e),
-        }
-    }
-    if !have_args {
-        println!("USAGE: {} <MAP>...", program_name.to_string_lossy());
-        return;
-    }
+    tools::map_stats::stats(process, nothing);
 }

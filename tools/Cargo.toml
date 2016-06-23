@@ -1,9 +1,10 @@
 [package]
-name = "map"
+name = "tools"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
-common = { path = "../common/" }
 datafile = { path = "../datafile/" }
+logger = { path = "../logger/" }
+map = { path = "../map/" }
 num = "0.1.27"

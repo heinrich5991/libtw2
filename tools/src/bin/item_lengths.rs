@@ -3,21 +3,12 @@
 extern crate datafile as df;
 extern crate logger;
 extern crate map;
+extern crate tools;
 
 use map::format::*;
 use std::collections::HashMap;
-use std::env;
 use std::fmt;
-use std::fs::File;
-use std::io;
 use std::path::Path;
-
-#[derive(Default)]
-struct ErrorStats {
-    df_errors: HashMap<df::format::Error,u64>,
-    io_errors: Vec<io::Error>,
-    ok: u64,
-}
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 struct WeirdItem {
@@ -89,10 +80,9 @@ enum WeirdItemType {
     UnknownLayerType(i32, i32, usize),
 }
 
-fn process(path: &Path, results: &mut HashMap<WeirdItem,u64>) -> Result<(),df::Error> {
-    let file = try!(File::open(path));
-    let dfr = try!(df::Reader::new(file));
-
+fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
+    -> Result<(), map::Error>
+{
     let mut env_version = None;
 
     macro_rules! register {
@@ -212,58 +202,12 @@ fn process(path: &Path, results: &mut HashMap<WeirdItem,u64>) -> Result<(),df::E
     Ok(())
 }
 
-fn update_stats(stats: &mut ErrorStats, err: df::Error) {
-    match err {
-        df::Error::Df(e) => {
-            *stats.df_errors.entry(e).or_insert(0) += 1;
-        }
-        df::Error::Io(e) => {
-            stats.io_errors.push(e);
-        }
-    }
-}
-
-fn print_stats(stats: &ErrorStats) {
-    for (e, c) in &stats.df_errors {
-        println!("{}: {:?}", c, e);
-    }
-    for e in &stats.io_errors {
-        println!("1: {:?}", e);
-    }
-    println!("{}: ok", stats.ok);
-    println!("-------------");
-}
-
-fn print_results(results: &HashMap<WeirdItem,u64>) {
+fn print_stats(results: &HashMap<WeirdItem, u64>) {
     for (w, c) in results {
         println!("{}: {:?}", c, w)
     }
 }
 
 fn main() {
-    logger::init();
-
-    let mut args = env::args_os();
-    let mut have_args = false;
-    let program_name = args.next().unwrap();
-
-    let mut stats = ErrorStats::default();
-    let mut results = HashMap::default();
-
-    for (_, arg) in args.enumerate() {
-        have_args = true;
-        match process(Path::new(&arg), &mut results) {
-            Ok(()) => stats.ok += 1,
-            Err(err) => {
-                println!("{}: {:?}", arg.to_string_lossy(), err);
-                update_stats(&mut stats, err);
-            }
-        }
-    }
-    if !have_args {
-        println!("USAGE: {} <MAP>...", program_name.to_string_lossy());
-        return;
-    }
-    print_stats(&stats);
-    print_results(&results);
+    tools::map_stats::stats(process, print_stats);
 }
