@@ -16,6 +16,7 @@ extern crate warn;
 
 use arrayvec::ArrayVec;
 use common::pretty;
+use gamenet::SnapObj;
 use gamenet::enums;
 use gamenet::msg::Game;
 use gamenet::msg::System;
@@ -35,7 +36,6 @@ use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
 use gamenet::msg::system;
 use gamenet::snap_obj::obj_size;
-use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -47,9 +47,11 @@ use net::net::ChunkOrEvent;
 use net::net::ChunkType;
 use net::net::PeerId;
 use num::ToPrimitive;
+use packer::IntUnpacker;
 use packer::Unpacker;
 use packer::with_packer;
 use snapshot::Snap;
+use snapshot::format::Item as SnapItem;
 use socket::Addr;
 use socket::Socket;
 use std::borrow::Cow;
@@ -85,6 +87,15 @@ impl<'a, W: fmt::Debug> warn::Warn<W> for Warn<'a> {
     fn warn(&mut self, w: W) {
         warn!("{:?}", w);
         hexdump(LogLevel::Warn, self.0);
+    }
+}
+
+#[derive(Debug)]
+struct WarnSnap<'a>(SnapItem<'a>);
+
+impl<'a, W: fmt::Debug> warn::Warn<W> for WarnSnap<'a> {
+    fn warn(&mut self, w: W) {
+        warn!("{:?} for {:?}", w, self.0);
     }
 }
 
@@ -273,8 +284,17 @@ fn sendg<'a, G: Into<Game<'a>>>(msg: G, pid: PeerId, net: &mut Net<Addr>, socket
     }
     inner(msg.into(), pid, net, socket)
 }
+
 fn num_players(snap: &Snap) -> u32 {
-    snap.items().filter(|i| i.type_id == snap_obj::PLAYER_INFO).count().to_u32().unwrap()
+    let mut num_players = 0;
+    for item in snap.items() {
+        match SnapObj::decode_obj(&mut WarnSnap(item), item.type_id, &mut IntUnpacker::new(item.data)) {
+            Ok(SnapObj::PlayerInfo(..)) => num_players += 1,
+            Ok(_) => {},
+            Err(e) => warn!("item decode error {:?}: {:?}", e, item),
+        }
+    }
+    num_players
 }
 
 struct Main {
