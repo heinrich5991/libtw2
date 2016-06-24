@@ -9,5 +9,7 @@ common = { path = "../common/" }
 log = "0.3.0"
 logger = { path = "../logger/" }
 num = "0.1.27"
+packer = { path = "../packer/" }
 rustc-serialize = "0.3.16"
 time = { version = "0.1.25", features = ["rustc-serialize"] }
+warn = ">=0.1.0,<0.3.0"

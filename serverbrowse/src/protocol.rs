@@ -9,8 +9,9 @@ use std::fmt;
 use std::mem;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
-use std::slice;
 use std::str;
+use packer::Unpacker;
+use warn::Ignore;
 
 const MAX_CLIENTS:      u32 = 64;
 const MAX_CLIENTS_5:    u32 = 16;
@@ -18,157 +19,36 @@ const MAX_CLIENTS_6_64: u32 = 64;
 
 pub const MASTERSERVER_PORT: u16 = 8300;
 
-/// Zero-terminated byte sequence.
-pub struct ZBytes([u8]);
-
-impl ZBytes {
-    pub fn check_bytes(bytes: &[u8]) -> bool {
-        let mut iter = bytes.iter();
-        // Check that the last byte exists and is zero.
-        if *unwrap_or_return!(iter.next_back(), false) != 0 {
-            return false;
-        }
-        for &b in iter {
-            if b == 0 {
-                return false;
-            }
-        }
-        true
-    }
-    pub unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &ZBytes {
-        mem::transmute(bytes)
-    }
-    pub fn from_bytes(bytes: &[u8]) -> Option<&ZBytes> {
-        if !ZBytes::check_bytes(bytes) {
-            return None;
-        }
-        Some(unsafe { ZBytes::from_bytes_unchecked(bytes) })
-    }
-    pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut ZBytes {
-        mem::transmute(bytes)
-    }
-    pub fn from_bytes_mut(bytes: &mut [u8]) -> Option<&mut ZBytes> {
-        if !ZBytes::check_bytes(bytes) {
-            return None;
-        }
-        Some(unsafe { ZBytes::from_bytes_unchecked_mut(bytes) })
-    }
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-    // Cannot be public due to invariant that needs to be checked.
-    unsafe fn as_bytes_mut(&mut self) -> &mut [u8] {
-        &mut self.0
-    }
-    pub fn slice_from(&self, begin: usize) -> &ZBytes {
-        assert!(begin < self.as_bytes().len(), "cannot slice nul byte away");
-        unsafe { ZBytes::from_bytes_unchecked(&self.as_bytes()[begin..]) }
-    }
-    pub fn slice_from_mut(&mut self, begin: usize) -> &mut ZBytes {
-        assert!(begin < self.as_bytes().len(), "cannot slice nul byte away");
-        unsafe { ZBytes::from_bytes_unchecked_mut(&mut self.as_bytes_mut()[begin..]) }
-    }
-    pub fn as_bytes_without_nul(&self) -> &[u8] {
-        let len = self.as_bytes().len();
-        &self.as_bytes()[..len - 1]
-    }
-    pub fn as_bytes_without_nul_mut(&mut self) -> &mut [u8] {
-        let len = self.as_bytes().len();
-        unsafe { &mut self.as_bytes_mut()[..len - 1] }
-    }
-}
-
-// Format: ESDDDDDD EDDDDDDD EDDDDDDD EDDDDDDD ...
-// E - Extend
-// S - Sign
-// D - Digit
-pub fn read_int(iter: &mut slice::Iter<u8>) -> Option<i32> {
-    let mut result = 0;
-
-    let mut src = *unwrap_or_return!(iter.next(), None);
-    let sign = ((src >> 6) & 1) as i32;
-
-    result |= (src & 0b0011_1111) as i32;
-
-    for i in 0..4 {
-        if src & 0b1000_0000 == 0 {
-            break;
-        }
-        src = *unwrap_or_return!(iter.next(), None);
-        result |= ((src & 0b0111_1111) as i32) << (6 + 7 * i as usize);
-    }
-
-    result ^= -sign;
-
-    Some(result)
-}
-
-pub fn read_string<'a>(iter: &mut slice::Iter<'a,u8>) -> Option<&'a ZBytes> {
-    let mut first_byte = None;
-    // `by_ref` is needed as the iterator is silently copied otherwise.
-    for (i, c) in iter.by_ref().enumerate() {
-        if let None = first_byte {
-            first_byte = Some(c);
-        }
-        if *c == 0 {
-            let slice = unsafe { slice::from_raw_parts(first_byte.unwrap(), i + 1) };
-            return Some(unsafe { ZBytes::from_bytes_unchecked(slice) });
-        }
-    }
-    None
-}
-
-pub struct Unpacker<'a> {
-    iter: slice::Iter<'a,u8>,
-}
-
-impl<'a> Unpacker<'a> {
-    pub fn from_iter(iter: slice::Iter<'a,u8>) -> Unpacker<'a> {
-        Unpacker { iter: iter }
-    }
-    pub fn from_slice(slice: &'a [u8]) -> Unpacker<'a> { Unpacker::from_iter(slice.iter()) }
-    pub fn read_int(&mut self) -> Option<i32> {
-        read_int(&mut self.iter)
-    }
-    pub fn read_string(&mut self) -> Option<&'a ZBytes> {
-        read_string(&mut self.iter)
-    }
-    pub fn is_end(&self) -> bool {
-        self.iter.len() == 0
-    }
-}
-
-// TODO: better literals? :(
 const HEADER_LEN: usize = 14;
-pub type Header = [u8; HEADER_LEN];
-pub const REQUEST_LIST_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'r', b'e', b'q', b't']; // "reqt"
-pub const REQUEST_LIST_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'r', b'e', b'q', b'2']; // "req2"
-pub const LIST_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'l', b'i', b's', b't']; // "list"
-pub const LIST_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'l', b'i', b's', b'2']; // "lis2"
-pub const REQUEST_COUNT:     Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'c', b'o', b'u', b'2']; // "cou2"
-pub const COUNT:             Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b's', b'i', b'z', b'2']; // "siz2"
-pub const REQUEST_INFO_5:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'g', b'i', b'e', b'2']; // "gie2"
-pub const REQUEST_INFO_6:    Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'g', b'i', b'e', b'3']; // "gie3"
-pub const REQUEST_INFO_6_64: Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'f', b's', b't', b'd']; // "fstd"
-pub const INFO_5:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'i', b'n', b'f', b'2']; // "inf2"
-pub const INFO_6:            Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'i', b'n', b'f', b'3']; // "inf3"
-pub const INFO_6_64:         Header = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, b'd', b't', b's', b'f']; // "dtsf"
+pub type Header = &'static [u8; HEADER_LEN];
+pub const REQUEST_LIST_5:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreqt";
+pub const REQUEST_LIST_6:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
+pub const LIST_5:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflist";
+pub const LIST_6:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
+pub const REQUEST_COUNT:     Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
+pub const COUNT:             Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
+pub const REQUEST_INFO_5:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie2";
+pub const REQUEST_INFO_6:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
+pub const REQUEST_INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfffstd";
+pub const INFO_5:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
+pub const INFO_6:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const INFO_6_64:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 
 pub const IPV4_MAPPING: [u8; 12] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
 
-pub fn request_list_5<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_5) }
-pub fn request_list_6<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_LIST_6) }
+pub fn request_list_5<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(REQUEST_LIST_5) }
+pub fn request_list_6<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(REQUEST_LIST_6) }
 
 pub fn request_info_5   <T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_5   (0, send) }
 pub fn request_info_6   <T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_6   (0, send) }
 pub fn request_info_6_64<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num_6_64(0, send) }
-pub fn request_info_num_5   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_5,    num, send) }
-pub fn request_info_num_6   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_6,    num, send) }
-pub fn request_info_num_6_64<T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(&REQUEST_INFO_6_64, num, send) }
+pub fn request_info_num_5   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(REQUEST_INFO_5,    num, send) }
+pub fn request_info_num_6   <T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(REQUEST_INFO_6,    num, send) }
+pub fn request_info_num_6_64<T,S>(num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T { request_info_num(REQUEST_INFO_6_64, num, send) }
 
-pub fn request_count<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(&REQUEST_COUNT) }
+pub fn request_count<T,S>(send: S) -> T where S: FnOnce(&[u8]) -> T { send(REQUEST_COUNT) }
 
-fn request_info_num<T,S>(header: &Header, num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T {
+fn request_info_num<T,S>(header: Header, num: u8, send: S) -> T where S: FnOnce(&[u8]) -> T {
     let mut request = [0; HEADER_LEN+1];
     request[HEADER_LEN] = num;
     for (i, &v) in header.iter().enumerate() { request[i] = v; }
@@ -342,7 +222,7 @@ impl PartialServerInfo {
 
 fn debug_parse_fail(help: &str) -> Option<PartialServerInfo> {
     fn debug_parse_fail_impl(help: &str) {
-        println!("server info parsing failed at {}", help);
+        debug!("server info parsing failed at {}", help);
         let _ = help;
     }
     debug_parse_fail_impl(help);
@@ -356,7 +236,7 @@ fn parse_server_info<RI,RS>(
     version: ServerInfoVersion,
 ) -> Option<PartialServerInfo>
     where RI: FnMut(&mut Unpacker) -> Option<i32>,
-          RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a ZBytes>,
+          RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a [u8]>,
 {
     use self::debug_parse_fail as fail;
 
@@ -370,7 +250,7 @@ fn parse_server_info<RI,RS>(
 
     macro_rules! str { ($cause:expr) => {
         unwrap_or_return!(read_str(unpacker), fail($cause))
-            .as_bytes_without_nul().iter().cloned().collect();
+            .iter().cloned().collect();
     } }
 
     {
@@ -466,22 +346,23 @@ fn parse_server_info<RI,RS>(
 
 fn info_read_int_v5(unpacker: &mut Unpacker) -> Option<i32> {
     unpacker.read_string()
-        .and_then(|x| str::from_utf8(x.as_bytes_without_nul()).ok())
+        .ok()
+        .and_then(|x| str::from_utf8(x).ok())
         .and_then(|x| x.parse().ok())
 }
 
 fn info_read_int_v7(unpacker: &mut Unpacker) -> Option<i32> {
-    unpacker.read_int()
+    unpacker.read_int(&mut Ignore).ok()
 }
 
-fn info_read_str<'a>(unpacker: &mut Unpacker<'a>) -> Option<&'a ZBytes> {
-    unpacker.read_string()
+fn info_read_str<'a>(unpacker: &mut Unpacker<'a>) -> Option<&'a [u8]> {
+    unpacker.read_string().ok()
 }
 
 impl<'a> Info5Response<'a> {
     pub fn parse(self) -> Option<ServerInfo> {
         let Info5Response(slice) = self;
-        let mut unpacker = Unpacker::from_slice(slice);
+        let mut unpacker = Unpacker::new(slice);
         parse_server_info(
             &mut unpacker,
             info_read_int_v5,
@@ -498,10 +379,10 @@ impl<'a> Info6Response<'a> {
         version: ServerInfoVersion,
     ) -> Option<ServerInfo>
     where RI: FnMut(&mut Unpacker) -> Option<i32>,
-          RS: for<'b> FnMut(&mut Unpacker<'b>) -> Option<&'b ZBytes>,
+          RS: for<'b> FnMut(&mut Unpacker<'b>) -> Option<&'b [u8]>,
     {
         let Info6Response(slice) = self;
-        let mut unpacker = Unpacker::from_slice(slice);
+        let mut unpacker = Unpacker::new(slice);
         parse_server_info(&mut unpacker, read_int, read_str, version)
             .map(|mut raw| { raw.info.sort_clients(); raw.info })
     }
@@ -519,7 +400,7 @@ impl<'a> Info6Response<'a> {
 impl<'a> Info664Response<'a> {
     pub fn parse(self) -> Option<PartialServerInfo> {
         let Info664Response(slice) = self;
-        let mut unpacker = Unpacker::from_slice(slice);
+        let mut unpacker = Unpacker::new(slice);
         parse_server_info(
             &mut unpacker,
             info_read_int_v5,
@@ -580,7 +461,7 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
     }
     let (header, data) = data.split_at(HEADER_LEN);
     let header: &[u8; HEADER_LEN] = unsafe { &*(header.as_ptr() as *const [u8; HEADER_LEN]) };
-    match *header {
+    match header {
         LIST_5 => Some(Response::List5(List5Response(parse_list5(data)))),
         LIST_6 => Some(Response::List6(List6Response(parse_list6(data)))),
         INFO_5 => Some(Response::Info5(Info5Response(data))),
