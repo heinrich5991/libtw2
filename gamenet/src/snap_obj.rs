@@ -377,7 +377,7 @@ pub struct Character {
     pub armor: i32,
     pub ammo_count: i32,
     pub weapon: Weapon,
-    pub emote: i32,
+    pub emote: Emote,
     pub attack_tick: i32,
 }
 
@@ -696,7 +696,7 @@ impl CharacterCore {
             angle: try!(_p.read_int()),
             direction: try!(in_range(try!(_p.read_int()), -1, 1)),
             jumped: try!(in_range(try!(_p.read_int()), 0, 3)),
-            hooked_player: try!(in_range(try!(_p.read_int()), 0, MAX_CLIENTS-1)),
+            hooked_player: try!(in_range(try!(_p.read_int()), -1, MAX_CLIENTS-1)),
             hook_state: try!(in_range(try!(_p.read_int()), -1, 5)),
             hook_tick: Tick(try!(_p.read_int())),
             hook_x: try!(_p.read_int()),
@@ -735,7 +735,7 @@ impl Character {
             armor: try!(in_range(try!(_p.read_int()), 0, 10)),
             ammo_count: try!(in_range(try!(_p.read_int()), 0, 10)),
             weapon: try!(Weapon::from_i32(try!(_p.read_int()))),
-            emote: try!(in_range(try!(_p.read_int()), 0, 6)),
+            emote: try!(Emote::from_i32(try!(_p.read_int()))),
             attack_tick: try!(positive(try!(_p.read_int()))),
         })
     }
