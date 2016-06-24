@@ -566,6 +566,7 @@ impl Connection {
         }
         let do_resend = match self.state {
             State::Online(ref online) => {
+                // WARN?
                 online.resend_queue.back()
                     .map(|c| c.next_send.has_triggered_level(cb))
                     .unwrap_or(false)
