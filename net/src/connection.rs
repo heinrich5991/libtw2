@@ -18,6 +18,9 @@ use std::mem;
 use std::time::Duration;
 use warn::Warn;
 
+// TODO: Implement receive timeout.
+// TODO: Don't allow for unbounded backlog of vital messages.
+
 pub trait Callback {
     type Error;
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
@@ -83,7 +86,7 @@ impl Timeout {
 
 pub struct Connection {
     state: State,
-    send_: Timeout,
+    send: Timeout,
     builder: PacketBuilder,
 }
 
@@ -438,7 +441,7 @@ impl Connection {
     pub fn new() -> Connection {
         Connection {
             state: State::Unconnected,
-            send_: Timeout::new(),
+            send: Timeout::new(),
             builder: PacketBuilder::new(),
         }
     }
@@ -458,7 +461,7 @@ impl Connection {
             State::Online(ref online) => !online.resend_queue.is_empty(),
             _ => false,
         };
-        self.send_.is_active() || resends
+        self.send.is_active() || resends
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         assert_matches!(self.state, State::Unconnected);
@@ -499,14 +502,14 @@ impl Connection {
                 }
             }
             if !can_fit {
-                self.send_.set(cb, Duration::from_millis(500));
+                self.send.set(cb, Duration::from_millis(500));
                 try!(online.flush(cb, &mut self.builder));
             }
         }
         Ok(())
     }
     pub fn flush<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        self.send_.set(cb, Duration::from_millis(500));
+        self.send.set(cb, Duration::from_millis(500));
         self.state.assert_online().flush(cb, &mut self.builder)
     }
     fn queue<CB: Callback>(&mut self, cb: &mut CB, buffer: &[u8], vital: bool) {
@@ -545,7 +548,7 @@ impl Connection {
         -> Result<(), Error<CB::Error>>
     {
         self.state.assert_online();
-        self.send_.set(cb, Duration::from_millis(500));
+        self.send.set(cb, Duration::from_millis(500));
         self.builder.send(cb, Packet::Connless(data))
     }
     fn send_control<CB: Callback>(&mut self, cb: &mut CB, control: ControlPacket) -> Result<(), CB::Error> {
@@ -575,14 +578,14 @@ impl Connection {
         };
         if do_resend {
             self.resend(cb)
-        } else if self.send_.has_triggered_edge(cb) {
+        } else if self.send.has_triggered_edge(cb) {
             self.tick_action(cb)
         } else {
             Ok(())
         }
     }
     fn tick_action<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        self.send_.set(cb, Duration::from_millis(500));
+        self.send.set(cb, Duration::from_millis(500));
         let control = match self.state {
             State::Connecting => ControlPacket::Connect,
             State::Pending => ControlPacket::ConnectAccept,
