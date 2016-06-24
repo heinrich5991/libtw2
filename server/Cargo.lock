@@ -331,6 +331,7 @@ name = "socket"
 version = "0.0.1"
 dependencies = [
  "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",

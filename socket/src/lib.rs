@@ -1,4 +1,5 @@
 extern crate buffer;
+#[macro_use] extern crate common;
 extern crate hexdump;
 extern crate itertools;
 extern crate libc;
@@ -15,6 +16,8 @@ use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use mio::udp::UdpSocket;
+use mio::EventSet;
+use mio::Token;
 use net::net::Callback;
 use num::ToPrimitive;
 use std::fmt;
@@ -113,6 +116,8 @@ pub struct Socket {
     poll: mio::Poll,
     v4: UdpSocket,
     v6: UdpSocket,
+    check_v4: bool,
+    check_v6: bool,
     loss_rate: f32,
 }
 
@@ -156,11 +161,9 @@ impl Socket {
         let port = port.unwrap_or(0);
         assert!(0.0 <= loss_rate && loss_rate <= 1.0);
 
-        fn register(poll: &mut mio::Poll, socket: &UdpSocket) -> io::Result<()> {
-            use mio::EventSet;
+        fn register(poll: &mut mio::Poll, token: usize, socket: &UdpSocket) -> io::Result<()> {
             use mio::PollOpt;
-            use mio::Token;
-            poll.register(socket, Token(0), EventSet::readable(), PollOpt::level())
+            poll.register(socket, Token(token), EventSet::readable(), PollOpt::level())
         }
 
         let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
@@ -170,14 +173,16 @@ impl Socket {
         let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
         let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
         let mut poll = try!(mio::Poll::new());
-        try!(register(&mut poll, &v4));
-        try!(register(&mut poll, &v6));
+        try!(register(&mut poll, 4, &v4));
+        try!(register(&mut poll, 6, &v6));
         Ok(Socket {
             start: Instant::now(),
             time_cached: Duration::from_millis(0),
             poll: poll,
             v4: v4,
             v6: v6,
+            check_v4: false,
+            check_v6: false,
             loss_rate: loss_rate,
         })
     }
@@ -192,17 +197,25 @@ impl Socket {
     fn receive_impl<'d, 's>(&mut self, mut buf: BufferRef<'d, 's>)
         -> Option<Result<(Addr, &'d [u8]), io::Error>>
     {
-        let result;
+        let mut result = None;
         {
             let buf_slice = unsafe { buf.uninitialized_mut() };
-            if let Some(r) = swap(self.v4.recv_from(buf_slice)) {
-                result = r;
-            } else if let Some(r) = swap(self.v6.recv_from(buf_slice)) {
-                result = r;
-            } else {
-                return None;
+            if result.is_none() && self.check_v6 {
+                if let Some(r) = swap(self.v6.recv_from(buf_slice)) {
+                    result = Some(r);
+                } else {
+                    self.check_v6 = false;
+                }
+            }
+            if result.is_none() && self.check_v4 {
+                if let Some(r) = swap(self.v4.recv_from(buf_slice)) {
+                    result = Some(r);
+                } else {
+                    self.check_v4 = false;
+                }
             }
         }
+        let result = unwrap_or_return!(result);
         if self.loss() {
             return self.receive_impl(buf);
         }
@@ -222,6 +235,14 @@ impl Socket {
         // try!(self.poll.poll(None));
         // ```
         // on loss-free networks.
+        for ev in self.poll.events() {
+            assert!(ev.kind == EventSet::readable());
+            match ev.token {
+                Token(4) => self.check_v4 = true,
+                Token(6) => self.check_v6 = true,
+                _ => unreachable!(),
+            }
+        }
         self.update_time_cached();
         Ok(())
     }
