@@ -341,7 +341,6 @@ impl Main {
         let mut ignored = false;
         let mut progress = false;
         match msg {
-            // TODO: Ignore excess data for `SvExtraProjectile`
             SystemOrGame::Game(Game::SvMotd(..))
                 | SystemOrGame::Game(Game::SvKillMsg(..))
                 | SystemOrGame::Game(Game::SvTuneParams(..))

@@ -68,6 +68,8 @@ use enums::*;
 use error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
+use packer::Unpacker;
+use packer::Warning;
 use packer::in_range;
 use packer::positive;
 use std::fmt;
@@ -75,6 +77,19 @@ use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Tick(i32);
+
+impl Projectile {
+    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
+        Ok(Projectile {
+            x: try!(_p.read_int(warn)),
+            y: try!(_p.read_int(warn)),
+            vel_x: try!(_p.read_int(warn)),
+            vel_y: try!(_p.read_int(warn)),
+            type_: try!(Weapon::from_i32(try!(_p.read_int(warn)))),
+            start_tick: Tick(try!(_p.read_int(warn))),
+        })
+    }
+}
 """)
 
 def emit_header_msg_game():
@@ -521,3 +536,12 @@ class NetTick(NetIntAny):
     type_ = "Tick"
     def decode_int_expr(self):
         return "Tick({})".format(super().decode_int_expr())
+
+class NetStruct(Member):
+    def __init__(self, name, type_):
+        super().__init__(name)
+        self.type_ = type_
+    def decode_expr(self):
+        return "try!({}::decode_msg_inner(warn, _p))".format(self.type_)
+    def encode_expr(self, self_expr):
+        return "unimplemented!()"

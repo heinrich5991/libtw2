@@ -424,7 +424,9 @@ pub struct SvTuneParams {
 }
 
 #[derive(Clone, Copy)]
-pub struct SvExtraProjectile;
+pub struct SvExtraProjectile {
+    pub projectile: ::snap_obj::Projectile,
+}
 
 #[derive(Clone, Copy)]
 pub struct SvReadyToEnter;
@@ -777,17 +779,21 @@ impl fmt::Debug for SvTuneParams {
 
 impl SvExtraProjectile {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvExtraProjectile, Error> {
-        let result = Ok(SvExtraProjectile);
+        let result = Ok(SvExtraProjectile {
+            projectile: try!(::snap_obj::Projectile::decode_msg_inner(warn, _p)),
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        try!(unimplemented!());
         Ok(_p.written())
     }
 }
 impl fmt::Debug for SvExtraProjectile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvExtraProjectile")
+            .field("projectile", &self.projectile)
             .finish()
     }
 }

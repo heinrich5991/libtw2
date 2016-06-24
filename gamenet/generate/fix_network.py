@@ -9,10 +9,12 @@ network.Enums += [
 ]
 
 TUNE_PARAMS = ("sv", "tune", "params")
+EXTRA_PROJECTILE = ("sv", "extra", "projectile")
 for i in range(len(network.Messages)):
     if network.Messages[i].name == TUNE_PARAMS:
         network.Messages[i] = NetMessage("SvTuneParams", [NetIntAny(n) for n in "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking".split()])
-        break
+    elif network.Messages[i].name == EXTRA_PROJECTILE:
+        network.Messages[i].values.append(NetStruct("projectile", "::snap_obj::Projectile"))
 
 enums = {e.name: e for e in network.Enums}
 structs = {s.name: s for s in network.Messages + network.Objects}

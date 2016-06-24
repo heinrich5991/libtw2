@@ -3,6 +3,8 @@ use enums::*;
 use error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
+use packer::Unpacker;
+use packer::Warning;
 use packer::in_range;
 use packer::positive;
 use std::fmt;
@@ -10,6 +12,19 @@ use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Tick(i32);
+
+impl Projectile {
+    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
+        Ok(Projectile {
+            x: try!(_p.read_int(warn)),
+            y: try!(_p.read_int(warn)),
+            vel_x: try!(_p.read_int(warn)),
+            vel_y: try!(_p.read_int(warn)),
+            type_: try!(Weapon::from_i32(try!(_p.read_int(warn)))),
+            start_tick: Tick(try!(_p.read_int(warn))),
+        })
+    }
+}
 
 pub const PLAYERFLAG_PLAYING: i32 = 1 << 0;
 pub const PLAYERFLAG_IN_MENU: i32 = 1 << 1;
