@@ -259,7 +259,6 @@ fn send<'a, S: Into<System<'a>>>(msg: S, pid: PeerId, net: &mut Net<Addr>, socke
             data: &buf,
             addr: ChunkAddr::Peer(pid, ChunkType::Vital),
         }).unwrap();
-        net.flush(socket, pid).unwrap();
     }
     inner(msg.into(), pid, net, socket)
 }
@@ -271,7 +270,6 @@ fn sendg<'a, G: Into<Game<'a>>>(msg: G, pid: PeerId, net: &mut Net<Addr>, socket
             data: &buf,
             addr: ChunkAddr::Peer(pid, ChunkType::Vital),
         }).unwrap();
-        net.flush(socket, pid).unwrap();
     }
     inner(msg.into(), pid, net, socket)
 }
@@ -321,6 +319,7 @@ impl Main {
                 info!("voting done");
                 return true;
             }
+            self.net.flush(&mut self.socket, pid).unwrap();
         }
         if peer.has_timed_out(&mut self.socket) {
             error!("timed out due to lack of progress");
@@ -339,7 +338,6 @@ impl Main {
             return false;
         }
         debug!("{:?}", msg);
-        let mut request_chunk = None;
         let mut ignored = false;
         let mut progress = false;
         match msg {
@@ -401,7 +399,9 @@ impl Main {
                             }
                             if start_download {
                                 info!("download starting");
-                                request_chunk = Some(0);
+                                send(RequestMapData {
+                                    chunk: 0,
+                                }, pid, &mut self.net, &mut self.socket);
                                 peer.state = PeerState::MapData(crc, 0);
                             } else {
                                 peer.state = PeerState::ConReady;
@@ -502,7 +502,9 @@ impl Main {
                             } else {
                                 let cur_chunk = cur_chunk.checked_add(1).unwrap();
                                 peer.state = PeerState::MapData(cur_crc, cur_chunk);
-                                request_chunk = Some(cur_chunk);
+                                send(RequestMapData {
+                                    chunk: cur_chunk,
+                                }, pid, &mut self.net, &mut self.socket);
                             }
                         } else {
                             if cur_crc != crc || cur_chunk < chunk {
@@ -592,9 +594,7 @@ impl Main {
         if !progress && !ignored {
             warn!("unprocessed message {:?}", msg);
         }
-        request_chunk.map(|c| {
-            send(RequestMapData { chunk: c }, pid, &mut self.net, &mut self.socket);
-        });
+        self.net.flush(&mut self.socket, pid).unwrap();
         false
     }
     fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) -> bool {
