@@ -5,6 +5,8 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 datafile = { path = "../datafile/" }
+log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
 num = "0.1.27"
+serverbrowse = { path = "../serverbrowse/" }
