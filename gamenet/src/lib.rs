@@ -19,4 +19,6 @@ pub mod snap_obj;
 
 pub use snap_obj::SnapObj;
 
+pub const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
+
 mod debug;

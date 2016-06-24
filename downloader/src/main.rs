@@ -17,6 +17,7 @@ extern crate warn;
 use arrayvec::ArrayVec;
 use common::pretty;
 use gamenet::SnapObj;
+use gamenet::VERSION;
 use gamenet::enums;
 use gamenet::msg::Game;
 use gamenet::msg::System;
@@ -73,7 +74,6 @@ use tempfile::NamedTempFileOptions;
 use warn::Log;
 
 const NETWORK_LOSS_RATE: f32 = 0.0;
-const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
