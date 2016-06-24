@@ -341,6 +341,7 @@ impl Main {
         let mut ignored = false;
         let mut progress = false;
         match msg {
+            // TODO: Ignore excess data for `SvExtraProjectile`
             SystemOrGame::Game(Game::SvMotd(..))
                 | SystemOrGame::Game(Game::SvKillMsg(..))
                 | SystemOrGame::Game(Game::SvTuneParams(..))
@@ -353,11 +354,13 @@ impl Main {
             SystemOrGame::Game(Game::SvChat(chat)) => {
                 if chat.team == 0 && chat.client_id == -1 {
                     ignored = true;
+                    // TODO: Display this in a nicer way.
                     info!("*** {:?}", pretty::Bytes::new(chat.message));
                 }
             }
             SystemOrGame::Game(Game::SvBroadcast(broadcast)) => {
                 info!("broadcast: {:?}", pretty::Bytes::new(broadcast.message));
+                ignored = true;
             }
             _ => {},
         }
