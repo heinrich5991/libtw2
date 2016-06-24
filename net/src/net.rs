@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
@@ -15,6 +16,7 @@ use std::hash::Hash;
 use std::iter;
 use std::ops;
 use std::time::Duration;
+use warn::Panic;
 use warn::Warn;
 
 pub use connection::Error;
@@ -53,6 +55,8 @@ impl PeerId {
         old
     }
 }
+
+const CONNECT_PACKET: &'static [u8; 4] = b"\x10\x00\x00\x01";
 
 struct Peer<A: Address> {
     conn: Connection,
@@ -404,6 +408,20 @@ impl<A: Address> Net<A> {
         let peer = &mut self.peers[pid];
         peer.conn.flush(&mut cc(cb, peer.addr))
     }
+    pub fn ignore(&mut self, pid: PeerId) {
+        self.peers.remove_peer(pid);
+    }
+    pub fn accept<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId)
+        -> Result<(), CB::Error>
+    {
+        let peer = &mut self.peers[pid];
+        assert!(peer.conn.is_unconnected());
+        let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+        let (mut none, res) =
+            peer.conn.feed(&mut cc(cb, peer.addr), &mut Panic, CONNECT_PACKET, &mut buf);
+        assert!(none.next().is_none());
+        res
+    }
     pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB)
         -> Tick<A, CB>
     {
@@ -446,10 +464,8 @@ impl<A: Address> Net<A> {
                 }) = packet
             {
                 if self.accept_connections {
-                    let (pid, peer) = self.peers.new_peer(addr);
-                    let (mut none, e) = peer.conn.feed(&mut cc(cb, peer.addr), &mut wp(warn, addr, pid), data, &mut buf);
-                    assert!(none.next().is_none());
-                    (ReceivePacket::connect(pid), e)
+                    let (pid, _) = self.peers.new_peer(addr);
+                    (ReceivePacket::connect(pid), Ok(()))
                 } else {
                     w(warn, addr).warn(connection::Warning::Unexpected);
                     (ReceivePacket::none(), Ok(()))
@@ -548,6 +564,10 @@ mod test {
                 panic!();
             }
         }
+        // No packets sent out until we accept the client.
+        assert!(cb.packets.is_empty());
+
+        net.accept(cb, s_pid).void_unwrap();
         let packet = cb.packets.pop_front().unwrap();
         assert!(cb.packets.is_empty());
 

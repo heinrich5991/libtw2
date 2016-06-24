@@ -446,6 +446,9 @@ impl Connection {
         assert_matches!(self.state, State::Disconnected);
         *self = Connection::new();
     }
+    pub fn is_unconnected(&self) -> bool {
+        matches!(self.state, State::Unconnected)
+    }
     pub fn needs_tick(&self) -> bool {
         match self.state {
             State::Unconnected | State::Disconnected => return false,
@@ -466,9 +469,7 @@ impl Connection {
     pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8])
         -> Result<(), CB::Error>
     {
-        if let State::Unconnected = self.state {
-            assert!(false, "Can't call disconnect on an unconnected connection");
-        } else if let State::Disconnected = self.state {
+        if let State::Disconnected = self.state {
             assert!(false, "Can't call disconnect on an already disconnected connection");
         }
         assert!(reason.iter().all(|&b| b != 0), "reason must not contain NULs");

@@ -10,6 +10,7 @@ extern crate buffer;
 #[macro_use] extern crate common;
 extern crate huffman;
 extern crate linear_map;
+#[macro_use] extern crate matches;
 extern crate num;
 extern crate void;
 extern crate warn;
