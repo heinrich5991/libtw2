@@ -163,7 +163,7 @@ impl Peer {
         self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
         if let Some(ref vote) = self.previous_vote {
             send_vote(&mut self.visited_votes, vote, pid, net, socket);
-            info!("voting for {:?}", pretty::Bytes::new(vote));
+            info!("voting for {}", pretty::AlmostString::new(vote));
         } else {
             self.previous_vote = None;
             for vote in &self.current_votes {
@@ -179,7 +179,7 @@ impl Peer {
             }
             if let Some(vote) = self.previous_vote.as_ref() {
                 self.previous_list_vote = Some(vote.to_owned());
-                info!("list-voting for {:?}", pretty::Bytes::new(vote));
+                info!("list-voting for {}", pretty::AlmostString::new(vote));
                 send_vote(&mut self.visited_votes, &vote, pid, net, socket);
             } else {
                 return true;
@@ -374,12 +374,11 @@ impl Main {
             SystemOrGame::Game(Game::SvChat(chat)) => {
                 if chat.team == 0 && chat.client_id == -1 {
                     ignored = true;
-                    // TODO: Display this in a nicer way.
-                    info!("*** {:?}", pretty::Bytes::new(chat.message));
+                    info!("*** {}", pretty::AlmostString::new(chat.message));
                 }
             }
             SystemOrGame::Game(Game::SvBroadcast(broadcast)) => {
-                info!("broadcast: {:?}", pretty::Bytes::new(broadcast.message));
+                info!("broadcast: {}", pretty::AlmostString::new(broadcast.message));
                 ignored = true;
             }
             _ => {},
@@ -407,8 +406,8 @@ impl Main {
                             peer.current_votes.clear();
                             peer.num_snaps_since_reset = 0;
                             peer.snaps.reset();
+                            info!("map change: {}", pretty::AlmostString::new(name));
                             let name = String::from_utf8_lossy(name);
-                            info!("map change: {:?}", name);
                             if let Cow::Owned(..) = name {
                                 warn!("weird characters in map name");
                             }
@@ -603,7 +602,7 @@ impl Main {
                         ignored = true;
                         let prev = peer.previous_vote.as_ref().unwrap();
                         if peer.list_votes.insert(prev.to_owned()) {
-                            info!("list vote {:?}", pretty::Bytes::new(prev));
+                            info!("list vote {}", pretty::AlmostString::new(prev));
                         }
                     },
                     _ => {},
@@ -644,7 +643,7 @@ impl Main {
             }
             ChunkOrEvent::Chunk(..) => false,
             ChunkOrEvent::Disconnect(pid, reason) => {
-                error!("disconnected pid={:?} error={:?}", pid, pretty::Bytes::new(reason));
+                error!("disconnected pid={:?} error={}", pid, pretty::AlmostString::new(reason));
                 false
             },
             ChunkOrEvent::Connect(..) => unreachable!(),

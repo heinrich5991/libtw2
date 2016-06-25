@@ -5,6 +5,16 @@ use std::mem;
 use std::ops;
 use std::str;
 
+pub struct AlmostString([u8]);
+
+impl AlmostString {
+    pub fn new(bytes: &[u8]) -> &AlmostString {
+        unsafe {
+            mem::transmute(bytes)
+        }
+    }
+}
+
 pub struct Bytes([u8]);
 
 impl Bytes {
@@ -51,5 +61,17 @@ impl fmt::Debug for Bytes {
         }
         try!(f.write_str("\""));
         Ok(())
+    }
+}
+
+impl fmt::Display for AlmostString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // FIXME: Replace this with a UTF-8 decoder.
+        let string = String::from_utf8_lossy(&self.0);
+        if string.chars().any(|c| c < ' ') {
+            fmt::Debug::fmt(&string, f)
+        } else {
+            fmt::Display::fmt(&string, f)
+        }
     }
 }
