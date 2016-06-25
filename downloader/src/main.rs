@@ -350,12 +350,13 @@ impl Main {
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
         let _ = vital;
         let msg;
-        if let Ok(m) = SystemOrGame::decode(&mut Warn(data), &mut Unpacker::new(data)) {
-            msg = m;
-        } else {
-            warn!("decode error:");
-            hexdump(LogLevel::Warn, data);
-            return false;
+        match SystemOrGame::decode(&mut Warn(data), &mut Unpacker::new(data)) {
+            Ok(m) => msg = m,
+            Err(err) => {
+                warn!("decode error {:?}:", err);
+                hexdump(LogLevel::Warn, data);
+                return false;
+            }
         }
         debug!("{:?}", msg);
         let mut ignored = false;

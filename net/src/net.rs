@@ -134,6 +134,8 @@ impl<A: Address> ops::IndexMut<PeerId> for Peers<A> {
     }
 }
 
+// TODO: Simplify these enums. A lot.
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChunkOrEvent<'a, A: Address> {
     Chunk(Chunk<'a, A>),
