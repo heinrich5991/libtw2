@@ -18,6 +18,7 @@ use log::LogLevel;
 use mio::udp::UdpSocket;
 use mio::EventSet;
 use mio::Token;
+use net::Timestamp;
 use net::net::Callback;
 use num::ToPrimitive;
 use std::fmt;
@@ -112,7 +113,7 @@ impl FromStr for Addr {
 
 pub struct Socket {
     start: Instant,
-    time_cached: Duration,
+    time_cached: Timestamp,
     poll: mio::Poll,
     v4: UdpSocket,
     v6: UdpSocket,
@@ -177,7 +178,7 @@ impl Socket {
         try!(register(&mut poll, 6, &v6));
         Ok(Socket {
             start: Instant::now(),
-            time_cached: Duration::from_millis(0),
+            time_cached: Timestamp::from_secs_since_epoch(0),
             poll: poll,
             v4: v4,
             v6: v6,
@@ -247,7 +248,7 @@ impl Socket {
         Ok(())
     }
     pub fn update_time_cached(&mut self) {
-        self.time_cached = self.start.elapsed()
+        self.time_cached = Timestamp::from_secs_since_epoch(0) + self.start.elapsed();
     }
 }
 
@@ -273,7 +274,7 @@ impl Callback<Addr> for Socket {
         // ENTUNREACH
         // EAGAIN EWOULDBLOCK
     }
-    fn time(&mut self) -> Duration {
+    fn time(&mut self) -> Timestamp {
         self.time_cached
     }
 }

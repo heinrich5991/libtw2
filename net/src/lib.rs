@@ -12,12 +12,16 @@ extern crate huffman;
 extern crate linear_map;
 #[macro_use] extern crate matches;
 extern crate num;
+extern crate optional;
 extern crate void;
 extern crate warn;
 
 pub mod connection;
 pub mod net;
 pub mod protocol;
+pub mod time;
 
 pub use connection::Connection;
 pub use net::Net;
+pub use time::Timeout;
+pub use time::Timestamp;

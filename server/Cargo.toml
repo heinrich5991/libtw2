@@ -5,10 +5,13 @@ version = "0.0.1"
 
 [dependencies]
 arrayvec = "0.3.12"
+event_loop = { path = "../event_loop/" }
+gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
 net = { path = "../net/" }
+packer = { path = "../packer/" }
 socket = { path = "../socket/" }
 warn = ">=0.1.1,<0.3.0"

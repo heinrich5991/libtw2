@@ -1,5 +1,6 @@
 extern crate arrayvec;
 extern crate common;
+extern crate event_loop;
 extern crate gamenet;
 extern crate hexdump;
 extern crate itertools;
@@ -10,12 +11,16 @@ extern crate num;
 extern crate packer;
 extern crate rand;
 extern crate snapshot;
-extern crate socket;
 extern crate tempfile;
 extern crate warn;
 
 use arrayvec::ArrayVec;
 use common::pretty;
+use event_loop::Addr;
+use event_loop::Application;
+use event_loop::Loop;
+use event_loop::SocketLoop;
+use event_loop::Timeout;
 use gamenet::SnapObj;
 use gamenet::VERSION;
 use gamenet::enums;
@@ -40,8 +45,7 @@ use gamenet::snap_obj::obj_size;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use net::Net;
-use net::net::Callback;
+use net::Timestamp;
 use net::net::Chunk;
 use net::net::ChunkAddr;
 use net::net::ChunkOrEvent;
@@ -53,9 +57,8 @@ use packer::Unpacker;
 use packer::with_packer;
 use snapshot::Snap;
 use snapshot::format::Item as SnapItem;
-use socket::Addr;
-use socket::Socket;
 use std::borrow::Cow;
+use std::cmp;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
@@ -72,8 +75,6 @@ use std::u32;
 use tempfile::NamedTempFile;
 use tempfile::NamedTempFileOptions;
 use warn::Log;
-
-const NETWORK_LOSS_RATE: f32 = 0.0;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -121,7 +122,7 @@ struct Peer {
     dummy_map: bool,
     state: PeerState,
     download: Option<Download>,
-    progress_timeout: Duration,
+    progress_timeout: Timestamp,
 }
 
 fn need_file(crc: i32, name: &str) -> bool {
@@ -132,7 +133,7 @@ fn need_file(crc: i32, name: &str) -> bool {
 }
 
 impl Peer {
-    fn new(socket: &mut Socket) -> Peer {
+    fn new<L: Loop>(loop_: &mut L) -> Peer {
         let mut result = Peer {
             visited_votes: HashSet::new(),
             current_votes: HashSet::new(),
@@ -145,24 +146,48 @@ impl Peer {
             dummy_map: false,
             state: PeerState::Connection,
             download: None,
-            progress_timeout: Duration::new(0, 0),
+            progress_timeout: Timestamp::from_secs_since_epoch(0),
         };
-        result.progress(socket);
+        result.progress(loop_);
         result
     }
-    fn vote(&mut self, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) -> bool {
-        fn send_vote(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-            sendg(ClCallVote {
+    fn needs_tick(&self) -> Timeout {
+        cmp::min(Timeout::active(self.progress_timeout), self.state.needs_tick())
+    }
+    fn tick<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) -> bool {
+        // TODO: What happens with peers that are already disconnected?
+        let vote;
+        match self.state {
+            PeerState::VoteSet(timeout) => vote = loop_.time() >= timeout,
+            PeerState::VoteResult(timeout) => vote = loop_.time() >= timeout,
+            _ => vote = false,
+        }
+        if vote {
+            if self.vote(pid, loop_) {
+                info!("voting done");
+                return true;
+            }
+            loop_.flush(pid);
+        }
+        if self.has_timed_out(loop_) {
+            error!("timed out due to lack of progress");
+            return true;
+        }
+        false
+    }
+    fn vote<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) -> bool {
+        fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, loop_: &mut L) {
+            loop_.sendg(pid, ClCallVote {
                 type_: game::CL_CALL_VOTE_TYPE_OPTION,
                 value: vote,
                 reason: b"downloader",
-            }, pid, net, socket);
+            });
             visited_votes.insert(vote.to_owned());
         }
         // TODO: This probably has bad performance:
         self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
         if let Some(ref vote) = self.previous_vote {
-            send_vote(&mut self.visited_votes, vote, pid, net, socket);
+            send_vote(&mut self.visited_votes, vote, pid, loop_);
             info!("voting for {}", pretty::AlmostString::new(vote));
         } else {
             self.previous_vote = None;
@@ -180,20 +205,20 @@ impl Peer {
             if let Some(vote) = self.previous_vote.as_ref() {
                 self.previous_list_vote = Some(vote.to_owned());
                 info!("list-voting for {}", pretty::AlmostString::new(vote));
-                send_vote(&mut self.visited_votes, &vote, pid, net, socket);
+                send_vote(&mut self.visited_votes, &vote, pid, loop_);
             } else {
                 return true;
             }
         }
-        self.state = PeerState::VoteSet(socket.time() + Duration::from_secs(5));
-        self.progress(socket);
+        self.state = PeerState::VoteSet(loop_.time() + Duration::from_secs(5));
+        self.progress(loop_);
         false
     }
-    fn has_timed_out(&self, socket: &mut Socket) -> bool {
-        socket.time() >= self.progress_timeout
+    fn has_timed_out<L: Loop>(&self, loop_: &mut L) -> bool {
+        loop_.time() >= self.progress_timeout
     }
-    fn progress(&mut self, socket: &mut Socket) {
-        self.progress_timeout = socket.time() + Duration::from_secs(120);
+    fn progress<L: Loop>(&mut self, loop_: &mut L) {
+        self.progress_timeout = loop_.time() + Duration::from_secs(120);
     }
     fn open_file(&mut self, crc: i32, name: String) -> Result<(), io::Error> {
         self.download = Some(Download {
@@ -228,10 +253,19 @@ enum PeerState {
     ConReady,
     ReadyToEnter,
     // VoteSet(timeout)
-    VoteSet(Duration),
+    VoteSet(Timestamp),
     VoteEnd,
     // VoteResult(timeout)
-    VoteResult(Duration),
+    VoteResult(Timestamp),
+}
+
+impl PeerState {
+    fn needs_tick(&self) -> Timeout {
+        match *self {
+            PeerState::VoteSet(to) | PeerState::VoteResult(to) => Timeout::active(to),
+            _ => Timeout::inactive(),
+        }
+    }
 }
 
 struct Peers {
@@ -262,28 +296,31 @@ impl ops::IndexMut<PeerId> for Peers {
     }
 }
 
-fn send<'a, S: Into<System<'a>>>(msg: S, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-    fn inner(msg: System, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-        let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
-        with_packer(&mut buf, |p| msg.encode(p).unwrap());
-        net.send(socket, Chunk {
-            data: &buf,
-            addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-        }).unwrap();
+trait LoopExt: Loop {
+    fn sends<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
+        fn inner<L: Loop+?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
+            let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+            with_packer(&mut buf, |p| msg.encode(p).unwrap());
+            loop_.send(Chunk {
+                data: &buf,
+                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+            })
+        }
+        inner(msg.into(), pid, self)
     }
-    inner(msg.into(), pid, net, socket)
-}
-fn sendg<'a, G: Into<Game<'a>>>(msg: G, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-    fn inner(msg: Game, pid: PeerId, net: &mut Net<Addr>, socket: &mut Socket) {
-        let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
-        with_packer(&mut buf, |p| msg.encode(p).unwrap());
-        net.send(socket, Chunk {
-            data: &buf,
-            addr: ChunkAddr::Peer(pid, ChunkType::Vital),
-        }).unwrap();
+    fn sendg<'a, G: Into<Game<'a>>>(&mut self, pid: PeerId, msg: G) {
+        fn inner<L: Loop+?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
+            let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+            with_packer(&mut buf, |p| msg.encode(p).unwrap());
+            loop_.send(Chunk {
+                data: &buf,
+                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+            })
+        }
+        inner(msg.into(), pid, self)
     }
-    inner(msg.into(), pid, net, socket)
 }
+impl<L: Loop> LoopExt for L { }
 
 fn num_players(snap: &Snap) -> u32 {
     let mut num_players = 0;
@@ -298,55 +335,70 @@ fn num_players(snap: &Snap) -> u32 {
 }
 
 struct Main {
-    socket: Socket,
     peers: Peers,
-    net: Net<Addr>,
-    version_msg: ArrayVec<[u8; 32]>,
+}
+
+struct MainLoop<'a, L: Loop+'a> {
+    peers: &'a mut Peers,
+    loop_: &'a mut L,
+}
+
+impl<L: Loop> Application<L> for Main {
+    fn needs_tick(&mut self) -> Timeout {
+        self.peers.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
+    }
+    fn on_tick(&mut self, loop_: &mut L) {
+        let mut remove = vec![];
+        for (&pid, peer) in self.peers.peers.iter_mut() {
+            if peer.tick(pid, loop_) {
+                loop_.disconnect(pid, b"downloader");
+                remove.push(pid);
+            }
+        }
+        for pid in remove {
+            self.peers.peers.remove(&pid).unwrap();
+        }
+    }
+    fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
+        let disconnect = {
+            let mut main = MainLoop {
+                peers: &mut self.peers,
+                loop_: loop_,
+            };
+            main.process_event(event)
+        };
+        if disconnect {
+            let pid = match event {
+                ChunkOrEvent::Chunk(Chunk {
+                    addr: ChunkAddr::Peer(pid, _), ..
+                }) => pid,
+                ChunkOrEvent::Connect(pid) => pid,
+                ChunkOrEvent::Disconnect(pid, _) => pid,
+                ChunkOrEvent::Ready(pid) => pid,
+                _ => unreachable!(),
+            };
+            loop_.disconnect(pid, b"downloader");
+            self.peers.peers.remove(&pid).unwrap();
+        }
+    }
 }
 
 impl Main {
-    fn init(addresses: &[Addr]) -> Main {
-        let mut version_msg = ArrayVec::new();
-        with_packer(&mut version_msg, |p| System::Info(Info {
-            version: VERSION,
-            password: Some(b""),
-        }).encode(p).unwrap());
+    fn run<L: Loop>(addresses: &[Addr]) {
         let mut main = Main {
-            socket: Socket::with_loss_rate(NETWORK_LOSS_RATE).unwrap(),
             peers: Peers::with_capacity(addresses.len()),
-            net: Net::client(),
-            version_msg: version_msg,
         };
+        let mut loop_ = L::client();
         for &addr in addresses {
-            let (pid, err) = main.net.connect(&mut main.socket, addr);
-            err.unwrap();
-            main.peers.insert(pid, Peer::new(&mut main.socket));
+            let pid = loop_.connect(addr);
+            main.peers.insert(pid, Peer::new(&mut loop_));
         }
         fs::create_dir_all("maps").unwrap();
         fs::create_dir_all("downloading").unwrap();
-        main
+        loop_.run(main);
     }
-    fn tick_peer(&mut self, pid: PeerId) -> bool {
-        let peer = &mut self.peers[pid];
-        let vote;
-        match peer.state {
-            PeerState::VoteSet(timeout) => vote = self.socket.time() >= timeout,
-            PeerState::VoteResult(timeout) => vote = self.socket.time() >= timeout,
-            _ => vote = false,
-        }
-        if vote {
-            if peer.vote(pid, &mut self.net, &mut self.socket) {
-                info!("voting done");
-                return true;
-            }
-            self.net.flush(&mut self.socket, pid).unwrap();
-        }
-        if peer.has_timed_out(&mut self.socket) {
-            error!("timed out due to lack of progress");
-            return true;
-        }
-        false
-    }
+}
+impl<'a, L: Loop> MainLoop<'a, L> {
     fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
         let _ = vital;
         let msg;
@@ -421,13 +473,11 @@ impl Main {
                             }
                             if start_download {
                                 info!("download starting");
-                                send(RequestMapData {
-                                    chunk: 0,
-                                }, pid, &mut self.net, &mut self.socket);
+                                self.loop_.sends(pid, RequestMapData { chunk: 0, });
                                 peer.state = PeerState::MapData(crc, 0);
                             } else {
                                 peer.state = PeerState::ConReady;
-                                send(Ready, pid, &mut self.net, &mut self.socket);
+                                self.loop_.sends(pid, Ready);
                             }
                             progress = true;
                         } else {
@@ -463,11 +513,11 @@ impl Main {
                         }
                         if check_num_snaps && peer.num_snaps_since_reset % 25 == 3 {
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
-                            send(Input {
+                            self.loop_.sends(pid, Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,
                                 input: system::INPUT_DATA_EMPTY,
-                            }, pid, &mut self.net, &mut self.socket);
+                            });
                         }
                         ignored = true;
                     },
@@ -519,14 +569,12 @@ impl Main {
                                     }
                                 }
                                 peer.state = PeerState::ConReady;
-                                send(Ready, pid, &mut self.net, &mut self.socket);
+                                self.loop_.sends(pid, Ready);
                                 info!("download finished");
                             } else {
                                 let cur_chunk = cur_chunk.checked_add(1).unwrap();
                                 peer.state = PeerState::MapData(cur_crc, cur_chunk);
-                                send(RequestMapData {
-                                    chunk: cur_chunk,
-                                }, pid, &mut self.net, &mut self.socket);
+                                self.loop_.sends(pid, RequestMapData { chunk: cur_chunk });
                             }
                         } else {
                             if cur_crc != crc || cur_chunk < chunk {
@@ -541,7 +589,7 @@ impl Main {
                 PeerState::ConReady => match msg {
                     SystemOrGame::System(System::ConReady(..)) => {
                         progress = true;
-                        sendg(ClStartInfo {
+                        self.loop_.sendg(pid, ClStartInfo {
                             name: b"downloader",
                             clan: b"",
                             country: -1,
@@ -549,7 +597,7 @@ impl Main {
                             use_custom_color: false,
                             color_body: 0,
                             color_feet: 0,
-                        }, pid, &mut self.net, &mut self.socket);
+                        });
                         peer.state = PeerState::ReadyToEnter;
                     }
                     _ => {},
@@ -557,12 +605,10 @@ impl Main {
                 PeerState::ReadyToEnter => match msg {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
                         progress = true;
-                        send(EnterGame, pid, &mut self.net, &mut self.socket);
-                        sendg(ClSetTeam {
-                            team: enums::TEAM_RED,
-                        }, pid, &mut self.net, &mut self.socket);
-                        if peer.vote(pid, &mut self.net, &mut self.socket) {
-                            peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
+                        self.loop_.sends(pid, EnterGame);
+                        self.loop_.sendg(pid, ClSetTeam { team: enums::TEAM_RED });
+                        if peer.vote(pid, self.loop_) {
+                            peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
                     }
                     _ => {},
@@ -574,7 +620,7 @@ impl Main {
                                 if message.contains("Wait") || message.contains("wait") {
                                     progress = true;
                                     peer.visited_votes.remove(peer.previous_vote.as_ref().unwrap());
-                                    peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(5));
+                                    peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(5));
                                 }
                             }
                         }
@@ -591,7 +637,7 @@ impl Main {
                     SystemOrGame::Game(Game::SvVoteSet(vote_set)) => {
                         if vote_set.timeout == 0 {
                             progress = true;
-                            peer.state = PeerState::VoteResult(self.socket.time() + Duration::from_secs(3));
+                            peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
                     },
                     SystemOrGame::Game(Game::SvVoteClearOptions(..))
@@ -610,25 +656,24 @@ impl Main {
                 PeerState::VoteResult(..) => {},
             }
             if progress {
-                peer.progress(&mut self.socket);
+                peer.progress(self.loop_);
             }
         }
         if !progress && !ignored {
             warn!("unprocessed message {:?}", msg);
         }
-        self.net.flush(&mut self.socket, pid).unwrap();
+        self.loop_.flush(pid);
         false
     }
     fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) -> bool {
         match chunk {
             ChunkOrEvent::Ready(pid) => {
-                let p = &mut self.peers[pid];
-                p.state = PeerState::MapChange;
-                self.net.send(&mut self.socket, Chunk {
-                    data: &self.version_msg,
-                    addr: ChunkAddr::Peer(pid, ChunkType::Vital)
-                }).unwrap();
-                self.net.flush(&mut self.socket, pid).unwrap();
+                self.peers[pid].state = PeerState::MapChange;
+                self.loop_.sends(pid, Info {
+                    version: VERSION,
+                    password: Some(b""),
+                });
+                self.loop_.flush(pid);
                 false
             }
             ChunkOrEvent::Chunk(Chunk {
@@ -649,50 +694,11 @@ impl Main {
             ChunkOrEvent::Connect(..) => unreachable!(),
         }
     }
-    fn run(&mut self) {
-        let mut buf1: ArrayVec<[u8; 4096]> = ArrayVec::new();
-        let mut buf2: ArrayVec<[u8; 4096]> = ArrayVec::new();
-        let mut temp_peer_ids = vec![];
-        while self.net.needs_tick() {
-            self.net.tick(&mut self.socket).foreach(|e| panic!("{:?}", e));
-            self.socket.sleep(Some(Duration::from_millis(50))).unwrap();
-
-            temp_peer_ids.clear();
-            temp_peer_ids.extend(self.peers.peers.keys().cloned());
-            for &pid in &temp_peer_ids {
-                if self.tick_peer(pid) {
-                    self.net.disconnect(&mut self.socket, pid, b"downloader").unwrap();
-                }
-            }
-
-            while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
-                let (addr, data) = res.unwrap();
-                buf2.clear();
-                let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(data), addr, data, &mut buf2);
-                res.unwrap();
-                for chunk in iter {
-                    if self.process_event(chunk) {
-                        let pid = match chunk {
-                            ChunkOrEvent::Chunk(Chunk {
-                                addr: ChunkAddr::Peer(pid, _), ..
-                            }) => pid,
-                            ChunkOrEvent::Connect(pid) => pid,
-                            ChunkOrEvent::Disconnect(pid, _) => pid,
-                            ChunkOrEvent::Ready(pid) => pid,
-                            _ => unreachable!(),
-                        };
-                        self.net.disconnect(&mut self.socket, pid, b"downloader").unwrap();
-                        break;
-                    }
-                }
-            }
-        }
-    }
 }
 
 fn main() {
     logger::init();
     let args = env::args().dropping(1);
     let addresses = parse_connections(args).expect("invalid addresses");
-    Main::init(&addresses).run();
+    Main::run::<SocketLoop>(&addresses);
 }

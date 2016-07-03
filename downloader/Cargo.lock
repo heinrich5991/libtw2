@@ -4,6 +4,7 @@ version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
+ "event_loop 0.0.1",
  "gamenet 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -14,7 +15,6 @@ dependencies = [
  "packer 0.0.1",
  "rand 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "snapshot 0.0.1",
- "socket 0.0.1",
  "tempfile 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -89,6 +89,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.71 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "event_loop"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger 0.0.1",
+ "net 0.0.1",
+ "socket 0.0.1",
+ "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -224,6 +238,7 @@ dependencies = [
  "linear-map 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "optional 0.0.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -269,6 +284,11 @@ dependencies = [
 [[package]]
 name = "odds"
 version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "optional"
+version = "0.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]

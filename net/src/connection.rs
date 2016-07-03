@@ -1,3 +1,5 @@
+use Timeout;
+use Timestamp;
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
@@ -24,7 +26,7 @@ use warn::Warn;
 pub trait Callback {
     type Error;
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
-    fn time(&mut self) -> Duration;
+    fn time(&mut self) -> Timestamp;
 }
 
 #[derive(Debug)]
@@ -55,30 +57,23 @@ pub enum Warning {
     Unexpected,
 }
 
-#[derive(Clone, Debug)]
-struct Timeout {
-    timeout: Option<Duration>,
+trait TimeoutExt {
+    fn set<CB: Callback>(&mut self, cb: &mut CB, value: Duration);
+    fn has_triggered_level<CB: Callback>(&self, cb: &mut CB) -> bool;
+    fn has_triggered_edge<CB: Callback>(&mut self, cb: &mut CB) -> bool;
 }
 
-impl Timeout {
-    fn new() -> Timeout {
-        Timeout {
-            timeout: None,
-        }
-    }
+impl TimeoutExt for Timeout {
     fn set<CB: Callback>(&mut self, cb: &mut CB, value: Duration) {
-        self.timeout = Some(cb.time() + value);
-    }
-    fn is_active(&self) -> bool {
-        self.timeout.is_some()
+        *self = Timeout::active(cb.time() + value);
     }
     fn has_triggered_level<CB: Callback>(&self, cb: &mut CB) -> bool {
-        self.timeout.map(|time| time <= cb.time()).unwrap_or(false)
+        self.to_opt().map(|time| time <= cb.time()).unwrap_or(false)
     }
     fn has_triggered_edge<CB: Callback>(&mut self, cb: &mut CB) -> bool {
         let triggered = self.has_triggered_level(cb);
         if triggered {
-            self.timeout = None;
+            *self = Timeout::inactive();
         }
         triggered
     }
@@ -118,7 +113,7 @@ struct ResendChunk {
 impl ResendChunk {
     fn new<CB: Callback>(cb: &mut CB, sequence: Sequence, data: &[u8]) -> ResendChunk {
         let mut result = ResendChunk {
-            next_send: Timeout::new(),
+            next_send: Timeout::inactive(),
             sequence: sequence,
             data: data.iter().cloned().collect(),
         };
@@ -441,7 +436,7 @@ impl Connection {
     pub fn new() -> Connection {
         Connection {
             state: State::Unconnected,
-            send: Timeout::new(),
+            send: Timeout::inactive(),
             builder: PacketBuilder::new(),
         }
     }
@@ -452,16 +447,17 @@ impl Connection {
     pub fn is_unconnected(&self) -> bool {
         matches!(self.state, State::Unconnected)
     }
-    pub fn needs_tick(&self) -> bool {
+    pub fn needs_tick(&self) -> Timeout {
         match self.state {
-            State::Unconnected | State::Disconnected => return false,
+            State::Unconnected | State::Disconnected => return Timeout::inactive(),
             _ => {},
         }
         let resends = match self.state {
-            State::Online(ref online) => !online.resend_queue.is_empty(),
-            _ => false,
+            State::Online(ref online) =>
+                online.resend_queue.back().map(|r| r.next_send).unwrap_or_default(),
+            _ => Timeout::inactive(),
         };
-        self.send.is_active() || resends
+        cmp::min(self.send, resends)
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         assert_matches!(self.state, State::Unconnected);
@@ -564,9 +560,6 @@ impl Connection {
     pub fn tick<CB: Callback>(&mut self, cb: &mut CB)
         -> Result<(), CB::Error>
     {
-        if !self.needs_tick() {
-            return Ok(());
-        }
         let do_resend = match self.state {
             State::Online(ref online) => {
                 // WARN?
@@ -585,19 +578,20 @@ impl Connection {
         }
     }
     fn tick_action<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        self.send.set(cb, Duration::from_millis(500));
         let control = match self.state {
             State::Connecting => ControlPacket::Connect,
             State::Pending => ControlPacket::ConnectAccept,
             State::Online(ref mut online) => {
                 if online.can_send() {
                     // TODO: Warn if this happens on reliable networks.
+                    self.send.set(cb, Duration::from_millis(500));
                     return online.flush(cb, &mut self.builder);
                 }
                 ControlPacket::KeepAlive
             },
             _ => return Ok(()),
         };
+        self.send.set(cb, Duration::from_millis(500));
         self.send_control(cb, control)
     }
     /// Notifies the connection of incoming data.
@@ -696,11 +690,11 @@ impl Connection {
 
 #[cfg(test)]
 mod test {
+    use Timestamp;
     use hexdump::hexdump;
     use itertools::Itertools;
     use protocol;
     use std::collections::VecDeque;
-    use std::time::Duration;
     use super::Callback;
     use super::Connection;
     use super::ReceiveChunk;
@@ -740,8 +734,8 @@ mod test {
                 self.0.push_back(data.to_owned());
                 Ok(())
             }
-            fn time(&mut self) -> Duration {
-                Duration::from_millis(0)
+            fn time(&mut self) -> Timestamp {
+                Timestamp::from_secs_since_epoch(0)
             }
         }
         let mut buffer = [0; protocol::MAX_PAYLOAD];

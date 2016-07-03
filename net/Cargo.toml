@@ -12,6 +12,7 @@ huffman = { path = "../huffman/" }
 linear-map = "1.0.0"
 matches = "0.1.2"
 num = "0.1.27"
+optional = "0.0.12"
 void = ">=0.0.4,<2.0.0"
 warn = ">=0.1.1,<0.3.0"
 

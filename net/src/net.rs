@@ -1,8 +1,10 @@
+use Connection;
+use Timeout;
+use Timestamp;
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
-use connection::Connection;
 use connection::ReceiveChunk;
 use connection;
 use linear_map::LinearMap;
@@ -15,7 +17,6 @@ use protocol;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
-use std::time::Duration;
 use warn::Panic;
 use warn::Warn;
 
@@ -24,7 +25,7 @@ pub use connection::Error;
 pub trait Callback<A: Address> {
     type Error;
     fn send(&mut self, addr: A, data: &[u8]) -> Result<(), Self::Error>;
-    fn time(&mut self) -> Duration;
+    fn time(&mut self) -> Timestamp;
 }
 
 #[derive(Debug)]
@@ -72,6 +73,7 @@ impl<A: Address> Peer<A> {
     }
 }
 
+// TODO: Different data structure, HashMap?
 struct Peers<A: Address> {
     peers: LinearMap<PeerId, Peer<A>>,
     next_peer_id: PeerId,
@@ -343,7 +345,7 @@ impl<'a, A: Address, CB: Callback<A>> connection::Callback for ConnectionCallbac
     fn send(&mut self, data: &[u8]) -> Result<(), CB::Error> {
         self.cb.send(self.addr, data)
     }
-    fn time(&mut self) -> Duration {
+    fn time(&mut self) -> Timestamp {
         self.cb.time()
     }
 }
@@ -362,8 +364,8 @@ impl<A: Address> Net<A> {
     pub fn client() -> Net<A> {
         Net::new(false)
     }
-    pub fn needs_tick(&self) -> bool {
-        self.peers.iter().any(|(_, p)| p.conn.needs_tick())
+    pub fn needs_tick(&self) -> Timeout {
+        self.peers.iter().map(|(_, p)| p.conn.needs_tick()).min().unwrap_or_default()
     }
     pub fn connect<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A)
         -> (PeerId, Result<(), CB::Error>)
@@ -374,8 +376,13 @@ impl<A: Address> Net<A> {
     pub fn disconnect<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId, reason: &[u8])
         -> Result<(), CB::Error>
     {
-        let peer = &mut self.peers[pid];
-        peer.conn.disconnect(&mut cc(cb, peer.addr), reason)
+        let result;
+        {
+            let peer = &mut self.peers[pid];
+            result = peer.conn.disconnect(&mut cc(cb, peer.addr), reason);
+        }
+        self.peers.remove_peer(pid);
+        result
     }
     pub fn send_connless<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, data: &[u8])
         -> Result<(), Error<CB::Error>>
@@ -431,9 +438,6 @@ impl<A: Address> Net<A> {
             iter_mut: self.peers.iter_mut(),
             cb: cb,
         }
-    }
-    pub fn peer_addr(&self, pid: PeerId) -> Option<A> {
-        self.peers.get(pid).map(|p| p.addr)
     }
     pub fn feed<'a, CB, B, W>(&mut self, cb: &mut CB, warn: &mut W, addr: A, data: &'a [u8], buf: B)
         -> (ReceivePacket<'a, A>, Result<(), CB::Error>)
@@ -500,10 +504,10 @@ impl<'a, A: Address+'a, CB: Callback<A>+'a> Iterator for Tick<'a, A, CB> {
 
 #[cfg(test)]
 mod test {
+    use Timestamp;
     use itertools::Itertools;
     use protocol;
     use std::collections::VecDeque;
-    use std::time::Duration;
     use super::Callback;
     use super::ChunkOrEvent;
     use super::Net;
@@ -537,8 +541,8 @@ mod test {
                 self.packets.push_back(data.to_owned());
                 Ok(())
             }
-            fn time(&mut self) -> Duration {
-                Duration::from_millis(0)
+            fn time(&mut self) -> Timestamp {
+                Timestamp::from_secs_since_epoch(0)
             }
         }
         let mut cb = Cb::new();
