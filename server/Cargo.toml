@@ -5,6 +5,7 @@ version = "0.0.1"
 
 [dependencies]
 arrayvec = "0.3.12"
+common = { path = "../common/" }
 event_loop = { path = "../event_loop/" }
 gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"

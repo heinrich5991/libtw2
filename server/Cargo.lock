@@ -3,6 +3,7 @@ name = "server"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
  "event_loop 0.0.1",
  "gamenet 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

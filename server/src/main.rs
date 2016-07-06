@@ -1,4 +1,5 @@
 extern crate arrayvec;
+extern crate common;
 extern crate event_loop;
 extern crate gamenet;
 extern crate hexdump;
@@ -10,15 +11,19 @@ extern crate packer;
 extern crate socket;
 extern crate warn;
 
+use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
+use common::pretty::AlmostString;
 use event_loop::Addr;
 use event_loop::Application;
 use event_loop::Loop;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use gamenet::VERSION;
+use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
+use gamenet::msg::game;
 use gamenet::msg::system;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
@@ -31,6 +36,7 @@ use net::net::PeerId;
 use packer::Unpacker;
 use packer::with_packer;
 use std::fmt;
+use std::fmt::Write;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -51,6 +57,17 @@ impl<'a, W: fmt::Debug> warn::Warn<W> for Warn<'a> {
 trait LoopExt: Loop {
     fn sends<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
         fn inner<L: Loop+?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
+            let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+            with_packer(&mut buf, |p| msg.encode(p).unwrap());
+            loop_.send(Chunk {
+                data: &buf,
+                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
+            })
+        }
+        inner(msg.into(), pid, self)
+    }
+    fn sendg<'a, G: Into<Game<'a>>>(&mut self, pid: PeerId, msg: G) {
+        fn inner<L: Loop+?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
@@ -97,6 +114,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             warn!("non-vital message {:?}", msg);
             return;
         }
+        let mut processed = false;
         match msg {
             SystemOrGame::System(System::Info(info)) => {
                 if info.version == VERSION {
@@ -106,14 +124,59 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                             crc: 0xf2159e6e_u32 as i32,
                             size: 5805,
                         });
+                        self.loop_.flush(pid);
                     } else {
                         self.loop_.disconnect(pid, b"Wrong password");
                     }
                 } else {
-                    unimplemented!();
+                    let mut buf: ArrayString<[u8; 128]> = ArrayString::new();
+                    write!(
+                        &mut buf,
+                        "Wrong version. Server is running '{}' and client '{}'",
+                        AlmostString::new(VERSION),
+                        AlmostString::new(info.version),
+                    ).unwrap_or_else(|_| {
+                        buf.clear();
+                        write!(
+                            &mut buf,
+                            "Wrong version. Server is running '{}' and client version is too long",
+                            AlmostString::new(VERSION)
+                        )
+                    }.unwrap());
+                    self.loop_.disconnect(pid, buf.as_bytes());
                 }
+                processed = true;
+            }
+            SystemOrGame::System(System::Ready(system::Ready)) => {
+                self.loop_.sendg(pid, game::SvMotd {
+                    message: b"Hello World!",
+                });
+                self.loop_.sends(pid, system::ConReady);
+                self.loop_.flush(pid);
+                processed = true;
+            }
+            SystemOrGame::Game(Game::ClStartInfo(info)) => {
+                info!("{:?}:{} enters the game", pid, AlmostString::new(info.name));
+                self.loop_.sendg(pid, game::SvVoteClearOptions);
+                self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
+                self.loop_.sendg(pid, game::SvReadyToEnter);
+                self.loop_.flush(pid);
+                processed = true;
+            }
+            SystemOrGame::System(System::EnterGame(system::EnterGame)) => {
+                for i in 0..3 {
+                    self.loop_.sends(pid, system::SnapEmpty {
+                        tick: i,
+                        delta_tick: i - (-1),
+                    });
+                }
+                self.loop_.flush(pid);
+                processed = true;
             }
             _ => {},
+        }
+        if !processed {
+            warn!("unprocessed message {:?}", msg);
         }
     }
     fn process_event(&mut self, event: ChunkOrEvent<Addr>) {
@@ -125,7 +188,6 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 Chunk { addr: ChunkAddr::Peer(_, ChunkType::Connless), .. } => {},
                 Chunk { addr: ChunkAddr::Peer(pid, type_), data } => {
                     self.process_client_packet(pid, type_ == ChunkType::Vital, data);
-                    self.loop_.flush(pid);
                 }
                 _ => {},
             },

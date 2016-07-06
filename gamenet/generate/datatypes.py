@@ -124,6 +124,42 @@ impl<'a> Game<'a> {
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
+
+pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
+    ground_control_speed: 1000,
+    ground_control_accel: 200,
+    ground_friction: 50,
+    ground_jump_impulse: 1320,
+    air_jump_impulse: 1200,
+    air_control_speed: 500,
+    air_control_accel: 150,
+    air_friction: 95,
+    hook_length: 38000,
+    hook_fire_speed: 8000,
+    hook_drag_accel: 300,
+    hook_drag_speed: 1500,
+    gravity: 50,
+    velramp_start: 55000,
+    velramp_range: 200000,
+    velramp_curvature: 140,
+    gun_curvature: 125,
+    gun_speed: 220000,
+    gun_lifetime: 200,
+    shotgun_curvature: 125,
+    shotgun_speed: 275000,
+    shotgun_speeddiff: 80,
+    shotgun_lifetime: 20,
+    grenade_curvature: 700,
+    grenade_speed: 100000,
+    grenade_lifetime: 200,
+    laser_reach: 80000,
+    laser_bounce_delay: 15000,
+    laser_bounce_num: 100,
+    laser_bounce_cost: 0,
+    laser_damage: 500,
+    player_collision: 100,
+    player_hooking: 100,
+};
 """)
 
 def emit_enum_from(name, structs):
