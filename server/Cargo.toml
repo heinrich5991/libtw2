@@ -12,6 +12,7 @@ hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
+matches = "0.1.2"
 net = { path = "../net/" }
 num = "0.1.27"
 packer = { path = "../packer/" }

@@ -6,6 +6,7 @@ extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
 extern crate logger;
+#[macro_use] extern crate matches;
 extern crate net;
 extern crate num;
 extern crate packer;
@@ -33,9 +34,8 @@ use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use net::net::Chunk;
-use net::net::ChunkAddr;
 use net::net::ChunkOrEvent;
-use net::net::ChunkType;
+use net::net::ConnlessChunk;
 use net::net::PeerId;
 use num::ToPrimitive;
 use packer::Unpacker;
@@ -64,8 +64,9 @@ trait LoopExt: Loop {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
+                pid: pid,
+                vital: true,
                 data: &buf,
-                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
             })
         }
         inner(msg.into(), pid, self)
@@ -75,8 +76,9 @@ trait LoopExt: Loop {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
+                pid: pid,
+                vital: true,
                 data: &buf,
-                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
             })
         }
         inner(msg.into(), pid, self)
@@ -85,10 +87,7 @@ trait LoopExt: Loop {
         fn inner<L: Loop+?Sized>(msg: Connless, addr: Addr, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
-            loop_.send(Chunk {
-                data: &buf,
-                addr: ChunkAddr::NonPeerConnless(addr),
-            })
+            loop_.send_connless(addr, &buf)
         }
         inner(msg.into(), addr, self)
     }
@@ -125,10 +124,11 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 return;
             }
         };
-        if !vital {
+        if !vital && !matches!(msg, SystemOrGame::System(System::Input(..))) {
             warn!("non-vital message {:?}", msg);
             return;
         }
+        let mut ignored = false;
         let mut processed = false;
         match msg {
             SystemOrGame::System(System::Info(info)) => {
@@ -188,9 +188,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 self.loop_.flush(pid);
                 processed = true;
             }
+            SystemOrGame::System(System::Input(..)) => {
+                ignored = true;
+            }
             _ => {},
         }
-        if !processed {
+        if !processed && !ignored {
             warn!("unprocessed message {:?}", msg);
         }
     }
@@ -232,15 +235,11 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             ChunkOrEvent::Connect(pid) => {
                 self.loop_.accept(pid);
             },
-            ChunkOrEvent::Chunk(chunk) => match chunk {
-                Chunk { addr: ChunkAddr::Peer(_, ChunkType::Connless), .. }
-                    => unimplemented!(),
-                Chunk { addr: ChunkAddr::Peer(pid, type_), data } => {
-                    self.process_client_packet(pid, type_ == ChunkType::Vital, data);
-                },
-                Chunk { addr: ChunkAddr::NonPeerConnless(addr), data } => {
-                    self.process_connless_packet(addr, data);
-                },
+            ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
+                self.process_client_packet(pid, vital, data);
+            },
+            ChunkOrEvent::Connless(ConnlessChunk { addr, data, .. }) => {
+                self.process_connless_packet(addr, data);
             },
             _ => {},
         }

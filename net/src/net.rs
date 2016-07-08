@@ -140,29 +140,25 @@ impl<A: Address> ops::IndexMut<PeerId> for Peers<A> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChunkOrEvent<'a, A: Address> {
-    Chunk(Chunk<'a, A>),
+    Chunk(Chunk<'a>),
+    Connless(ConnlessChunk<'a, A>),
     Connect(PeerId),
     Ready(PeerId),
     Disconnect(PeerId, &'a [u8]),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ChunkType {
-    Connless,
-    Connected,
-    Vital,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Chunk<'a, A: Address> {
+pub struct Chunk<'a> {
+    pub pid: PeerId,
+    pub vital: bool,
     pub data: &'a [u8],
-    pub addr: ChunkAddr<A>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ChunkAddr<A: Address> {
-    NonPeerConnless(A),
-    Peer(PeerId, ChunkType),
+pub struct ConnlessChunk<'a, A: Address> {
+    pub addr: A,
+    pub pid: Option<PeerId>,
+    pub data: &'a [u8],
 }
 
 struct ConnlessBuilder {
@@ -202,28 +198,27 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
         match self.type_ {
             ReceivePacketType::None => None,
             Connect(ref mut once) => once.next().map(|pid| ChunkOrEvent::Connect(pid)),
-            Connected(pid, ref mut receive_packet) => receive_packet.next().map(|chunk| {
+            Connected(addr, pid, ref mut receive_packet) => receive_packet.next().map(|chunk| {
                 match chunk {
-                    ReceiveChunk::Connless(d) => ChunkOrEvent::Chunk(Chunk {
+                    ReceiveChunk::Connless(d) => ChunkOrEvent::Connless(ConnlessChunk {
+                        addr: addr,
+                        pid: Some(pid),
                         data: d,
-                        addr: ChunkAddr::Peer(pid, ChunkType::Connless),
                     }),
                     ReceiveChunk::Connected(d, vital) => ChunkOrEvent::Chunk(Chunk {
+                        pid: pid,
+                        vital: vital,
                         data: d,
-                        addr: ChunkAddr::Peer(pid, if vital {
-                            ChunkType::Vital
-                        } else {
-                            ChunkType::Connected
-                        }),
                     }),
                     ReceiveChunk::Ready => ChunkOrEvent::Ready(pid),
                     ReceiveChunk::Disconnect(r) => ChunkOrEvent::Disconnect(pid, r),
                 }
             }),
             Connless(addr, ref mut once) => once.next().map(|data| {
-                ChunkOrEvent::Chunk(Chunk {
+                ChunkOrEvent::Connless(ConnlessChunk {
+                    addr: addr,
+                    pid: None,
                     data: data,
-                    addr: ChunkAddr::NonPeerConnless(addr),
                 })
             }),
         }
@@ -247,7 +242,7 @@ impl<'a, A: Address> ReceivePacket<'a, A> {
             type_: ReceivePacketType::Connect(iter::once(pid)),
         }
     }
-    fn connected(pid: PeerId, receive_packet: connection::ReceivePacket<'a>, net: &mut Net<A>)
+    fn connected(addr: A, pid: PeerId, receive_packet: connection::ReceivePacket<'a>, net: &mut Net<A>)
         -> ReceivePacket<'a, A>
     {
         for chunk in receive_packet.clone() {
@@ -256,7 +251,7 @@ impl<'a, A: Address> ReceivePacket<'a, A> {
             }
         }
         ReceivePacket {
-            type_: ReceivePacketType::Connected(pid, receive_packet),
+            type_: ReceivePacketType::Connected(addr, pid, receive_packet),
         }
     }
 
@@ -271,7 +266,7 @@ impl<'a, A: Address> ReceivePacket<'a, A> {
 enum ReceivePacketType<'a, A: Address> {
     None,
     Connect(iter::Once<PeerId>),
-    Connected(PeerId, connection::ReceivePacket<'a>),
+    Connected(A, PeerId, connection::ReceivePacket<'a>),
     Connless(A, iter::Once<&'a [u8]>),
 }
 
@@ -389,27 +384,11 @@ impl<A: Address> Net<A> {
     {
         self.builder.send(cb, addr, Packet::Connless(data))
     }
-    pub fn send<CB: Callback<A>>(&mut self, cb: &mut CB, chunk: Chunk<A>)
+    pub fn send<CB: Callback<A>>(&mut self, cb: &mut CB, chunk: Chunk)
         -> Result<(), Error<CB::Error>>
     {
-        match chunk.addr {
-            ChunkAddr::NonPeerConnless(a) => {
-                if let Some(pid) = self.peers.pid_from_addr(a) {
-                    return self.peers[pid].conn.send_connless(&mut cc(cb, a), chunk.data)
-                }
-                self.send_connless(cb, a, chunk.data)
-            }
-            ChunkAddr::Peer(pid, type_) => {
-                let peer = &mut self.peers[pid];
-                let vital = match type_ {
-                    ChunkType::Connless => 
-                        return peer.conn.send_connless(&mut cc(cb, peer.addr), chunk.data),
-                    ChunkType::Connected => false,
-                    ChunkType::Vital => true,
-                };
-                peer.conn.send(&mut cc(cb, peer.addr), chunk.data, vital)
-            }
-        }
+        let peer = &mut self.peers[chunk.pid];
+        peer.conn.send(&mut cc(cb, peer.addr), chunk.data, chunk.vital)
     }
     pub fn flush<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId)
         -> Result<(), CB::Error>
@@ -454,7 +433,7 @@ impl<A: Address> Net<A> {
     {
         if let Some(pid) = self.peers.pid_from_addr(addr) {
             let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), &mut wp(warn, addr, pid), data, &mut buf);
-            (ReceivePacket::connected(pid, packet, self), e)
+            (ReceivePacket::connected(addr, pid, packet, self), e)
         } else {
             let packet = match Packet::read(&mut w(warn, addr), data, &mut buf) {
                 Ok(p) => p,

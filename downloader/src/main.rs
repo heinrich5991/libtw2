@@ -47,9 +47,8 @@ use itertools::Itertools;
 use log::LogLevel;
 use net::Timestamp;
 use net::net::Chunk;
-use net::net::ChunkAddr;
 use net::net::ChunkOrEvent;
-use net::net::ChunkType;
+use net::net::ConnlessChunk;
 use net::net::PeerId;
 use num::ToPrimitive;
 use packer::IntUnpacker;
@@ -302,8 +301,9 @@ trait LoopExt: Loop {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
+                pid: pid,
+                vital: true,
                 data: &buf,
-                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
             })
         }
         inner(msg.into(), pid, self)
@@ -313,8 +313,9 @@ trait LoopExt: Loop {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
+                pid: pid,
+                vital: true,
                 data: &buf,
-                addr: ChunkAddr::Peer(pid, ChunkType::Vital),
             })
         }
         inner(msg.into(), pid, self)
@@ -369,9 +370,7 @@ impl<L: Loop> Application<L> for Main {
         };
         if disconnect {
             let pid = match event {
-                ChunkOrEvent::Chunk(Chunk {
-                    addr: ChunkAddr::Peer(pid, _), ..
-                }) => pid,
+                ChunkOrEvent::Chunk(Chunk { pid, ..  }) => pid,
                 ChunkOrEvent::Connect(pid) => pid,
                 ChunkOrEvent::Disconnect(pid, _) => pid,
                 ChunkOrEvent::Ready(pid) => pid,
@@ -676,17 +675,13 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 self.loop_.flush(pid);
                 false
             }
-            ChunkOrEvent::Chunk(Chunk {
-                addr: ChunkAddr::Peer(pid, type_),
-                data,
-            }) => {
-                if type_ != ChunkType::Connless {
-                    self.process_connected_packet(pid, type_ == ChunkType::Vital, data)
-                } else {
-                    false
-                }
+            ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
+                self.process_connected_packet(pid, vital, data)
             }
-            ChunkOrEvent::Chunk(..) => false,
+            ChunkOrEvent::Connless(ConnlessChunk { addr, data, .. }) => {
+                warn!("connless packet {} {:?}", addr, pretty::Bytes::new(data));
+                false
+            }
             ChunkOrEvent::Disconnect(pid, reason) => {
                 error!("disconnected pid={:?} error={}", pid, pretty::AlmostString::new(reason));
                 false
