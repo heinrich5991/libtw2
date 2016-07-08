@@ -86,9 +86,10 @@ impl Loop for SocketLoop {
                 buf2.clear();
                 let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(addr, data), addr, data, &mut buf2);
                 res.unwrap();
-                for chunk in iter {
-                    // TODO: Break early if the connection is disconnected.
-                    application.on_packet(&mut self, chunk);
+                for mut chunk in iter {
+                    if self.net.is_receive_chunk_still_valid(&mut chunk) {
+                        application.on_packet(&mut self, chunk);
+                    }
                 }
             }
         }

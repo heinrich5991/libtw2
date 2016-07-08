@@ -362,6 +362,13 @@ impl<A: Address> Net<A> {
     pub fn needs_tick(&self) -> Timeout {
         self.peers.iter().map(|(_, p)| p.conn.needs_tick()).min().unwrap_or_default()
     }
+    pub fn is_receive_chunk_still_valid(&self, chunk: &mut ChunkOrEvent<A>) -> bool {
+        if let ChunkOrEvent::Chunk(Chunk { pid, .. }) = *chunk {
+            self.peers.get(pid).is_some()
+        } else {
+            true
+        }
+    }
     pub fn connect<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A)
         -> (PeerId, Result<(), CB::Error>)
     {
