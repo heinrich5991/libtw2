@@ -45,12 +45,12 @@ fn hexdump(level: LogLevel, data: &[u8]) {
 }
 
 // TODO: Attach peer ids to warnings.
-struct Warn<'a>(&'a [u8]);
+struct Warn<'a>(PeerId, &'a [u8]);
 
 impl<'a, W: fmt::Debug> warn::Warn<W> for Warn<'a> {
     fn warn(&mut self, w: W) {
-        warn!("{:?}", w);
-        hexdump(LogLevel::Warn, self.0);
+        warn!("{:?}: {:?}", self.0, w);
+        hexdump(LogLevel::Warn, self.1);
     }
 }
 
@@ -102,7 +102,7 @@ impl Server {
 }
 impl<'a, L: Loop> ServerLoop<'a, L> {
     fn process_client_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
-        let msg = match SystemOrGame::decode(&mut Warn(data), &mut Unpacker::new(data)) {
+        let msg = match SystemOrGame::decode(&mut Warn(pid, data), &mut Unpacker::new(data)) {
             Ok(m) => m,
             Err(err) => {
                 warn!("decode error {:?}:", err);
