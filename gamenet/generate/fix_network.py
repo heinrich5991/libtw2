@@ -16,6 +16,32 @@ for i in range(len(network.Messages)):
     elif network.Messages[i].name == EXTRA_PROJECTILE:
         network.Messages[i].values.append(NetStruct("projectile", "::snap_obj::Projectile"))
 
+network.Connless = [
+    NetConnless("RequestList", "req2", []),
+    NetConnless("List", "lis2", [
+        NetAddrs("servers"),
+    ]),
+    NetConnless("RequestCount", "cou2", []),
+    NetConnless("Count", "siz2", [
+        NetBigEndianU16("count"),
+    ]),
+    NetConnless("RequestInfo", "gie3", [
+        NetU8("token"),
+    ]),
+    NetConnless("Info", "inf3", [
+        NetIntString("token"),
+        NetString("version"),
+        NetString("name"),
+        NetString("game_type"),
+        NetIntString("flags"),
+        NetIntString("num_players"),
+        NetIntString("max_players"),
+        NetIntString("num_clients"),
+        NetIntString("max_clients"),
+        NetClients("clients"),
+    ]),
+]
+
 enums = {e.name: e for e in network.Enums}
 structs = {s.name: s for s in network.Messages + network.Objects}
 

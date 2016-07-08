@@ -4,9 +4,12 @@ use packer;
 pub enum Error {
     ControlCharacters,
     IntOutOfRange,
+    InvalidIntString,
     UnexpectedEnd,
     UnknownId,
 }
+
+pub struct InvalidIntString;
 
 impl From<packer::ControlCharacters> for Error {
     fn from(_: packer::ControlCharacters) -> Error {
@@ -17,6 +20,12 @@ impl From<packer::ControlCharacters> for Error {
 impl From<packer::IntOutOfRange> for Error {
     fn from(_: packer::IntOutOfRange) -> Error {
         Error::IntOutOfRange
+    }
+}
+
+impl From<InvalidIntString> for Error {
+    fn from(_: InvalidIntString) -> Error {
+        Error::InvalidIntString
     }
 }
 

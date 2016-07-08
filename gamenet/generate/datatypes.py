@@ -18,7 +18,7 @@ def canonicalize(s):
 def canonicalize_impl(s):
     if isinstance(s, tuple):
         return s
-    if s.isupper():
+    if s.isupper() or s.islower():
         return tuple(p.lower() for p in s.split("_"))
     PREFIXES=["m_p", "m_a", "m_"]
     for prefix in PREFIXES:
@@ -162,6 +162,33 @@ pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
 };
 """)
 
+def emit_header_msg_connless():
+    print("""\
+use buffer::CapacityError;
+use common::num::BeU16;
+use common::pretty;
+use error::Error;
+use packer::Packer;
+use packer::Unpacker;
+use packer::Warning;
+use std::fmt;
+use super::AddrPacked;
+use super::AddrPackedSliceExt;
+use super::ClientsData;
+use super::int_from_string;
+use super::string_from_int;
+use warn::Warn;
+use warn::wrap;
+""")
+
+def emit_enum_def(name, structs):
+    lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
+    print("#[derive(Clone, Copy)]")
+    print("pub enum {}{} {{".format(title(name), lifetime))
+    for s in structs:
+        print("    {}({}{}),".format(title(s.name), title(s.name), s.lifetime()))
+    print("}")
+
 def emit_enum_from(name, structs):
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     for s in structs:
@@ -175,11 +202,7 @@ def emit_enum_from(name, structs):
 def emit_enum_msg(name, structs):
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
-    print("#[derive(Clone, Copy)]")
-    print("pub enum {}{} {{".format(title(name), lifetime))
-    for s in structs:
-        print("    {}({}{}),".format(title(s.name), title(s.name), s.lifetime()))
-    print("}")
+    emit_enum_def(name, structs)
     print()
     print("impl{l} {}{l} {{".format(title(name), l=lifetime))
     print("    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: i32, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
@@ -216,11 +239,7 @@ def emit_enum_msg(name, structs):
 def emit_enum_obj(name, structs):
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
-    print("#[derive(Clone, Copy)]")
-    print("pub enum {}{} {{".format(title(name), lifetime))
-    for s in structs:
-        print("    {}({}{}),".format(title(s.name), title(s.name), s.lifetime()))
-    print("}")
+    emit_enum_def(name, structs)
     print()
     print("impl{l} {}{l} {{".format(title(name), l=lifetime))
     print("    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
@@ -237,7 +256,38 @@ def emit_enum_obj(name, structs):
     print("        }")
     print("    }")
     print("}")
-    print("")
+    print()
+    print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
+    print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(ref i) => i.fmt(f),".format(title(name), title(s.name)))
+    print("        }")
+    print("    }")
+    print("}")
+    emit_enum_from(name, structs)
+
+def emit_enum_connless(name, structs):
+    name = canonicalize(name)
+    lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
+    emit_enum_def(name, structs)
+    print()
+    print("impl{l} {}{l} {{".format(title(name), l=lifetime))
+    print("    pub fn decode_connless<W: Warn<Warning>>(warn: &mut W, connless_id: [u8; 8], _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("        Ok(match &connless_id {")
+    for s in structs:
+        print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
+    print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
+    print("        })")
+    print("    }")
+    print("    pub fn connless_id(&self) -> [u8; 8] {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(_) => *{},".format(title(name), title(s.name), caps(s.name)))
+    print("        }")
+    print("    }")
+    print("}")
+    print()
     print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
     print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
     print("        match *self {")
@@ -427,13 +477,20 @@ class NetEvent(NetObject): pass
 class NetMessage(Struct):
     const_type = "i32"
 
+class NetConnless(Struct):
+    def __init__(self, name, id, values):
+        super().__init__(name, values)
+        self.id = id
+    def emit_consts(self):
+        print(r"""pub const {}: &'static [u8; 8] = b"\xff\xff\xff\xff{}";""".format(caps(self.name), self.id))
+
 class Member:
     def __init__(self, name):
         self.name = canonicalize(name)
     def definition(self):
         return "{}: {}".format(snake(self.name), self.type_)
     def contains_lifetime(self):
-        return "&'a" in self.type_
+        return "'a" in self.type_
     def update(self, enums, structs):
         return self
     def emit_decode(self):
@@ -583,3 +640,40 @@ class NetStruct(Member):
         return "try!({}::decode_msg_inner(warn, _p))".format(self.type_)
     def encode_expr(self, self_expr):
         return "unimplemented!()"
+
+class NetAddrs(Member):
+    type_ = "&'a [AddrPacked]"
+    def decode_expr(self):
+        return "AddrPackedSliceExt::from_bytes(wrap(warn), try!(_p.read_rest()))"
+    def encode_expr(self, self_expr):
+        return "_p.write_rest({}.as_bytes())".format(self_expr)
+
+class NetBigEndianU16(Member):
+    type_ = "u16"
+    def decode_expr(self):
+        return "{ let s = try!(_p.read_raw(2)); BeU16::from_bytes(&[s[0], s[1]]).to_u16() }"
+    def encode_expr(self, self_expr):
+        return "_p.write_raw(BeU16::from_u16({}).as_bytes())".format(self_expr)
+
+class NetU8(Member):
+    type_ = "u8"
+    def decode_expr(self):
+        return "try!(_p.read_raw(1))[0]"
+    def encode_expr(self, self_expr):
+        return "_p.write_raw(&[{}])".format(self_expr)
+
+class NetIntString(NetString):
+    type_ = "i32"
+    def decode_expr(self):
+        return "try!(int_from_string(try!(_p.read_string())))"
+    def encode_expr(self, self_expr):
+        return "_p.write_string(&string_from_int({}))".format(self_expr)
+    def debug_expr(self, self_expr):
+        return self_expr
+
+class NetClients(Member):
+    type_ = "ClientsData<'a>"
+    def decode_expr(self):
+        return "ClientsData::from_bytes(try!(_p.read_rest()))"
+    def encode_expr(self, self_expr):
+        return "_p.write_rest({}.as_bytes())".format(self_expr)

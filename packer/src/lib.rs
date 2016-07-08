@@ -150,7 +150,11 @@ impl<'d, 's> Packer<'d, 's> {
         try!(self.buf.write(data));
         Ok(())
     }
+    pub fn write_raw(&mut self, data: &[u8]) -> Result<(), CapacityError> {
+        self.buf.write(data)
+    }
     pub fn write_rest(&mut self, data: &[u8]) -> Result<(), CapacityError> {
+        // TODO: Fail if other stuff happens afterwards.
         self.buf.write(data)
     }
     pub fn written(self) -> &'d [u8] {
@@ -204,9 +208,20 @@ impl<'a> Unpacker<'a> {
         Ok(data)
     }
     pub fn read_rest(&mut self) -> Result<&'a [u8], UnexpectedEnd> {
+        // TODO: Fail if earlier call errored out.
         let result = Ok(self.iter.as_slice());
         self.use_up();
         result
+    }
+    pub fn read_raw(&mut self, len: usize) -> Result<&'a [u8], UnexpectedEnd> {
+        let slice = self.iter.as_slice();
+        if slice.len() < len {
+            self.use_up();
+            return Err(UnexpectedEnd);
+        }
+        let (raw, rest) = slice.split_at(len);
+        self.iter = rest.iter();
+        Ok(raw)
     }
     pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
         if !self.as_slice().is_empty() {

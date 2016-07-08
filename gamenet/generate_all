@@ -4,6 +4,7 @@ set -o nounset
 set -o pipefail
 
 python generate/enums.py > src/enums.rs
+python generate/msg_connless.py > src/msg/connless.rs
 python generate/msg_game.py > src/msg/game.rs
 python generate/msg_system.py > src/msg/system.rs
 python generate/snap_obj.py > src/snap_obj.rs

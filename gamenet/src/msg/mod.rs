@@ -1,12 +1,22 @@
-pub mod system;
+pub mod connless;
 pub mod game;
+pub mod system;
 
+pub use self::connless::Connless;
 pub use self::game::Game;
 pub use self::system::System;
 
+use arrayvec::ArrayVec;
+use common::num::BeU16;
+use common::slice;
 use error::Error;
+use error::InvalidIntString;
+use packer::ExcessData;
 use packer::Unpacker;
 use packer::Warning;
+use std::io::Write;
+use std::mem;
+use std::str;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
@@ -23,6 +33,64 @@ impl<'a> InputData<'a> {
     fn as_bytes(&self) -> &[u8] {
         self.inner
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ClientsData<'a> {
+    inner: &'a [u8],
+}
+
+impl<'a> ClientsData<'a> {
+    fn from_bytes(bytes: &[u8]) -> ClientsData {
+        ClientsData {
+            inner: bytes,
+        }
+    }
+    fn as_bytes(&self) -> &[u8] {
+        self.inner
+    }
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct AddrPacked {
+    ip_address: [u8; 16],
+    port: BeU16,
+}
+
+trait AddrPackedSliceExt {
+    fn from_bytes<'a, W: Warn<ExcessData>>(warn: &mut W, bytes: &'a [u8]) -> &'a Self;
+    fn as_bytes(&self) -> &[u8];
+}
+
+impl AddrPackedSliceExt for [AddrPacked] {
+    fn from_bytes<'a, W: Warn<ExcessData>>(warn: &mut W, bytes: &'a [u8]) -> &'a [AddrPacked] {
+        let remainder = bytes.len() % mem::size_of::<AddrPacked>();
+        if remainder != 0 {
+            warn.warn(ExcessData);
+        }
+        let actual_len = bytes.len() - remainder;
+        unsafe {
+            slice::transmute(&bytes[..actual_len])
+        }
+    }
+    fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            slice::transmute(self)
+        }
+    }
+}
+
+fn int_from_string(bytes: &[u8]) -> Result<i32, InvalidIntString> {
+    str::from_utf8(bytes)
+        .map(|s| s.parse().map_err(|_| InvalidIntString))
+        .unwrap_or(Err(InvalidIntString))
+}
+
+fn string_from_int(int: i32) -> ArrayVec<[u8; 16]> {
+    let mut result = ArrayVec::new();
+    write!(&mut result, "{}", int).unwrap();
+    result
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// Big-endian unsigned 16-bit integer
 ///
 /// Is internally represented as `[u8; 2]`.
@@ -26,6 +28,12 @@ impl BeU16 {
     }
 }
 
+impl fmt::Debug for BeU16 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_u16().fmt(f)
+    }
+}
+
 impl LeU16 {
     pub fn from_u16(value: u16) -> LeU16 {
         LeU16([value as u8, (value >> 8) as u8])
@@ -33,6 +41,12 @@ impl LeU16 {
     pub fn to_u16(self) -> u16 {
         let LeU16(v) = self;
         (v[1] as u16) << 8 | v[0] as u16
+    }
+}
+
+impl fmt::Debug for LeU16 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_u16().fmt(f)
     }
 }
 
