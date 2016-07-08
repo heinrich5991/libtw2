@@ -171,6 +171,7 @@ use error::Error;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use packer::with_packer;
 use std::fmt;
 use super::AddrPacked;
 use super::AddrPackedSliceExt;
@@ -179,6 +180,22 @@ use super::int_from_string;
 use super::string_from_int;
 use warn::Warn;
 use warn::wrap;
+
+impl<'a> Connless<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
+        let id = try!(_p.read_raw(8));
+        let connless_id = [id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]];
+        Connless::decode_connless(warn, connless_id, _p)
+    }
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(p.write_raw(&self.connless_id()));
+        try!(with_packer(&mut p, |p| self.encode_connless(p)));
+        Ok(p.written())
+    }
+}
+
 """)
 
 def emit_enum_def(name, structs):
@@ -284,6 +301,12 @@ def emit_enum_connless(name, structs):
     print("        match *self {")
     for s in structs:
         print("            {}::{}(_) => *{},".format(title(name), title(s.name), caps(s.name)))
+    print("        }")
+    print("    }")
+    print("    pub fn encode_connless<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(ref i) => i.encode(p),".format(title(name), title(s.name)))
     print("        }")
     print("    }")
     print("}")

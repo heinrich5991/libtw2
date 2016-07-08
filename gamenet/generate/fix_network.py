@@ -32,6 +32,7 @@ network.Connless = [
         NetIntString("token"),
         NetString("version"),
         NetString("name"),
+        NetString("map"),
         NetString("game_type"),
         NetIntString("flags"),
         NetIntString("num_players"),

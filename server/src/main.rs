@@ -7,6 +7,7 @@ extern crate itertools;
 #[macro_use] extern crate log;
 extern crate logger;
 extern crate net;
+extern crate num;
 extern crate packer;
 extern crate socket;
 extern crate warn;
@@ -20,11 +21,14 @@ use event_loop::Loop;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use gamenet::VERSION;
+use gamenet::msg::Connless;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
+use gamenet::msg::connless;
 use gamenet::msg::game;
 use gamenet::msg::system;
+use gamenet::msg;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -33,10 +37,11 @@ use net::net::ChunkAddr;
 use net::net::ChunkOrEvent;
 use net::net::ChunkType;
 use net::net::PeerId;
+use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
-use std::fmt;
 use std::fmt::Write;
+use std::fmt;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -44,10 +49,9 @@ fn hexdump(level: LogLevel, data: &[u8]) {
     }
 }
 
-// TODO: Attach peer ids to warnings.
-struct Warn<'a>(PeerId, &'a [u8]);
+struct Warn<'a, T: fmt::Debug>(T, &'a [u8]);
 
-impl<'a, W: fmt::Debug> warn::Warn<W> for Warn<'a> {
+impl<'a, T: fmt::Debug, W: fmt::Debug> warn::Warn<W> for Warn<'a, T> {
     fn warn(&mut self, w: W) {
         warn!("{:?}: {:?}", self.0, w);
         hexdump(LogLevel::Warn, self.1);
@@ -76,6 +80,17 @@ trait LoopExt: Loop {
             })
         }
         inner(msg.into(), pid, self)
+    }
+    fn sendc<'a, C: Into<Connless<'a>>>(&mut self, addr: Addr, msg: C) {
+        fn inner<L: Loop+?Sized>(msg: Connless, addr: Addr, loop_: &mut L) {
+            let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+            with_packer(&mut buf, |p| msg.encode(p).unwrap());
+            loop_.send(Chunk {
+                data: &buf,
+                addr: ChunkAddr::NonPeerConnless(addr),
+            })
+        }
+        inner(msg.into(), addr, self)
     }
 }
 impl<L: Loop> LoopExt for L { }
@@ -179,17 +194,53 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             warn!("unprocessed message {:?}", msg);
         }
     }
+    fn process_connless_packet(&mut self, addr: Addr, data: &[u8]) {
+        let msg = match Connless::decode(&mut Warn(addr, data), &mut Unpacker::new(data)) {
+            Ok(m) => m,
+            Err(err) => {
+                warn!("decode error {:?}:", err);
+                hexdump(LogLevel::Warn, data);
+                return;
+            },
+        };
+        let mut processed = false;
+        match msg {
+            Connless::RequestInfo(request) => {
+                processed = true;
+                self.loop_.sendc(addr, connless::Info {
+                    token: request.token.to_i32().unwrap(),
+                    version: VERSION,
+                    name: b"Rust Teeworlds Server",
+                    game_type: b"DM",
+                    map: b"dm1",
+                    flags: 0,
+                    num_players: 0,
+                    max_players: 16,
+                    num_clients: 0,
+                    max_clients: 16,
+                    clients: msg::CLIENTS_DATA_NONE,
+                });
+            },
+            _ => {},
+        }
+        if !processed {
+            warn!("unprocessed message {:?}", msg);
+        }
+    }
     fn process_event(&mut self, event: ChunkOrEvent<Addr>) {
         match event {
             ChunkOrEvent::Connect(pid) => {
                 self.loop_.accept(pid);
             },
             ChunkOrEvent::Chunk(chunk) => match chunk {
-                Chunk { addr: ChunkAddr::Peer(_, ChunkType::Connless), .. } => {},
+                Chunk { addr: ChunkAddr::Peer(_, ChunkType::Connless), .. }
+                    => unimplemented!(),
                 Chunk { addr: ChunkAddr::Peer(pid, type_), data } => {
                     self.process_client_packet(pid, type_ == ChunkType::Vital, data);
-                }
-                _ => {},
+                },
+                Chunk { addr: ChunkAddr::NonPeerConnless(addr), data } => {
+                    self.process_connless_packet(addr, data);
+                },
             },
             _ => {},
         }

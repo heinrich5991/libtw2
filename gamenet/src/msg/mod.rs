@@ -35,6 +35,8 @@ impl<'a> InputData<'a> {
     }
 }
 
+pub const CLIENTS_DATA_NONE: ClientsData<'static> = ClientsData { inner: b"" };
+
 #[derive(Clone, Copy, Debug)]
 pub struct ClientsData<'a> {
     inner: &'a [u8],

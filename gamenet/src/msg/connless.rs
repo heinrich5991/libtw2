@@ -5,6 +5,7 @@ use error::Error;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use packer::with_packer;
 use std::fmt;
 use super::AddrPacked;
 use super::AddrPackedSliceExt;
@@ -13,6 +14,22 @@ use super::int_from_string;
 use super::string_from_int;
 use warn::Warn;
 use warn::wrap;
+
+impl<'a> Connless<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
+        let id = try!(_p.read_raw(8));
+        let connless_id = [id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]];
+        Connless::decode_connless(warn, connless_id, _p)
+    }
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(p.write_raw(&self.connless_id()));
+        try!(with_packer(&mut p, |p| self.encode_connless(p)));
+        Ok(p.written())
+    }
+}
+
 
 pub const REQUEST_LIST: &'static [u8; 8] = b"\xff\xff\xff\xffreq2";
 pub const LIST: &'static [u8; 8] = b"\xff\xff\xff\xfflis2";
@@ -51,6 +68,16 @@ impl<'a> Connless<'a> {
             Connless::Count(_) => *COUNT,
             Connless::RequestInfo(_) => *REQUEST_INFO,
             Connless::Info(_) => *INFO,
+        }
+    }
+    pub fn encode_connless<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        match *self {
+            Connless::RequestList(ref i) => i.encode(p),
+            Connless::List(ref i) => i.encode(p),
+            Connless::RequestCount(ref i) => i.encode(p),
+            Connless::Count(ref i) => i.encode(p),
+            Connless::RequestInfo(ref i) => i.encode(p),
+            Connless::Info(ref i) => i.encode(p),
         }
     }
 }
@@ -129,6 +156,7 @@ pub struct Info<'a> {
     pub token: i32,
     pub version: &'a [u8],
     pub name: &'a [u8],
+    pub map: &'a [u8],
     pub game_type: &'a [u8],
     pub flags: i32,
     pub num_players: i32,
@@ -241,6 +269,7 @@ impl<'a> Info<'a> {
             token: try!(int_from_string(try!(_p.read_string()))),
             version: try!(_p.read_string()),
             name: try!(_p.read_string()),
+            map: try!(_p.read_string()),
             game_type: try!(_p.read_string()),
             flags: try!(int_from_string(try!(_p.read_string()))),
             num_players: try!(int_from_string(try!(_p.read_string()))),
@@ -256,6 +285,7 @@ impl<'a> Info<'a> {
         try!(_p.write_string(&string_from_int(self.token)));
         try!(_p.write_string(self.version));
         try!(_p.write_string(self.name));
+        try!(_p.write_string(self.map));
         try!(_p.write_string(self.game_type));
         try!(_p.write_string(&string_from_int(self.flags)));
         try!(_p.write_string(&string_from_int(self.num_players)));
@@ -272,6 +302,7 @@ impl<'a> fmt::Debug for Info<'a> {
             .field("token", &self.token)
             .field("version", &pretty::Bytes::new(&self.version))
             .field("name", &pretty::Bytes::new(&self.name))
+            .field("map", &pretty::Bytes::new(&self.map))
             .field("game_type", &pretty::Bytes::new(&self.game_type))
             .field("flags", &self.flags)
             .field("num_players", &self.num_players)
