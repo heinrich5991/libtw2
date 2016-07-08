@@ -204,14 +204,12 @@ impl Socket {
             if result.is_none() && self.check_v6 {
                 if let Some(r) = swap(self.v6.recv_from(buf_slice)) {
                     result = Some(r);
-                } else {
                     self.check_v6 = false;
                 }
             }
             if result.is_none() && self.check_v4 {
                 if let Some(r) = swap(self.v4.recv_from(buf_slice)) {
                     result = Some(r);
-                } else {
                     self.check_v4 = false;
                 }
             }
