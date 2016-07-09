@@ -40,8 +40,11 @@ use net::net::PeerId;
 use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
+use std::collections::HashMap;
+use std::collections::hash_map;
 use std::fmt::Write;
 use std::fmt;
+use std::ops;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -94,10 +97,66 @@ trait LoopExt: Loop {
 }
 impl<L: Loop> LoopExt for L { }
 
-struct Server;
+#[derive(Default)]
+struct Server {
+    peers: Peers,
+}
+
+#[derive(Default)]
+struct Peers {
+    peers: HashMap<PeerId, Peer>,
+}
+
+impl Peers {
+    fn insert(&mut self, pid: PeerId, peer: Peer) {
+        self.peers.insert(pid, peer);
+    }
+    fn entry(&mut self, pid: PeerId) -> hash_map::OccupiedEntry<PeerId, Peer> {
+        match self.peers.entry(pid) {
+            hash_map::Entry::Occupied(o) => o,
+            hash_map::Entry::Vacant(_) => panic!("invalid pid"),
+        }
+    }
+    fn remove(&mut self, pid: PeerId) {
+        self.peers.remove(&pid).expect("invalid pid");
+    }
+}
+
+impl ops::Index<PeerId> for Peers {
+    type Output = Peer;
+    fn index(&self, pid: PeerId) -> &Peer {
+        self.peers.get(&pid).expect("invalid pid")
+    }
+}
+
+impl ops::IndexMut<PeerId> for Peers {
+    fn index_mut(&mut self, pid: PeerId) -> &mut Peer {
+        self.peers.get_mut(&pid).expect("invalid pid")
+    }
+}
+
+#[derive(Default)]
+struct Peer {
+    state: PeerState,
+}
+
+impl Default for PeerState {
+    fn default() -> PeerState {
+        PeerState::SystemInfo
+    }
+}
+
+enum PeerState {
+    SystemInfo,
+    SystemReady,
+    GameInfo,
+    SystemEnterGame,
+    Ingame,
+}
 
 struct ServerLoop<'a, L: Loop+'a> {
     loop_: &'a mut L,
+    peers: &'a mut Peers,
 }
 
 impl<L: Loop> Application<L> for Server {
@@ -105,17 +164,19 @@ impl<L: Loop> Application<L> for Server {
     fn on_tick(&mut self, _: &mut L) { }
 
     fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
-        ServerLoop { loop_: loop_ }.process_event(event);
+        ServerLoop { peers: &mut self.peers, loop_: loop_ }.process_event(event);
     }
 }
 
 impl Server {
     fn run<L: Loop>() {
-        L::accept_connections_on_port(8303).run(Server);
+        L::accept_connections_on_port(8303).run(Server::default());
     }
 }
 impl<'a, L: Loop> ServerLoop<'a, L> {
     fn process_client_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
+        use PeerState::*;
+
         let msg = match SystemOrGame::decode(&mut Warn(pid, data), &mut Unpacker::new(data)) {
             Ok(m) => m,
             Err(err) => {
@@ -130,8 +191,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
         let mut ignored = false;
         let mut processed = false;
-        match msg {
-            SystemOrGame::System(System::Info(info)) => {
+        let mut peer = self.peers.entry(pid);
+        match (&peer.get().state, msg) {
+            (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
                 if info.version == VERSION {
                     if info.password == Some(b"foobar") {
                         self.loop_.sends(pid, system::MapChange {
@@ -140,8 +202,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                             size: 5805,
                         });
                         self.loop_.flush(pid);
+                        peer.get_mut().state = SystemReady;
                     } else {
                         self.loop_.disconnect(pid, b"Wrong password");
+                        peer.remove();
                     }
                 } else {
                     let mut buf: ArrayString<[u8; 128]> = ArrayString::new();
@@ -159,26 +223,29 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                         )
                     }.unwrap());
                     self.loop_.disconnect(pid, buf.as_bytes());
+                    peer.remove();
                 }
                 processed = true;
             }
-            SystemOrGame::System(System::Ready(system::Ready)) => {
+            (&SystemReady, SystemOrGame::System(System::Ready(system::Ready))) => {
                 self.loop_.sendg(pid, game::SvMotd {
                     message: b"Hello World!",
                 });
                 self.loop_.sends(pid, system::ConReady);
                 self.loop_.flush(pid);
+                peer.get_mut().state = GameInfo;
                 processed = true;
             }
-            SystemOrGame::Game(Game::ClStartInfo(info)) => {
+            (&GameInfo, SystemOrGame::Game(Game::ClStartInfo(info))) => {
                 info!("{:?}:{} enters the game", pid, AlmostString::new(info.name));
                 self.loop_.sendg(pid, game::SvVoteClearOptions);
                 self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
                 self.loop_.flush(pid);
+                peer.get_mut().state = SystemEnterGame;
                 processed = true;
             }
-            SystemOrGame::System(System::EnterGame(system::EnterGame)) => {
+            (&SystemEnterGame, SystemOrGame::System(System::EnterGame(system::EnterGame))) => {
                 for i in 0..3 {
                     self.loop_.sends(pid, system::SnapEmpty {
                         tick: i,
@@ -186,9 +253,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     });
                 }
                 self.loop_.flush(pid);
+                peer.get_mut().state = Ingame;
                 processed = true;
             }
-            SystemOrGame::System(System::Input(..)) => {
+            (&Ingame, SystemOrGame::System(System::Input(..))) => {
                 ignored = true;
             }
             _ => {},
@@ -216,7 +284,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     name: b"Rust Teeworlds Server",
                     game_type: b"DM",
                     map: b"dm1",
-                    flags: 0,
+                    flags: 1,
                     num_players: 0,
                     max_players: 16,
                     num_clients: 0,
@@ -234,6 +302,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         match event {
             ChunkOrEvent::Connect(pid) => {
                 self.loop_.accept(pid);
+                self.peers.insert(pid, Peer::default());
             },
             ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
                 self.process_client_packet(pid, vital, data);
@@ -241,7 +310,15 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             ChunkOrEvent::Connless(ConnlessChunk { addr, data, .. }) => {
                 self.process_connless_packet(addr, data);
             },
-            _ => {},
+            ChunkOrEvent::Ready(..) => unreachable!(),
+            ChunkOrEvent::Disconnect(pid, reason) => {
+                if !reason.is_empty() {
+                    info!("{:?} leaves the game ({})", pid, AlmostString::new(reason));
+                } else {
+                    info!("{:?} leaves the game", pid);
+                }
+                self.peers.remove(pid);
+            },
         }
     }
 }
