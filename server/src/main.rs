@@ -37,6 +37,7 @@ use net::net::Chunk;
 use net::net::ChunkOrEvent;
 use net::net::ConnlessChunk;
 use net::net::PeerId;
+use net::time::Timestamp;
 use num::ToPrimitive;
 use packer::Unpacker;
 use packer::with_packer;
@@ -45,6 +46,9 @@ use std::collections::hash_map;
 use std::fmt::Write;
 use std::fmt;
 use std::ops;
+use std::time::Duration;
+
+const TICKS_PER_SECOND: u32 = 50;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -97,9 +101,27 @@ trait LoopExt: Loop {
 }
 impl<L: Loop> LoopExt for L { }
 
-#[derive(Default)]
 struct Server {
     peers: Peers,
+    game_start: Timestamp,
+    game_tick: u32,
+}
+
+impl Server {
+    fn game_tick_time(&self, tick: u32) -> Timestamp {
+        let millis = tick.to_u64().unwrap() * 1000 / TICKS_PER_SECOND.to_u64().unwrap();
+        self.game_start + Duration::from_millis(millis)
+    }
+}
+
+impl Default for Server {
+    fn default() -> Server {
+        Server {
+            peers: Default::default(),
+            game_start: Timestamp::from_secs_since_epoch(0),
+            game_tick: 0,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -108,6 +130,9 @@ struct Peers {
 }
 
 impl Peers {
+    fn is_empty(&self) -> bool {
+        self.peers.is_empty()
+    }
     fn insert(&mut self, pid: PeerId, peer: Peer) {
         self.peers.insert(pid, peer);
     }
@@ -156,15 +181,23 @@ enum PeerState {
 
 struct ServerLoop<'a, L: Loop+'a> {
     loop_: &'a mut L,
-    peers: &'a mut Peers,
+    server: &'a mut Server,
 }
 
 impl<L: Loop> Application<L> for Server {
-    fn needs_tick(&mut self) -> Timeout { Timeout::inactive() }
-    fn on_tick(&mut self, _: &mut L) { }
+    fn needs_tick(&mut self) -> Timeout {
+        if !self.peers.is_empty() {
+            Timeout::active(self.game_tick_time(self.game_tick + 1) + Duration::from_millis(1))
+        } else {
+            Timeout::inactive()
+        }
+    }
+    fn on_tick(&mut self, loop_: &mut L) {
+        ServerLoop { server: self, loop_: loop_ }.tick();
+    }
 
     fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
-        ServerLoop { peers: &mut self.peers, loop_: loop_ }.process_event(event);
+        ServerLoop { server: self, loop_: loop_ }.process_event(event);
     }
 }
 
@@ -191,7 +224,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
         let mut ignored = false;
         let mut processed = false;
-        let mut peer = self.peers.entry(pid);
+        let mut peer = self.server.peers.entry(pid);
         match (&peer.get().state, msg) {
             (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
                 if info.version == VERSION {
@@ -301,8 +334,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     fn process_event(&mut self, event: ChunkOrEvent<Addr>) {
         match event {
             ChunkOrEvent::Connect(pid) => {
+                if self.server.peers.is_empty() {
+                    self.server.game_start = self.loop_.time();
+                    self.server.game_tick = 0;
+                }
                 self.loop_.accept(pid);
-                self.peers.insert(pid, Peer::default());
+                self.server.peers.insert(pid, Peer::default());
             },
             ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
                 self.process_client_packet(pid, vital, data);
@@ -317,8 +354,14 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 } else {
                     info!("{:?} leaves the game", pid);
                 }
-                self.peers.remove(pid);
+                self.server.peers.remove(pid);
             },
+        }
+    }
+    fn tick(&mut self) {
+        while self.server.game_tick_time(self.server.game_tick + 1) <= self.loop_.time() {
+            // TODO: Do tick. :)
+            self.server.game_tick += 1;
         }
     }
 }
