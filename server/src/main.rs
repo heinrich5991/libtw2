@@ -22,6 +22,7 @@ use event_loop::Loop;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use gamenet::VERSION;
+use gamenet::enums::MAX_CLIENTS;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
 use gamenet::msg::System;
@@ -124,6 +125,9 @@ impl Peers {
     fn is_empty(&self) -> bool {
         self.peers.is_empty()
     }
+    fn len(&self) -> usize {
+        self.peers.len()
+    }
     fn insert(&mut self, pid: PeerId, peer: Peer) {
         self.peers.insert(pid, peer);
     }
@@ -167,8 +171,11 @@ enum PeerState {
     SystemReady,
     GameInfo,
     SystemEnterGame,
-    Ingame,
+    Ingame(IngameState),
 }
+
+#[derive(Default)]
+struct IngameState;
 
 struct ServerLoop<'a, L: Loop+'a> {
     loop_: &'a mut L,
@@ -184,7 +191,9 @@ impl<L: Loop> Application<L> for Server {
         }
     }
     fn on_tick(&mut self, loop_: &mut L) {
-        ServerLoop { server: self, loop_: loop_ }.tick();
+        if !self.peers.is_empty() {
+            ServerLoop { server: self, loop_: loop_ }.tick();
+        }
     }
 
     fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
@@ -277,10 +286,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     });
                 }
                 self.loop_.flush(pid);
-                peer.get_mut().state = Ingame;
+                peer.get_mut().state = Ingame(IngameState::default());
                 processed = true;
             }
-            (&Ingame, SystemOrGame::System(System::Input(..))) => {
+            (&Ingame(..), SystemOrGame::System(System::Input(..))) => {
                 ignored = true;
             }
             _ => {},
@@ -310,9 +319,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     map: b"dm1",
                     flags: 1,
                     num_players: 0,
-                    max_players: 16,
+                    max_players: MAX_CLIENTS,
                     num_clients: 0,
-                    max_clients: 16,
+                    max_clients: MAX_CLIENTS,
                     clients: msg::CLIENTS_DATA_NONE,
                 });
             },
@@ -328,6 +337,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 if self.server.peers.is_empty() {
                     self.server.game_start = self.loop_.time();
                     self.server.game_tick = 0;
+                }
+                if self.server.peers.len() == MAX_CLIENTS.to_usize().unwrap() {
+                    self.loop_.disconnect(pid, b"This server is full");
+                    return;
                 }
                 self.loop_.accept(pid);
                 self.server.peers.insert(pid, Peer::default());
@@ -349,10 +362,13 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             },
         }
     }
+    fn game_tick(&mut self) {
+        // TODO: Do tick. :)
+        self.server.game_tick += 1;
+    }
     fn tick(&mut self) {
         while self.server.game_tick_time(self.server.game_tick + 1) <= self.loop_.time() {
-            // TODO: Do tick. :)
-            self.server.game_tick += 1;
+            self.game_tick();
         }
     }
 }
