@@ -101,6 +101,7 @@ trait LoopExt: Loop {
 }
 impl<L: Loop> LoopExt for L { }
 
+#[derive(Default)]
 struct Server {
     peers: Peers,
     game_start: Timestamp,
@@ -111,16 +112,6 @@ impl Server {
     fn game_tick_time(&self, tick: u32) -> Timestamp {
         let millis = tick.to_u64().unwrap() * 1000 / TICKS_PER_SECOND.to_u64().unwrap();
         self.game_start + Duration::from_millis(millis)
-    }
-}
-
-impl Default for Server {
-    fn default() -> Server {
-        Server {
-            peers: Default::default(),
-            game_start: Timestamp::from_secs_since_epoch(0),
-            game_tick: 0,
-        }
     }
 }
 

@@ -10,7 +10,16 @@ pub struct Timestamp {
     usec: u64,
 }
 
+impl Default for Timestamp {
+    fn default() -> Timestamp {
+        Timestamp::sentinel()
+    }
+}
+
 impl Timestamp {
+    pub fn sentinel() -> Timestamp {
+        optional::Noned::get_none()
+    }
     pub fn from_secs_since_epoch(secs: u64) -> Timestamp {
         Timestamp {
             usec: secs.checked_mul(1_000_000_000).unwrap(),

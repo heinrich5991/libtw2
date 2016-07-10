@@ -145,7 +145,7 @@ impl Peer {
             dummy_map: false,
             state: PeerState::Connection,
             download: None,
-            progress_timeout: Timestamp::from_secs_since_epoch(0),
+            progress_timeout: Timestamp::sentinel(),
         };
         result.progress(loop_);
         result
@@ -256,6 +256,12 @@ enum PeerState {
     VoteEnd,
     // VoteResult(timeout)
     VoteResult(Timestamp),
+}
+
+impl Default for PeerState {
+    fn default() -> PeerState {
+        PeerState::Connection
+    }
 }
 
 impl PeerState {
