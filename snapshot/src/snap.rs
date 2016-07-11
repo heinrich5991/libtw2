@@ -1,12 +1,18 @@
+use buffer::CapacityError;
 use format::DeltaHeader;
 use format::Item;
 use format::Warning;
 use format::key;
 use format::key_to_id;
 use format::key_to_type_id;
+use gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
+use gamenet::msg::system;
 use num::ToPrimitive;
+use packer::Packer;
 use packer::Unpacker;
+use packer::with_packer;
 use packer;
+use std::cmp;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map;
@@ -83,6 +89,19 @@ fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32])
         None => out.copy_from_slice(delta),
     }
     Ok(())
+}
+
+fn create_delta(from: Option<&[i32]>, to: &[i32], out: &mut [i32]) {
+    assert!(to.len() == out.len());
+    match from {
+        Some(from) => {
+            assert!(from.len() == to.len());
+            for i in 0..out.len() {
+                out[i] = to[i].wrapping_sub(from[i]);
+            }
+        },
+        None => out.copy_from_slice(to),
+    }
 }
 
 // TODO: Select a faster hasher?
@@ -221,6 +240,57 @@ impl Delta {
         self.updated_items.clear();
         self.buf.clear();
     }
+    fn prepare_update_item(&mut self, type_id: u16, id: u16, size: usize) -> &mut [i32] {
+        let key = key(type_id, id);
+
+        let offset = self.buf.len();
+        let start = offset.to_u32().unwrap();
+        let end = (offset + size).to_u32().unwrap();
+        self.buf.extend(iter::repeat(0).take(size));
+        assert!(self.updated_items.insert(key, start..end).is_none());
+        &mut self.buf[to_usize(start..end)]
+    }
+    pub fn create(&mut self, from: &Snap, to: &Snap) {
+        self.clear();
+        for Item { type_id, id, .. } in from.items() {
+            if to.item(type_id, id).is_none() {
+                assert!(self.deleted_items.insert(key(type_id, id)));
+            }
+        }
+        for Item { type_id, id, data } in to.items() {
+            let from_data = from.item(type_id, id);
+            let out_delta = self.prepare_update_item(type_id, id, data.len());
+            create_delta(from_data, data, out_delta);
+        }
+    }
+    pub fn write<'d, 's, O>(&self, object_size: O, mut p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+        where O: FnMut(u16) -> Option<u32>,
+    {
+        let mut object_size = object_size;
+        try!(with_packer(&mut p, |p| DeltaHeader {
+            num_deleted_items: self.deleted_items.len().to_i32().unwrap(),
+            num_updated_items: self.updated_items.len().to_i32().unwrap()
+        }.encode(p)));
+        for &key in &self.deleted_items {
+            try!(p.write_int(key));
+        }
+        for (&key, range) in &self.updated_items {
+            let data = &self.buf[to_usize(range.clone())];
+            let type_id = key_to_type_id(key);
+            let id = key_to_id(key);
+            try!(p.write_int(type_id.to_i32().unwrap()));
+            try!(p.write_int(id.to_i32().unwrap()));
+            match object_size(type_id) {
+                Some(size) => assert!(size.to_usize().unwrap() == data.len()),
+                None => try!(p.write_int(data.len().to_i32().unwrap())),
+            }
+            for &d in data {
+                try!(p.write_int(d));
+            }
+        }
+        Ok(p.written())
+    }
 }
 
 #[derive(Clone, Default)]
@@ -261,12 +331,13 @@ impl DeltaReader {
 
         let mut num_updates = 0;
         let mut buf = buf.iter();
+        // FIXME: Use `is_empty`.
         while buf.len() != 0 {
             let type_id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
             let id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
 
             let type_id = try!(type_id.to_u16().ok_or(Error::TypeIdRange));
-            let id = try!(id.to_u16().ok_or(Error::TypeIdRange));
+            let id = try!(id.to_u16().ok_or(Error::IdRange));
 
             let size = match object_size(type_id) {
                 Some(s) => s.to_usize().unwrap(),
@@ -329,5 +400,77 @@ impl Builder {
     }
     pub fn finish(self) -> Snap {
         self.snap
+    }
+}
+
+pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks {
+    DeltaChunks {
+        tick: tick,
+        delta_tick: delta_tick,
+        crc: crc,
+        cur_part: if !data.is_empty() { 0 } else { -1 },
+        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE - 1) / MAX_SNAPSHOT_PACKSIZE).to_i32().unwrap(),
+        data: data,
+    }
+}
+
+impl<'a> Into<system::System<'a>> for SnapMsg<'a> {
+    fn into(self) -> system::System<'a> {
+        match self {
+            SnapMsg::Snap(s) => system::System::Snap(s),
+            SnapMsg::SnapEmpty(s) => system::System::SnapEmpty(s),
+            SnapMsg::SnapSingle(s) => system::System::SnapSingle(s),
+        }
+    }
+}
+
+pub enum SnapMsg<'a> {
+    Snap(system::Snap<'a>),
+    SnapEmpty(system::SnapEmpty),
+    SnapSingle(system::SnapSingle<'a>),
+}
+
+pub struct DeltaChunks<'a> {
+    tick: i32,
+    delta_tick: i32,
+    crc: i32,
+    cur_part: i32,
+    num_parts: i32,
+    data: &'a [u8],
+}
+
+impl<'a> Iterator for DeltaChunks<'a> {
+    type Item = SnapMsg<'a>;
+    fn next(&mut self) -> Option<SnapMsg<'a>> {
+        if self.cur_part == self.num_parts {
+            return None;
+        }
+        let result = if self.num_parts == 0 {
+            SnapMsg::SnapEmpty(system::SnapEmpty {
+                tick: self.tick,
+                delta_tick: self.delta_tick,
+            })
+        } else if self.num_parts == 1 {
+            SnapMsg::SnapSingle(system::SnapSingle {
+                tick: self.tick,
+                delta_tick: self.delta_tick,
+                crc: self.crc,
+                data: self.data,
+            })
+        } else {
+            let index = self.cur_part.to_usize().unwrap();
+            let start = MAX_SNAPSHOT_PACKSIZE * index;
+            let end = cmp::min(MAX_SNAPSHOT_PACKSIZE * (index + 1), self.data.len());
+            SnapMsg::Snap(system::Snap {
+                tick: self.tick,
+                delta_tick: self.delta_tick,
+                num_parts: self.num_parts,
+                part: self.cur_part,
+                crc: self.crc,
+                data: &self.data[start..end],
+            })
+        };
+        self.cur_part += 1;
+        Some(result)
     }
 }

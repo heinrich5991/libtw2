@@ -1,3 +1,4 @@
+extern crate buffer;
 #[macro_use] extern crate common;
 extern crate gamenet;
 extern crate num;

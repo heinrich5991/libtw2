@@ -55,6 +55,7 @@ use packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 16;
 pub const SPEC_FREEVIEW: i32 = -1;
+pub const MAX_SNAPSHOT_PACKSIZE: usize = 900;
 
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;

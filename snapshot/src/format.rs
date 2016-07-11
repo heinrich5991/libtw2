@@ -1,3 +1,5 @@
+use buffer::CapacityError;
+use packer::Packer;
 use packer::Unpacker;
 use packer;
 use snap::Error;
@@ -71,5 +73,13 @@ impl DeltaHeader {
             warn.warn(Warning::NonZeroPadding);
         }
         Ok(result)
+    }
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(p.write_int(self.num_deleted_items));
+        try!(p.write_int(self.num_updated_items));
+        try!(p.write_int(0));
+        Ok(p.written())
     }
 }
