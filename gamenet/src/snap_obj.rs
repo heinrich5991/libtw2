@@ -1,3 +1,4 @@
+use common::slice;
 use debug::DebugSlice;
 use enums::*;
 use error::Error;
@@ -11,7 +12,7 @@ use std::fmt;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Tick(i32);
+pub struct Tick(pub i32);
 
 impl Projectile {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
@@ -131,6 +132,30 @@ impl SnapObj {
             SnapObj::SoundGlobal(_) => SOUND_GLOBAL,
             SnapObj::SoundWorld(_) => SOUND_WORLD,
             SnapObj::DamageInd(_) => DAMAGE_IND,
+        }
+    }
+    pub fn encode(&self) -> &[i32] {
+        match *self {
+            SnapObj::PlayerInput(ref i) => i.encode(),
+            SnapObj::Projectile(ref i) => i.encode(),
+            SnapObj::Laser(ref i) => i.encode(),
+            SnapObj::Pickup(ref i) => i.encode(),
+            SnapObj::Flag(ref i) => i.encode(),
+            SnapObj::GameInfo(ref i) => i.encode(),
+            SnapObj::GameData(ref i) => i.encode(),
+            SnapObj::CharacterCore(ref i) => i.encode(),
+            SnapObj::Character(ref i) => i.encode(),
+            SnapObj::PlayerInfo(ref i) => i.encode(),
+            SnapObj::ClientInfo(ref i) => i.encode(),
+            SnapObj::SpectatorInfo(ref i) => i.encode(),
+            SnapObj::Common(ref i) => i.encode(),
+            SnapObj::Explosion(ref i) => i.encode(),
+            SnapObj::Spawn(ref i) => i.encode(),
+            SnapObj::HammerHit(ref i) => i.encode(),
+            SnapObj::Death(ref i) => i.encode(),
+            SnapObj::SoundGlobal(ref i) => i.encode(),
+            SnapObj::SoundWorld(ref i) => i.encode(),
+            SnapObj::DamageInd(ref i) => i.encode(),
         }
     }
 }
@@ -282,6 +307,7 @@ impl From<DamageInd> for SnapObj {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PlayerInput {
     pub direction: i32,
@@ -296,6 +322,7 @@ pub struct PlayerInput {
     pub prev_weapon: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Projectile {
     pub x: i32,
@@ -306,6 +333,7 @@ pub struct Projectile {
     pub start_tick: Tick,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Laser {
     pub x: i32,
@@ -315,6 +343,7 @@ pub struct Laser {
     pub start_tick: Tick,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Pickup {
     pub x: i32,
@@ -323,6 +352,7 @@ pub struct Pickup {
     pub subtype: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Flag {
     pub x: i32,
@@ -330,6 +360,7 @@ pub struct Flag {
     pub team: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GameInfo {
     pub game_flags: i32,
@@ -342,6 +373,7 @@ pub struct GameInfo {
     pub round_current: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GameData {
     pub teamscore_red: i32,
@@ -350,6 +382,7 @@ pub struct GameData {
     pub flag_carrier_blue: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CharacterCore {
     pub tick: i32,
@@ -369,6 +402,7 @@ pub struct CharacterCore {
     pub hook_dy: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Character {
     pub character_core: CharacterCore,
@@ -381,6 +415,7 @@ pub struct Character {
     pub attack_tick: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PlayerInfo {
     pub local: i32,
@@ -390,6 +425,7 @@ pub struct PlayerInfo {
     pub latency: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ClientInfo {
     pub name: [i32; 4],
@@ -401,6 +437,7 @@ pub struct ClientInfo {
     pub color_feet: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SpectatorInfo {
     pub spectator_id: i32,
@@ -408,45 +445,53 @@ pub struct SpectatorInfo {
     pub y: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Common {
     pub x: i32,
     pub y: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Explosion {
     pub common: Common,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Spawn {
     pub common: Common,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HammerHit {
     pub common: Common,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Death {
     pub common: Common,
     pub client_id: i32,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SoundGlobal {
     pub common: Common,
     pub sound_id: Sound,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SoundWorld {
     pub common: Common,
     pub sound_id: Sound,
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DamageInd {
     pub common: Common,
@@ -489,6 +534,10 @@ impl PlayerInput {
             prev_weapon: try!(_p.read_int()),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.player_flags && self.player_flags <= 256);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Projectile {
@@ -519,6 +568,9 @@ impl Projectile {
             start_tick: Tick(try!(_p.read_int())),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Laser {
@@ -547,6 +599,9 @@ impl Laser {
             start_tick: Tick(try!(_p.read_int())),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Pickup {
@@ -573,6 +628,11 @@ impl Pickup {
             subtype: try!(positive(try!(_p.read_int()))),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(self.type_ >= 0);
+        assert!(self.subtype >= 0);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Flag {
@@ -596,6 +656,10 @@ impl Flag {
             y: try!(_p.read_int()),
             team: try!(in_range(try!(_p.read_int()), TEAM_RED, TEAM_BLUE)),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(TEAM_RED <= self.team && self.team <= TEAM_BLUE);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -631,6 +695,16 @@ impl GameInfo {
             round_current: try!(positive(try!(_p.read_int()))),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.game_flags && self.game_flags <= 256);
+        assert!(0 <= self.game_state_flags && self.game_state_flags <= 256);
+        assert!(self.warmup_timer >= 0);
+        assert!(self.score_limit >= 0);
+        assert!(self.time_limit >= 0);
+        assert!(self.round_num >= 0);
+        assert!(self.round_current >= 0);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for GameData {
@@ -656,6 +730,11 @@ impl GameData {
             flag_carrier_red: try!(in_range(try!(_p.read_int()), FLAG_MISSING, MAX_CLIENTS-1)),
             flag_carrier_blue: try!(in_range(try!(_p.read_int()), FLAG_MISSING, MAX_CLIENTS-1)),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(FLAG_MISSING <= self.flag_carrier_red && self.flag_carrier_red <= MAX_CLIENTS-1);
+        assert!(FLAG_MISSING <= self.flag_carrier_blue && self.flag_carrier_blue <= MAX_CLIENTS-1);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -705,6 +784,13 @@ impl CharacterCore {
             hook_dy: try!(_p.read_int()),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(-1 <= self.direction && self.direction <= 1);
+        assert!(0 <= self.jumped && self.jumped <= 3);
+        assert!(-1 <= self.hooked_player && self.hooked_player <= MAX_CLIENTS-1);
+        assert!(-1 <= self.hook_state && self.hook_state <= 5);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Character {
@@ -739,6 +825,15 @@ impl Character {
             attack_tick: try!(positive(try!(_p.read_int()))),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        self.character_core.encode();
+        assert!(0 <= self.player_flags && self.player_flags <= 256);
+        assert!(0 <= self.health && self.health <= 10);
+        assert!(0 <= self.armor && self.armor <= 10);
+        assert!(0 <= self.ammo_count && self.ammo_count <= 10);
+        assert!(self.attack_tick >= 0);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for PlayerInfo {
@@ -766,6 +861,12 @@ impl PlayerInfo {
             score: try!(_p.read_int()),
             latency: try!(_p.read_int()),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.local && self.local <= 1);
+        assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        assert!(TEAM_SPECTATORS <= self.team && self.team <= TEAM_BLUE);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -815,6 +916,10 @@ impl ClientInfo {
             color_feet: try!(_p.read_int()),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.use_custom_color && self.use_custom_color <= 1);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for SpectatorInfo {
@@ -839,6 +944,10 @@ impl SpectatorInfo {
             y: try!(_p.read_int()),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        assert!(SPEC_FREEVIEW <= self.spectator_id && self.spectator_id <= MAX_CLIENTS-1);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Common {
@@ -861,6 +970,9 @@ impl Common {
             y: try!(_p.read_int()),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for Explosion {
@@ -880,6 +992,10 @@ impl Explosion {
         Ok(Explosion {
             common: try!(Common::decode_inner(_p)),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -901,6 +1017,10 @@ impl Spawn {
             common: try!(Common::decode_inner(_p)),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for HammerHit {
@@ -920,6 +1040,10 @@ impl HammerHit {
         Ok(HammerHit {
             common: try!(Common::decode_inner(_p)),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -943,6 +1067,11 @@ impl Death {
             client_id: try!(in_range(try!(_p.read_int()), 0, MAX_CLIENTS-1)),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for SoundGlobal {
@@ -964,6 +1093,10 @@ impl SoundGlobal {
             common: try!(Common::decode_inner(_p)),
             sound_id: try!(Sound::from_i32(try!(_p.read_int()))),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 
@@ -987,6 +1120,10 @@ impl SoundWorld {
             sound_id: try!(Sound::from_i32(try!(_p.read_int()))),
         })
     }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
 }
 
 impl fmt::Debug for DamageInd {
@@ -1008,6 +1145,10 @@ impl DamageInd {
             common: try!(Common::decode_inner(_p)),
             angle: try!(_p.read_int()),
         })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
 

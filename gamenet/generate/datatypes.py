@@ -63,6 +63,7 @@ pub const FLAG_TAKEN: i32 = -1;
 
 def emit_header_snap_obj():
     print("""\
+use common::slice;
 use debug::DebugSlice;
 use enums::*;
 use error::Error;
@@ -76,7 +77,7 @@ use std::fmt;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Tick(i32);
+pub struct Tick(pub i32);
 
 impl Projectile {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
@@ -272,6 +273,12 @@ def emit_enum_obj(name, structs):
         print("            {}::{}(_) => {},".format(title(name), title(s.name), caps(s.name)))
     print("        }")
     print("    }")
+    print("    pub fn encode(&self) -> &[i32] {")
+    print("        match *self {")
+    for s in structs:
+        print("            {}::{}(ref i) => i.encode(),".format(title(name), title(s.name)))
+    print("        }")
+    print("    }")
     print("}")
     print()
     print("impl{l} fmt::Debug for {}{l} {{".format(title(name), l=lifetime))
@@ -338,6 +345,7 @@ class Enum(NameValues):
         for i, name in enumerate(self.values):
             print("pub const {}_{}: i32 = {};".format(caps(self.name), caps(name), i + self.offset))
         print()
+        print("#[repr(C)]")
         print("#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]")
         print("pub enum {} {{".format(title(self.name)))
         for i, name in enumerate(self.values):
@@ -466,6 +474,9 @@ class Struct(NameValues):
 
 class NetObject(Struct):
     const_type = "u16"
+    def emit_definition(self):
+        print("#[repr(C)]")
+        super().emit_definition()
     def emit_impl_encode_decode_int(self):
         if self.super:
             super = self.structs[self.super]
@@ -488,6 +499,13 @@ class NetObject(Struct):
             print("        })")
         else:
             print("        Ok({})".format(title(self.name)))
+        print("    }")
+        print("    pub fn encode(&self) -> &[i32] {")
+        if super:
+            print("        self.{}.encode();".format(snake(super.name)))
+        for m in self.values:
+            m.emit_assert()
+        print("        unsafe { slice::transmute(slice::ref_slice(self)) }")
         print("    }")
         print("}")
     def int_size(self):
@@ -548,9 +566,11 @@ class NetArray(Member):
                 (","+indent).join(self.inner.decode_expr() for _ in range(self.count))
         )
     def emit_assert(self):
-        print("        for e in &self.{} {{".format(snake(self.name)))
-        print("            {};".format(self.inner.assert_expr("e")))
-        print("        }")
+        assert_expr = self.inner.assert_expr("e")
+        if assert_expr:
+            print("        for e in &self.{} {{".format(snake(self.name)))
+            print("            {};".format(assert_expr))
+            print("        }")
     def emit_encode(self):
         print("        for e in &self.{} {{".format(snake(self.name)))
         print("            try!({});".format(self.inner.encode_expr("e")))
