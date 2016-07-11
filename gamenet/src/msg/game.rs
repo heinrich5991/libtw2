@@ -404,7 +404,7 @@ pub struct SvBroadcast<'a> {
 
 #[derive(Clone, Copy)]
 pub struct SvChat<'a> {
-    pub team: i32,
+    pub team: Team,
     pub client_id: i32,
     pub message: &'a [u8],
 }
@@ -520,7 +520,7 @@ pub struct ClSay<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ClSetTeam {
-    pub team: i32,
+    pub team: Team,
 }
 
 #[derive(Clone, Copy)]
@@ -615,7 +615,7 @@ impl<'a> fmt::Debug for SvBroadcast<'a> {
 impl<'a> SvChat<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvChat<'a>, Error> {
         let result = Ok(SvChat {
-            team: try!(in_range(try!(_p.read_int(warn)), TEAM_SPECTATORS, TEAM_BLUE)),
+            team: try!(Team::from_i32(try!(_p.read_int(warn)))),
             client_id: try!(in_range(try!(_p.read_int(warn)), -1, MAX_CLIENTS-1)),
             message: try!(sanitize(warn, try!(_p.read_string()))),
         });
@@ -623,10 +623,9 @@ impl<'a> SvChat<'a> {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(TEAM_SPECTATORS <= self.team && self.team <= TEAM_BLUE);
         assert!(-1 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
         sanitize(&mut Panic, self.message).unwrap();
-        try!(_p.write_int(self.team));
+        try!(_p.write_int(self.team.to_i32()));
         try!(_p.write_int(self.client_id));
         try!(_p.write_string(self.message));
         Ok(_p.written())
@@ -1096,14 +1095,13 @@ impl<'a> fmt::Debug for ClSay<'a> {
 impl ClSetTeam {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetTeam, Error> {
         let result = Ok(ClSetTeam {
-            team: try!(in_range(try!(_p.read_int(warn)), TEAM_SPECTATORS, TEAM_BLUE)),
+            team: try!(Team::from_i32(try!(_p.read_int(warn)))),
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(TEAM_SPECTATORS <= self.team && self.team <= TEAM_BLUE);
-        try!(_p.write_int(self.team));
+        try!(_p.write_int(self.team.to_i32()));
         Ok(_p.written())
     }
 }

@@ -25,6 +25,7 @@ use event_loop::Timeout;
 use gamenet::VERSION;
 use gamenet::SnapObj;
 use gamenet::enums::MAX_CLIENTS;
+use gamenet::enums::Team;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
 use gamenet::msg::System;
@@ -412,7 +413,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         snapshot_builder.add(0, PlayerInfo {
             local: 1,
             client_id: 0,
-            team: 0,
+            team: Team::Spectators,
             score: 0,
             latency: 20,
         });

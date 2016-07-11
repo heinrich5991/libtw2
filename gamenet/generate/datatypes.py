@@ -622,13 +622,14 @@ class NetIntRange(NetIntAny):
         max = str(self.max)
         if min == "0" and max == "max_int":
             return NetIntPositive(self.name)
+        if min == "TEAM_SPECTATORS" and max == "TEAM_BLUE":
+            return NetEnum(self.name, "team")
         if self.name == ("hooked", "player") and min == "0":
             self.min = -1
         elif self.name == ("emote",) and max == str(len(enums[("emote",)].values)):
             max = "NUM_EMOTES-1"
         if str(self.min) == "0" and max.startswith("NUM_") and max.endswith("S-1"):
-            enum_name = canonicalize(max[4:-3])
-            return NetEnum(self.name, enum_name)
+            return NetEnum(self.name, max[4:-3])
         if max == "NUM_WEAPONS-1":
             self.max = len(enums[("weapon",)].values) - 1
         return self
@@ -654,8 +655,8 @@ class NetIntPositive(NetIntAny):
 class NetEnum(NetIntAny):
     def __init__(self, name, enum_name):
         super().__init__(name)
-        self.enum_name = enum_name
-        self.type_ = title(enum_name)
+        self.enum_name = canonicalize(enum_name)
+        self.type_ = title(self.enum_name)
     def decode_expr(self):
         return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):

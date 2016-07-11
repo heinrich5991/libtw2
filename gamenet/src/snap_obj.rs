@@ -420,7 +420,7 @@ pub struct Character {
 pub struct PlayerInfo {
     pub local: i32,
     pub client_id: i32,
-    pub team: i32,
+    pub team: Team,
     pub score: i32,
     pub latency: i32,
 }
@@ -857,7 +857,7 @@ impl PlayerInfo {
         Ok(PlayerInfo {
             local: try!(in_range(try!(_p.read_int()), 0, 1)),
             client_id: try!(in_range(try!(_p.read_int()), 0, MAX_CLIENTS-1)),
-            team: try!(in_range(try!(_p.read_int()), TEAM_SPECTATORS, TEAM_BLUE)),
+            team: try!(Team::from_i32(try!(_p.read_int()))),
             score: try!(_p.read_int()),
             latency: try!(_p.read_int()),
         })
@@ -865,7 +865,6 @@ impl PlayerInfo {
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.local && self.local <= 1);
         assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
-        assert!(TEAM_SPECTATORS <= self.team && self.team <= TEAM_BLUE);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
