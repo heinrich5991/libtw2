@@ -386,6 +386,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "snapshot"
 version = "0.0.1"
 dependencies = [
+ "buffer 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "gamenet 0.0.1",
  "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",

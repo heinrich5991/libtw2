@@ -38,6 +38,7 @@ use gamenet::snap_obj::ClientInfo;
 use gamenet::snap_obj::GameInfo;
 use gamenet::snap_obj::PlayerInfo;
 use gamenet::snap_obj::Tick;
+use gamenet::snap_obj::obj_size;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -52,6 +53,8 @@ use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
+use snapshot::Delta;
+use snapshot::Snap;
 use snapshot::snap;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -131,6 +134,8 @@ struct Server {
     game_start: Timestamp,
     game_tick: u32,
     snapshot_builder: Option<snap::Builder>,
+    delta: Delta,
+    delta_buffer: Vec<u8>,
 }
 
 impl Server {
@@ -388,7 +393,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     }
     fn game_tick(&mut self) {
         // TODO: Do tick. :)
-
+        self.server.game_tick += 1;
+    }
+    fn send_snapshots(&mut self) {
         let mut snapshot_builder = self.server.snapshot_builder.take().unwrap_or(snap::Builder::new());
 
         snapshot_builder.add(0, GameInfo {
@@ -418,12 +425,25 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             latency: 20,
         });
         let snap = snapshot_builder.finish();
+        self.server.delta.create(&Snap::empty(), &snap);
+        self.server.delta_buffer.clear();
+        // TODO: Do this better:
+        self.server.delta_buffer.reserve(64 * 1024);
+        {
+            let delta = &mut self.server.delta;
+            with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
+        }
+        for m in snap::delta_chunks(0, 1, &self.server.delta_buffer, snap.crc()) {
+            let m: System = m.into();
+            println!("{:?}", m);
+        }
+
         self.server.snapshot_builder = Some(snap.recycle());
-        self.server.game_tick += 1;
     }
     fn tick(&mut self) {
         while self.server.game_tick_time(self.server.game_tick + 1) <= self.loop_.time() {
             self.game_tick();
+            self.send_snapshots();
         }
     }
 }
