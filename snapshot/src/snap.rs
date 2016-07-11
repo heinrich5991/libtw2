@@ -17,6 +17,7 @@ use to_usize;
 use warn::Warn;
 use warn::wrap;
 
+// TODO: Actually obey this the same way as Teeworlds does.
 pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,6 +32,27 @@ pub enum Error {
     TooLongDiff,
     TooLongSnap,
     DeltaDifferingSizes,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BuilderError {
+    DuplicateKey,
+    TooLongSnap,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TooLongSnap;
+
+impl From<TooLongSnap> for Error {
+    fn from(_: TooLongSnap) -> Error {
+        Error::TooLongSnap
+    }
+}
+
+impl From<TooLongSnap> for BuilderError {
+    fn from(_: TooLongSnap) -> BuilderError {
+        BuilderError::TooLongSnap
+    }
 }
 
 impl From<packer::IntOutOfRange> for Error {
@@ -90,21 +112,24 @@ impl Snap {
             iter: self.offsets.iter(),
         }
     }
+    fn prepare_item_vacant<'a>(entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>, buf: &mut Vec<i32>, size: usize)
+        -> Result<&'a mut ops::Range<u32>, TooLongSnap>
+    {
+        let offset = buf.len();
+        if offset + size > MAX_SNAPSHOT_SIZE {
+            return Err(TooLongSnap);
+        }
+        let start = offset.to_u32().unwrap();
+        let end = (offset + size).to_u32().unwrap();
+        buf.extend(iter::repeat(0).take(size));
+        Ok(entry.insert(start..end))
+    }
     fn prepare_item(&mut self, type_id: u16, id: u16, size: usize)
         -> Result<&mut [i32], Error>
     {
         let offset = match self.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(o) => o.into_mut(),
-            hash_map::Entry::Vacant(v) => {
-                let offset = self.buf.len();
-                if offset + size > MAX_SNAPSHOT_SIZE {
-                    return Err(Error::TooLongSnap);
-                }
-                let start = offset.to_u32().unwrap();
-                let end = (offset + size).to_u32().unwrap();
-                self.buf.extend(iter::repeat(0).take(size));
-                v.insert(start..end)
-            },
+            hash_map::Entry::Vacant(v) => try!(Snap::prepare_item_vacant(v, &mut self.buf, size)),
         }.clone();
         Ok(&mut self.buf[to_usize(offset)])
     }
@@ -140,6 +165,12 @@ impl Snap {
     }
     pub fn crc(&self) -> i32 {
         self.buf.iter().fold(0, |s, &a| s.wrapping_add(a))
+    }
+    pub fn recycle(mut self) -> Builder {
+        self.clear();
+        Builder {
+            snap: self,
+        }
     }
 }
 
@@ -272,5 +303,31 @@ impl DeltaReader {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct Builder {
+    snap: Snap,
+}
+
+impl Builder {
+    pub fn new() -> Builder {
+        Default::default()
+    }
+    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32])
+        -> Result<(), BuilderError>
+    {
+        let offset = match self.snap.offsets.entry(key(type_id, id)) {
+            hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
+            hash_map::Entry::Vacant(v) => {
+                try!(Snap::prepare_item_vacant(v, &mut self.snap.buf, data.len()))
+            }
+        }.clone();
+        self.snap.buf[to_usize(offset)].copy_from_slice(data);
+        Ok(())
+    }
+    pub fn finish(self) -> Snap {
+        self.snap
     }
 }
