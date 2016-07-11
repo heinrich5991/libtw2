@@ -10,6 +10,7 @@ extern crate logger;
 extern crate net;
 extern crate num;
 extern crate packer;
+extern crate snapshot;
 extern crate socket;
 extern crate warn;
 
@@ -22,6 +23,7 @@ use event_loop::Loop;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use gamenet::VERSION;
+use gamenet::SnapObj;
 use gamenet::enums::MAX_CLIENTS;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
@@ -31,6 +33,10 @@ use gamenet::msg::connless;
 use gamenet::msg::game;
 use gamenet::msg::system;
 use gamenet::msg;
+use gamenet::snap_obj::ClientInfo;
+use gamenet::snap_obj::GameInfo;
+use gamenet::snap_obj::PlayerInfo;
+use gamenet::snap_obj::Tick;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -41,7 +47,11 @@ use net::net::PeerId;
 use net::time::Timestamp;
 use num::ToPrimitive;
 use packer::Unpacker;
+use packer::string_to_ints3;
+use packer::string_to_ints4;
+use packer::string_to_ints6;
 use packer::with_packer;
+use snapshot::snap;
 use std::collections::HashMap;
 use std::collections::hash_map;
 use std::fmt::Write;
@@ -102,11 +112,24 @@ trait LoopExt: Loop {
 }
 impl<L: Loop> LoopExt for L { }
 
+trait SnapBuilderExt {
+    fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O);
+}
+impl SnapBuilderExt for snap::Builder {
+    fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O) {
+        fn inner(builder: &mut snap::Builder, id: u16, obj: SnapObj) {
+            builder.add_item(obj.obj_type_id(), id, obj.encode()).unwrap();
+        }
+        inner(self, id, obj.into())
+    }
+}
+
 #[derive(Default)]
 struct Server {
     peers: Peers,
     game_start: Timestamp,
     game_tick: u32,
+    snapshot_builder: Option<snap::Builder>,
 }
 
 impl Server {
@@ -364,6 +387,37 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     }
     fn game_tick(&mut self) {
         // TODO: Do tick. :)
+
+        let mut snapshot_builder = self.server.snapshot_builder.take().unwrap_or(snap::Builder::new());
+
+        snapshot_builder.add(0, GameInfo {
+            game_flags: 0,
+            game_state_flags: 0,
+            round_start_tick: Tick(0),
+            warmup_timer: 0,
+            score_limit: 20,
+            time_limit: 0,
+            round_num: 1,
+            round_current: 1,
+        });
+        snapshot_builder.add(0, ClientInfo {
+            name: string_to_ints4(b"nameless tee"),
+            clan: string_to_ints3(b""),
+            country: -1,
+            skin: string_to_ints6(b"default"),
+            use_custom_color: 0,
+            color_body: 0,
+            color_feet: 0,
+        });
+        snapshot_builder.add(0, PlayerInfo {
+            local: 1,
+            client_id: 0,
+            team: 0,
+            score: 0,
+            latency: 20,
+        });
+        let snap = snapshot_builder.finish();
+        self.server.snapshot_builder = Some(snap.recycle());
         self.server.game_tick += 1;
     }
     fn tick(&mut self) {

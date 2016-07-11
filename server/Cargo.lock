@@ -14,6 +14,7 @@ dependencies = [
  "net 0.0.1",
  "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
+ "snapshot 0.0.1",
  "socket 0.0.1",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -382,6 +383,18 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "snapshot"
+version = "0.0.1"
+dependencies = [
+ "common 0.0.1",
+ "gamenet 0.0.1",
+ "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
+ "packer 0.0.1",
+ "vec_map 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "socket"
 version = "0.0.1"
 dependencies = [
@@ -427,6 +440,11 @@ dependencies = [
 [[package]]
 name = "utf8-ranges"
 version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "vec_map"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
