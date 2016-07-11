@@ -293,11 +293,11 @@ pub fn string_to_ints(result: &mut [i32], string: &[u8]) {
     let mut output = result.iter_mut();
     let mut input = string.iter().cloned();
     while let Some(o) = output.next() {
-        let v0 = input.next().unwrap_or(0);
-        let v1 = input.next().unwrap_or(0);
-        let v2 = input.next().unwrap_or(0);
+        let v0 = input.next().unwrap_or(0).wrapping_add(0x80);
+        let v1 = input.next().unwrap_or(0).wrapping_add(0x80);
+        let v2 = input.next().unwrap_or(0).wrapping_add(0x80);
         // FIXME: Use .is_empty()
-        let v3 = input.next().unwrap_or(if output.len() != 0 { 0 } else { 0x80 });
+        let v3 = input.next().unwrap_or(if output.len() != 0 { 0 } else { 0x80 }).wrapping_add(0x80);
         *o = (v0 as i32) << 24 | (v1 as i32) << 16 | (v2 as i32) << 8 | (v3 as i32);
     }
 }
