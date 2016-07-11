@@ -286,6 +286,38 @@ pub fn positive(v: i32) -> Result<i32, IntOutOfRange> {
     }
 }
 
+pub fn string_to_ints(result: &mut [i32], string: &[u8]) {
+    assert!(string.iter().all(|&b| b != 0));
+    // Strict less-than because of the NUL-termination.
+    assert!(string.len() < result.len() * mem::size_of::<i32>());
+    let mut output = result.iter_mut();
+    let mut input = string.iter().cloned();
+    while let Some(o) = output.next() {
+        let v0 = input.next().unwrap_or(0);
+        let v1 = input.next().unwrap_or(0);
+        let v2 = input.next().unwrap_or(0);
+        // FIXME: Use .is_empty()
+        let v3 = input.next().unwrap_or(if output.len() != 0 { 0 } else { 0x80 });
+        *o = (v0 as i32) << 24 | (v1 as i32) << 16 | (v2 as i32) << 8 | (v3 as i32);
+    }
+}
+
+pub fn string_to_ints3(string: &[u8]) -> [i32; 3] {
+    let mut result: [i32; 3] = Default::default();
+    string_to_ints(&mut result, string);
+    result
+}
+pub fn string_to_ints4(string: &[u8]) -> [i32; 4] {
+    let mut result: [i32; 4] = Default::default();
+    string_to_ints(&mut result, string);
+    result
+}
+pub fn string_to_ints6(string: &[u8]) -> [i32; 6] {
+    let mut result: [i32; 6] = Default::default();
+    string_to_ints(&mut result, string);
+    result
+}
+
 pub fn ints_to_bytes(result: &mut [u8], input: &[i32]) {
     assert!(result.len() == input.len() * mem::size_of::<i32>());
     for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
