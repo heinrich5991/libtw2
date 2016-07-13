@@ -53,8 +53,6 @@ use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
-use snapshot::Delta;
-use snapshot::Snap;
 use snapshot::snap;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -133,8 +131,6 @@ struct Server {
     peers: Peers,
     game_start: Timestamp,
     game_tick: u32,
-    snapshot_builder: Option<snap::Builder>,
-    delta: Delta,
     delta_buffer: Vec<u8>,
 }
 
@@ -168,6 +164,9 @@ impl Peers {
     }
     fn remove(&mut self, pid: PeerId) {
         self.peers.remove(&pid).expect("invalid pid");
+    }
+    fn iter_mut(&mut self) -> hash_map::IterMut<PeerId, Peer> {
+        self.peers.iter_mut()
     }
 }
 
@@ -203,8 +202,20 @@ enum PeerState {
     Ingame(IngameState),
 }
 
+impl PeerState {
+    fn assert_ingame(&mut self) -> &mut IngameState {
+        if let PeerState::Ingame(ref mut ingame) = *self {
+            ingame
+        } else {
+            panic!("not ingame");
+        }
+    }
+}
+
 #[derive(Default)]
-struct IngameState;
+struct IngameState {
+    snaps: snapshot::Storage,
+}
 
 struct ServerLoop<'a, L: Loop+'a> {
     loop_: &'a mut L,
@@ -251,7 +262,6 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             warn!("non-vital message {:?}", msg);
             return;
         }
-        let mut ignored = false;
         let mut processed = false;
         let mut peer = self.server.peers.entry(pid);
         match (&peer.get().state, msg) {
@@ -308,22 +318,19 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
             }
             (&SystemEnterGame, SystemOrGame::System(System::EnterGame(system::EnterGame))) => {
-                for i in 0..3 {
-                    self.loop_.sends(pid, system::SnapEmpty {
-                        tick: i,
-                        delta_tick: i - (-1),
-                    });
-                }
-                self.loop_.flush(pid);
                 peer.get_mut().state = Ingame(IngameState::default());
                 processed = true;
             }
-            (&Ingame(..), SystemOrGame::System(System::Input(..))) => {
-                ignored = true;
+            (&Ingame(..), SystemOrGame::System(System::Input(input))) => {
+                processed = true;
+                let ingame = peer.get_mut().state.assert_ingame();
+                if let Err(e) = ingame.snaps.set_delta_tick(&mut Warn(pid, data), input.ack_snapshot) {
+                    warn!("invalid input tick: {:?} ({})", e, input.ack_snapshot);
+                }
             }
             _ => {},
         }
-        if !processed && !ignored {
+        if !processed {
             warn!("unprocessed message {:?}", msg);
         }
     }
@@ -393,57 +400,62 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     }
     fn game_tick(&mut self) {
         // TODO: Do tick. :)
-        self.server.game_tick += 1;
     }
     fn send_snapshots(&mut self) {
-        let mut snapshot_builder = self.server.snapshot_builder.take().unwrap_or(snap::Builder::new());
+        for (&pid, peer) in self.server.peers.iter_mut() {
+            if let PeerState::Ingame(ref mut ingame) = peer.state {
+                let mut builder = ingame.snaps.new_builder();
+                builder.add(0, GameInfo {
+                    game_flags: 0,
+                    game_state_flags: 0,
+                    round_start_tick: Tick(0),
+                    warmup_timer: 0,
+                    score_limit: 20,
+                    time_limit: 0,
+                    round_num: 1,
+                    round_current: 1,
+                });
+                builder.add(0, ClientInfo {
+                    name: string_to_ints4(b"nameless tee"),
+                    clan: string_to_ints3(b""),
+                    country: -1,
+                    skin: string_to_ints6(b"default"),
+                    use_custom_color: 0,
+                    color_body: 0,
+                    color_feet: 0,
+                });
+                builder.add(0, PlayerInfo {
+                    local: 1,
+                    client_id: 0,
+                    team: Team::Spectators,
+                    score: 0,
+                    latency: 20,
+                });
+                let snap = builder.finish();
+                let crc = snap.crc();
+                let game_tick = self.server.game_tick.to_i32().unwrap();
+                let delta_tick = ingame.snaps.delta_tick().unwrap_or(-1);
+                let delta = ingame.snaps.add_snap(game_tick, snap);
 
-        snapshot_builder.add(0, GameInfo {
-            game_flags: 0,
-            game_state_flags: 0,
-            round_start_tick: Tick(0),
-            warmup_timer: 0,
-            score_limit: 20,
-            time_limit: 0,
-            round_num: 1,
-            round_current: 1,
-        });
-        snapshot_builder.add(0, ClientInfo {
-            name: string_to_ints4(b"nameless tee"),
-            clan: string_to_ints3(b""),
-            country: -1,
-            skin: string_to_ints6(b"default"),
-            use_custom_color: 0,
-            color_body: 0,
-            color_feet: 0,
-        });
-        snapshot_builder.add(0, PlayerInfo {
-            local: 1,
-            client_id: 0,
-            team: Team::Spectators,
-            score: 0,
-            latency: 20,
-        });
-        let snap = snapshot_builder.finish();
-        self.server.delta.create(&Snap::empty(), &snap);
-        self.server.delta_buffer.clear();
-        // TODO: Do this better:
-        self.server.delta_buffer.reserve(64 * 1024);
-        {
-            let delta = &mut self.server.delta;
-            with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
-        }
-        for m in snap::delta_chunks(0, 1, &self.server.delta_buffer, snap.crc()) {
-            let m: System = m.into();
-            println!("{:?}", m);
-        }
+                self.server.delta_buffer.clear();
+                // TODO: Do this better:
+                self.server.delta_buffer.reserve(64 * 1024);
+                with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
+                for m in snap::delta_chunks(game_tick, delta_tick, &self.server.delta_buffer, crc) {
+                    self.loop_.sends(pid, m);
+                    self.loop_.flush(pid);
+                }
 
-        self.server.snapshot_builder = Some(snap.recycle());
+            }
+        }
     }
     fn tick(&mut self) {
         while self.server.game_tick_time(self.server.game_tick + 1) <= self.loop_.time() {
+            self.server.game_tick += 1;
             self.game_tick();
-            self.send_snapshots();
+            if self.server.game_tick % 2 == 0 {
+                self.send_snapshots();
+            }
         }
     }
 }

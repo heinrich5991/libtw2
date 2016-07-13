@@ -406,7 +406,7 @@ impl Builder {
 pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks {
     DeltaChunks {
         tick: tick,
-        delta_tick: delta_tick,
+        delta_tick: tick - delta_tick,
         crc: crc,
         cur_part: if !data.is_empty() { 0 } else { -1 },
         num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE - 1) / MAX_SNAPSHOT_PACKSIZE).to_i32().unwrap(),
@@ -424,6 +424,7 @@ impl<'a> Into<system::System<'a>> for SnapMsg<'a> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum SnapMsg<'a> {
     Snap(system::Snap<'a>),
     SnapEmpty(system::SnapEmpty),
