@@ -321,11 +321,40 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 peer.get_mut().state = Ingame(IngameState::default());
                 processed = true;
             }
-            (&Ingame(..), SystemOrGame::System(System::Input(input))) => {
+            (_, SystemOrGame::System(System::RconAuth(..))) => {
+                self.loop_.sends(pid, system::RconLine {
+                    line: b"Wrong password",
+                });
                 processed = true;
+            }
+            (&Ingame(..), SystemOrGame::System(System::Input(input))) => {
                 let ingame = peer.get_mut().state.assert_ingame();
                 if let Err(e) = ingame.snaps.set_delta_tick(&mut Warn(pid, data), input.ack_snapshot) {
                     warn!("invalid input tick: {:?} ({})", e, input.ack_snapshot);
+                }
+                processed = true;
+            }
+            (&Ingame(..), SystemOrGame::Game(Game::ClCallVote(call_vote))) => {
+                let error: Option<&[u8]> = match call_vote.type_ {
+                    b"kick" => Some(b"Server does not allow voting to kick players"),
+                    b"spectate" => Some(b"Server does not allow voting to move players to spectators"),
+                    _ => None,
+                };
+                if let Some(msg) = error {
+                    self.loop_.sendg(pid, game::SvChat {
+                        team: Team::Red,
+                        client_id: -1,
+                        message: msg,
+                    });
+                    processed = true;
+                }
+            }
+            (&Ingame(..), SystemOrGame::Game(Game::ClSetTeam(set_team))) => {
+                if set_team.team != Team::Spectators {
+                    self.loop_.sendg(pid, game::SvBroadcast {
+                        message: b"Teams are locked",
+                    });
+                    processed = true;
                 }
             }
             _ => {},
