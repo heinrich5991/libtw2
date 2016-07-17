@@ -2,6 +2,7 @@
 name = "tools"
 version = "0.0.1"
 dependencies = [
+ "common 0.0.1",
  "datafile 0.0.1",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.0.1",

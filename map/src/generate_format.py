@@ -159,7 +159,7 @@ impl fmt::Debug for MapItemCommonV0 {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct MapItemInfoV1ExtraRace {
-    settings: i32,
+    pub settings: i32,
 }
 
 unsafe impl OnlyI32 for MapItemInfoV1ExtraRace { }
@@ -335,6 +335,7 @@ pub enum Error {
     MalformedGroup,
     MalformedImage,
     MalformedImageName,
+    MalformedInfo,
     MalformedLayer,
     MalformedLayerQuads,
     MalformedLayerTilemap,
