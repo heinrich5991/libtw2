@@ -4,7 +4,6 @@ use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
-use num::ToPrimitive;
 use protocol::ChunksIter;
 use protocol::ConnectedPacket;
 use protocol::ConnectedPacketType;

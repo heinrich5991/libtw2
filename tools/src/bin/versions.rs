@@ -10,8 +10,6 @@ use std::io::Write;
 use std::io;
 use std::path::Path;
 
-use map::format::*;
-
 #[derive(Default)]
 struct Stats {
     v3: u64,

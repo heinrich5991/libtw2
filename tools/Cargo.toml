@@ -4,10 +4,17 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
+arrayvec = "0.3.12"
+buffer = "0.1.6"
 common = { path = "../common/" }
 datafile = { path = "../datafile/" }
+gamenet = { path = "../gamenet/" }
+hexdump = "0.1.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
+net = { path = "../net/" }
 num = "0.1.27"
+packer = { path = "../packer/" }
 serverbrowse = { path = "../serverbrowse/" }
+warn = ">=0.1.1,<0.3.0"

@@ -2,10 +2,12 @@ use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
 use buffer;
+use common::pretty;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use num::ToPrimitive;
 use std::cmp;
+use std::fmt;
 use warn::Ignore;
 use warn::Warn;
 
@@ -87,13 +89,26 @@ pub enum PacketReadError {
     UnknownControl,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum ControlPacket<'a> {
     KeepAlive,
     Connect,
     ConnectAccept,
     Accept,
     Close(&'a [u8]),
+}
+
+impl<'a> fmt::Debug for ControlPacket<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ControlPacket::KeepAlive => f.debug_tuple("KeepAlive").finish(),
+            ControlPacket::Connect => f.debug_tuple("Connect").finish(),
+            ControlPacket::ConnectAccept => f.debug_tuple("ConnectAccept").finish(),
+            ControlPacket::Accept => f.debug_tuple("Accept").finish(),
+            ControlPacket::Close(reason) =>
+                f.debug_tuple("Close").field(&pretty::AlmostString::new(reason)).finish(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

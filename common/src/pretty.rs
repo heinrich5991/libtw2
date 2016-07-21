@@ -64,11 +64,19 @@ impl fmt::Debug for Bytes {
     }
 }
 
+impl fmt::Debug for AlmostString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // FIXME: Replace this with a UTF-8 decoder.
+        let string = String::from_utf8_lossy(&self.0);
+        fmt::Debug::fmt(&string, f)
+    }
+}
+
 impl fmt::Display for AlmostString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // FIXME: Replace this with a UTF-8 decoder.
         let string = String::from_utf8_lossy(&self.0);
-        if string.chars().any(|c| c < ' ') {
+        if string.chars().any(|c| c < ' ' || c == '"') {
             fmt::Debug::fmt(&string, f)
         } else {
             fmt::Display::fmt(&string, f)
