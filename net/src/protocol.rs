@@ -373,7 +373,7 @@ impl<'a> Packet<'a> {
             ConnectedPacketType::Control(control)
         } else {
             let request_resend = header.flags & PACKETFLAG_REQUEST_RESEND != 0;
-            if header.num_chunks == 0 {
+            if header.num_chunks == 0 && !request_resend {
                 warn.warn(Warning::ChunksNoChunks);
             }
             ConnectedPacketType::Chunks(request_resend, header.num_chunks, payload)
