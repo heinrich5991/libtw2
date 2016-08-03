@@ -23,7 +23,7 @@ use event_loop::SocketLoop;
 use event_loop::Timeout;
 use gamenet::SnapObj;
 use gamenet::VERSION;
-use gamenet::enums;
+use gamenet::enums::Team;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
@@ -429,7 +429,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 ignored = true;
             },
             SystemOrGame::Game(Game::SvChat(chat)) => {
-                if chat.team == 0 && chat.client_id == -1 {
+                if chat.team == Team::Red && chat.client_id == -1 {
                     ignored = true;
                     info!("*** {}", pretty::AlmostString::new(chat.message));
                 }
@@ -611,7 +611,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
                         progress = true;
                         self.loop_.sends(pid, EnterGame);
-                        self.loop_.sendg(pid, ClSetTeam { team: enums::TEAM_RED });
+                        self.loop_.sendg(pid, ClSetTeam { team: Team::Red });
                         if peer.vote(pid, self.loop_) {
                             peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
@@ -620,7 +620,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 },
                 PeerState::VoteSet(_) => match msg {
                     SystemOrGame::Game(Game::SvChat(chat)) => {
-                        if chat.client_id == -1 && chat.team == 0 {
+                        if chat.client_id == -1 && chat.team == Team::Red {
                             if let Ok(message) = str::from_utf8(chat.message) {
                                 if message.contains("Wait") || message.contains("wait") {
                                     progress = true;
