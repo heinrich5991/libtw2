@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+for X in */Cargo.toml; do
+	DIR="$(dirname "$X")"
+	echo :: "$DIR"
+	(cd "$DIR"; "$@" || true)
+done
