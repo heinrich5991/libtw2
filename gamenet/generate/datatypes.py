@@ -128,40 +128,52 @@ pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
 
 pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
-    ground_control_speed: 1000,
-    ground_control_accel: 200,
-    ground_friction: 50,
-    ground_jump_impulse: 1320,
-    air_jump_impulse: 1200,
-    air_control_speed: 500,
-    air_control_accel: 150,
-    air_friction: 95,
-    hook_length: 38000,
-    hook_fire_speed: 8000,
-    hook_drag_accel: 300,
-    hook_drag_speed: 1500,
-    gravity: 50,
-    velramp_start: 55000,
-    velramp_range: 200000,
-    velramp_curvature: 140,
-    gun_curvature: 125,
-    gun_speed: 220000,
-    gun_lifetime: 200,
-    shotgun_curvature: 125,
-    shotgun_speed: 275000,
-    shotgun_speeddiff: 80,
-    shotgun_lifetime: 20,
-    grenade_curvature: 700,
-    grenade_speed: 100000,
-    grenade_lifetime: 200,
-    laser_reach: 80000,
-    laser_bounce_delay: 15000,
-    laser_bounce_num: 100,
-    laser_bounce_cost: 0,
-    laser_damage: 500,
-    player_collision: 100,
-    player_hooking: 100,
+    ground_control_speed: TuneParam(1000),
+    ground_control_accel: TuneParam(200),
+    ground_friction: TuneParam(50),
+    ground_jump_impulse: TuneParam(1320),
+    air_jump_impulse: TuneParam(1200),
+    air_control_speed: TuneParam(500),
+    air_control_accel: TuneParam(150),
+    air_friction: TuneParam(95),
+    hook_length: TuneParam(38000),
+    hook_fire_speed: TuneParam(8000),
+    hook_drag_accel: TuneParam(300),
+    hook_drag_speed: TuneParam(1500),
+    gravity: TuneParam(50),
+    velramp_start: TuneParam(55000),
+    velramp_range: TuneParam(200000),
+    velramp_curvature: TuneParam(140),
+    gun_curvature: TuneParam(125),
+    gun_speed: TuneParam(220000),
+    gun_lifetime: TuneParam(200),
+    shotgun_curvature: TuneParam(125),
+    shotgun_speed: TuneParam(275000),
+    shotgun_speeddiff: TuneParam(80),
+    shotgun_lifetime: TuneParam(20),
+    grenade_curvature: TuneParam(700),
+    grenade_speed: TuneParam(100000),
+    grenade_lifetime: TuneParam(200),
+    laser_reach: TuneParam(80000),
+    laser_bounce_delay: TuneParam(15000),
+    laser_bounce_num: TuneParam(100),
+    laser_bounce_cost: TuneParam(0),
+    laser_damage: TuneParam(500),
+    player_collision: TuneParam(100),
+    player_hooking: TuneParam(100),
 };
+
+#[derive(Clone, Copy, Debug)]
+pub struct TuneParam(pub i32);
+
+impl TuneParam {
+    pub fn from_float(float: f32) -> TuneParam {
+        TuneParam((float * 100.0) as i32)
+    }
+    pub fn to_float(self) -> f32 {
+        (self.0 as f32) / 100.0
+    }
+}
 """)
 
 def emit_header_msg_connless():
@@ -671,6 +683,13 @@ class NetBool(NetIntAny):
         return "try!(to_bool({}))".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
+
+class NetTuneParam(NetIntAny):
+    type_ = "TuneParam"
+    def decode_expr(self):
+        return "TuneParam({})".format(super().decode_expr())
+    def encode_expr(self, self_expr):
+        return super().encode_expr("{}.0".format(self_expr))
 
 class NetTick(NetIntAny):
     type_ = "Tick"
