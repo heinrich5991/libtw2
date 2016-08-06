@@ -308,7 +308,7 @@ impl From<DamageInd> for SnapObj {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct PlayerInput {
     pub direction: i32,
     pub target_x: i32,

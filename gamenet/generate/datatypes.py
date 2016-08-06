@@ -441,7 +441,10 @@ class Struct(NameValues):
         else:
             super = None
 
-        print("#[derive(Clone, Copy)]")
+        if self.name != ("player", "input"):
+            print("#[derive(Clone, Copy)]")
+        else:
+            print("#[derive(Clone, Copy, Default)]")
         if self.values or super:
             print("pub struct {}{} {{".format(title(self.name), self.lifetime()))
             if super:
