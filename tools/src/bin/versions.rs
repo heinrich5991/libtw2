@@ -1,7 +1,6 @@
 #![cfg(not(test))]
 
 extern crate datafile;
-extern crate logger;
 extern crate map;
 extern crate tools;
 

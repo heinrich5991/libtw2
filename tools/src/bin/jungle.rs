@@ -1,9 +1,7 @@
 #![cfg(not(test))]
 
 extern crate datafile as df;
-extern crate logger;
 extern crate map;
-extern crate num;
 extern crate tools;
 
 use map::reader;
