@@ -11,6 +11,8 @@ use common::num::Cast;
 use common::slice;
 use common::vec;
 use image::ImageError;
+use image::RgbaImage;
+use image::imageops;
 use map::format;
 use map::reader;
 use ndarray::Array;
@@ -27,6 +29,8 @@ use std::path::Path;
 use std::str;
 
 // TODO: Skip empty tiles
+
+const SIZE: u32 = 200;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -103,25 +107,24 @@ struct Image {
     data: Array<Color, (Ix, Ix)>,
 }
 
-const TILE_LEN: u32 = 1;
 const TILE_NUM: u32 = 16;
 
-fn transform_image(tileset: Array<Color, (Ix, Ix)>) -> Array<Color, (Ix, Ix)> {
+fn transform_image(tileset: Array<Color, (Ix, Ix)>, tile_len: u32) -> Array<Color, (Ix, Ix)> {
     let dim = tileset.dim();
     let height = dim.0.assert_u32();
     let width = dim.1.assert_u32();
-    let result_len = (TILE_LEN * TILE_NUM).usize();
+    let result_len = (tile_len * TILE_NUM).usize();
     let mut result = Array::default((result_len, result_len));
     if height == 0 || width == 0 {
         return result;
     }
-    for y in 0..TILE_LEN*TILE_NUM {
-        for x in 0..TILE_LEN*TILE_NUM {
+    for y in 0..tile_len*TILE_NUM {
+        for x in 0..tile_len*TILE_NUM {
             // TODO: Do averaging.
-            let low_tx = x * width / (TILE_LEN * TILE_NUM);
-            let low_ty = y * height / (TILE_LEN * TILE_NUM);
-            let mut high_tx = (x + 1) * width / (TILE_LEN * TILE_NUM);
-            let mut high_ty = (y + 1) * height / (TILE_LEN * TILE_NUM);
+            let low_tx = x * width / (tile_len * TILE_NUM);
+            let low_ty = y * height / (tile_len * TILE_NUM);
+            let mut high_tx = (x + 1) * width / (tile_len * TILE_NUM);
+            let mut high_ty = (y + 1) * height / (tile_len * TILE_NUM);
             if low_tx == high_tx {
                 high_tx += 1;
             }
@@ -152,8 +155,8 @@ fn transform_image(tileset: Array<Color, (Ix, Ix)>) -> Array<Color, (Ix, Ix)> {
             };
         }
     }
-    for y in 0..TILE_LEN {
-        for x in 0..TILE_LEN {
+    for y in 0..tile_len {
+        for x in 0..tile_len {
             result[(y.usize(), x.usize())] = Color::transparent();
         }
     }
@@ -173,17 +176,17 @@ fn swap<T, E>(v: Option<Result<T, E>>) -> Result<Option<T>, E> {
     v.map(|r| r.map(|t| Some(t))).unwrap_or(Ok(None))
 }
 
-fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool, hflip: bool)
+fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool, hflip: bool, tile_len: u32)
     -> (u32, u32)
 {
     if vflip {
-        ix = (TILE_LEN-1) - ix;
+        ix = (tile_len-1) - ix;
     }
     if hflip {
-        iy = (TILE_LEN-1) - iy;
+        iy = (tile_len-1) - iy;
     }
     if rotate {
-        ix = (TILE_LEN-1) - mem::replace(&mut iy, ix);
+        ix = (tile_len-1) - mem::replace(&mut iy, ix);
     }
     (iy, ix)
 }
@@ -204,14 +207,10 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     let mut max_x = 0;
     let mut min_y = 0;
     let mut max_y = 0;
-    let mut max_height = 0;
-    let mut max_width = 0;
 
     for i in game_layers.group.layer_indices.clone() {
         let layer = try!(map.layer(i));
         let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
-        max_height = cmp::max(max_height, tilemap.height);
-        max_width = cmp::max(max_width, tilemap.width);
         let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
         let height = tilemap.height.usize();
         let width = tilemap.width.usize();
@@ -235,7 +234,8 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
                                     return Err(OwnError::ImageShape.into());
                                 }
                                 let data: Vec<Color> = unsafe { vec::transmute(data) };
-                                try!(Array::from_shape_vec((height, width), data).map_err(|_| OwnError::ImageShape))
+                                try!(Array::from_shape_vec((height, width), data)
+                                     .map_err(|_| OwnError::ImageShape))
                             }
                             None => {
                                 let image_name = try!(map.image_name(image.name));
@@ -251,7 +251,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
                     }
                 };
                 v.insert(Image {
-                    data: transform_image(data),
+                    data: data,
                 });
             },
         }
@@ -275,26 +275,39 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
         });
     }
 
-    let result_width = (max_x - min_x).checked_mul(TILE_LEN).unwrap();
-    let result_height = (max_y - min_y).checked_mul(TILE_LEN).unwrap();
+    let width = max_x - min_x;
+    let height = max_y - min_y;
+
+    let size = cmp::max(width, height);
+    let mut tile_len = 64;
+    while tile_len != 1 && tile_len * size > 800 {
+        tile_len /= 2;
+    }
+
+    for image in images.values_mut() {
+        image.data = transform_image(mem::replace(&mut image.data, Array::default((0, 0))), tile_len);
+    }
+
+    let result_width = width.checked_mul(tile_len).unwrap();
+    let result_height = height.checked_mul(tile_len).unwrap();
 
     let mut result: Array<Color, _> = Array::default((result_height.usize(), result_width.usize()));
 
     for l in &layers {
         let image = &images[&l.image];
-        for y in 0..(max_y - min_y) {
-            for x in 0..(max_x - min_x) {
+        for y in 0..height {
+            for x in 0..width {
                 let tile = l.tiles[((min_y + y).usize(), (min_x + x).usize())];
                 let rotate = tile.flags & format::TILEFLAG_ROTATE != 0;
                 let vflip = tile.flags & format::TILEFLAG_VFLIP != 0;
                 let hflip = tile.flags & format::TILEFLAG_HFLIP != 0;
                 let tile_x = tile.index.u32() % TILE_NUM;
                 let tile_y = tile.index.u32() / TILE_NUM;
-                for iy in 0..TILE_LEN {
-                    for ix in 0..TILE_LEN {
-                        let p_target = &mut result[((y * TILE_LEN + iy).usize(), (x * TILE_LEN + ix).usize())];
-                        let (ty, tx) = transform_coordinates((iy, ix), rotate, vflip, hflip);
-                        let p_tile = image.data[((tile_y * TILE_LEN + ty).usize(), (tile_x * TILE_LEN + tx).usize())];
+                for iy in 0..tile_len {
+                    for ix in 0..tile_len {
+                        let p_target = &mut result[((y * tile_len + iy).usize(), (x * tile_len + ix).usize())];
+                        let (ty, tx) = transform_coordinates((iy, ix), rotate, vflip, hflip, tile_len);
+                        let p_tile = image.data[((tile_y * tile_len + ty).usize(), (tile_x * tile_len + tx).usize())];
                         *p_target = p_target.overlay_with(p_tile.mask(l.color));
                     }
                 }
@@ -302,9 +315,18 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
         }
     }
 
-    let raw: &[Color] = result.as_slice().unwrap();
-    let raw: &[u8] = unsafe { slice::transmute(raw) };
-    try!(image::save_buffer(out_path, raw, result.dim().1.assert_u32(), result.dim().0.assert_u32(), image::ColorType::RGBA(8)));
+    let image = {
+        let raw: &[Color] = result.as_slice().unwrap();
+        let raw: &[u8] = unsafe { slice::transmute(raw) };
+        RgbaImage::from_raw(result.dim().1.assert_u32(), result.dim().0.assert_u32(), raw.into()).unwrap()
+    };
+    mem::drop(result);
+
+    let new_width = width * SIZE / size;
+    let new_height = height * SIZE / size;
+    let resized = imageops::resize(&image, new_width, new_height, imageops::Nearest);
+    mem::drop(image);
+    try!(resized.save(out_path));
 
     Ok(())
 }
