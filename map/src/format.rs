@@ -262,6 +262,11 @@ pub struct Tile {
     pub reserved: u8,
 }
 
+pub const TILEFLAG_VFLIP: u8 = 1 << 0;
+pub const TILEFLAG_HFLIP: u8 = 1 << 1;
+pub const TILEFLAG_OPAQUE: u8 = 1 << 2;
+pub const TILEFLAG_ROTATE: u8 = 1 << 3;
+
 pub const LAYERFLAG_DETAIL: u32 = 1;
 pub const LAYERFLAGS_ALL: u32 = 1;
 

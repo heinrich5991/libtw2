@@ -33,13 +33,6 @@ impl From<io::Error> for Error {
     }
 }
 
-#[derive(Clone)]
-pub struct Tilemap<T> {
-    width: u32,
-    height: u32,
-    content: Vec<T>,
-}
-
 #[derive(Clone, Copy)]
 pub struct Color {
     pub red: u8,
@@ -379,7 +372,7 @@ impl Image {
             option.ok_or(MapError::MalformedImage)
         }
         let v1 = try!(e(format::MapItemImageV1::from_slice(raw)));
-        // TODO: external blah
+        // WARN if external is something other than 0,1
         let data = if v1.external != 0 {
             None
         } else {
@@ -451,6 +444,10 @@ impl Reader {
         let raw = self.reader.item(index);
         let data_indices = 0..self.reader.num_data();
         Image::from_raw(raw.data, data_indices)
+    }
+    pub fn image_data(&mut self, data_index: usize) -> Result<Vec<u8>,Error> {
+        let raw = try!(self.reader.read_data(data_index));
+        Ok(raw)
     }
     pub fn game_layers(&self) -> Result<GameLayers,MapError> {
         fn put<T>(opt: &mut Option<T>, new: T) -> Result<(),MapError> {

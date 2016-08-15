@@ -1,4 +1,53 @@
+use external_num::ToPrimitive;
 use std::fmt;
+
+fn overflow<T: fmt::Display>(type_: &str, val: T) -> ! {
+    panic!("Overflow casting {} to `{}`", val, type_);
+}
+
+fn unwrap_overflow<T: fmt::Display, U>(type_: &str, original: T, val: Option<U>) -> U {
+    match val {
+        Some(v) => v,
+        None => overflow(type_, original),
+    }
+}
+
+pub trait U32 { }
+pub trait Usize { }
+
+pub trait Cast {
+    fn u32(self) -> u32 where Self: U32;
+    fn usize(self) -> usize where Self: Usize;
+    fn assert_u8(self) -> u8;
+    fn assert_u32(self) -> u32;
+}
+
+impl Cast for u8 {
+    fn u32(self) -> u32 { self.to_u32().unwrap() }
+    fn usize(self) -> usize { self.to_usize().unwrap() }
+    fn assert_u8(self) -> u8 { self }
+    fn assert_u32(self) -> u32 { self.u32() }
+}
+
+impl Cast for u32 {
+    fn u32(self) -> u32 { self }
+    fn usize(self) -> usize { self.to_usize().unwrap() }
+    fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
+    fn assert_u32(self) -> u32 { self.u32() }
+}
+
+impl Cast for usize {
+    fn u32(self) -> u32 { unreachable!() }
+    fn usize(self) -> usize { self }
+    fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
+    fn assert_u32(self) -> u32 { unwrap_overflow("u32", self, self.to_u32()) }
+}
+
+impl U32 for u8 { }
+impl U32 for u32 { }
+impl Usize for u8 { }
+impl Usize for u32 { }
+impl Usize for usize { }
 
 /// Big-endian unsigned 16-bit integer
 ///

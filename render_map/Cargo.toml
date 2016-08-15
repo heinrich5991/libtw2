@@ -1,0 +1,12 @@
+[package]
+name = "render_map"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]
+common = { path = "../common/" }
+datafile = { path = "../datafile/" }
+image = "0.10.1"
+logger = { path = "../logger/" }
+map = { path = "../map/" }
+ndarray = "0.6.1"
