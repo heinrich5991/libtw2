@@ -302,11 +302,11 @@ impl Reader {
                     }
                     Ok(len) => {
                         error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
-                        Err(From::from(format::Error::CompressionError))
+                        Err(format::Error::CompressionWrongSize.into())
                     }
-                    _ => {
-                        error!("decompression error: zlib error");
-                        Err(From::from(format::Error::CompressionError))
+                    Err(e) => {
+                        error!("decompression error: {:?}", e);
+                        Err(format::Error::CompressionError(e).into())
                     }
                 }
             },

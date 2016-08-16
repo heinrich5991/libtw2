@@ -8,14 +8,16 @@ use common::slice::mut_ref_slice;
 use raw::CallbackNew;
 use raw::ResultExt;
 use raw;
+use zlib;
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Error {
     WrongMagic([u8; 4]),
     UnsupportedVersion(i32),
     MalformedHeader,
     Malformed,
-    CompressionError,
+    CompressionWrongSize,
+    CompressionError(zlib::Error),
     TooShort,
     TooShortHeaderVersion,
     TooShortHeader,
