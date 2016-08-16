@@ -4,6 +4,7 @@ extern crate common;
 extern crate datafile as df;
 extern crate logger;
 extern crate ndarray;
+extern crate num;
 extern crate image;
 extern crate map;
 
@@ -17,6 +18,7 @@ use map::format;
 use map::reader;
 use ndarray::Array;
 use ndarray::Ix;
+use num::ToPrimitive;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -109,7 +111,9 @@ struct Image {
 
 const TILE_NUM: u32 = 16;
 
-fn transform_image(tileset: Array<Color, (Ix, Ix)>, tile_len: u32) -> Array<Color, (Ix, Ix)> {
+fn transform_image(tileset: Array<Color, (Ix, Ix)>, tile_len: u32)
+    -> Array<Color, (Ix, Ix)>
+{
     let dim = tileset.dim();
     let height = dim.0.assert_u32();
     let width = dim.1.assert_u32();
@@ -199,7 +203,6 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     let dfr = try!(df::Reader::new(file));
     let mut map = map::Reader::from_datafile(dfr);
 
-    let game_layers = try!(map.game_layers());
     let mut layers = vec![];
     let mut images = HashMap::new();
 
@@ -208,79 +211,91 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     let mut min_y = 0;
     let mut max_y = 0;
 
-    for i in game_layers.group.layer_indices.clone() {
-        let layer = try!(map.layer(i));
-        let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
-        let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
-        let height = tilemap.height.usize();
-        let width = tilemap.width.usize();
-        let tiles = try!(map.layer_tiles(normal.data));
-        let tiles = try!(Array::from_shape_vec((height, width), tiles)
-                         .map_err(|_| OwnError::TilemapShape));
+    for g in map.group_indices() {
+        let group = try!(map.group(g));
+        if group.parallax_x != 100 || group.parallax_y != 100
+            || group.offset_x != 0 || group.offset_y != 0
+            || group.clipping.is_some()
+        {
+            continue;
+        }
 
-        match images.entry(normal.image) {
-            hash_map::Entry::Occupied(_) => {},
-            hash_map::Entry::Vacant(v) => {
-                let data = match normal.image {
-                    None => Array::from_elem((1, 1), Color::white()),
-                    Some(image_index) => {
-                        let image = try!(map.image(image_index));
-                        let height = image.height.usize();
-                        let width = image.width.usize();
-                        match image.data {
-                            Some(d) => {
-                                let data = try!(map.image_data(d));
-                                if data.len() % mem::size_of::<Color>() != 0 {
-                                    return Err(OwnError::ImageShape.into());
+        for i in group.layer_indices {
+            let layer = try!(map.layer(i));
+            let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
+            let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
+            let height = tilemap.height.usize();
+            let width = tilemap.width.usize();
+            let tiles = try!(map.layer_tiles(normal.data));
+            let tiles = try!(Array::from_shape_vec((height, width), tiles)
+                             .map_err(|_| OwnError::TilemapShape));
+
+            match images.entry(normal.image) {
+                hash_map::Entry::Occupied(_) => {},
+                hash_map::Entry::Vacant(v) => {
+                    let data = match normal.image {
+                        None => Array::from_elem((1, 1), Color::white()),
+                        Some(image_index) => {
+                            let image = try!(map.image(image_index));
+                            let height = image.height.usize();
+                            let width = image.width.usize();
+                            match image.data {
+                                Some(d) => {
+                                    let data = try!(map.image_data(d));
+                                    if data.len() % mem::size_of::<Color>() != 0 {
+                                        return Err(OwnError::ImageShape.into());
+                                    }
+                                    let data: Vec<Color> = unsafe { vec::transmute(data) };
+                                    try!(Array::from_shape_vec((height, width), data)
+                                         .map_err(|_| OwnError::ImageShape))
                                 }
-                                let data: Vec<Color> = unsafe { vec::transmute(data) };
-                                try!(Array::from_shape_vec((height, width), data)
-                                     .map_err(|_| OwnError::ImageShape))
-                            }
-                            None => {
-                                let image_name = try!(map.image_name(image.name));
-                                // WARN? Unknown external image
-                                // WARN! Wrong dimensions
-                                try!(swap(str::from_utf8(&image_name).ok()
-                                          .and_then(sanitize)
-                                          .map(&mut external)))
-                                    .unwrap_or(None)
-                                    .unwrap_or_else(|| Array::from_elem((1, 1), Color::white()))
+                                None => {
+                                    let image_name = try!(map.image_name(image.name));
+                                    // WARN? Unknown external image
+                                    // WARN! Wrong dimensions
+                                    try!(swap(str::from_utf8(&image_name).ok()
+                                              .and_then(sanitize)
+                                              .map(&mut external)))
+                                        .unwrap_or(None)
+                                        .unwrap_or_else(|| Array::from_elem((1, 1), Color::white()))
+                                }
                             }
                         }
-                    }
-                };
-                v.insert(Image {
-                    data: data,
-                });
-            },
-        }
+                    };
+                    v.insert(Image {
+                        data: data,
+                    });
+                },
+            }
 
-        for y in 0..tilemap.height {
-            for x in 0..tilemap.width {
-                if tiles[(y.usize(), x.usize())].index != 0 {
-                    min_x = cmp::min(min_x, x);
-                    min_y = cmp::min(min_y, y);
-                    max_x = cmp::max(max_x, x);
-                    max_y = cmp::max(max_y, y);
+            for y in 0..tilemap.height {
+                for x in 0..tilemap.width {
+                    if tiles[(y.usize(), x.usize())].index != 0 {
+                        min_x = cmp::min(min_x, x);
+                        min_y = cmp::min(min_y, y);
+                        max_x = cmp::max(max_x, x);
+                        max_y = cmp::max(max_y, y);
+                    }
                 }
             }
-        }
 
-        layers.push(Layer {
-            detail: layer.detail,
-            color: normal.color.into(),
-            image: normal.image,
-            tiles: tiles,
-        });
+            layers.push(Layer {
+                detail: layer.detail,
+                color: normal.color.into(),
+                image: normal.image,
+                tiles: tiles,
+            });
+        }
     }
 
     let width = max_x - min_x;
     let height = max_y - min_y;
 
-    let size = cmp::max(width, height);
+    if width == 0 || height == 0 {
+        return Err(OwnError::EmptyMap.into());
+    }
     let mut tile_len = 64;
-    while tile_len != 1 && tile_len * size > 800 {
+    while tile_len != 1 && tile_len * tile_len * width * height > 16 * SIZE * SIZE {
         tile_len /= 2;
     }
 
@@ -295,8 +310,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 
     for l in &layers {
         let image = &images[&l.image];
-        for y in 0..height {
-            for x in 0..width {
+        let layer_max_y = cmp::min(l.tiles.dim().0.assert_u32(), max_y);
+        let layer_max_x = cmp::min(l.tiles.dim().1.assert_u32(), max_x);
+        if layer_max_x <= min_x || layer_max_y <= min_y {
+            continue;
+        }
+        for y in 0..layer_max_y-min_y {
+            for x in 0..layer_max_x-min_x {
                 let tile = l.tiles[((min_y + y).usize(), (min_x + x).usize())];
                 let rotate = tile.flags & format::TILEFLAG_ROTATE != 0;
                 let vflip = tile.flags & format::TILEFLAG_VFLIP != 0;
@@ -322,9 +342,17 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     };
     mem::drop(result);
 
-    let new_width = width * SIZE / size;
-    let new_height = height * SIZE / size;
-    let resized = imageops::resize(&image, new_width, new_height, imageops::Nearest);
+    let (mut new_width, mut new_height) = if width / height < 6 && height / width < 6 {
+        let sqrt = (height * width).to_f32().unwrap().sqrt().to_u32().unwrap();
+        (width * SIZE / sqrt, height * SIZE / sqrt)
+    } else {
+        let size = cmp::max(height, width);
+        let result_size = (SIZE.to_f32().unwrap() * 6.to_f32().unwrap().sqrt()).to_u32().unwrap();
+        (width * result_size / size, height * result_size / size)
+    };
+    if new_width == 0 { new_width = 1; }
+    if new_height == 0 { new_height = 1; }
+    let resized = imageops::resize(&image, new_width, new_height, imageops::CatmullRom);
     mem::drop(image);
     try!(resized.save(out_path));
 
@@ -335,6 +363,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 enum OwnError {
     TilemapShape,
     ImageShape,
+    EmptyMap,
 }
 
 #[derive(Debug)]

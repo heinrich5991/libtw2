@@ -8,6 +8,7 @@ dependencies = [
  "logger 0.0.1",
  "map 0.0.1",
  "ndarray 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
