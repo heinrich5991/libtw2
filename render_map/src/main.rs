@@ -30,7 +30,9 @@ use std::mem;
 use std::path::Path;
 use std::str;
 
-// TODO: Skip empty tiles
+// TODO: Skip empty tiles (i.e. don't count tiles that have index != 0, but are
+//       graphically empty.
+// TODO: Extend layers if they end early
 
 const SIZE: u32 = 200;
 
@@ -273,8 +275,8 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
                     if tiles[(y.usize(), x.usize())].index != 0 {
                         min_x = cmp::min(min_x, x);
                         min_y = cmp::min(min_y, y);
-                        max_x = cmp::max(max_x, x);
-                        max_y = cmp::max(max_y, y);
+                        max_x = cmp::max(max_x, x + 1);
+                        max_y = cmp::max(max_y, y + 1);
                     }
                 }
             }
