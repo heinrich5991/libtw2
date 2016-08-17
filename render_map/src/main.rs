@@ -492,7 +492,7 @@ fn main() {
 
     let mut args = env::args_os();
     let mut have_args = false;
-    let program_name = args.next().unwrap();
+    let program_name = args.next().unwrap_or_else(|| "render_map".into());
 
     let mut error_stats = ErrorStats::default();
     let mut out_path_buf = OsString::new();
