@@ -32,7 +32,6 @@ use std::str;
 
 // TODO: Skip empty tiles (i.e. don't count tiles that have index != 0, but are
 //       graphically empty.
-// TODO: Extend layers if they end early
 
 const SIZE: u32 = 200;
 
@@ -226,6 +225,9 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
             let layer = try!(map.layer(i));
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
+            if tilemap.width == 0 || tilemap.height == 0 {
+                return Err(OwnError::TilemapEmpty.into());
+            }
             let height = tilemap.height.usize();
             let width = tilemap.width.usize();
             let tiles = try!(map.layer_tiles(normal.data));
@@ -317,9 +319,12 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
         if layer_max_x <= min_x || layer_max_y <= min_y {
             continue;
         }
-        for y in 0..layer_max_y-min_y {
-            for x in 0..layer_max_x-min_x {
-                let tile = l.tiles[((min_y + y).usize(), (min_x + x).usize())];
+        for y in 0..height {
+            for x in 0..width {
+                let layer_y = cmp::min(l.tiles.dim().0 - 1, y.usize());
+                let layer_x = cmp::min(l.tiles.dim().1 - 1, x.usize());
+                let tile = l.tiles[(layer_y, layer_x)];
+
                 let rotate = tile.flags & format::TILEFLAG_ROTATE != 0;
                 let vflip = tile.flags & format::TILEFLAG_VFLIP != 0;
                 let hflip = tile.flags & format::TILEFLAG_HFLIP != 0;
@@ -363,9 +368,10 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum OwnError {
-    TilemapShape,
-    ImageShape,
     EmptyMap,
+    ImageShape,
+    TilemapEmpty,
+    TilemapShape,
 }
 
 #[derive(Debug)]
