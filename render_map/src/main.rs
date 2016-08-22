@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 use std::env;
 use std::ffi::OsString;
+use std::fmt;
 use std::fs::File;
 use std::io;
 use std::mem;
@@ -430,6 +431,16 @@ impl From<OwnError> for Error {
     }
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Io(ref e) => return e.fmt(f),
+            // TODO: Improve error output
+            _ => fmt::Debug::fmt(self, f),
+        }
+    }
+}
+
 #[derive(Default)]
 struct ErrorStats {
     map_errors: HashMap<map::format::Error,u64>,
@@ -509,10 +520,11 @@ fn main() {
         out_path_buf.clear();
         out_path_buf.push(&arg);
         out_path_buf.push(".png");
-        match process(Path::new(&arg), Path::new(&out_path_buf), &mut external) {
+        let path = Path::new(&arg);
+        match process(path, Path::new(&out_path_buf), &mut external) {
             Ok(()) => error_stats.ok += 1,
             Err(err) => {
-                println!("{}: {:?}", arg.to_string_lossy(), err);
+                println!("{}: {}", path.display(), err);
                 update_error_stats(&mut error_stats, err);
             }
         }
