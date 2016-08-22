@@ -490,8 +490,8 @@ fn main() {
     logger::init();
 
     let mut args = env::args_os();
-    let mut have_args = false;
     let program_name = args.next().unwrap_or_else(|| "render_map".into());
+    let num_args = args.len();
 
     let mut error_stats = ErrorStats::default();
     let mut out_path_buf = OsString::new();
@@ -506,7 +506,6 @@ fn main() {
     };
 
     for arg in args {
-        have_args = true;
         out_path_buf.clear();
         out_path_buf.push(&arg);
         out_path_buf.push(".png");
@@ -518,8 +517,11 @@ fn main() {
             }
         }
     }
-    if !have_args {
+    if num_args == 0 {
         println!("USAGE: {} <MAP>...", program_name.to_string_lossy());
+        return;
+    }
+    if num_args == 1 {
         return;
     }
     print_error_stats(&error_stats);
