@@ -518,7 +518,7 @@ fn main() {
         }
     }
     if num_args == 0 {
-        println!("USAGE: {} <MAP>...", program_name.to_string_lossy());
+        println!("USAGE: {} <MAP>...", Path::new(&program_name).display());
         return;
     }
     if num_args == 1 {
