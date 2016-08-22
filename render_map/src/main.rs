@@ -125,7 +125,6 @@ fn transform_image(tileset: Array<Color, (Ix, Ix)>, tile_len: u32)
     }
     for y in 0..tile_len*TILE_NUM {
         for x in 0..tile_len*TILE_NUM {
-            // TODO: Do averaging.
             let low_tx = x * width / (tile_len * TILE_NUM);
             let low_ty = y * height / (tile_len * TILE_NUM);
             let mut high_tx = (x + 1) * width / (tile_len * TILE_NUM);
