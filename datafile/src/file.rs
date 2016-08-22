@@ -1,6 +1,9 @@
 use common::MapIterator;
-use num::ToPrimitive;
+use common::num::Cast;
+use std::error;
+use std::fmt;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -19,6 +22,26 @@ use raw;
 pub enum Error {
     Df(format::Error),
     Io(io::Error),
+}
+
+pub struct SeekOverflow(());
+
+impl fmt::Debug for SeekOverflow {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SeekOverflow").finish()
+    }
+}
+
+impl error::Error for SeekOverflow {
+    fn description(&self) -> &str {
+        "overflow while calculating seek offset"
+    }
+}
+
+impl fmt::Display for SeekOverflow {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        error::Error::description(self).fmt(f)
+    }
 }
 
 impl From<format::Error> for Error {
@@ -49,10 +72,15 @@ impl From<raw::WrapCallbackError<io::Error>> for Error {
     }
 }
 
-struct CallbackData {
-    file: File,
+struct CallbackDataNew {
+    file: BufReader<File>,
     datafile_start: u64,
     seek_base: Option<u64>,
+}
+
+struct CallbackData {
+    file: File,
+    seek_base: u64,
 }
 
 pub struct Reader {
@@ -64,12 +92,16 @@ impl Reader {
     pub fn new(file: File) -> Result<Reader,Error> {
         let mut file = file;
         let datafile_start = try!(file.seek(SeekFrom::Current(0)).wrap());
-        let mut callback_data = CallbackData {
-            file: file,
+        let mut callback_data_new = CallbackDataNew {
+            file: BufReader::new(file),
             datafile_start: datafile_start,
             seek_base: None,
         };
-        let raw = try!(raw::Reader::new(&mut callback_data));
+        let raw = try!(raw::Reader::new(&mut callback_data_new));
+        let callback_data = CallbackData {
+            file: callback_data_new.file.into_inner(),
+            seek_base: callback_data_new.seek_base.unwrap(),
+        };
         Ok(Reader { 
             callback_data: callback_data,
             raw: raw,
@@ -137,7 +169,7 @@ impl DataCallback for WrapVecU8 {
     }
 }
 
-impl CallbackNew for CallbackData {
+impl CallbackNew for CallbackDataNew {
     type Error = io::Error;
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize,io::Error> {
         self.file.read(buffer)
@@ -148,7 +180,7 @@ impl CallbackNew for CallbackData {
     }
     fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(),()>,io::Error> {
         let actual = try!(self.file.seek(SeekFrom::End(0)));
-        Ok(if actual.checked_sub(self.datafile_start).unwrap() >= filesize.to_u64().unwrap() {
+        Ok(if actual.checked_sub(self.datafile_start).unwrap() >= filesize.u64() {
             Ok(())
         } else {
             Err(())
@@ -158,8 +190,9 @@ impl CallbackNew for CallbackData {
 impl CallbackReadData for CallbackData {
     type Error = io::Error;
     fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize,io::Error> {
-        try!(self.file.seek(SeekFrom::Start(self.seek_base.unwrap())));
-        try!(self.file.seek(SeekFrom::Current(start.to_i64().unwrap())));
+        let offset = try!(self.seek_base.checked_add(start.u64())
+            .ok_or(io::Error::new(io::ErrorKind::InvalidData, SeekOverflow(()))));
+        try!(self.file.seek(SeekFrom::Start(offset)));
         self.file.read(buffer)
     }
     type Data = WrapVecU8;
