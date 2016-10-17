@@ -169,10 +169,23 @@ impl DataCallback for WrapVecU8 {
     }
 }
 
+fn read<R: Read>(reader: &mut R, buffer: &mut [u8]) -> Result<usize,io::Error> {
+    let mut read = 0;
+    while read != buffer.len() {
+        match reader.read(&mut buffer[read..]) {
+            Ok(0) => break,
+            Ok(r) => read += r,
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(read)
+}
+
 impl CallbackNew for CallbackDataNew {
     type Error = io::Error;
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize,io::Error> {
-        self.file.read(buffer)
+        read(&mut self.file, buffer)
     }
     fn set_seek_base(&mut self) -> Result<(),io::Error> {
         self.seek_base = Some(try!(self.file.seek(SeekFrom::Current(0))));
@@ -193,7 +206,7 @@ impl CallbackReadData for CallbackData {
         let offset = try!(self.seek_base.checked_add(start.u64())
             .ok_or(io::Error::new(io::ErrorKind::InvalidData, SeekOverflow(()))));
         try!(self.file.seek(SeekFrom::Start(offset)));
-        self.file.read(buffer)
+        read(&mut self.file, buffer)
     }
     type Data = WrapVecU8;
     fn alloc_data(&mut self, length: usize) -> Result<WrapVecU8,io::Error> {
