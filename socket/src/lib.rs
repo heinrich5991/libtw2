@@ -21,6 +21,7 @@ use mio::udp::UdpSocket;
 use net2::UdpBuilder;
 use net::Timestamp;
 use net::net::Callback;
+use std::error;
 use std::fmt;
 use std::io;
 use std::net::IpAddr;
@@ -94,30 +95,64 @@ impl FromStr for Addr {
     }
 }
 
+#[derive(Debug)]
+pub struct NoAddressFamiliesSupported(());
+
+impl error::Error for NoAddressFamiliesSupported {
+    fn description(&self) -> &'static str {
+        "neither IPv4 nor IPv6 supported on this system"
+    }
+}
+
+impl fmt::Display for NoAddressFamiliesSupported {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(error::Error::description(self))
+    }
+}
+
+#[derive(Debug)]
+pub struct AddressFamilyNotSupported(());
+
+impl error::Error for AddressFamilyNotSupported {
+    fn description(&self) -> &'static str {
+        "destination address family (IPv4 or IPv6) not supported on this system"
+    }
+}
+
+impl fmt::Display for AddressFamilyNotSupported {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(error::Error::description(self))
+    }
+}
+
 pub struct Socket {
     start: Instant,
     time_cached: Timestamp,
     poll: mio::Poll,
     events: mio::Events,
-    v4: UdpSocket,
-    v6: UdpSocket,
+    v4: Option<UdpSocket>,
+    v6: Option<UdpSocket>,
     check_v4: bool,
     check_v6: bool,
     loss_rate: f32,
 }
 
-fn udp_socket(bindaddr: &SocketAddr) -> io::Result<UdpSocket> {
+fn udp_socket(bindaddr: &SocketAddr) -> io::Result<Option<UdpSocket>> {
     debug!("binding to {}", bindaddr);
-    let result;
+    let builder;
     match *bindaddr {
-        SocketAddr::V4(..) => result = try!(UdpSocket::bind(bindaddr)),
-        SocketAddr::V6(..) => {
-            let builder = try!(UdpBuilder::new_v6());
-            try!(builder.only_v6(true));
-            result = try!(UdpSocket::from_socket(try!(builder.bind(bindaddr))));
-        },
+        SocketAddr::V4(..) => builder = UdpBuilder::new_v4(),
+        SocketAddr::V6(..) => builder = UdpBuilder::new_v6(),
     }
-    Ok(result)
+    let builder = match builder {
+        Err(ref e) if e.raw_os_error() == Some(libc::EAFNOSUPPORT) =>
+            return Ok(None), // Address family not supported.
+        b => try!(b),
+    };
+    if let SocketAddr::V6(..) = *bindaddr {
+        try!(builder.only_v6(true));
+    }
+    Ok(Some(try!(UdpSocket::from_socket(try!(builder.bind(bindaddr))))))
 }
 
 fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
@@ -154,12 +189,17 @@ impl Socket {
         let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
         let addr_v6 = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0));
 
-        // TODO: Handle the error if either of these doesn't exist:
-        let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
         let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
+        let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
+
+        if v4.is_none() && v6.is_none() {
+            return Err(io::Error::new(io::ErrorKind::Other,
+                                      NoAddressFamiliesSupported(())));
+        }
+
         let mut poll = try!(mio::Poll::new());
-        try!(register(&mut poll, 4, &v4));
-        try!(register(&mut poll, 6, &v6));
+        try!(v4.as_ref().map(|v4| register(&mut poll, 4, &v4)).unwrap_or(Ok(())));
+        try!(v6.as_ref().map(|v6| register(&mut poll, 6, &v6)).unwrap_or(Ok(())));
         Ok(Socket {
             start: Instant::now(),
             time_cached: Timestamp::from_secs_since_epoch(0),
@@ -187,13 +227,13 @@ impl Socket {
         {
             let buf_slice = unsafe { buf.uninitialized_mut() };
             if result.is_none() && self.check_v6 {
-                if let Some(r) = swap(self.v6.recv_from(buf_slice)) {
+                if let Some(r) = swap(self.v6.as_ref().unwrap().recv_from(buf_slice)) {
                     result = Some(r);
                     self.check_v6 = false;
                 }
             }
             if result.is_none() && self.check_v4 {
-                if let Some(r) = swap(self.v4.recv_from(buf_slice)) {
+                if let Some(r) = swap(self.v4.as_ref().unwrap().recv_from(buf_slice)) {
                     result = Some(r);
                     self.check_v4 = false;
                 }
@@ -242,11 +282,18 @@ impl Callback<Addr> for Socket {
         }
         dump(Direction::Send, addr, data);
         let sock_addr = SocketAddr::new(addr.ip, addr.port);
-        let socket = if let IpAddr::V4(..) = addr.ip {
-            &mut self.v4
+        let maybe_socket = if let IpAddr::V4(..) = addr.ip {
+            &self.v4
         } else {
-            &mut self.v6
+            &self.v6
         };
+        let socket;
+        if let Some(ref s) = *maybe_socket {
+            socket = s;
+        } else {
+            return Err(io::Error::new(io::ErrorKind::Other,
+                                      AddressFamilyNotSupported(())));
+        }
         swap(socket.send_to(data, &sock_addr))
             .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
             .map(|s| assert!(data.len() == s))
