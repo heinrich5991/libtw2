@@ -8,9 +8,8 @@ buffer = "0.1.5"
 common = { path = "../common/" }
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
-libc = "0.2.7"
+libc = "0.2.16"
 log = "0.3.1"
-mio = "0.5.0"
+mio = "0.6.1"
 net = { path = "../net/" }
-num = "0.1.27"
 rand = "0.3.10"

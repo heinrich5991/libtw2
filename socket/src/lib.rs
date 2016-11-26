@@ -6,7 +6,6 @@ extern crate libc;
 #[macro_use] extern crate log;
 extern crate mio;
 extern crate net;
-extern crate num;
 extern crate rand;
 
 use buffer::Buffer;
@@ -15,12 +14,11 @@ use buffer::with_buffer;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use mio::udp::UdpSocket;
-use mio::EventSet;
+use mio::Ready;
 use mio::Token;
+use mio::udp::UdpSocket;
 use net::Timestamp;
 use net::net::Callback;
-use num::ToPrimitive;
 use std::fmt;
 use std::io;
 use std::net::IpAddr;
@@ -34,21 +32,6 @@ use std::time::Instant;
 use std::u32;
 
 mod system;
-
-trait DurationToMs {
-    fn to_milliseconds_saturating(&self) -> u32;
-}
-
-impl DurationToMs for Duration {
-    fn to_milliseconds_saturating(&self) -> u32 {
-        (self.as_secs()
-            .to_u32().unwrap_or(u32::max_value())
-            .to_u64().unwrap()
-            * 1000
-            + self.subsec_nanos().to_u64().unwrap() / 1000 / 1000
-        ).to_u32().unwrap_or(u32::max_value())
-    }
-}
 
 #[derive(Debug)]
 enum Direction {
@@ -115,6 +98,7 @@ pub struct Socket {
     start: Instant,
     time_cached: Timestamp,
     poll: mio::Poll,
+    events: mio::Events,
     v4: UdpSocket,
     v6: UdpSocket,
     check_v4: bool,
@@ -124,15 +108,10 @@ pub struct Socket {
 
 fn udp_socket(bindaddr: &SocketAddr) -> io::Result<UdpSocket> {
     debug!("binding to {}", bindaddr);
-    let result;
-    match *bindaddr {
-        SocketAddr::V4(..) => result = try!(UdpSocket::v4()),
-        SocketAddr::V6(..) => {
-            result = try!(UdpSocket::v6());
-            try!(system::set_ipv6_only(&result));
-        }
+    let result = try!(UdpSocket::bind(bindaddr));
+    if let SocketAddr::V6(..) = *bindaddr {
+        try!(system::set_ipv6_only(&result));
     }
-    try!(result.bind(bindaddr));
     Ok(result)
 }
 
@@ -164,15 +143,15 @@ impl Socket {
 
         fn register(poll: &mut mio::Poll, token: usize, socket: &UdpSocket) -> io::Result<()> {
             use mio::PollOpt;
-            poll.register(socket, Token(token), EventSet::readable(), PollOpt::level())
+            poll.register(socket, Token(token), Ready::readable(), PollOpt::level())
         }
 
         let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
         let addr_v6 = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0));
 
         // TODO: Handle the error if either of these doesn't exist:
-        let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
         let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
+        let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
         let mut poll = try!(mio::Poll::new());
         try!(register(&mut poll, 4, &v4));
         try!(register(&mut poll, 6, &v6));
@@ -180,6 +159,7 @@ impl Socket {
             start: Instant::now(),
             time_cached: Timestamp::from_secs_since_epoch(0),
             poll: poll,
+            events: mio::Events::with_capacity(2),
             v4: v4,
             v6: v6,
             check_v4: false,
@@ -227,16 +207,15 @@ impl Socket {
         }))
     }
     pub fn sleep(&mut self, duration: Option<Duration>) -> io::Result<()> {
-        let ms = duration.map(|d| d.to_milliseconds_saturating().to_usize().unwrap());
-        try!(self.poll.poll(ms));
+        try!(self.poll.poll(&mut self.events, duration));
         // TODO: Add a verification that this also works with
         // ```
         // try!(self.poll.poll(None));
         // ```
         // on loss-free networks.
-        for ev in self.poll.events() {
-            assert!(ev.kind == EventSet::readable());
-            match ev.token {
+        for ev in &self.events {
+            assert!(ev.kind() == Ready::readable());
+            match ev.token() {
                 Token(4) => self.check_v4 = true,
                 Token(6) => self.check_v6 = true,
                 _ => unreachable!(),
