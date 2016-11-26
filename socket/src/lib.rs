@@ -6,6 +6,7 @@ extern crate libc;
 #[macro_use] extern crate log;
 extern crate mio;
 extern crate net;
+extern crate net2;
 extern crate rand;
 
 use buffer::Buffer;
@@ -17,6 +18,7 @@ use log::LogLevel;
 use mio::Ready;
 use mio::Token;
 use mio::udp::UdpSocket;
+use net2::UdpBuilder;
 use net::Timestamp;
 use net::net::Callback;
 use std::fmt;
@@ -30,8 +32,6 @@ use std::str;
 use std::time::Duration;
 use std::time::Instant;
 use std::u32;
-
-mod system;
 
 #[derive(Debug)]
 enum Direction {
@@ -108,9 +108,14 @@ pub struct Socket {
 
 fn udp_socket(bindaddr: &SocketAddr) -> io::Result<UdpSocket> {
     debug!("binding to {}", bindaddr);
-    let result = try!(UdpSocket::bind(bindaddr));
-    if let SocketAddr::V6(..) = *bindaddr {
-        try!(system::set_ipv6_only(&result));
+    let result;
+    match *bindaddr {
+        SocketAddr::V4(..) => result = try!(UdpSocket::bind(bindaddr)),
+        SocketAddr::V6(..) => {
+            let builder = try!(UdpBuilder::new_v6());
+            try!(builder.only_v6(true));
+            result = try!(UdpSocket::from_socket(try!(builder.bind(bindaddr))));
+        },
     }
     Ok(result)
 }
