@@ -63,6 +63,13 @@ impl ops::Mul<f32> for vec2 {
     }
 }
 
+impl ops::Div<f32> for vec2 {
+    type Output = vec2;
+    fn div(self, scalar: f32) -> vec2 {
+        vec2::new(self.x / scalar, self.y / scalar)
+    }
+}
+
 impl vec2 {
     pub fn new(x: f32, y: f32) -> vec2 {
         vec2 { x: x, y: y }
@@ -104,6 +111,9 @@ impl Angle {
     }
     pub fn to_net(self) -> i32 {
         (self.to_radians() * 256.0).trunc() as i32
+    }
+    pub fn from_net(net: i32) -> Angle {
+        Angle::from_radians((net as f32) / 256.0)
     }
 }
 
@@ -193,6 +203,21 @@ impl Hook {
     }
     fn net_dir(&self) -> vec2 {
         self.dir().unwrap_or_default()
+    }
+    fn from_net(hook_state: i32, pos: vec2, dir: vec2, hooked_player: i32) -> Hook {
+        // TODO: Warn on weird values.
+        match hook_state {
+            HOOK_RETRACTED => Hook::Retracted,
+            HOOK_IDLE => Hook::Idle,
+            HOOK_FLYING => Hook::Flying(pos, dir),
+            // TODO: Implement Hook::Grabbed
+            HOOK_ATTACHED_GRABBED => Hook::Attached(pos),
+            HOOK_RETRACTING0 => Hook::Retracting0(pos),
+            HOOK_RETRACTING1 => Hook::Retracting1(pos),
+            HOOK_RETRACTING2 => Hook::Retracting2(pos),
+            // TODO: Don't fail silently. :(
+            _ => Hook::Retracted,
+        }
     }
 }
 
@@ -385,7 +410,14 @@ impl Character {
     fn net_jumped(&self) -> i32 {
         ((self.used_airjump as i32) << 1) | (self.jumped_already as i32)
     }
-    pub fn write(&self) -> CharacterCore {
+    fn used_airjump_from_net(jumped: i32) -> bool {
+        // TODO: Check that jumped has valid values.
+        (jumped & 2) != 0
+    }
+    fn jumped_already_from_net(jumped: i32) -> bool {
+        (jumped & 1) != 0
+    }
+    pub fn to_net(&self) -> CharacterCore {
         let network_vel = self.vel * 256.0;
         let hook_pos = self.hook.net_pos();
         let hook_dir = self.hook.net_dir() * 256.0;
@@ -407,6 +439,25 @@ impl Character {
             angle: self.angle.to_net(),
             tick: 0,
         }
+    }
+    pub fn from_net(core: &CharacterCore) -> Character {
+        Character {
+            pos: vec2::new(core.x as f32, core.y as f32),
+            vel: vec2::new(core.vel_x as f32, core.vel_y as f32) / 256.0,
+            hook: Hook::from_net(
+                core.hook_state,
+                vec2::new(core.hook_x as f32, core.hook_y as f32),
+                vec2::new(core.hook_dx as f32, core.hook_dy as f32) / 256.0,
+                core.hooked_player,
+            ),
+            used_airjump: Character::used_airjump_from_net(core.jumped),
+            jumped_already: Character::jumped_already_from_net(core.jumped),
+            angle: Angle::from_net(core.angle),
+            move_direction: MoveDirection::from_int(core.direction),
+        }
+    }
+    pub fn quantize(&mut self) {
+        *self = Character::from_net(&self.to_net());
     }
 }
 
