@@ -22,8 +22,8 @@ use event_loop::Application;
 use event_loop::Loop;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
-use gamenet::VERSION;
 use gamenet::SnapObj;
+use gamenet::VERSION;
 use gamenet::enums::MAX_CLIENTS;
 use gamenet::enums::Team;
 use gamenet::msg::Connless;
@@ -212,9 +212,18 @@ impl PeerState {
     }
 }
 
-#[derive(Default)]
 struct IngameState {
     snaps: snapshot::Storage,
+    team: Team,
+}
+
+impl Default for IngameState {
+    fn default() -> IngameState {
+        IngameState {
+            snaps: Default::default(),
+            team: Team::Spectators,
+        }
+    }
 }
 
 struct ServerLoop<'a, L: Loop+'a> {
