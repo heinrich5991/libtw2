@@ -19,3 +19,4 @@ packer = { path = "../packer/" }
 snapshot = { path = "../snapshot/" }
 socket = { path = "../socket/" }
 warn = ">=0.1.1,<0.3.0"
+world = { path = "../world/" }

@@ -13,6 +13,7 @@ extern crate packer;
 extern crate snapshot;
 extern crate socket;
 extern crate warn;
+extern crate world;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
@@ -39,6 +40,7 @@ use gamenet::snap_obj::GameInfo;
 use gamenet::snap_obj::PlayerInfo;
 use gamenet::snap_obj::Tick;
 use gamenet::snap_obj::obj_size;
+use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -60,6 +62,7 @@ use std::fmt::Write;
 use std::fmt;
 use std::ops;
 use std::time::Duration;
+use world::vec2;
 
 const TICKS_PER_SECOND: u32 = 50;
 
@@ -129,6 +132,7 @@ impl SnapBuilderExt for snap::Builder {
 #[derive(Default)]
 struct Server {
     peers: Peers,
+    players: Vec<Player>,
     game_start: Timestamp,
     game_tick: u32,
     delta_buffer: Vec<u8>,
@@ -215,6 +219,7 @@ impl PeerState {
 struct IngameState {
     snaps: snapshot::Storage,
     team: Team,
+    input: snap_obj::PlayerInput,
 }
 
 impl Default for IngameState {
@@ -222,8 +227,14 @@ impl Default for IngameState {
         IngameState {
             snaps: Default::default(),
             team: Team::Spectators,
+            input: Default::default(),
         }
     }
+}
+
+struct Player {
+    character: world::Character,
+    pid: PeerId,
 }
 
 struct ServerLoop<'a, L: Loop+'a> {
@@ -341,6 +352,8 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 if let Err(e) = ingame.snaps.set_delta_tick(&mut Warn(pid, data), input.ack_snapshot) {
                     warn!("invalid input tick: {:?} ({})", e, input.ack_snapshot);
                 }
+                // TODO: Teeworlds never ignores old inputs?
+                ingame.input = input.input;
                 processed = true;
             }
             (&Ingame(..), SystemOrGame::Game(Game::ClCallVote(call_vote))) => {
@@ -385,6 +398,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         match msg {
             Connless::RequestInfo(request) => {
                 processed = true;
+                // TODO: Send clients. :)
                 self.loop_.sendc(addr, connless::Info {
                     token: request.token.to_i32().unwrap(),
                     version: VERSION,
@@ -437,7 +451,24 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
     }
     fn game_tick(&mut self) {
-        // TODO: Do tick. :)
+        for p in &mut self.server.players {
+            let input = self.server.peers[p.pid].state.assert_ingame().input;
+            struct Collision;
+            impl world::Collision for Collision {
+                fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
+                    unimplemented!();
+                }
+                fn check_line(&mut self, from: vec2, to: vec2)
+                    -> Option<(vec2, world::CollisionType)>
+                {
+                    unimplemented!();
+                }
+                fn move_box(&mut self, pos: vec2, vel: vec2, box_: vec2) -> vec2 {
+                    unimplemented!();
+                }
+            }
+            p.character.tick(&mut Collision, input, &game::SV_TUNE_PARAMS_DEFAULT);
+        }
     }
     fn send_snapshots(&mut self) {
         for (&pid, peer) in self.server.peers.iter_mut() {

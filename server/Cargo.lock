@@ -17,6 +17,7 @@ dependencies = [
  "snapshot 0.0.1",
  "socket 0.0.1",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "world 0.0.1",
 ]
 
 [[package]]
@@ -478,6 +479,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "winapi-build"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "world"
+version = "0.0.1"
+dependencies = [
+ "gamenet 0.0.1",
+]
 
 [[package]]
 name = "ws2_32-sys"
