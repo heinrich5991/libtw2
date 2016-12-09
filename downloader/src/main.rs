@@ -40,8 +40,8 @@ use gamenet::msg::system::MapChange;
 use gamenet::msg::system::MapData;
 use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
-use gamenet::msg::system;
 use gamenet::snap_obj::obj_size;
+use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -521,7 +521,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             self.loop_.sends(pid, Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,
-                                input: system::INPUT_DATA_EMPTY,
+                                input: snap_obj::PLAYER_INPUT_EMPTY,
                             });
                         }
                         ignored = true;

@@ -31,8 +31,8 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
+use snap_obj::PlayerInput;
 use std::fmt;
-use super::InputData;
 use super::SystemOrGame;
 use warn::Warn;
 
@@ -56,9 +56,6 @@ impl<'a> System<'a> {
         Ok(p.written())
     }
 }
-
-/// Default input data for use with `Input`.
-pub const INPUT_DATA_EMPTY: InputData<'static> = InputData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
 """
 
 system_extra = """\
@@ -133,7 +130,7 @@ def rust_type(type_, optional):
     elif type_ == 'data':
         result = "&'a [u8]"
     elif type_ == 'input_data':
-        result = "InputData<'a>"
+        result = "PlayerInput"
     else:
         raise ValueError("Invalid type: {}".format(type_))
     if not optional:
@@ -215,7 +212,7 @@ def generate_struct_impl(msgs):
                 elif type_ == 'data':
                     decode = "_p.read_data(warn)"
                 elif type_ == 'input_data':
-                    decode = "_p.read_rest().map(InputData::from_bytes)"
+                    decode = "PlayerInput::decode_msg_inner(warn, _p)"
                 else:
                     raise ValueError("Invalid type: {}".format(type_))
                 result.append(" "*4*3 + "{}: {},".format(name, conv(decode)))
@@ -238,7 +235,7 @@ def generate_struct_impl(msgs):
                     elif type_ == 'data':
                         encode = "_p.write_data({})".format
                     elif type_ == 'input_data':
-                        encode = "_p.write_rest({}.as_bytes())".format
+                        encode = "with_packer(&mut _p, |p| {}.encode_msg(p))".format
                     else:
                         raise ValueError("Invalid type: {}".format(type_))
                     result.append("        try!({});".format(encode("self.{}".format(name))))

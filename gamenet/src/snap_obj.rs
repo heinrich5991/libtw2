@@ -1,9 +1,11 @@
+use buffer::CapacityError;
 use common::slice;
 use debug::DebugSlice;
 use enums::*;
 use error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
+use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
 use packer::in_range;
@@ -26,6 +28,54 @@ impl Projectile {
         })
     }
 }
+
+impl PlayerInput {
+    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
+        Ok(PlayerInput {
+            direction: try!(_p.read_int(warn)),
+            target_x: try!(_p.read_int(warn)),
+            target_y: try!(_p.read_int(warn)),
+            jump: try!(_p.read_int(warn)),
+            fire: try!(_p.read_int(warn)),
+            hook: try!(_p.read_int(warn)),
+            player_flags: try!(in_range(try!(_p.read_int(warn)), 0, 256)),
+            wanted_weapon: try!(_p.read_int(warn)),
+            next_weapon: try!(_p.read_int(warn)),
+            prev_weapon: try!(_p.read_int(warn)),
+        })
+    }
+    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        // For the assert!()s.
+        self.encode();
+
+        try!(_p.write_int(self.direction));
+        try!(_p.write_int(self.target_x));
+        try!(_p.write_int(self.target_y));
+        try!(_p.write_int(self.jump));
+        try!(_p.write_int(self.fire));
+        try!(_p.write_int(self.hook));
+        try!(_p.write_int(self.player_flags));
+        try!(_p.write_int(self.wanted_weapon));
+        try!(_p.write_int(self.next_weapon));
+        try!(_p.write_int(self.prev_weapon));
+        Ok(_p.written())
+    }
+}
+
+pub const PLAYER_INPUT_EMPTY: PlayerInput = PlayerInput {
+    direction: 0,
+    target_x: 0,
+    target_y: 0,
+    jump: 0,
+    fire: 0,
+    hook: 0,
+    player_flags: 0,
+    wanted_weapon: 0,
+    next_weapon: 0,
+    prev_weapon: 0,
+};
 
 pub const PLAYERFLAG_PLAYING: i32 = 1 << 0;
 pub const PLAYERFLAG_IN_MENU: i32 = 1 << 1;

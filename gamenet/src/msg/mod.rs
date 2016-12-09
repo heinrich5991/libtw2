@@ -19,22 +19,6 @@ use std::mem;
 use std::str;
 use warn::Warn;
 
-#[derive(Clone, Copy, Debug)]
-pub struct InputData<'a> {
-    inner: &'a [u8],
-}
-
-impl<'a> InputData<'a> {
-    fn from_bytes(bytes: &[u8]) -> InputData {
-        InputData {
-            inner: bytes,
-        }
-    }
-    fn as_bytes(&self) -> &[u8] {
-        self.inner
-    }
-}
-
 pub const CLIENTS_DATA_NONE: ClientsData<'static> = ClientsData { inner: b"" };
 
 #[derive(Clone, Copy, Debug)]

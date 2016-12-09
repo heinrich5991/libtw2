@@ -5,8 +5,8 @@ use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
 use packer::with_packer;
+use snap_obj::PlayerInput;
 use std::fmt;
-use super::InputData;
 use super::SystemOrGame;
 use warn::Warn;
 
@@ -30,9 +30,6 @@ impl<'a> System<'a> {
         Ok(p.written())
     }
 }
-
-/// Default input data for use with `Input`.
-pub const INPUT_DATA_EMPTY: InputData<'static> = InputData { inner: &[0, 0, 0, 0, 0, 0, 1, 0, 0, 0] };
 
 pub const INFO: i32 = 1;
 pub const MAP_CHANGE: i32 = 2;
@@ -127,10 +124,10 @@ pub struct Ready;
 pub struct EnterGame;
 
 #[derive(Clone, Copy)]
-pub struct Input<'a> {
+pub struct Input {
     pub ack_snapshot: i32,
     pub intended_tick: i32,
-    pub input: InputData<'a>,
+    pub input: PlayerInput,
 }
 
 #[derive(Clone, Copy)]
@@ -469,7 +466,7 @@ impl EnterGame {
     }
 }
 
-impl<'a> fmt::Debug for Input<'a> {
+impl fmt::Debug for Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Input")
             .field("ack_snapshot", &self.ack_snapshot)
@@ -478,12 +475,12 @@ impl<'a> fmt::Debug for Input<'a> {
             .finish()
     }
 }
-impl<'a> Input<'a> {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Input<'a>, Error> {
+impl Input {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Input, Error> {
         let result = Ok(Input {
             ack_snapshot: try!(_p.read_int(warn)),
             intended_tick: try!(_p.read_int(warn)),
-            input: try!(_p.read_rest().map(InputData::from_bytes)),
+            input: try!(PlayerInput::decode_msg_inner(warn, _p)),
         });
         _p.finish(warn);
         result
@@ -493,7 +490,7 @@ impl<'a> Input<'a> {
     {
         try!(_p.write_int(self.ack_snapshot));
         try!(_p.write_int(self.intended_tick));
-        try!(_p.write_rest(self.input.as_bytes()));
+        try!(with_packer(&mut _p, |p| self.input.encode_msg(p)));
         Ok(_p.written())
     }
 }
@@ -699,7 +696,7 @@ pub enum System<'a> {
     RconLine(RconLine<'a>),
     Ready(Ready),
     EnterGame(EnterGame),
-    Input(Input<'a>),
+    Input(Input),
     RconCmd(RconCmd<'a>),
     RconAuth(RconAuth<'a>),
     RequestMapData(RequestMapData),
@@ -873,8 +870,8 @@ impl<'a> From<EnterGame> for System<'a> {
         System::EnterGame(i)
     }
 }
-impl<'a> From<Input<'a>> for System<'a> {
-    fn from(i: Input<'a>) -> System<'a> {
+impl<'a> From<Input> for System<'a> {
+    fn from(i: Input) -> System<'a> {
         System::Input(i)
     }
 }
