@@ -18,6 +18,7 @@ extern crate world;
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
 use common::pretty::AlmostString;
+use common::num::CastFloat;
 use event_loop::Addr;
 use event_loop::Application;
 use event_loop::Loop;
@@ -456,15 +457,13 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             struct Collision;
             impl world::Collision for Collision {
                 fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
-                    unimplemented!();
-                }
-                fn check_line(&mut self, from: vec2, to: vec2)
-                    -> Option<(vec2, world::CollisionType)>
-                {
-                    unimplemented!();
-                }
-                fn move_box(&mut self, pos: vec2, vel: vec2, box_: vec2) -> vec2 {
-                    unimplemented!();
+                    let (x, y) = (pos.x.round_to_i32(), pos.y.round_to_i32());
+                    let (tx, ty) = ((x as f32 / 32.0).trunc_to_i32(), (y as f32 / 32.0).trunc_to_i32());
+                    if tx < 5 || ty < 5 || tx > 10 || ty > 10 {
+                        Some(world::CollisionType::Normal)
+                    } else {
+                        None
+                    }
                 }
             }
             p.character.tick(&mut Collision, input, &game::SV_TUNE_PARAMS_DEFAULT);
@@ -514,7 +513,6 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     self.loop_.sends(pid, m);
                     self.loop_.flush(pid);
                 }
-
             }
         }
     }

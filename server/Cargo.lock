@@ -484,6 +484,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "world"
 version = "0.0.1"
 dependencies = [
+ "common 0.0.1",
  "gamenet 0.0.1",
 ]
 

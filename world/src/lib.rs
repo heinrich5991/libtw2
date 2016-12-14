@@ -1,5 +1,7 @@
+extern crate common;
 extern crate gamenet;
 
+use common::num::CastFloat;
 use gamenet::msg::game::SvTuneParams;
 use gamenet::snap_obj::CharacterCore;
 use gamenet::snap_obj::PlayerInput;
@@ -12,22 +14,11 @@ pub const CHARACTER_SIZE: f32 = 28.0;
 pub const DISABLE_HOOK_DISTANCE: f32 = 46.0;
 pub const MAX_VELOCITY: f32 = 6000.0;
 
-trait Round {
-    fn round_to_int(self) -> i32;
-}
-
-impl Round for f32 {
-    fn round_to_int(self) -> i32 {
-        // TODO: Do overflow checking?
-        self.round() as i32
-    }
-}
-
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Default)]
 pub struct vec2 {
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl fmt::Debug for vec2 {
@@ -86,6 +77,9 @@ impl vec2 {
     pub fn distance(first: vec2, second: vec2) -> f32 {
         (second - first).length()
     }
+    pub fn mix(first: vec2, second: vec2, v: f32) -> vec2 {
+        first * v + second * (1.0 - v)
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -110,7 +104,7 @@ impl Angle {
         vec2::new(x, y)
     }
     pub fn to_net(self) -> i32 {
-        (self.to_radians() * 256.0).trunc() as i32
+        (self.to_radians() * 256.0).trunc_to_i32()
     }
     pub fn from_net(net: i32) -> Angle {
         Angle::from_radians((net as f32) / 256.0)
@@ -275,8 +269,61 @@ pub enum CollisionType {
 
 pub trait Collision {
     fn check_point(&mut self, pos: vec2) -> Option<CollisionType>;
-    fn check_line(&mut self, from: vec2, to: vec2) -> Option<(vec2, CollisionType)>;
-    fn move_box(&mut self, pos: vec2, vel: vec2, box_: vec2) -> vec2;
+    fn check_line(&mut self, from: vec2, to: vec2) -> Option<(vec2, CollisionType)> {
+        let dist = vec2::distance(from, to);
+        // Overflow?
+        let end = (dist + 1.0).trunc_to_i32();
+        for i in 0..end+1 {
+            let point = vec2::mix(from, to, i as f32 / end as f32);
+            if let Some(col) = self.check_point(point) {
+                return Some((point, col));
+            }
+        }
+        None
+    }
+    fn check_box(&mut self, pos: vec2, box_: vec2) -> bool {
+        let diff1 = box_ * 0.5;
+        let diff2 = vec2::new(diff1.x, -diff1.y);
+        false
+            || self.check_point(pos + diff1).is_some()
+            || self.check_point(pos - diff1).is_some()
+            || self.check_point(pos + diff2).is_some()
+            || self.check_point(pos - diff2).is_some()
+    }
+    fn move_box(&mut self, mut pos: vec2, mut vel: vec2, box_: vec2) -> (vec2, vec2) {
+        let dist = vel.length();
+        // Magic number :(
+        if dist > 0.00001 {
+            let end = dist.round_to_i32();
+            let fraction = 1.0 / (end + 1) as f32;
+            for _ in 0..end+1 {
+                let mut new_pos = pos + vel * fraction;
+                if self.check_box(new_pos, box_) {
+                    let mut hit = false;
+                    if self.check_box(vec2::new(pos.x, new_pos.y), box_) {
+                        new_pos.y = pos.y;
+                        vel.y = 0.0;
+                        hit = true;
+                    }
+                    if self.check_box(vec2::new(new_pos.x, pos.y), box_) {
+                        new_pos.x = pos.x;
+                        vel.x = 0.0;
+                        hit = true;
+                    }
+                    if !hit {
+                        // Original comment: This is a real _corner case_!
+                        //
+                        // Unfortunately, you actually see this happen, when
+                        // diagonally moving towards an corner.
+                        new_pos = pos;
+                        vel = vec2::new(0.0, 0.0);
+                    }
+                }
+                pos = new_pos;
+            }
+        }
+        (pos, vel)
+    }
 }
 
 impl Character {
@@ -403,9 +450,12 @@ impl Character {
     }
     pub fn move_<C: Collision>(&mut self, collision: &mut C, tuning: &SvTuneParams) {
         let ramp_value = velocity_ramp(self.vel.length() * 50.0, tuning);
-        let modified_vel = vec2::new(self.vel.x * ramp_value, self.vel.y);
+        self.vel.x *= ramp_value;
         let box_ = vec2::new(CHARACTER_SIZE, CHARACTER_SIZE);
-        self.pos = collision.move_box(self.pos, modified_vel, box_);
+        let (new_pos, new_vel) = collision.move_box(self.pos, self.vel, box_);
+        self.pos = new_pos;
+        self.vel = new_vel;
+        self.vel.x *= 1.0 / ramp_value;
     }
     fn net_jumped(&self) -> i32 {
         ((self.used_airjump as i32) << 1) | (self.jumped_already as i32)
@@ -422,17 +472,17 @@ impl Character {
         let hook_pos = self.hook.net_pos();
         let hook_dir = self.hook.net_dir() * 256.0;
         CharacterCore {
-            x: self.pos.x.round_to_int(),
-            y: self.pos.y.round_to_int(),
-            vel_x: network_vel.x.round_to_int(),
-            vel_y: network_vel.y.round_to_int(),
+            x: self.pos.x.round_to_i32(),
+            y: self.pos.y.round_to_i32(),
+            vel_x: network_vel.x.round_to_i32(),
+            vel_y: network_vel.y.round_to_i32(),
             hook_state: self.hook.net_state(),
             // TODO!
             hook_tick: Tick(0),
-            hook_x: hook_pos.x.round_to_int(),
-            hook_y: hook_pos.y.round_to_int(),
-            hook_dx: hook_dir.x.round_to_int(),
-            hook_dy: hook_dir.y.round_to_int(),
+            hook_x: hook_pos.x.round_to_i32(),
+            hook_y: hook_pos.y.round_to_i32(),
+            hook_dx: hook_dir.x.round_to_i32(),
+            hook_dy: hook_dir.y.round_to_i32(),
             hooked_player: -1,
             jumped: self.net_jumped(),
             direction: self.move_direction.as_int(),

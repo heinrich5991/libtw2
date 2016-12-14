@@ -68,6 +68,23 @@ impl Usize for u8 { }
 impl Usize for u32 { }
 impl Usize for usize { }
 
+pub trait CastFloat {
+    fn round_to_i32(self) -> i32;
+    fn trunc_to_i32(self) -> i32;
+}
+
+impl CastFloat for f32 {
+    fn round_to_i32(self) -> i32 {
+        // TODO: Do overflow checking?
+        self.round() as i32
+    }
+    fn trunc_to_i32(self) -> i32 {
+        // TODO: Do overflow checking?
+        self.trunc() as i32
+    }
+}
+
+
 /// Big-endian unsigned 16-bit integer
 ///
 /// Is internally represented as `[u8; 2]`.
