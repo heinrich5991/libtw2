@@ -7,13 +7,14 @@ use buffer::BufferRef;
 use buffer::with_buffer;
 use connection::ReceiveChunk;
 use connection;
-use linear_map::LinearMap;
-use linear_map;
+use collections::PeerMap;
+use collections::peer_map;
 use protocol::ConnectedPacket;
 use protocol::ConnectedPacketType;
 use protocol::ControlPacket;
 use protocol::Packet;
 use protocol;
+use std::fmt;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
@@ -46,7 +47,7 @@ impl<A: Address> Warning<A> {
 pub trait Address: Copy + Eq + Hash + Ord { }
 impl<A: Copy + Eq + Hash + Ord> Address for A { }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PeerId(pub u32);
 
 impl PeerId {
@@ -54,6 +55,18 @@ impl PeerId {
         let old = *self;
         self.0 = self.0.wrapping_add(1);
         old
+    }
+}
+
+impl fmt::Debug for PeerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "p{}", self.0)
+    }
+}
+
+impl fmt::Display for PeerId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 
@@ -73,16 +86,15 @@ impl<A: Address> Peer<A> {
     }
 }
 
-// TODO: Different data structure, HashMap?
 struct Peers<A: Address> {
-    peers: LinearMap<PeerId, Peer<A>>,
+    peers: PeerMap<Peer<A>>,
     next_peer_id: PeerId,
 }
 
 impl<A: Address> Peers<A> {
     fn new() -> Peers<A> {
         Peers {
-            peers: LinearMap::new(),
+            peers: PeerMap::new(),
             next_peer_id: PeerId(0),
         }
     }
@@ -92,23 +104,23 @@ impl<A: Address> Peers<A> {
         unsafe {
             loop {
                 let peer_id = self.next_peer_id.get_and_increment();
-                if let linear_map::Entry::Vacant(v) = (*raw_self).peers.entry(peer_id) {
+                if let peer_map::Entry::Vacant(v) = (*raw_self).peers.entry(peer_id) {
                     return (peer_id, v.insert(Peer::new(addr)));
                 }
             }
         }
     }
-    fn iter(&self) -> linear_map::Iter<PeerId, Peer<A>> {
+    fn iter(&self) -> peer_map::Iter<Peer<A>> {
         self.peers.iter()
     }
-    fn iter_mut(&mut self) -> linear_map::IterMut<PeerId, Peer<A>> {
+    fn iter_mut(&mut self) -> peer_map::IterMut<Peer<A>> {
         self.peers.iter_mut()
     }
     fn remove_peer(&mut self, pid: PeerId) {
-        self.peers.remove(&pid).unwrap_or_else(|| panic!("invalid pid"));
+        self.peers.remove(pid)
     }
     fn pid_from_addr(&mut self, addr: A) -> Option<PeerId> {
-        for (&pid, p) in self.peers.iter() {
+        for (pid, p) in self.peers.iter() {
             if p.addr == addr {
                 return Some(pid);
             }
@@ -116,10 +128,10 @@ impl<A: Address> Peers<A> {
         None
     }
     fn get(&self, pid: PeerId) -> Option<&Peer<A>> {
-        self.peers.get(&pid)
+        self.peers.get(pid)
     }
     fn get_mut(&mut self, pid: PeerId) -> Option<&mut Peer<A>> {
-        self.peers.get_mut(&pid)
+        self.peers.get_mut(pid)
     }
 }
 
@@ -471,7 +483,7 @@ impl<A: Address> Net<A> {
 }
 
 pub struct Tick<'a, A: Address+'a, CB: Callback<A>+'a> {
-    iter_mut: linear_map::IterMut<'a, PeerId, Peer<A>>,
+    iter_mut: peer_map::IterMut<'a, Peer<A>>,
     cb: &'a mut CB,
 }
 

@@ -16,6 +16,7 @@ extern crate optional;
 extern crate void;
 extern crate warn;
 
+pub mod collections;
 pub mod connection;
 pub mod net;
 pub mod protocol;
