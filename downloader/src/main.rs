@@ -18,9 +18,14 @@ use arrayvec::ArrayVec;
 use common::pretty;
 use event_loop::Addr;
 use event_loop::Application;
+use event_loop::Chunk;
+use event_loop::ConnlessChunk;
 use event_loop::Loop;
+use event_loop::PeerId;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
+use event_loop::Timestamp;
+use event_loop::collections::PeerMap;
 use gamenet::SnapObj;
 use gamenet::VERSION;
 use gamenet::enums::Team;
@@ -45,11 +50,7 @@ use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use net::Timestamp;
-use net::net::Chunk;
 use net::net::ChunkOrEvent;
-use net::net::ConnlessChunk;
-use net::net::PeerId;
 use num::ToPrimitive;
 use packer::IntUnpacker;
 use packer::Unpacker;
@@ -58,14 +59,12 @@ use snapshot::Snap;
 use snapshot::format::Item as SnapItem;
 use std::borrow::Cow;
 use std::cmp;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::io;
-use std::ops;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::str;
@@ -273,34 +272,6 @@ impl PeerState {
     }
 }
 
-struct Peers {
-    peers: HashMap<PeerId, Peer>,
-}
-
-impl Peers {
-    fn with_capacity(cap: usize) -> Peers {
-        Peers {
-            peers: HashMap::with_capacity(cap),
-        }
-    }
-    fn insert(&mut self, pid: PeerId, peer: Peer) {
-        self.peers.insert(pid, peer);
-    }
-}
-
-impl ops::Index<PeerId> for Peers {
-    type Output = Peer;
-    fn index(&self, pid: PeerId) -> &Peer {
-        self.peers.get(&pid).expect("invalid pid")
-    }
-}
-
-impl ops::IndexMut<PeerId> for Peers {
-    fn index_mut(&mut self, pid: PeerId) -> &mut Peer {
-        self.peers.get_mut(&pid).expect("invalid pid")
-    }
-}
-
 trait LoopExt: Loop {
     fn sends<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
         fn inner<L: Loop+?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
@@ -342,28 +313,28 @@ fn num_players(snap: &Snap) -> u32 {
 }
 
 struct Main {
-    peers: Peers,
+    peers: PeerMap<Peer>,
 }
 
 struct MainLoop<'a, L: Loop+'a> {
-    peers: &'a mut Peers,
+    peers: &'a mut PeerMap<Peer>,
     loop_: &'a mut L,
 }
 
 impl<L: Loop> Application<L> for Main {
     fn needs_tick(&mut self) -> Timeout {
-        self.peers.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
+        self.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
     }
     fn on_tick(&mut self, loop_: &mut L) {
         let mut remove = vec![];
-        for (&pid, peer) in self.peers.peers.iter_mut() {
+        for (pid, peer) in self.peers.iter_mut() {
             if peer.tick(pid, loop_) {
                 loop_.disconnect(pid, b"downloader");
                 remove.push(pid);
             }
         }
         for pid in remove {
-            self.peers.peers.remove(&pid).unwrap();
+            self.peers.remove(pid);
         }
     }
     fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
@@ -383,7 +354,7 @@ impl<L: Loop> Application<L> for Main {
                 _ => unreachable!(),
             };
             loop_.disconnect(pid, b"downloader");
-            self.peers.peers.remove(&pid).unwrap();
+            self.peers.remove(pid);
         }
     }
 }
@@ -391,7 +362,7 @@ impl<L: Loop> Application<L> for Main {
 impl Main {
     fn run<L: Loop>(addresses: &[Addr]) {
         let mut main = Main {
-            peers: Peers::with_capacity(addresses.len()),
+            peers: PeerMap::with_capacity(addresses.len()),
         };
         let mut loop_ = L::client();
         for &addr in addresses {

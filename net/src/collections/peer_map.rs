@@ -28,11 +28,22 @@ impl<T> PeerMap<T> {
             map: LinearMap::new(),
         }
     }
+    pub fn with_capacity(cap: usize) -> PeerMap<T> {
+        PeerMap {
+            map: LinearMap::with_capacity(cap),
+        }
+    }
     pub fn iter(&self) -> Iter<T> {
         Iter(self.map.iter())
     }
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut(self.map.iter_mut())
+    }
+    pub fn keys(&self) -> Keys<T> {
+        Keys(self.map.keys())
+    }
+    pub fn values(&self) -> Values<T> {
+        Values(self.map.values())
     }
     pub fn drain(&mut self) -> Drain<T> {
         Drain(self.map.drain())
@@ -73,6 +84,8 @@ impl<T> ops::IndexMut<PeerId> for PeerMap<T> {
 pub struct Iter<'a, T: 'a>(linear_map::Iter<'a, PeerId, T>);
 pub struct IterMut<'a, T: 'a>(linear_map::IterMut<'a, PeerId, T>);
 pub struct Drain<'a, T: 'a>(linear_map::Drain<'a, PeerId, T>);
+pub struct Keys<'a, T: 'a>(linear_map::Keys<'a, PeerId, T>);
+pub struct Values<'a, T: 'a>(linear_map::Values<'a, PeerId, T>);
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = (PeerId, &'a T);
@@ -97,6 +110,26 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 impl<'a, T> Iterator for Drain<'a, T> {
     type Item = (PeerId, T);
     fn next(&mut self) -> Option<(PeerId, T)> {
+        self.0.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a, T: 'a> Iterator for Keys<'a, T> {
+    type Item = PeerId;
+    fn next(&mut self) -> Option<PeerId> {
+        self.0.next().cloned()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a, T: 'a> Iterator for Values<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<&'a T> {
         self.0.next()
     }
     fn size_hint(&self) -> (usize, Option<usize>) {

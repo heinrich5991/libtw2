@@ -18,6 +18,11 @@ impl PeerSet {
     pub fn new() -> PeerSet {
         Default::default()
     }
+    pub fn with_capacity(cap: usize) -> PeerSet {
+        PeerSet {
+            set: PeerMap::with_capacity(cap),
+        }
+    }
     pub fn iter(&self) -> Iter {
         Iter(self.set.iter())
     }

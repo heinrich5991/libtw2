@@ -14,16 +14,19 @@ use log::LogLevel;
 use net::Net;
 use net::collections::PeerSet;
 use net::net::Callback;
-use net::time::Timestamp;
 use socket::Socket;
 use std::cmp;
 use std::fmt;
 
-pub type Addr = socket::Addr;
+pub use net::Timeout;
+pub use net::Timestamp;
+pub use net::collections;
+pub use net::net::ConnlessChunk;
+pub use net::net::PeerId;
+pub use socket::Addr;
+
 pub type Chunk<'a> = net::net::Chunk<'a>;
 pub type ChunkOrEvent<'a> = net::net::ChunkOrEvent<'a, Addr>;
-pub type PeerId = net::net::PeerId;
-pub type Timeout = net::Timeout;
 
 pub trait Loop {
     fn accept_connections_on_port(port: u16) -> Self;
