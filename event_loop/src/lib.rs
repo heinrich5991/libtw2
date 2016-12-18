@@ -12,6 +12,7 @@ use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use net::Net;
+use net::collections::PeerSet;
 use net::net::Callback;
 use net::time::Timestamp;
 use socket::Socket;
@@ -48,6 +49,7 @@ pub trait Application<L: Loop> {
 pub struct SocketLoop {
     socket: Socket,
     net: Net<Addr>,
+    want_to_flush: PeerSet,
     server: bool,
 }
 
@@ -56,6 +58,7 @@ impl Loop for SocketLoop {
         SocketLoop {
             socket: Socket::bound(port).unwrap(),
             net: Net::server(),
+            want_to_flush: PeerSet::new(),
             server: true,
         }
     }
@@ -63,6 +66,7 @@ impl Loop for SocketLoop {
         SocketLoop {
             socket: Socket::new().unwrap(),
             net: Net::client(),
+            want_to_flush: PeerSet::new(),
             server: false,
         }
     }
@@ -73,6 +77,10 @@ impl Loop for SocketLoop {
         loop {
             self.net.tick(&mut self.socket).foreach(|e| panic!("{:?}", e));
             application.on_tick(&mut self);
+
+            for pid in self.want_to_flush.drain() {
+                self.net.flush(&mut self.socket, pid).unwrap();
+            }
 
             let sleep_timeout = cmp::min(self.net.needs_tick(), application.needs_tick());
             let sleep_duration = sleep_timeout.time_from(self.socket.time());
@@ -112,8 +120,7 @@ impl Loop for SocketLoop {
         self.net.send(&mut self.socket, chunk).unwrap();
     }
     fn flush(&mut self, pid: PeerId) {
-        // TODO: Only flush at the end of the tick.
-        self.net.flush(&mut self.socket, pid).unwrap();
+        self.want_to_flush.insert(pid);
     }
     fn ignore(&mut self, pid: PeerId) {
         self.net.ignore(pid);
