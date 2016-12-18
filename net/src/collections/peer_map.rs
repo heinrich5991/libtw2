@@ -34,6 +34,12 @@ impl<T> PeerMap<T> {
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut(self.map.iter_mut())
     }
+    pub fn drain(&mut self) -> Drain<T> {
+        Drain(self.map.drain())
+    }
+    pub fn insert(&mut self, pid: PeerId, value: T) -> Option<T> {
+        self.map.insert(pid, value)
+    }
     pub fn remove(&mut self, pid: PeerId) {
         self.map.remove(&pid).unwrap_or_else(|| panic!("invalid pid"));
     }
@@ -66,6 +72,7 @@ impl<T> ops::IndexMut<PeerId> for PeerMap<T> {
 
 pub struct Iter<'a, T: 'a>(linear_map::Iter<'a, PeerId, T>);
 pub struct IterMut<'a, T: 'a>(linear_map::IterMut<'a, PeerId, T>);
+pub struct Drain<'a, T: 'a>(linear_map::Drain<'a, PeerId, T>);
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = (PeerId, &'a T);
@@ -81,6 +88,16 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = (PeerId, &'a mut T);
     fn next(&mut self) -> Option<(PeerId, &'a mut T)> {
         self.0.next().map(|(&pid, e)| (pid, e))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a, T> Iterator for Drain<'a, T> {
+    type Item = (PeerId, T);
+    fn next(&mut self) -> Option<(PeerId, T)> {
+        self.0.next()
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
