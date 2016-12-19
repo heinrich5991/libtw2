@@ -6,14 +6,13 @@ extern crate arrayvec;
 extern crate buffer;
 #[macro_use] extern crate common;
 extern crate itertools;
-extern crate num;
 
 use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
+use common::num::Cast;
 use itertools::Itertools;
-use num::ToPrimitive;
 use std::fmt::Write;
 use std::fmt;
 use std::slice;
@@ -115,7 +114,7 @@ impl Iterator for Bits {
 
 impl ExactSizeIterator for Bits {
     fn len(&self) -> usize {
-        self.remaining_bits.to_usize().unwrap()
+        self.remaining_bits.usize()
     }
 }
 
@@ -134,7 +133,7 @@ impl Huffman {
     pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman, Error> {
         let mut frequencies: ArrayVec<[_; 512]> = frequencies.iter()
             .cloned().enumerate().map(|(i, f)| {
-                Frequency { frequency: f, node_idx: i.to_u16().unwrap() }
+                Frequency { frequency: f, node_idx: i.assert_u16() }
             }).collect();
         assert!(frequencies.push(Frequency { frequency: 1, node_idx: EOF }).is_none());
 
@@ -151,7 +150,7 @@ impl Huffman {
 
             // Combine the nodes into one.
             let node = Node { children: [freq1.node_idx, freq2.node_idx] };
-            let node_idx = nodes.len().to_u16().unwrap();
+            let node_idx = nodes.len().assert_u16();
             let node_freq = Frequency {
                 frequency: freq1.frequency.saturating_add(freq2.frequency),
                 node_idx: node_idx,
@@ -179,25 +178,25 @@ impl Huffman {
                 } else {
                     break;
                 }
-                let b = 1 << stack.len().to_u8().unwrap();
+                let b = 1 << stack.len().assert_u8();
                 if bits & b != 0 {
                     bits &= !b;
                     continue;
                 }
                 bits |= b;
                 assert!(stack.push(top).is_none());
-                top = nodes[top.to_usize().unwrap()].children[1];
+                top = nodes[top.usize()].children[1];
             }
             first = false;
 
             while top >= NUM_SYMBOLS {
                 assert!(stack.push(top).is_none());
-                top = nodes[top.to_usize().unwrap()].children[0];
+                top = nodes[top.usize()].children[0];
             }
 
-            nodes[top.to_usize().unwrap()] = SymbolRepr {
+            nodes[top.usize()] = SymbolRepr {
                 bits: bits,
-                num_bits: stack.len().to_u8().unwrap(),
+                num_bits: stack.len().assert_u8(),
             }.to_node();
         }
 
@@ -206,9 +205,9 @@ impl Huffman {
         Ok(result)
     }
     fn compressed_bit_len(&self, input: &[u8]) -> usize {
-        input.iter().map(|&b| self.symbol_bit_length(b.to_u16().unwrap()))
-         .fold(0, |s, a| s + a.to_usize().unwrap())
-            + self.symbol_bit_length(EOF).to_usize().unwrap()
+        input.iter().map(|&b| self.symbol_bit_length(b.u16()))
+         .fold(0, |s, a| s + a.usize())
+            + self.symbol_bit_length(EOF).usize()
     }
     pub fn compressed_len(&self, input: &[u8]) -> usize {
         (self.compressed_bit_len(input) + 7) / 8
@@ -248,7 +247,7 @@ impl Huffman {
         let mut output = buffer.into_iter();
         let mut output_byte = 0;
         let mut num_output_bits = 0;
-        for s in input.into_iter().map(|b| b.to_u16().unwrap()).chain(Some(EOF)) {
+        for s in input.into_iter().map(|b| b.u16()).chain(Some(EOF)) {
             let symbol = self.get_node(s).unwrap_err();
             let mut bits_written = 0;
             if symbol.num_bits >= 8 - num_output_bits {
@@ -309,7 +308,7 @@ impl Huffman {
                         if new_idx == EOF {
                             break 'outer;
                         }
-                        *try!(output.next().ok_or(())) = new_idx.to_u8().unwrap();
+                        *try!(output.next().ok_or(())) = new_idx.assert_u8();
                         len += 1;
                         node = root;
                     }
@@ -322,7 +321,7 @@ impl Huffman {
         self.get_node(idx).unwrap_err().num_bits()
     }
     fn get_node(&self, idx: u16) -> Result<Node, SymbolRepr> {
-        let n = self.nodes[idx.to_usize().unwrap()];
+        let n = self.nodes[idx.usize()];
         if idx >= NUM_SYMBOLS {
             Ok(n)
         } else {
@@ -330,7 +329,7 @@ impl Huffman {
         }
     }
     pub fn repr(&self) -> Repr {
-        Repr { repr: &self.nodes[..NUM_SYMBOLS.to_usize().unwrap()] }
+        Repr { repr: &self.nodes[..NUM_SYMBOLS.usize()] }
     }
 }
 
@@ -365,7 +364,7 @@ impl SymbolRepr {
         ] }
     }
     pub fn num_bits(self) -> u32 {
-        self.num_bits.to_u32().unwrap()
+        self.num_bits.u32()
     }
     pub fn bit(self, idx: u32) -> bool {
         assert!(idx < self.num_bits());

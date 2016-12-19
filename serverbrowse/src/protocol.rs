@@ -1,6 +1,7 @@
-use common;
 use common::num::BeU16;
+use common::num::Cast;
 use common::num::LeU16;
+use common;
 
 use arrayvec::ArrayVec;
 use num::ToPrimitive;
@@ -213,7 +214,7 @@ impl PartialServerInfo {
         Ok(())
     }
     pub fn get_info(&self) -> Option<&ServerInfo> {
-        if self.info.clients.len().to_i32().unwrap() != self.info.num_clients {
+        if self.info.clients.len().assert_i32() != self.info.num_clients {
             return None;
         }
         Some(&self.info)
@@ -296,8 +297,8 @@ fn parse_server_info<RI,RS>(
         }
 
         // Error handling copied from Teeworlds' source.
-        if i.num_clients < 0 || i.num_clients > version.max_clients().to_i32().unwrap()
-            || i.max_clients < 0 || i.max_clients > version.max_clients().to_i32().unwrap()
+        if i.num_clients < 0 || i.num_clients > version.max_clients().assert_i32()
+            || i.max_clients < 0 || i.max_clients > version.max_clients().assert_i32()
             || i.num_players < 0 || i.num_players > i.num_clients
             || i.max_players < 0 || i.max_players > i.max_clients
         {
@@ -307,8 +308,8 @@ fn parse_server_info<RI,RS>(
         let offset = unwrap_or_return!(offset.to_u32(), fail("offset sanity check"));
 
         let upper_limit = match version {
-            ServerInfoVersion::V664 => MAX_CLIENTS.to_u32().unwrap(),
-            _ => i.num_clients.to_u32().unwrap(),
+            ServerInfoVersion::V664 => MAX_CLIENTS.assert_u32(),
+            _ => i.num_clients.assert_u32(),
         };
 
         for j in offset..upper_limit {

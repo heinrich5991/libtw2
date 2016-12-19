@@ -1,4 +1,4 @@
-use num::ToPrimitive;
+use common::num::Cast;
 use optional::Optioned;
 use optional;
 use std::cmp;
@@ -40,7 +40,7 @@ impl ops::Add<Duration> for Timestamp {
     fn add(self, duration: Duration) -> Timestamp {
         Timestamp::from_usecs_since_epoch(self.usec.checked_add(
             duration.as_secs().checked_mul(1_000_000_000).unwrap()
-            .checked_add(duration.subsec_nanos().to_u64().unwrap()).unwrap()
+            .checked_add(duration.subsec_nanos().u64()).unwrap()
         ).unwrap())
     }
 }
@@ -95,7 +95,7 @@ impl Timeout {
         self.to_opt().map(|t| {
             if t > time {
                 let us = t.as_usecs_since_epoch() - time.as_usecs_since_epoch();
-                Duration::new(us / 1_000_000_000, (us % 1_000_000_000).to_u32().unwrap())
+                Duration::new(us / 1_000_000_000, (us % 1_000_000_000).assert_u32())
             } else {
                 Duration::from_millis(0)
             }

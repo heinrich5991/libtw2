@@ -15,6 +15,7 @@ extern crate tempfile;
 extern crate warn;
 
 use arrayvec::ArrayVec;
+use common::num::Cast;
 use common::pretty;
 use event_loop::Addr;
 use event_loop::Application;
@@ -507,7 +508,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                     Game::SvVoteOptionListAdd(l) => {
                         ignored = true;
                         // `len` is bounded by the unpacking.
-                        let len = l.num_options.to_usize().unwrap();
+                        let len = l.num_options.assert_usize();
                         for &desc in l.description.iter().take(len) {
                             peer.current_votes.insert(desc.to_owned());
                         }

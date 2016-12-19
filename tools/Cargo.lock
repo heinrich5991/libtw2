@@ -87,7 +87,6 @@ dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "buffer 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
- "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -114,7 +113,6 @@ dependencies = [
  "buffer 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -201,7 +199,6 @@ dependencies = [
  "huffman 0.0.1",
  "linear-map 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "optional 0.0.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",

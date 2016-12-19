@@ -1,11 +1,11 @@
 #![cfg(not(test))]
 
+extern crate common;
 extern crate datafile as df;
 extern crate map;
-extern crate num;
 extern crate tools;
 
-use num::ToPrimitive;
+use common::num::Cast;
 use std::fmt;
 use std::path::Path;
 
@@ -68,12 +68,12 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
 
     let mut tiles_count = [0u64; 256];
     for tile in tiles {
-        tiles_count[tile.index.to_usize().unwrap()] += 1;
-        stats.tiles[tile.index.to_usize().unwrap()] += 1;
+        tiles_count[tile.index.usize()] += 1;
+        stats.tiles[tile.index.usize()] += 1;
     }
     println!("{}", path.to_string_lossy());
     for (i, &c) in tiles_count.iter().enumerate() {
-        let entity = Entity(i.to_u8().unwrap());
+        let entity = Entity(i.assert_u8());
         if c != 0 {
             println!("{}: {:5}", entity, c);
         }
@@ -83,7 +83,7 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
 
 fn print_stats(stats: &Stats) {
     for (i, &c) in stats.tiles.iter().enumerate() {
-        let entity = Entity(i.to_u8().unwrap());
+        let entity = Entity(i.assert_u8());
         if c != 0 {
             println!("{}: {:5}", entity, c);
         }

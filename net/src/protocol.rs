@@ -2,10 +2,10 @@ use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
 use buffer;
+use common::num::Cast;
 use common::pretty;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
-use num::ToPrimitive;
 use std::cmp;
 use std::fmt;
 use warn::Ignore;
@@ -148,7 +148,7 @@ impl<'a> ChunksIter<'a> {
     pub fn new(data: &'a [u8], num_chunks: u8) -> ChunksIter<'a> {
         ChunksIter {
             data: data,
-            num_remaining_chunks: num_chunks.to_i32().unwrap(),
+            num_remaining_chunks: num_chunks.i32(),
             checked_num_chunks_warning: false,
         }
     }
@@ -185,7 +185,7 @@ impl<'a> ChunksIter<'a> {
             raw_header.unpack_warn(warn);
             vital = None;
         }
-        let size = header.size.to_usize().unwrap();
+        let size = header.size.usize();
         if chunk_data_and_rest.len() < size {
             return self.excess_data(warn);
         }
@@ -238,7 +238,7 @@ pub fn write_chunk_impl<'d, 's>(bytes: &[u8],
     -> Result<&'d [u8], buffer::CapacityError>
 {
     assert!(bytes.len() >> CHUNK_SIZE_BITS == 0);
-    let size = bytes.len().to_u16().unwrap();
+    let size = bytes.len().assert_u16();
 
     let (sequence, resend) = vital.unwrap_or((0, false));
     let resend_flag = if resend { CHUNKFLAG_RESEND } else { 0 };

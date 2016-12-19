@@ -1,5 +1,5 @@
+use common::num::Cast;
 use gamenet::msg::system;
-use num::ToPrimitive;
 use std::ops;
 use to_usize;
 use vec_map::VecMap;
@@ -130,7 +130,7 @@ impl DeltaReceiver {
             });
 
             // Checked above.
-            let num_parts = snap.num_parts.to_usize().unwrap();
+            let num_parts = snap.num_parts.assert_usize();
             self.parts.reserve_len(num_parts);
         }
         let delta_tick;
@@ -150,16 +150,16 @@ impl DeltaReceiver {
             crc = current.crc;
             num_parts = current.num_parts;
         }
-        let part = snap.part.to_usize().unwrap();
+        let part = snap.part.assert_usize();
         if self.parts.contains_key(part) {
             return Err(Error::DuplicatePart);
         }
-        let start = self.receive_buf.len().to_u32().unwrap();
-        let end = (self.receive_buf.len() + snap.data.len()).to_u32().unwrap();
+        let start = self.receive_buf.len().assert_u32();
+        let end = (self.receive_buf.len() + snap.data.len()).assert_u32();
         self.receive_buf.extend(snap.data);
         assert!(self.parts.insert(part, start..end).is_none());
 
-        if self.parts.len().to_i32().unwrap() != num_parts {
+        if self.parts.len().assert_i32() != num_parts {
             return Ok(None);
         }
 
@@ -179,10 +179,10 @@ impl DeltaReceiver {
 
 #[cfg(test)]
 mod test {
+    use common::num::Cast;
     use gamenet::msg::system::Snap;
     use gamenet::msg::system::SnapEmpty;
     use gamenet::msg::system::SnapSingle;
-    use num::ToPrimitive;
     use super::DeltaReceiver;
     use super::Error;
     use super::ReceivedDelta;
@@ -226,7 +226,7 @@ mod test {
             let result = receiver.snap(&mut Panic, Snap {
                 tick: 2,
                 delta_tick: 1,
-                num_parts: chunks.len().to_i32().unwrap(),
+                num_parts: chunks.len().assert_i32(),
                 part: i,
                 crc: 3,
                 data: c,

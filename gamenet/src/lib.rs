@@ -5,7 +5,6 @@
 extern crate arrayvec;
 extern crate buffer;
 #[macro_use] extern crate common;
-extern crate num;
 extern crate packer;
 extern crate warn;
 

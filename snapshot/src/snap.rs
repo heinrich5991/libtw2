@@ -1,4 +1,5 @@
 use buffer::CapacityError;
+use common::num::Cast;
 use format::DeltaHeader;
 use format::Item;
 use format::Warning;
@@ -138,8 +139,8 @@ impl Snap {
         if offset + size > MAX_SNAPSHOT_SIZE {
             return Err(TooLongSnap);
         }
-        let start = offset.to_u32().unwrap();
-        let end = (offset + size).to_u32().unwrap();
+        let start = offset.assert_u32();
+        let end = (offset + size).assert_u32();
         buf.extend(iter::repeat(0).take(size));
         Ok(entry.insert(start..end))
     }
@@ -244,8 +245,8 @@ impl Delta {
         let key = key(type_id, id);
 
         let offset = self.buf.len();
-        let start = offset.to_u32().unwrap();
-        let end = (offset + size).to_u32().unwrap();
+        let start = offset.assert_u32();
+        let end = (offset + size).assert_u32();
         self.buf.extend(iter::repeat(0).take(size));
         assert!(self.updated_items.insert(key, start..end).is_none());
         &mut self.buf[to_usize(start..end)]
@@ -269,8 +270,8 @@ impl Delta {
     {
         let mut object_size = object_size;
         try!(with_packer(&mut p, |p| DeltaHeader {
-            num_deleted_items: self.deleted_items.len().to_i32().unwrap(),
-            num_updated_items: self.updated_items.len().to_i32().unwrap()
+            num_deleted_items: self.deleted_items.len().assert_i32(),
+            num_updated_items: self.updated_items.len().assert_i32()
         }.encode(p)));
         for &key in &self.deleted_items {
             try!(p.write_int(key));
@@ -279,11 +280,11 @@ impl Delta {
             let data = &self.buf[to_usize(range.clone())];
             let type_id = key_to_type_id(key);
             let id = key_to_id(key);
-            try!(p.write_int(type_id.to_i32().unwrap()));
-            try!(p.write_int(id.to_i32().unwrap()));
+            try!(p.write_int(type_id.i32()));
+            try!(p.write_int(id.i32()));
             match object_size(type_id) {
-                Some(size) => assert!(size.to_usize().unwrap() == data.len()),
-                None => try!(p.write_int(data.len().to_i32().unwrap())),
+                Some(size) => assert!(size.usize() == data.len()),
+                None => try!(p.write_int(data.len().assert_i32())),
             }
             for &d in data {
                 try!(p.write_int(d));
@@ -319,7 +320,7 @@ impl DeltaReader {
         while !p.as_slice().is_empty() {
             self.buf.push(try!(p.read_int(wrap(warn))));
         }
-        let split = header.num_deleted_items.to_usize().unwrap();
+        let split = header.num_deleted_items.assert_usize();
         if split > self.buf.len() {
             return Err(Error::DeletedItemsUnpacking);
         }
@@ -340,7 +341,7 @@ impl DeltaReader {
             let id = try!(id.to_u16().ok_or(Error::IdRange));
 
             let size = match object_size(type_id) {
-                Some(s) => s.to_usize().unwrap(),
+                Some(s) => s.usize(),
                 None => {
                     let s = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
                     try!(s.to_usize().ok_or(Error::NegativeSize))
@@ -409,7 +410,7 @@ pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaC
         delta_tick: tick - delta_tick,
         crc: crc,
         cur_part: if !data.is_empty() { 0 } else { -1 },
-        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE - 1) / MAX_SNAPSHOT_PACKSIZE).to_i32().unwrap(),
+        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE - 1) / MAX_SNAPSHOT_PACKSIZE).assert_i32(),
         data: data,
     }
 }
@@ -459,7 +460,7 @@ impl<'a> Iterator for DeltaChunks<'a> {
                 data: self.data,
             })
         } else {
-            let index = self.cur_part.to_usize().unwrap();
+            let index = self.cur_part.assert_usize();
             let start = MAX_SNAPSHOT_PACKSIZE * index;
             let end = cmp::min(MAX_SNAPSHOT_PACKSIZE * (index + 1), self.data.len());
             SnapMsg::Snap(system::Snap {

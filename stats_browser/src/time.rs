@@ -1,3 +1,4 @@
+use common::num::Cast;
 use num::ToPrimitive;
 use std::ops::Add;
 use std::ops::Sub;
@@ -18,7 +19,7 @@ impl Duration {
         inner
     }
     pub fn to_std(self) -> std_time::Duration {
-        std_time::Duration::from_millis(self.milliseconds().to_u64().unwrap())
+        std_time::Duration::from_millis(self.milliseconds().assert_u64())
     }
 }
 
