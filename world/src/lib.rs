@@ -357,6 +357,8 @@ impl Character {
         self.move_direction = MoveDirection::from_int(input.direction);
         self.angle = target_dir.angle();
 
+        self.vel.y += tuning.gravity.to_float();
+
         if input.jump != 0 {
             if !self.jumped_already {
                 if grounded {
