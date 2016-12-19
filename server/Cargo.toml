@@ -14,7 +14,6 @@ log = "0.3.1"
 logger = { path = "../logger/" }
 matches = "0.1.2"
 net = { path = "../net/" }
-num = "0.1.27"
 packer = { path = "../packer/" }
 snapshot = { path = "../snapshot/" }
 socket = { path = "../socket/" }

@@ -12,57 +12,93 @@ fn unwrap_overflow<T: fmt::Display, U>(type_: &str, original: T, val: Option<U>)
     }
 }
 
+pub trait I32 { }
 pub trait U32 { }
 pub trait I64 { }
 pub trait U64 { }
 pub trait Usize { }
 
 pub trait Cast {
+    fn i32(self) -> i32 where Self: I32;
     fn u32(self) -> u32 where Self: U32;
     fn i64(self) -> i64 where Self: I64;
     fn u64(self) -> u64 where Self: U64;
     fn usize(self) -> usize where Self: Usize;
     fn assert_u8(self) -> u8;
+    fn assert_i32(self) -> i32;
     fn assert_u32(self) -> u32;
     fn assert_i64(self) -> i64;
+    fn assert_usize(self) -> usize;
 }
 
 impl Cast for u8 {
+    fn i32(self) -> i32 { self.to_i32().unwrap() }
     fn u32(self) -> u32 { self.to_u32().unwrap() }
     fn u64(self) -> u64 { self.to_u64().unwrap() }
     fn i64(self) -> i64 { self.to_i64().unwrap() }
     fn usize(self) -> usize { self.to_usize().unwrap() }
     fn assert_u8(self) -> u8 { self }
+    fn assert_i32(self) -> i32 { self.i32() }
     fn assert_u32(self) -> u32 { self.u32() }
     fn assert_i64(self) -> i64 { self.i64() }
+    fn assert_usize(self) -> usize { self.usize() }
+}
+
+impl Cast for i32 {
+    fn i32(self) -> i32 { self }
+    fn u32(self) -> u32 { unreachable!() }
+    fn u64(self) -> u64 { self.to_u64().unwrap() }
+    fn i64(self) -> i64 { self.to_i64().unwrap() }
+    fn usize(self) -> usize { unreachable!() }
+    fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
+    fn assert_i32(self) -> i32 { self.i32() }
+    fn assert_u32(self) -> u32 { unwrap_overflow("u32", self, self.to_u32()) }
+    fn assert_i64(self) -> i64 { self.i64() }
+    fn assert_usize(self) -> usize { unwrap_overflow("u32", self, self.to_usize()) }
 }
 
 impl Cast for u32 {
+    fn i32(self) -> i32 { unreachable!() }
     fn u32(self) -> u32 { self }
     fn u64(self) -> u64 { self.to_u64().unwrap() }
     fn i64(self) -> i64 { self.to_i64().unwrap() }
     fn usize(self) -> usize { self.to_usize().unwrap() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
+    /*fn assert_u8(self) -> u8 {
+        if self > u8::max_value().u32() {
+            overflow("u8", self);
+        }
+        self as u8
+    }*/
+    fn assert_i32(self) -> i32 { unwrap_overflow("i32", self, self.to_i32()) }
     fn assert_u32(self) -> u32 { self.u32() }
     fn assert_i64(self) -> i64 { self.i64() }
+    fn assert_usize(self) -> usize { self.usize() }
 }
 
 impl Cast for usize {
+    fn i32(self) -> i32 { unreachable!() }
     fn u32(self) -> u32 { unreachable!() }
     fn u64(self) -> u64 { self.to_u64().unwrap() }
     fn i64(self) -> i64 { unreachable!() }
     fn usize(self) -> usize { self }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
+    fn assert_i32(self) -> i32 { unwrap_overflow("i32", self, self.to_i32()) }
     fn assert_u32(self) -> u32 { unwrap_overflow("u32", self, self.to_u32()) }
     fn assert_i64(self) -> i64 { unwrap_overflow("i64", self, self.to_i64()) }
+    fn assert_usize(self) -> usize { self.usize() }
 }
 
+impl I32 for u8 { }
+impl I32 for i32 { }
 impl U32 for u8 { }
 impl U32 for u32 { }
 impl U64 for u8 { }
+impl U64 for i32 { }
 impl U64 for u32 { }
 impl U64 for usize { }
 impl I64 for u8 { }
+impl I64 for i32 { }
 impl I64 for u32 { }
 impl Usize for u8 { }
 impl Usize for u32 { }

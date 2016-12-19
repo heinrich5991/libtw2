@@ -8,7 +8,6 @@ extern crate itertools;
 extern crate logger;
 #[macro_use] extern crate matches;
 extern crate net;
-extern crate num;
 extern crate packer;
 extern crate snapshot;
 extern crate socket;
@@ -17,17 +16,24 @@ extern crate world;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
-use common::pretty::AlmostString;
+use common::num::Cast;
 use common::num::CastFloat;
+use common::pretty::AlmostString;
 use event_loop::Addr;
 use event_loop::Application;
 use event_loop::Loop;
+use event_loop::PeerId;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
+use event_loop::Timestamp;
+use event_loop::collections::PeerMap;
+use event_loop::collections::PeerSet;
 use gamenet::SnapObj;
 use gamenet::VERSION;
 use gamenet::enums::MAX_CLIENTS;
+use gamenet::enums::Emote;
 use gamenet::enums::Team;
+use gamenet::enums::Weapon;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
 use gamenet::msg::System;
@@ -36,6 +42,7 @@ use gamenet::msg::connless;
 use gamenet::msg::game;
 use gamenet::msg::system;
 use gamenet::msg;
+use gamenet::snap_obj::Character;
 use gamenet::snap_obj::ClientInfo;
 use gamenet::snap_obj::GameInfo;
 use gamenet::snap_obj::PlayerInfo;
@@ -48,24 +55,19 @@ use log::LogLevel;
 use net::net::Chunk;
 use net::net::ChunkOrEvent;
 use net::net::ConnlessChunk;
-use net::net::PeerId;
-use net::time::Timestamp;
-use num::ToPrimitive;
 use packer::Unpacker;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
 use snapshot::snap;
-use std::collections::HashMap;
-use std::collections::hash_map;
 use std::fmt::Write;
 use std::fmt;
-use std::ops;
 use std::time::Duration;
 use world::vec2;
 
 const TICKS_PER_SECOND: u32 = 50;
+const PLAYER_NAME_LENGTH: usize = 16-1; // -1 for null termination
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -130,61 +132,51 @@ impl SnapBuilderExt for snap::Builder {
     }
 }
 
+pub struct Takeable<T> {
+    inner: Option<T>,
+}
+
+impl<T: Default> Default for Takeable<T> {
+    fn default() -> Takeable<T> {
+        Takeable::new(Default::default())
+    }
+}
+
+impl<T> Takeable<T> {
+    pub fn new(value: T) -> Takeable<T> {
+        Takeable {
+            inner: Some(value),
+        }
+    }
+    pub fn empty() -> Takeable<T> {
+        Takeable {
+            inner: None,
+        }
+    }
+    pub fn take(&mut self) -> T {
+        self.inner.take().unwrap_or_else(|| panic!("value taken when absent"))
+    }
+    pub fn restore(&mut self, value: T) {
+        assert!(self.inner.is_none(), "value restored when already present");
+        self.inner = Some(value);
+    }
+}
+
 #[derive(Default)]
 struct Server {
-    peers: Peers,
+    peers: PeerMap<Peer>,
     players: Vec<Player>,
     game_start: Timestamp,
     game_tick: u32,
     delta_buffer: Vec<u8>,
+
+    send_snapshots_peer_set: Takeable<PeerSet>,
 }
 
 impl Server {
     fn game_tick_time(&self, tick: u32) -> Timestamp {
-        let millis = tick.to_u64().unwrap() * 1000 / TICKS_PER_SECOND.to_u64().unwrap();
+        let millis = tick.u64() * 1000 / TICKS_PER_SECOND.u64();
         self.game_start + Duration::from_millis(millis)
-    }
-}
-
-#[derive(Default)]
-struct Peers {
-    peers: HashMap<PeerId, Peer>,
-}
-
-impl Peers {
-    fn is_empty(&self) -> bool {
-        self.peers.is_empty()
-    }
-    fn len(&self) -> usize {
-        self.peers.len()
-    }
-    fn insert(&mut self, pid: PeerId, peer: Peer) {
-        self.peers.insert(pid, peer);
-    }
-    fn entry(&mut self, pid: PeerId) -> hash_map::OccupiedEntry<PeerId, Peer> {
-        match self.peers.entry(pid) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => panic!("invalid pid"),
-        }
-    }
-    fn remove(&mut self, pid: PeerId) {
-        self.peers.remove(&pid).expect("invalid pid");
-    }
-    fn iter_mut(&mut self) -> hash_map::IterMut<PeerId, Peer> {
-        self.peers.iter_mut()
-    }
-}
-
-impl ops::Index<PeerId> for Peers {
-    type Output = Peer;
-    fn index(&self, pid: PeerId) -> &Peer {
-        self.peers.get(&pid).expect("invalid pid")
-    }
-}
-
-impl ops::IndexMut<PeerId> for Peers {
-    fn index_mut(&mut self, pid: PeerId) -> &mut Peer {
-        self.peers.get_mut(&pid).expect("invalid pid")
     }
 }
 
@@ -203,11 +195,18 @@ enum PeerState {
     SystemInfo,
     SystemReady,
     GameInfo,
-    SystemEnterGame,
+    SystemEnterGame(SystemEnterGameState),
     Ingame(IngameState),
 }
 
 impl PeerState {
+    fn assert_system_enter_game(&mut self) -> &mut SystemEnterGameState {
+        if let PeerState::SystemEnterGame(ref mut system_enter_game) = *self {
+            system_enter_game
+        } else {
+            panic!("not in state system enter game");
+        }
+    }
     fn assert_ingame(&mut self) -> &mut IngameState {
         if let PeerState::Ingame(ref mut ingame) = *self {
             ingame
@@ -217,17 +216,33 @@ impl PeerState {
     }
 }
 
+#[derive(Clone)]
+struct SystemEnterGameState {
+    name: ArrayVec<[u8; PLAYER_NAME_LENGTH]>,
+}
+
+impl SystemEnterGameState {
+    fn new(name: &[u8]) -> SystemEnterGameState {
+        // TODO: Warn for overlong name.
+        SystemEnterGameState {
+            name: name.iter().cloned().collect(),
+        }
+    }
+}
+
 struct IngameState {
+    name: ArrayVec<[u8; PLAYER_NAME_LENGTH]>,
     snaps: snapshot::Storage,
-    team: Team,
+    spectator: bool,
     input: snap_obj::PlayerInput,
 }
 
-impl Default for IngameState {
-    fn default() -> IngameState {
+impl From<SystemEnterGameState> for IngameState {
+    fn from(system_enter_game: SystemEnterGameState) -> IngameState {
         IngameState {
+            name: system_enter_game.name,
             snaps: Default::default(),
-            team: Team::Spectators,
+            spectator: true,
             input: Default::default(),
         }
     }
@@ -236,6 +251,15 @@ impl Default for IngameState {
 struct Player {
     character: world::Character,
     pid: PeerId,
+}
+
+impl Player {
+    fn new(pid: PeerId) -> Player {
+        Player {
+            character: world::Character::spawn(vec2::new(0.0, 0.0)),
+            pid: pid,
+        }
+    }
 }
 
 struct ServerLoop<'a, L: Loop+'a> {
@@ -284,7 +308,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             return;
         }
         let mut processed = false;
-        let mut peer = self.server.peers.entry(pid);
+        let mut peer = self.server.peers.entry(pid).assert_occupied();
         match (&peer.get().state, msg) {
             (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
                 if info.version == VERSION {
@@ -335,11 +359,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
                 self.loop_.flush(pid);
-                peer.get_mut().state = SystemEnterGame;
+                peer.get_mut().state = SystemEnterGame(SystemEnterGameState::new(info.name));
                 processed = true;
             }
-            (&SystemEnterGame, SystemOrGame::System(System::EnterGame(system::EnterGame))) => {
-                peer.get_mut().state = Ingame(IngameState::default());
+            (&SystemEnterGame(..), SystemOrGame::System(System::EnterGame(system::EnterGame))) => {
+                let system_enter_game = peer.get_mut().state.assert_system_enter_game().clone();
+                peer.get_mut().state = Ingame(system_enter_game.into());
                 processed = true;
             }
             (_, SystemOrGame::System(System::RconAuth(..))) => {
@@ -373,12 +398,29 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
             }
             (&Ingame(..), SystemOrGame::Game(Game::ClSetTeam(set_team))) => {
-                if set_team.team != Team::Spectators {
-                    self.loop_.sendg(pid, game::SvBroadcast {
-                        message: b"Teams are locked",
-                    });
-                    processed = true;
+                let ingame = peer.get_mut().state.assert_ingame();
+                // TODO: Spam filter
+                let join_spectators = set_team.team == Team::Spectators;
+                if ingame.spectator == join_spectators {
+                    return;
                 }
+                ingame.spectator = join_spectators;
+
+                let mut msg: ArrayString<[u8; 64]> = ArrayString::new();
+                if ingame.spectator {
+                    let idx = self.server.players.iter().position(|p| p.pid == pid).unwrap();
+                    self.server.players.swap_remove(idx);
+                    // Fix usage of AlmostString, sometimes it quotes.
+                    write!(&mut msg, "'{}' joined the spectators", AlmostString::new(&ingame.name)).unwrap();
+                } else {
+                    self.server.players.push(Player::new(pid));
+                    write!(&mut msg, "'{}' joined the game", AlmostString::new(&ingame.name)).unwrap();
+                }
+                self.loop_.sendg(pid, game::SvChat {
+                    team: Team::Red,
+                    client_id: -1,
+                    message: msg.as_bytes(),
+                });
             }
             _ => {},
         }
@@ -401,7 +443,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
                 // TODO: Send clients. :)
                 self.loop_.sendc(addr, connless::Info {
-                    token: request.token.to_i32().unwrap(),
+                    token: request.token.i32(),
                     version: VERSION,
                     name: b"Rust Teeworlds Server",
                     game_type: b"DM",
@@ -427,12 +469,13 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     self.server.game_start = self.loop_.time();
                     self.server.game_tick = 0;
                 }
-                if self.server.peers.len() == MAX_CLIENTS.to_usize().unwrap() {
+                if self.server.peers.len() == MAX_CLIENTS.assert_usize() {
                     self.loop_.disconnect(pid, b"This server is full");
                     return;
                 }
                 self.loop_.accept(pid);
                 self.server.peers.insert(pid, Peer::default());
+                info!("{:?} starting to connect", pid);
             },
             ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
                 self.process_client_packet(pid, vital, data);
@@ -470,51 +513,76 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
     }
     fn send_snapshots(&mut self) {
-        for (&pid, peer) in self.server.peers.iter_mut() {
-            if let PeerState::Ingame(ref mut ingame) = peer.state {
-                let mut builder = ingame.snaps.new_builder();
-                builder.add(0, GameInfo {
-                    game_flags: 0,
-                    game_state_flags: 0,
-                    round_start_tick: Tick(0),
-                    warmup_timer: 0,
-                    score_limit: 20,
-                    time_limit: 0,
-                    round_num: 1,
-                    round_current: 1,
-                });
-                builder.add(0, ClientInfo {
-                    name: string_to_ints4(b"nameless tee"),
-                    clan: string_to_ints3(b""),
-                    country: -1,
-                    skin: string_to_ints6(b"default"),
-                    use_custom_color: 0,
-                    color_body: 0,
-                    color_feet: 0,
-                });
-                builder.add(0, PlayerInfo {
-                    local: 1,
-                    client_id: 0,
-                    team: Team::Spectators,
-                    score: 0,
-                    latency: 20,
-                });
-                let snap = builder.finish();
-                let crc = snap.crc();
-                let game_tick = self.server.game_tick.to_i32().unwrap();
-                let delta_tick = ingame.snaps.delta_tick().unwrap_or(-1);
-                let delta = ingame.snaps.add_snap(game_tick, snap);
-
-                self.server.delta_buffer.clear();
-                // TODO: Do this better:
-                self.server.delta_buffer.reserve(64 * 1024);
-                with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
-                for m in snap::delta_chunks(game_tick, delta_tick, &self.server.delta_buffer, crc) {
-                    self.loop_.sends(pid, m);
-                    self.loop_.flush(pid);
+        let mut peer_set = self.server.send_snapshots_peer_set.take();
+        peer_set.clear();
+        peer_set.extend(self.server.peers.keys());
+        for pid in &peer_set {
+            let mut builder;
+            let delta_tick;
+            if let PeerState::Ingame(ref mut ingame) = self.server.peers[pid].state {
+                builder = ingame.snaps.new_builder();
+                delta_tick = ingame.snaps.delta_tick().unwrap_or(-1);
+            } else {
+                continue;
+            }
+            builder.add(0, GameInfo {
+                game_flags: 0,
+                game_state_flags: 0,
+                round_start_tick: Tick(0),
+                warmup_timer: 0,
+                score_limit: 20,
+                time_limit: 0,
+                round_num: 1,
+                round_current: 1,
+            });
+            for (pid, peer) in self.server.peers.iter() {
+                if let PeerState::Ingame(ref ingame) = peer.state {
+                    // TODO: Fix ID!
+                    builder.add(0, ClientInfo {
+                        name: string_to_ints4(&ingame.name),
+                        clan: string_to_ints3(b""),
+                        country: -1,
+                        skin: string_to_ints6(b"default"),
+                        use_custom_color: 0,
+                        color_body: 0,
+                        color_feet: 0,
+                    });
+                    builder.add(0, PlayerInfo {
+                        local: 1,
+                        client_id: 0,
+                        team: if ingame.spectator { Team::Spectators } else { Team::Red },
+                        score: 0,
+                        latency: 20,
+                    });
                 }
             }
+            for player in &self.server.players {
+                builder.add(0, Character {
+                    character_core: player.character.to_net(),
+                    player_flags: snap_obj::PLAYERFLAG_PLAYING,
+                    health: 10,
+                    armor: 0,
+                    ammo_count: 10,
+                    weapon: Weapon::Pistol,
+                    emote: Emote::Normal,
+                    attack_tick: 0,
+                });
+            }
+            let snap = builder.finish();
+            let crc = snap.crc();
+            let game_tick = self.server.game_tick.assert_i32();
+            let delta = self.server.peers[pid].state.assert_ingame().snaps.add_snap(game_tick, snap);
+
+            self.server.delta_buffer.clear();
+            // TODO: Do this better:
+            self.server.delta_buffer.reserve(64 * 1024);
+            with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
+            for m in snap::delta_chunks(game_tick, delta_tick, &self.server.delta_buffer, crc) {
+                self.loop_.sends(pid, m);
+                self.loop_.flush(pid);
+            }
         }
+        self.server.send_snapshots_peer_set.restore(peer_set);
     }
     fn tick(&mut self) {
         while self.server.game_tick_time(self.server.game_tick + 1) <= self.loop_.time() {

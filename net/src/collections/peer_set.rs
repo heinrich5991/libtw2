@@ -1,5 +1,6 @@
 use net::PeerId;
 use std::fmt;
+use std::iter::FromIterator;
 use super::PeerMap;
 use super::peer_map;
 
@@ -16,12 +17,23 @@ impl fmt::Debug for PeerSet {
 
 impl PeerSet {
     pub fn new() -> PeerSet {
-        Default::default()
+        PeerSet {
+            set: PeerMap::new(),
+        }
     }
     pub fn with_capacity(cap: usize) -> PeerSet {
         PeerSet {
             set: PeerMap::with_capacity(cap),
         }
+    }
+    pub fn clear(&mut self) {
+        self.set.clear()
+    }
+    pub fn len(&self) -> usize {
+        self.set.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
     }
     pub fn iter(&self) -> Iter {
         Iter(self.set.iter())
@@ -31,6 +43,28 @@ impl PeerSet {
     }
     pub fn insert(&mut self, pid: PeerId) -> bool {
         self.set.insert(pid, ()).is_none()
+    }
+}
+
+impl FromIterator<PeerId> for PeerSet {
+    fn from_iter<I>(iter: I) -> PeerSet where I: IntoIterator<Item=PeerId> {
+        PeerSet {
+            set: FromIterator::from_iter(iter.into_iter().map(|pid| (pid, ()))),
+        }
+    }
+}
+
+impl Extend<PeerId> for PeerSet {
+    fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item=PeerId> {
+        self.set.extend(iter.into_iter().map(|pid| (pid, ())))
+    }
+}
+
+impl<'a> IntoIterator for &'a PeerSet {
+    type Item = PeerId;
+    type IntoIter = Iter<'a>;
+    fn into_iter(self) -> Iter<'a> {
+        self.iter()
     }
 }
 

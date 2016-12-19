@@ -12,7 +12,6 @@ dependencies = [
  "logger 0.0.1",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "net 0.0.1",
- "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
  "snapshot 0.0.1",
  "socket 0.0.1",

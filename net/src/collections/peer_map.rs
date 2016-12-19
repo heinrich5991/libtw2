@@ -2,6 +2,7 @@ use linear_map::LinearMap;
 use linear_map;
 use net::PeerId;
 use std::fmt;
+use std::iter::FromIterator;
 use std::ops;
 
 #[derive(Clone)]
@@ -32,6 +33,15 @@ impl<T> PeerMap<T> {
         PeerMap {
             map: LinearMap::with_capacity(cap),
         }
+    }
+    pub fn clear(&mut self) {
+        self.map.clear()
+    }
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
     }
     pub fn iter(&self) -> Iter<T> {
         Iter(self.map.iter())
@@ -78,6 +88,36 @@ impl<T> ops::Index<PeerId> for PeerMap<T> {
 impl<T> ops::IndexMut<PeerId> for PeerMap<T> {
     fn index_mut(&mut self, pid: PeerId) -> &mut T {
         self.get_mut(pid).unwrap_or_else(|| panic!("invalid pid"))
+    }
+}
+
+impl<T> FromIterator<(PeerId, T)> for PeerMap<T> {
+    fn from_iter<I>(iter: I) -> PeerMap<T> where I: IntoIterator<Item=(PeerId, T)> {
+        PeerMap {
+            map: FromIterator::from_iter(iter),
+        }
+    }
+}
+
+impl<T> Extend<(PeerId, T)> for PeerMap<T> {
+    fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item=(PeerId, T)> {
+        self.map.extend(iter)
+    }
+}
+
+impl<'a, T: 'a> IntoIterator for &'a PeerMap<T> {
+    type Item = (PeerId, &'a T);
+    type IntoIter = Iter<'a, T>;
+    fn into_iter(self) -> Iter<'a, T> {
+        self.iter()
+    }
+}
+
+impl<'a, T: 'a> IntoIterator for &'a mut PeerMap<T> {
+    type Item = (PeerId, &'a mut T);
+    type IntoIter = IterMut<'a, T>;
+    fn into_iter(self) -> IterMut<'a, T> {
+        self.iter_mut()
     }
 }
 
@@ -143,6 +183,27 @@ pub struct VacantEntry<'a, T: 'a>(linear_map::VacantEntry<'a, PeerId, T>);
 pub enum Entry<'a, T: 'a> {
     Occupied(OccupiedEntry<'a, T>),
     Vacant(VacantEntry<'a, T>),
+}
+
+impl<'a, T: 'a> Entry<'a, T> {
+    pub fn assert_occupied(self) -> OccupiedEntry<'a, T> {
+        match self {
+            Entry::Occupied(o) => o,
+            Entry::Vacant(_) => panic!("invalid pid"),
+        }
+    }
+}
+
+impl<'a, T: 'a> OccupiedEntry<'a, T> {
+    pub fn get(&self) -> &T {
+        self.0.get()
+    }
+    pub fn get_mut(&mut self) -> &mut T {
+        self.0.get_mut()
+    }
+    pub fn remove(self) -> T {
+        self.0.remove()
+    }
 }
 
 impl<'a, T: 'a> VacantEntry<'a, T> {
