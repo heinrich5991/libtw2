@@ -400,7 +400,7 @@ impl Character {
             Hook::Flying(pos, dir) => {
                 let mut new_pos = pos + dir * tuning.hook_fire_speed.to_float();
                 if vec2::distance(new_pos, self.pos) > tuning.hook_length.to_float() {
-                    new_pos = self.pos + (new_pos - self.pos) * tuning.hook_length.to_float();
+                    new_pos = self.pos + (new_pos - self.pos).normalize() * tuning.hook_length.to_float();
                     self.hook = Hook::Retracting0(new_pos);
                 }
                 if let Some((p, t)) = collision.check_line(pos, new_pos) {
