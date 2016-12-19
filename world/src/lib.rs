@@ -78,7 +78,7 @@ impl vec2 {
         (second - first).length()
     }
     pub fn mix(first: vec2, second: vec2, v: f32) -> vec2 {
-        first * v + second * (1.0 - v)
+        first * (1.0 - v) + second * v
     }
 }
 
