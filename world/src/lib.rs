@@ -274,8 +274,11 @@ pub trait Collision {
         let dist = vec2::distance(from, to);
         // Overflow?
         let end = (dist + 1.0).trunc_to_i32();
-        for i in 0..end+1 {
-            let point = vec2::mix(from, to, i as f32 / end as f32);
+        // Note: `0..end+1` would work better here, but we have to stay
+        // compatible to the original code.
+        for i in 0..end {
+            // Note: Should rather be `/ end` instead of `/ dist`.
+            let point = vec2::mix(from, to, i as f32 / dist);
             if let Some(col) = self.check_point(point) {
                 return Some((point, col));
             }
@@ -395,9 +398,9 @@ impl Character {
             Hook::Idle => {},
             Hook::Retracted => {},
             Hook::Flying(pos, dir) => {
-                let new_pos = pos + dir * tuning.hook_fire_speed.to_float();
+                let mut new_pos = pos + dir * tuning.hook_fire_speed.to_float();
                 if vec2::distance(new_pos, self.pos) > tuning.hook_length.to_float() {
-                    let new_pos = self.pos + (new_pos - self.pos) * tuning.hook_length.to_float();
+                    new_pos = self.pos + (new_pos - self.pos) * tuning.hook_length.to_float();
                     self.hook = Hook::Retracting0(new_pos);
                 }
                 if let Some((p, t)) = collision.check_line(pos, new_pos) {
