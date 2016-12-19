@@ -127,6 +127,7 @@ pub struct EnterGame;
 pub struct Input {
     pub ack_snapshot: i32,
     pub intended_tick: i32,
+    pub input_size: i32,
     pub input: PlayerInput,
 }
 
@@ -471,6 +472,7 @@ impl fmt::Debug for Input {
         f.debug_struct("Input")
             .field("ack_snapshot", &self.ack_snapshot)
             .field("intended_tick", &self.intended_tick)
+            .field("input_size", &self.input_size)
             .field("input", &self.input)
             .finish()
     }
@@ -480,6 +482,7 @@ impl Input {
         let result = Ok(Input {
             ack_snapshot: try!(_p.read_int(warn)),
             intended_tick: try!(_p.read_int(warn)),
+            input_size: try!(_p.read_int(warn)),
             input: try!(PlayerInput::decode_msg_inner(warn, _p)),
         });
         _p.finish(warn);
@@ -490,6 +493,7 @@ impl Input {
     {
         try!(_p.write_int(self.ack_snapshot));
         try!(_p.write_int(self.intended_tick));
+        try!(_p.write_int(self.input_size));
         try!(with_packer(&mut _p, |p| self.input.encode_msg(p)));
         Ok(_p.written())
     }

@@ -13,7 +13,8 @@ NETMSGS_SYSTEM = [
     (11, "rcon_line", "vital", ["s:line"]),
     (14, "ready", "vital", []),
     (15, "enter_game", "vital", []),
-    (16, "input", "", ["i:ack_snapshot", "i:intended_tick", "is:input"]),
+    # TODO: Do checks on `input_size`
+    (16, "input", "", ["i:ack_snapshot", "i:intended_tick", "i:input_size", "is:input"]),
     (17, "rcon_cmd", "vital", ["s:cmd"]),
     (18, "rcon_auth", "vital", ["s:_unused", "s:password", "i?:request_commands"]),
     (19, "request_map_data", "vital", ["i:chunk"]),
