@@ -6,13 +6,16 @@ version = "0.0.1"
 [dependencies]
 arrayvec = "0.3.12"
 common = { path = "../common/" }
+datafile = { path = "../datafile/" }
 event_loop = { path = "../event_loop/" }
 gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
+map = { path = "../map/" }
 matches = "0.1.2"
+ndarray = "0.7.1"
 net = { path = "../net/" }
 packer = { path = "../packer/" }
 snapshot = { path = "../snapshot/" }

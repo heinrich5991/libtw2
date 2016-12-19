@@ -66,7 +66,7 @@ impl vec2 {
         vec2 { x: x, y: y }
     }
     pub fn length(self) -> f32 {
-        (self.x * self.x + self.y * self.y)
+        (self.x * self.x + self.y * self.y).sqrt()
     }
     pub fn normalize(self) -> vec2 {
         self * (1.0 / self.length())
@@ -262,6 +262,7 @@ pub struct Character {
     move_direction: MoveDirection,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CollisionType {
     Normal,
     Unhookable,

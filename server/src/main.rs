@@ -1,12 +1,15 @@
 extern crate arrayvec;
 extern crate common;
+extern crate datafile;
 extern crate event_loop;
 extern crate gamenet;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
 extern crate logger;
+extern crate map;
 #[macro_use] extern crate matches;
+extern crate ndarray;
 extern crate net;
 extern crate packer;
 extern crate snapshot;
@@ -52,6 +55,7 @@ use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
+use ndarray::Array2;
 use net::net::Chunk;
 use net::net::ChunkOrEvent;
 use net::net::ConnlessChunk;
@@ -63,6 +67,7 @@ use packer::with_packer;
 use snapshot::snap;
 use std::fmt::Write;
 use std::fmt;
+use std::fs::File;
 use std::time::Duration;
 use world::vec2;
 
@@ -162,6 +167,63 @@ impl<T> Takeable<T> {
     }
 }
 
+struct Map {
+    spawn: vec2,
+    collision: Array2<Option<world::CollisionType>>,
+}
+
+impl Default for Map {
+    fn default() -> Map {
+        let file = File::open("dm1.map").unwrap();
+        let reader = datafile::Reader::new(file).unwrap();
+        let mut map = map::Reader::from_datafile(reader);
+        map.check_version().unwrap();
+        let gamelayers = map.game_layers().unwrap();
+        let tiles = map.layer_tiles(gamelayers.game).unwrap();
+        let tiles = Array2::from_shape_vec((gamelayers.height.usize(), gamelayers.width.usize()), tiles).unwrap();
+        let result = Map {
+            spawn: vec2::new(160.0, 160.0),
+            collision: tiles.mapv(|t| match t.index {
+                1 => Some(world::CollisionType::Normal),
+                3 => Some(world::CollisionType::Unhookable),
+                _ => None,
+            }),
+        };
+        for y in 0..result.collision.dim().0 {
+            for x in 0..result.collision.dim().1 {
+                let c = match result.collision[(y, x)] {
+                    Some(world::CollisionType::Normal) => '#',
+                    Some(world::CollisionType::Unhookable) => '!',
+                    None => ' ',
+                };
+                print!("{}", c);
+            }
+            println!("");
+        }
+        result
+    }
+}
+
+impl world::Collision for Map {
+    fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
+        let (x, y) = (pos.x.round_to_i32(), pos.y.round_to_i32());
+        let (mut tx, mut ty) = ((x as f32 / 32.0).trunc_to_i32(), (y as f32 / 32.0).trunc_to_i32());
+        if tx < 0 {
+            tx = 0;
+        }
+        if tx > self.collision.dim().1.assert_i32() {
+            tx = self.collision.dim().1.assert_i32() - 1;
+        }
+        if ty < 0 {
+            ty = 0;
+        }
+        if ty > self.collision.dim().0.assert_i32() {
+            ty = self.collision.dim().0.assert_i32() - 1;
+        }
+        self.collision[(ty.assert_usize(), tx.assert_usize())]
+    }
+}
+
 #[derive(Default)]
 struct Server {
     peers: PeerMap<Peer>,
@@ -169,6 +231,7 @@ struct Server {
     game_start: Timestamp,
     game_tick: u32,
     delta_buffer: Vec<u8>,
+    map: Map,
 
     send_snapshots_peer_set: Takeable<PeerSet>,
 }
@@ -254,9 +317,9 @@ struct Player {
 }
 
 impl Player {
-    fn new(pid: PeerId) -> Player {
+    fn new(pid: PeerId, spawn: vec2) -> Player {
         Player {
-            character: world::Character::spawn(vec2::new(0.0, 0.0)),
+            character: world::Character::spawn(spawn),
             pid: pid,
         }
     }
@@ -280,7 +343,6 @@ impl<L: Loop> Application<L> for Server {
             ServerLoop { server: self, loop_: loop_ }.tick();
         }
     }
-
     fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
         ServerLoop { server: self, loop_: loop_ }.process_event(event);
     }
@@ -344,6 +406,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
                 processed = true;
             }
+            (&SystemReady, SystemOrGame::System(System::RequestMapData(..))) => {
+                self.loop_.disconnect(pid, b"Map download not supported");
+                peer.remove();
+            }
             (&SystemReady, SystemOrGame::System(System::Ready(system::Ready))) => {
                 self.loop_.sendg(pid, game::SvMotd {
                     message: b"Hello World!",
@@ -354,7 +420,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
             }
             (&GameInfo, SystemOrGame::Game(Game::ClStartInfo(info))) => {
-                info!("{:?}:{} enters the game", pid, AlmostString::new(info.name));
+                info!("{}:{} enters the game", pid, AlmostString::new(info.name));
                 self.loop_.sendg(pid, game::SvVoteClearOptions);
                 self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
@@ -413,7 +479,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     // Fix usage of AlmostString, sometimes it quotes.
                     write!(&mut msg, "'{}' joined the spectators", AlmostString::new(&ingame.name)).unwrap();
                 } else {
-                    self.server.players.push(Player::new(pid));
+                    self.server.players.push(Player::new(pid, self.server.map.spawn));
                     write!(&mut msg, "'{}' joined the game", AlmostString::new(&ingame.name)).unwrap();
                 }
                 self.loop_.sendg(pid, game::SvChat {
@@ -475,7 +541,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
                 self.loop_.accept(pid);
                 self.server.peers.insert(pid, Peer::default());
-                info!("{:?} starting to connect", pid);
+                info!("{} starting to connect", pid);
             },
             ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
                 self.process_client_packet(pid, vital, data);
@@ -486,9 +552,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             ChunkOrEvent::Ready(..) => unreachable!(),
             ChunkOrEvent::Disconnect(pid, reason) => {
                 if !reason.is_empty() {
-                    info!("{:?} leaves the game ({})", pid, AlmostString::new(reason));
+                    info!("{} leaves the game ({})", pid, AlmostString::new(reason));
                 } else {
-                    info!("{:?} leaves the game", pid);
+                    info!("{} leaves the game", pid);
                 }
                 self.server.peers.remove(pid);
             },
@@ -497,19 +563,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     fn game_tick(&mut self) {
         for p in &mut self.server.players {
             let input = self.server.peers[p.pid].state.assert_ingame().input;
-            struct Collision;
-            impl world::Collision for Collision {
-                fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
-                    let (x, y) = (pos.x.round_to_i32(), pos.y.round_to_i32());
-                    let (tx, ty) = ((x as f32 / 32.0).trunc_to_i32(), (y as f32 / 32.0).trunc_to_i32());
-                    if tx < 5 || ty < 5 || tx > 10 || ty > 10 {
-                        Some(world::CollisionType::Normal)
-                    } else {
-                        None
-                    }
-                }
-            }
-            p.character.tick(&mut Collision, input, &game::SV_TUNE_PARAMS_DEFAULT);
+            p.character.tick(&mut self.server.map, input, &game::SV_TUNE_PARAMS_DEFAULT);
+            p.character.move_(&mut self.server.map, &game::SV_TUNE_PARAMS_DEFAULT);
+            p.character.quantize();
         }
     }
     fn send_snapshots(&mut self) {
