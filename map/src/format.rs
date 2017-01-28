@@ -262,6 +262,13 @@ pub struct Tile {
     pub reserved: u8,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[repr(C)]
+pub struct TuneTile {
+    pub number: u8,
+    pub index: u8,
+}
+
 pub const TILEFLAG_VFLIP: u8 = 1 << 0;
 pub const TILEFLAG_HFLIP: u8 = 1 << 1;
 pub const TILEFLAG_OPAQUE: u8 = 1 << 2;
@@ -284,6 +291,7 @@ pub enum Error {
     InvalidLayerTilemapFlags(u32),
     InvalidLayerType(i32),
     InvalidTilesLength(usize),
+    InvalidTuneTilesLength(usize),
     InvalidVersion(i32),
     MalformedDdraceLayerSounds,
     MalformedGroup,

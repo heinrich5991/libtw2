@@ -527,6 +527,13 @@ impl Reader {
         }
         Ok(raw)
     }
+    pub fn tune_layer_tiles(&mut self, data_index: usize) -> Result<Vec<format::TuneTile>,Error> {
+        let raw = try!(self.reader.read_data(data_index));
+        if raw.len() % mem::size_of::<format::TuneTile>() != 0 {
+            return Err(Error::Map(MapError::InvalidTuneTilesLength(raw.len())));
+        }
+        Ok(unsafe { vec::transmute(raw) })
+    }
     pub fn layer_tiles(&mut self, data_index: usize) -> Result<Vec<format::Tile>,Error> {
         let raw = try!(self.reader.read_data(data_index));
         if raw.len() % mem::size_of::<format::Tile>() != 0 {
