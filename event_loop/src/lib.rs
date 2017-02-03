@@ -41,6 +41,7 @@ pub trait Loop {
     fn flush(&mut self, pid: PeerId);
     fn ignore(&mut self, pid: PeerId);
     fn accept(&mut self, pid: PeerId);
+    fn reject(&mut self, pid: PeerId, reason: &[u8]);
 }
 
 pub trait Application<L: Loop> {
@@ -130,6 +131,9 @@ impl Loop for SocketLoop {
     }
     fn accept(&mut self, pid: PeerId) {
         self.net.accept(&mut self.socket, pid).unwrap();
+    }
+    fn reject(&mut self, pid: PeerId, reason: &[u8]) {
+        self.net.reject(&mut self.socket, pid, reason).unwrap();
     }
 }
 

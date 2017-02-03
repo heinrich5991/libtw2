@@ -534,7 +534,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     self.server.game_tick = 0;
                 }
                 if self.server.peers.len() == MAX_CLIENTS.assert_usize() {
-                    self.loop_.disconnect(pid, b"This server is full");
+                    self.loop_.reject(pid, b"This server is full");
                     return;
                 }
                 self.loop_.accept(pid);

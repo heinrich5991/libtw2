@@ -393,6 +393,7 @@ impl<A: Address> Net<A> {
         let result;
         {
             let peer = &mut self.peers[pid];
+            assert!(!peer.conn.is_unconnected());
             result = peer.conn.disconnect(&mut cc(cb, peer.addr), reason);
         }
         self.peers.remove_peer(pid);
@@ -428,6 +429,18 @@ impl<A: Address> Net<A> {
             peer.conn.feed(&mut cc(cb, peer.addr), &mut Panic, CONNECT_PACKET, &mut buf);
         assert!(none.next().is_none());
         res
+    }
+    pub fn reject<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId, reason: &[u8])
+        -> Result<(), CB::Error>
+    {
+        let result;
+        {
+            let peer = &mut self.peers[pid];
+            assert!(peer.conn.is_unconnected());
+            result = peer.conn.disconnect(&mut cc(cb, peer.addr), reason);
+        }
+        self.peers.remove_peer(pid);
+        result
     }
     pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB)
         -> Tick<A, CB>
