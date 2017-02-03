@@ -67,7 +67,6 @@ use packer::with_packer;
 use snapshot::snap;
 use std::fmt::Write;
 use std::fmt;
-use std::fs::File;
 use std::time::Duration;
 use world::vec2;
 
@@ -174,8 +173,7 @@ struct Map {
 
 impl Default for Map {
     fn default() -> Map {
-        let file = File::open("dm1.map").unwrap();
-        let reader = datafile::Reader::new(file).unwrap();
+        let reader = datafile::Reader::open("dm1.map").unwrap();
         let mut map = map::Reader::from_datafile(reader);
         map.check_version().unwrap();
         let gamelayers = map.game_layers().unwrap();

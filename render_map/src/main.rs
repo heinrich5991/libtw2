@@ -25,7 +25,6 @@ use std::collections::hash_map;
 use std::env;
 use std::ffi::OsString;
 use std::fmt;
-use std::fs::File;
 use std::io;
 use std::mem;
 use std::path::Path;
@@ -200,8 +199,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     -> Result<(), Error>
     where E: FnMut(&str) -> Result<Option<Array<Color, (Ix, Ix)>>, Error>,
 {
-    let file = try!(File::open(path));
-    let dfr = try!(df::Reader::new(file));
+    let dfr = try!(df::Reader::open(path));
     let mut map = map::Reader::from_datafile(dfr);
 
     let mut layers = vec![];

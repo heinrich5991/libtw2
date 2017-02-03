@@ -1,0 +1,6 @@
+[package]
+name = "file_offset"
+version = "0.1.0"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+
+[dependencies]

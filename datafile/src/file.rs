@@ -1,5 +1,6 @@
 use common::MapIterator;
 use common::num::Cast;
+use file_offset::FileExt;
 use std::error;
 use std::fmt;
 use std::fs::File;
@@ -9,6 +10,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io;
 use std::ops;
+use std::path::Path;
 
 use format::ItemView;
 use format;
@@ -75,6 +77,7 @@ impl From<raw::WrapCallbackError<io::Error>> for Error {
 struct CallbackDataNew {
     file: BufReader<File>,
     datafile_start: u64,
+    cur_datafile_offset: u64,
     seek_base: Option<u64>,
 }
 
@@ -89,12 +92,17 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn new(file: File) -> Result<Reader,Error> {
+    fn new_impl(file: File, check_initial_offset: bool) -> Result<Reader,Error> {
         let mut file = file;
-        let datafile_start = try!(file.seek(SeekFrom::Current(0)).wrap());
+        let datafile_start = if check_initial_offset {
+            try!(file.seek(SeekFrom::Current(0)).wrap())
+        } else {
+            0
+        };
         let mut callback_data_new = CallbackDataNew {
             file: BufReader::new(file),
             datafile_start: datafile_start,
+            cur_datafile_offset: 0,
             seek_base: None,
         };
         let raw = try!(raw::Reader::new(&mut callback_data_new));
@@ -106,6 +114,15 @@ impl Reader {
             callback_data: callback_data,
             raw: raw,
         })
+    }
+    pub fn new(file: File) -> Result<Reader,Error> {
+        Reader::new_impl(file, true)
+    }
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Reader,Error> {
+        fn inner(path: &Path) -> Result<Reader,Error> {
+            Reader::new_impl(try!(File::open(path)), false)
+        }
+        inner(path.as_ref())
     }
     pub fn debug_dump(&mut self) -> Result<(),Error> {
         Ok(try!(self.raw.debug_dump(&mut self.callback_data)))
@@ -169,7 +186,7 @@ impl DataCallback for WrapVecU8 {
     }
 }
 
-fn read<R: Read>(reader: &mut R, buffer: &mut [u8]) -> Result<usize,io::Error> {
+fn read<R: Read>(reader: &mut R, buffer: &mut [u8]) -> io::Result<usize> {
     let mut read = 0;
     while read != buffer.len() {
         match reader.read(&mut buffer[read..]) {
@@ -182,17 +199,45 @@ fn read<R: Read>(reader: &mut R, buffer: &mut [u8]) -> Result<usize,io::Error> {
     Ok(read)
 }
 
+fn read_offset(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
+    // Make sure the additions in this function don't overflow
+    let _end_offset = try!(so(offset.checked_add(buffer.len().u64())));
+
+    let mut read = 0;
+    while read != buffer.len() {
+        match file.read_offset(&mut buffer[read..], offset + read.u64()) {
+            Ok(0) => break,
+            Ok(r) => read += r,
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(read)
+}
+
+// "SeekOverflow"
+fn so(o: Option<u64>) -> io::Result<u64> {
+    o.ok_or(io::Error::new(io::ErrorKind::InvalidData, SeekOverflow(())))
+}
+
 impl CallbackNew for CallbackDataNew {
     type Error = io::Error;
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize,io::Error> {
-        read(&mut self.file, buffer)
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        match read(&mut self.file, buffer) {
+            Ok(r) => {
+                self.cur_datafile_offset =
+                    try!(so(self.cur_datafile_offset.checked_add(r.u64())));
+                Ok(r)
+            },
+            Err(e) => Err(e),
+        }
     }
-    fn set_seek_base(&mut self) -> Result<(),io::Error> {
-        self.seek_base = Some(try!(self.file.seek(SeekFrom::Current(0))));
+    fn set_seek_base(&mut self) -> io::Result<()> {
+        self.seek_base = Some(self.cur_datafile_offset);
         Ok(())
     }
-    fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(),()>,io::Error> {
-        let actual = try!(self.file.seek(SeekFrom::End(0)));
+    fn ensure_filesize(&mut self, filesize: u32) -> io::Result<Result<(),()>> {
+        let actual = try!(self.file.get_ref().metadata()).len();
         Ok(if actual.checked_sub(self.datafile_start).unwrap() >= filesize.u64() {
             Ok(())
         } else {
@@ -202,14 +247,12 @@ impl CallbackNew for CallbackDataNew {
 }
 impl CallbackReadData for CallbackData {
     type Error = io::Error;
-    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize,io::Error> {
-        let offset = try!(self.seek_base.checked_add(start.u64())
-            .ok_or(io::Error::new(io::ErrorKind::InvalidData, SeekOverflow(()))));
-        try!(self.file.seek(SeekFrom::Start(offset)));
-        read(&mut self.file, buffer)
+    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> io::Result<usize> {
+        let offset = try!(so(self.seek_base.checked_add(start.u64())));
+        read_offset(&self.file, buffer, offset)
     }
     type Data = WrapVecU8;
-    fn alloc_data(&mut self, length: usize) -> Result<WrapVecU8,io::Error> {
+    fn alloc_data(&mut self, length: usize) -> io::Result<WrapVecU8> {
         let mut vec = Vec::with_capacity(length);
         unsafe { vec.set_len(length); }
         Ok(WrapVecU8 { inner: vec })

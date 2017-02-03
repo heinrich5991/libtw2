@@ -63,6 +63,7 @@ name = "datafile"
 version = "0.0.1"
 dependencies = [
  "common 0.0.1",
+ "file_offset 0.1.0",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -79,6 +80,10 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.71 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "file_offset"
+version = "0.1.0"
 
 [[package]]
 name = "gamenet"
