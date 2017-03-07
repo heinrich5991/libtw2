@@ -16,6 +16,7 @@ struct Item {
     data: Vec<i32>,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Buffer {
     item_types: Vec<ItemType>,
     items: Vec<Item>,
@@ -68,7 +69,7 @@ impl Buffer {
     }
 
     pub fn item_type(&self, index: usize) -> u16 {
-        self.item_types.iter().nth(index).expect("Invalid type index").type_id
+        self.item_types.get(index).expect("Invalid type index").type_id
     }
     pub fn num_item_types(&self) -> usize {
         self.item_types.len()
@@ -79,14 +80,14 @@ impl Buffer {
         ItemView {
             type_id: type_id,
             id: id,
-            data: &data,
+            data: data,
         }
     }
     pub fn num_items(&self) -> usize {
         self.items.len()
     }
 
-    pub fn data<'a>(&'a self, index: usize) -> &'a [u8] {
+    pub fn data(&self, index: usize) -> &[u8] {
         &self.data[index]
     }
     pub fn num_data(&self) -> usize {

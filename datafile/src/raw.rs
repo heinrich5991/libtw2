@@ -28,8 +28,7 @@ impl Version {
     fn has_compressed_data(&self) -> bool {
         match *self {
             Version::V3 => false,
-            Version::V4Crude => true,
-            Version::V4 => true,
+            Version::V4Crude | Version::V4 => true,
         }
     }
 }
@@ -90,7 +89,7 @@ pub trait ResultExt {
 impl<T,CE> ResultExt for Result<T,CE> {
     type ResultWrapped = Result<T,WrapCallbackError<CE>>;
     fn wrap(self) -> Result<T,WrapCallbackError<CE>> {
-        self.map_err(|e| WrapCallbackError(e))
+        self.map_err(WrapCallbackError)
     }
 }
 
@@ -229,14 +228,11 @@ impl Reader {
         {
             let mut previous = 0;
             for i in 0..self.header.hr.num_data as usize {
-                match self.uncomp_data_sizes {
-                    Some(ref uds) => {
-                        if uds[i] < 0 {
-                            error!("invalid data's uncompressed size, data={} uncomp_data_size={}", i, uds[i]);
-                            return Err(format::Error::Malformed);
-                        }
+                if let Some(ref uds) = self.uncomp_data_sizes {
+                    if uds[i] < 0 {
+                        error!("invalid data's uncompressed size, data={} uncomp_data_size={}", i, uds[i]);
+                        return Err(format::Error::Malformed);
                     }
-                    None => (),
                 }
                 let offset = self.data_offsets[i];
                 if offset < 0 || offset > self.header.hr.size_data {
@@ -291,31 +287,28 @@ impl Reader {
         let raw_data_len = self.data_size_file(index);
         let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort)));
 
-        match self.uncomp_data_sizes {
-            Some(ref uds) => {
-                let data_len = uds[index] as usize;
-                let mut data = try!(cb.alloc_data(data_len).wrap());
+        if let Some(ref uds) = self.uncomp_data_sizes {
+            let data_len = uds[index] as usize;
+            let mut data = try!(cb.alloc_data(data_len).wrap());
 
-                match zlib::uncompress(data.slice_mut(), &raw_data) {
-                    Ok(len) if len == data_len => {
-                        Ok(data)
-                    }
-                    Ok(len) => {
-                        error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
-                        Err(format::Error::CompressionWrongSize.into())
-                    }
-                    Err(e) => {
-                        error!("decompression error: {:?}", e);
-                        Err(format::Error::CompressionError(e).into())
-                    }
+            match zlib::uncompress(data.slice_mut(), &raw_data) {
+                Ok(len) if len == data_len => {
+                    Ok(data)
                 }
-            },
-            None => {
-                let data_len = raw_data_len;
-                let mut data = try!(cb.alloc_data(data_len).wrap());
-                data.slice_mut().iter_mut().set_from(raw_data.iter().cloned());
-                Ok(data)
-            },
+                Ok(len) => {
+                    error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
+                    Err(format::Error::CompressionWrongSize.into())
+                }
+                Err(e) => {
+                    error!("decompression error: {:?}", e);
+                    Err(format::Error::CompressionError(e).into())
+                }
+            }
+        } else {
+            let data_len = raw_data_len;
+            let mut data = try!(cb.alloc_data(data_len).wrap());
+            data.slice_mut().iter_mut().set_from(raw_data.iter().cloned());
+            Ok(data)
         }
     }
     pub fn item(&self, index: usize) -> ItemView {
@@ -337,7 +330,7 @@ impl Reader {
         self.header.hr.num_data.to_usize().unwrap()
     }
     pub fn item_type_indices(&self, type_id: u16) -> ops::Range<usize> {
-        for t in self.item_types.iter() {
+        for t in &self.item_types {
             if t.type_id as u16 == type_id {
                 let start = t.start.to_usize().unwrap();
                 let num = t.num.to_usize().unwrap();
@@ -375,6 +368,7 @@ impl Reader {
             for item in self.item_type_items(type_id) {
                 debug!("  item id={}", item.id);
                 for &data in item.data {
+                    #[cfg_attr(feature = "cargo-clippy", allow(identity_op))]
                     fn i32_to_bytes(input: i32) -> [u8; 4] { [
                         (((input >> 24) & 0xff) - 0x80) as u8,
                         (((input >> 16) & 0xff) - 0x80) as u8,
