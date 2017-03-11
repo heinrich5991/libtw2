@@ -1,4 +1,5 @@
 extern crate buffer;
+extern crate common;
 extern crate huffman;
 extern crate libc;
 extern crate num;
@@ -7,6 +8,7 @@ extern crate huffman_reference_sys as sys;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
+use common::num::Cast;
 use num::ToPrimitive;
 
 pub struct Huffman {
@@ -20,7 +22,7 @@ impl Huffman {
         Huffman::from_frequencies_array(array)
     }
     pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman,()> {
-        let huffman_size = unsafe { sys::huffman_size() }.to_usize().unwrap();
+        let huffman_size = unsafe { sys::huffman_size() };
         let huffman = Vec::with_capacity(huffman_size);
         let mut result = Huffman { huffman: huffman };
         // Implicit assumption that `c_uint == u32`. Screams when it breaks, so
@@ -40,9 +42,9 @@ impl Huffman {
             sys::huffman_compress(
                 self.inner_huffman(),
                 input.as_ptr() as *const _,
-                input.len().to_i32().unwrap(),
+                input.len().assert_i32(),
                 buffer.uninitialized_mut().as_mut_ptr() as *mut _,
-                buffer.remaining().to_i32().unwrap()
+                buffer.remaining().assert_i32(), // TODO: saturating conversion to i32?
             )
         };
         match result_len.to_usize() {
@@ -62,9 +64,9 @@ impl Huffman {
             sys::huffman_decompress(
                 self.inner_huffman(),
                 input.as_ptr() as *const _,
-                input.len().to_i32().unwrap(),
+                input.len().assert_i32(),
                 buffer.uninitialized_mut().as_mut_ptr() as *mut _,
-                buffer.remaining().to_i32().unwrap()
+                buffer.remaining().assert_i32(), // TODO: saturating conversion to i32?
             )
         };
         match result_len.to_usize() {
