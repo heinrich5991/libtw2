@@ -13,6 +13,7 @@ hexdump = "0.1.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
+ndarray = "0.6.1"
 net = { path = "../net/" }
 num = "0.1.27"
 packer = { path = "../packer/" }
