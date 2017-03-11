@@ -4,7 +4,7 @@
 
 extern crate arrayvec;
 extern crate buffer;
-#[macro_use] extern crate common;
+extern crate common;
 extern crate itertools;
 
 use arrayvec::ArrayVec;
