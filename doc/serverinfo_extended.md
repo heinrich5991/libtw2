@@ -8,12 +8,17 @@ An extended server info can be requested from the Teeworlds server by sending
 the following UDP packet:
 
     [2] magic_bytes
-    [4] reserved
+    [2] extra_token
+    [2] reserved
     [4] padding
     [4] vanilla_request
     [1] token
 
 `magic_bytes` must be the ASCII representation of "ex".
+
+`extra_token` contains a 16 bit big-endian integer that should be shifted by 8
+to the left and combined with `token` with a bitwise or, before the extended
+server info is sent back.
 
 `reserved` is reserved for future protocol versions and must be zeroed by the
 sender and ignored by the receiver with this protocol version.
@@ -23,7 +28,8 @@ sender and ignored by the receiver with this protocol version.
 `vanilla_request` must be the ASCII representation of "gie3".
 
 `token` is an arbitrary byte chosen by the client which will be sent back with
-the server info.
+the server info. For the extended server info, the `extra_token` field needs to
+be included in the server info response.
 
 If a server receives such a request (detected by the `magic_bytes` field), it
 can either respond with the vanilla server info, or by sending the extended
