@@ -1,11 +1,18 @@
+use common;
 use std::mem;
 use std::slice;
+
 use raw::CallbackNew;
 use raw::CallbackReadError;
 use raw::ResultExt;
 
 /// Safe to write arbitrary bytes to this struct.
 pub unsafe trait Packed { }
+
+unsafe impl Packed for common::num::BeI32 { }
+unsafe impl Packed for common::num::LeU16 { }
+unsafe impl Packed for common::num::BeU32 { }
+unsafe impl Packed for u8 { }
 
 pub fn as_mut_bytes<T: Packed>(x: &mut T) -> &mut [u8] {
     unsafe {

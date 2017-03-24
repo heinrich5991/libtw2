@@ -1,6 +1,9 @@
 use common::io::ReadExt;
+use common::num::Cast;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::io;
 use std::path::Path;
 use warn::Warn;
@@ -107,7 +110,7 @@ impl CallbackNew for CallbackDataNew {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         self.file.read_retry(buffer)
     }
-    fn ensure_filesize(&mut self, filesize: u32) -> io::Result<Result<(), ()>> {
-        unimplemented!();
+    fn skip(&mut self, num_bytes: u32) -> io::Result<()> {
+        self.file.seek(SeekFrom::Current(num_bytes.i64())).map(|_| ())
     }
 }

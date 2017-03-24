@@ -5,7 +5,7 @@ use warn::Warn;
 pub trait CallbackNew {
     type Error;
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
-    fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(), ()>, Self::Error>;
+    fn skip(&mut self, num_bytes: u32) -> Result<(), Self::Error>;
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
@@ -78,8 +78,9 @@ impl Reader {
         let header_version: format::HeaderVersionPacked =
             cb.read_raw().on_eof(format::Error::TooShortHeaderVersion)?;
         let header_version = header_version.unpack()?;
-        let version_byte = header_version.version.to_u8();
-        match header_version.version {
+        let version = header_version.version;
+        let version_byte = version.to_u8();
+        match version {
             format::Version::V4 | format::Version::V5 => {},
             _ => return Err(format::Error::UnknownVersion(version_byte).into()),
         }
@@ -89,6 +90,14 @@ impl Reader {
         let timeline_markers: format::TimelineMarkersPacked =
             cb.read_raw().on_eof(format::Error::TooShortTimelineMarkers)?;
         let timeline_markers = timeline_markers.unpack(warn)?;
+        cb.skip(header.map_size).wrap()?;
+
+        while let Some(chunk_header) = format::ChunkHeader::read(warn, cb, version)? {
+            println!("{:?}", chunk_header);
+            if let format::ChunkHeader::Chunk(_, size) = chunk_header {
+                cb.skip(size).wrap()?;
+            }
+        }
         Ok(Reader {
             header_version: header_version,
             header: header,

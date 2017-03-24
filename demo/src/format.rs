@@ -1,12 +1,20 @@
 use arrayvec::ArrayVec;
-use bitmagic::Packed;
 use common::num::BeI32;
 use common::num::BeU32;
 use common::num::Cast;
+use common::num::LeU16;
 use packer::bytes_to_string;
 use std::iter::FromIterator;
+use std::u8;
 use warn::Warn;
 use warn;
+
+use bitmagic::CallbackNewExt;
+use bitmagic::Packed;
+use raw::CallbackNew;
+use raw::CallbackReadError;
+use raw::CallbackReadResultExt;
+use raw;
 
 pub const MAGIC: &'static [u8; 7] = b"TWDEMO\0";
 
@@ -22,7 +30,11 @@ pub enum Version {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
+    NonAbsoluteTickMarkerTick,
     NonIncreasingTimelineMarkers,
+    NonZeroTickmarkerPadding,
+    OverlongChunkSizeEncoding,
+    UnknownChunkType,
     WeirdMapName,
     WeirdNetVersion,
     WeirdTimelineMarkerPadding,
@@ -35,8 +47,9 @@ pub enum Error {
     InvalidNumTimelineMarkers,
     NegativeLength,
     NegativeMapSize,
-    TooShortHeaderVersion,
+    TooShort,
     TooShortHeader,
+    TooShortHeaderVersion,
     TooShortTimelineMarkers,
     UnknownMagic([u8; 7]),
     UnknownVersion(u8),
@@ -191,6 +204,173 @@ impl TimelineMarkersPacked {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct ChunkHeaderPacked {
-    pub type_: u8,
+pub struct ChunkHeaderStartPacked {
+    pub byte: u8,
+}
+unsafe impl Packed for ChunkHeaderStartPacked { }
+
+pub const CHUNKTYPEFLAG_TICKMARKER: u8 = 0b1000_0000;
+
+pub const CHUNKTICKFLAG_KEYFRAME: u8 = 0b0100_0000;
+pub const CHUNKTICKFLAG_INLINETICK: u8 = 0b0010_0000; // Only in V5.
+
+pub const CHUNKTICKMASK_TICK_V3: u8 = 0b0011_1111;
+pub const CHUNKTICKMASK_TICK_V5: u8 = 0b0001_1111;
+
+pub const CHUNKMASK_TYPE: u8 = 0b0110_0000;
+pub const CHUNKMASK_SIZE: u8 = 0b0001_1111;
+pub const CHUNKTYPE_UNKNOWN: u8 = 0b0000_0000;
+pub const CHUNKTYPE_SNAPSHOT: u8 = 0b0010_0000;
+pub const CHUNKTYPE_MESSAGE: u8 = 0b0100_0000;
+pub const CHUNKTYPE_SNAPSHOTDELTA: u8 = 0b0110_0000;
+
+pub const CHUNKSIZE_ONEBYTEFOLLOWS: u8 = 0b0001_1110;
+pub const CHUNKSIZE_TWOBYTESFOLLOW: u8 = 0b0001_1111;
+
+#[derive(Clone, Copy, Debug)]
+pub enum TickmarkerStart {
+    Delta(u8),
+    TickFollows
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ChunkType {
+    Unknown,
+    Snapshot,
+    SnapshotDelta,
+    Message,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ChunkSize {
+    Size(u8),
+    OneSizeByteFollows,
+    TwoSizeBytesFollow,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ChunkHeaderStart {
+    /// Tickmarker(keyframe, tickmarker)
+    Tickmarker(bool, TickmarkerStart),
+    Chunk(ChunkType, ChunkSize),
+}
+
+impl ChunkHeaderStartPacked {
+    pub fn unpack<W: Warn<Warning>>(self, warn: &mut W, version: Version)
+        -> ChunkHeaderStart
+    {
+        self.unpack_impl(warn, version >= Version::V5)
+    }
+    fn unpack_impl<W: Warn<Warning>>(self, warn: &mut W, v5: bool) -> ChunkHeaderStart {
+        if self.byte & CHUNKTYPEFLAG_TICKMARKER != 0 {
+            let keyframe = self.byte & CHUNKTICKFLAG_KEYFRAME != 0;
+            let tickmarker = if v5 {
+                if self.byte & CHUNKTICKFLAG_INLINETICK != 0 {
+                    TickmarkerStart::Delta(self.byte & CHUNKTICKMASK_TICK_V5)
+                } else {
+                    if self.byte & CHUNKTICKMASK_TICK_V5 != 0 {
+                        warn.warn(Warning::NonZeroTickmarkerPadding);
+                    }
+                    TickmarkerStart::TickFollows
+                }
+            } else {
+                if self.byte & CHUNKTICKMASK_TICK_V3 != 0 {
+                    TickmarkerStart::Delta(self.byte & CHUNKTICKMASK_TICK_V3)
+                } else {
+                    // TODO: Deviating from the reference implementation here.
+                    // The reference implementation differentiates the same
+                    // cases, but ends up doing the same thing in the first
+                    // block as in the else block. Probably intended to do this
+                    // instead:
+                    TickmarkerStart::TickFollows
+                }
+            };
+            ChunkHeaderStart::Tickmarker(keyframe, tickmarker)
+        } else {
+            let type_ = match self.byte & CHUNKMASK_TYPE {
+                CHUNKTYPE_UNKNOWN => {
+                    warn.warn(Warning::UnknownChunkType);
+                    ChunkType::Unknown
+                },
+                CHUNKTYPE_SNAPSHOT => ChunkType::Snapshot,
+                CHUNKTYPE_MESSAGE => ChunkType::Message,
+                CHUNKTYPE_SNAPSHOTDELTA => ChunkType::SnapshotDelta,
+                _ => unreachable!(),
+            };
+            let size = match self.byte & CHUNKMASK_SIZE {
+                CHUNKSIZE_ONEBYTEFOLLOWS => ChunkSize::OneSizeByteFollows,
+                CHUNKSIZE_TWOBYTESFOLLOW => ChunkSize::TwoSizeBytesFollow,
+                s => ChunkSize::Size(s),
+            };
+            ChunkHeaderStart::Chunk(type_, size)
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Tickmarker {
+    Delta(u8),
+    Absolute(Tick),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ChunkHeader {
+    /// Tickmarker(keyframe, tickmarker)
+    Tickmarker(bool, Tickmarker),
+    /// Chunk(type_, size)
+    Chunk(ChunkType, u32),
+}
+
+impl ChunkHeader {
+    pub fn read<W, CB>(warn: &mut W, cb: &mut CB, version: Version)
+        -> Result<Option<ChunkHeader>, raw::Error<CB::Error>>
+        where W: Warn<Warning>,
+              CB: CallbackNew,
+    {
+        let chunk_header_start: ChunkHeaderStartPacked = match cb.read_raw() {
+            Err(CallbackReadError::EndOfFile) => return Ok(None),
+            Err(CallbackReadError::Cb(e)) => return Err(raw::Error::Cb(e)),
+            Ok(chsp) => chsp,
+        };
+        let chunk_header_start = chunk_header_start.unpack(warn, version);
+        ChunkHeader::read_rest(warn, cb, chunk_header_start).map(Some)
+    }
+    fn read_rest<W, CB>(warn: &mut W, cb: &mut CB, chs: ChunkHeaderStart)
+        -> Result<ChunkHeader, raw::Error<CB::Error>>
+        where W: Warn<Warning>,
+              CB: CallbackNew,
+    {
+        use self::ChunkHeaderStart as Chs;
+        use self::ChunkSize as Cs;
+        use self::TickmarkerStart as Ts;
+        use self::ChunkHeader::*;
+        use self::Tickmarker::*;
+        Ok(match chs {
+            Chs::Tickmarker(keyframe, Ts::Delta(d)) => {
+                if keyframe {
+                    warn.warn(Warning::NonAbsoluteTickMarkerTick);
+                }
+                Tickmarker(keyframe, Delta(d))
+            },
+            Chs::Tickmarker(keyframe, Ts::TickFollows) => {
+                let tick_packed: BeI32 = cb.read_raw().on_eof(Error::TooShort)?;
+                Tickmarker(keyframe, Absolute(Tick(tick_packed.to_i32())))
+            },
+            Chs::Chunk(type_, Cs::Size(s)) => Chunk(type_, s.u32()),
+            Chs::Chunk(type_, Cs::OneSizeByteFollows) => {
+                let size: u8 = cb.read_raw().on_eof(Error::TooShort)?;
+                if size < 30 {
+                    warn.warn(Warning::OverlongChunkSizeEncoding);
+                }
+                Chunk(type_, size.u32())
+            },
+            Chs::Chunk(type_, Cs::TwoSizeBytesFollow) => {
+                let size_packed: LeU16 = cb.read_raw().on_eof(Error::TooShort)?;
+                if size_packed.to_u16() <= u8::max_value().u16() {
+                    warn.warn(Warning::OverlongChunkSizeEncoding);
+                }
+                Chunk(type_, size_packed.to_u16().u32())
+            },
+        })
+    }
 }
