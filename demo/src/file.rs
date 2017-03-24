@@ -79,6 +79,21 @@ impl Reader {
         }
         inner(warn, path.as_ref())
     }
+    pub fn version(&self) -> format::Version {
+        self.raw.version()
+    }
+    pub fn net_version(&self) -> &[u8] {
+        self.raw.net_version()
+    }
+    pub fn map_name(&self) -> &[u8] {
+        self.raw.map_name()
+    }
+    pub fn map_size(&self) -> u32 {
+        self.raw.map_size()
+    }
+    pub fn map_crc(&self) -> u32 {
+        self.raw.map_crc()
+    }
     pub fn timestamp(&self) -> &[u8] {
         self.raw.timestamp()
     }

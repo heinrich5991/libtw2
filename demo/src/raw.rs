@@ -65,6 +65,7 @@ impl<T, CE> CallbackReadResultExt for Result<T, CallbackReadError<CE>> {
 }
 
 pub struct Reader {
+    header_version: format::HeaderVersion,
     header: format::Header,
     timeline_markers: format::TimelineMarkers,
 }
@@ -89,9 +90,25 @@ impl Reader {
             cb.read_raw().on_eof(format::Error::TooShortTimelineMarkers)?;
         let timeline_markers = timeline_markers.unpack(warn)?;
         Ok(Reader {
+            header_version: header_version,
             header: header,
             timeline_markers: timeline_markers,
         })
+    }
+    pub fn version(&self) -> format::Version {
+        self.header_version.version
+    }
+    pub fn net_version(&self) -> &[u8] {
+        &self.header.net_version
+    }
+    pub fn map_name(&self) -> &[u8] {
+        &self.header.map_name
+    }
+    pub fn map_size(&self) -> u32 {
+        self.header.map_size
+    }
+    pub fn map_crc(&self) -> u32 {
+        self.header.map_crc
     }
     pub fn timestamp(&self) -> &[u8] {
         &self.header.timestamp

@@ -7,6 +7,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 arrayvec = "0.3.12"
 buffer = "0.1.6"
 common = { path = "../common/" }
+demo = { path = "../demo/" }
 datafile = { path = "../datafile/" }
 gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"
@@ -17,4 +18,4 @@ ndarray = "0.6.1"
 net = { path = "../net/" }
 packer = { path = "../packer/" }
 serverbrowse = { path = "../serverbrowse/" }
-warn = ">=0.1.1,<0.3.0"
+warn = "0.2.2"
