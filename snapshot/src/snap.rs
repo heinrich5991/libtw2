@@ -8,7 +8,6 @@ use format::key_to_id;
 use format::key_to_type_id;
 use gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
 use gamenet::msg::system;
-use num::ToPrimitive;
 use packer::Packer;
 use packer::Unpacker;
 use packer::with_packer;
@@ -337,14 +336,14 @@ impl DeltaReader {
             let type_id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
             let id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
 
-            let type_id = try!(type_id.to_u16().ok_or(Error::TypeIdRange));
-            let id = try!(id.to_u16().ok_or(Error::IdRange));
+            let type_id = try!(type_id.try_u16().ok_or(Error::TypeIdRange));
+            let id = try!(id.try_u16().ok_or(Error::IdRange));
 
             let size = match object_size(type_id) {
                 Some(s) => s.usize(),
                 None => {
                     let s = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
-                    try!(s.to_usize().ok_or(Error::NegativeSize))
+                    try!(s.try_usize().ok_or(Error::NegativeSize))
                 }
             };
 
@@ -355,8 +354,8 @@ impl DeltaReader {
             buf = b.iter();
 
             let offset = delta.buf.len();
-            let start = try!(offset.to_u32().ok_or(Error::TooLongDiff));
-            let end = try!((offset + data.len()).to_u32().ok_or(Error::TooLongDiff));
+            let start = try!(offset.try_u32().ok_or(Error::TooLongDiff));
+            let end = try!((offset + data.len()).try_u32().ok_or(Error::TooLongDiff));
             delta.buf.extend(data.iter());
 
             // In case of conflict, take later update (as the original code does).

@@ -1,7 +1,6 @@
 extern crate buffer;
-#[macro_use] extern crate common;
+extern crate common;
 extern crate gamenet;
-extern crate num;
 extern crate packer;
 extern crate vec_map;
 extern crate warn;

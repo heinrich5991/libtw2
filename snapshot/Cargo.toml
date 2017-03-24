@@ -7,7 +7,6 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 buffer = "0.1.5"
 common = { path = "../common/" }
 gamenet = { path = "../gamenet/" }
-num = "0.1.27"
 packer = { path = "../packer/" }
 vec_map = "0.6.0"
 warn = ">=0.1.1,<0.3.0"
