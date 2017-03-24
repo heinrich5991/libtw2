@@ -3,9 +3,8 @@
 #[cfg(all(feature = "nightly-test", test))] extern crate quickcheck;
 
 extern crate arrayvec;
-#[macro_use] extern crate common;
 extern crate buffer;
-extern crate num;
+#[macro_use] extern crate common;
 extern crate warn;
 
 use arrayvec::ArrayVec;
@@ -13,7 +12,7 @@ use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::CapacityError;
 use buffer::with_buffer;
-use num::ToPrimitive;
+use common::num::Cast;
 use std::iter;
 use std::mem;
 use std::slice;
@@ -146,7 +145,7 @@ impl<'d, 's> Packer<'d, 's> {
         write_int(int, |b| self.buf.write(b))
     }
     pub fn write_data(&mut self, data: &[u8]) -> Result<(), CapacityError> {
-        try!(self.write_int(try!(data.len().to_i32().ok_or(CapacityError))));
+        try!(self.write_int(try!(data.len().try_i32().ok_or(CapacityError))));
         try!(self.buf.write(data));
         Ok(())
     }
@@ -195,7 +194,7 @@ impl<'a> Unpacker<'a> {
     pub fn read_data<W: Warn<Warning>>(&mut self, warn: &mut W)
         -> Result<&'a [u8], UnexpectedEnd>
     {
-        let len = match self.read_int(warn).map(|l| l.to_usize()) {
+        let len = match self.read_int(warn).map(|l| l.try_usize()) {
             Ok(Some(l)) => l,
             _ => return self.error(),
         };

@@ -7,7 +7,6 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 arrayvec = "0.3.12"
 buffer = "0.1.5"
 common = { path = "../common/" }
-num = "0.1.27"
 warn = ">=0.1.1,<0.3.0"
 
 quickcheck = { version = "0.2.27", optional = true }
