@@ -7,7 +7,6 @@ extern crate itertools;
 #[macro_use] extern crate log;
 extern crate logger;
 extern crate net;
-extern crate num;
 extern crate packer;
 extern crate rand;
 extern crate snapshot;
@@ -52,7 +51,6 @@ use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use net::net::ChunkOrEvent;
-use num::ToPrimitive;
 use packer::IntUnpacker;
 use packer::Unpacker;
 use packer::with_packer;
@@ -66,6 +64,7 @@ use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::io;
+use std::mem;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::str;
@@ -417,7 +416,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
             match msg {
                 SystemOrGame::System(ref msg) => match *msg {
                     System::MapChange(MapChange { crc, size, name }) => {
-                        if let Some(_) = size.to_usize() {
+                        if let Some(_) = size.try_usize() {
                             if name.iter().any(|&b| b == b'/' || b == b'\\') {
                                 error!("invalid map name");
                                 return true;
@@ -493,6 +492,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             self.loop_.sends(pid, Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,
+                                input_size: mem::size_of_val(&snap_obj::PLAYER_INPUT_EMPTY).assert_i32(),
                                 input: snap_obj::PLAYER_INPUT_EMPTY,
                             });
                         }
