@@ -1,4 +1,4 @@
-use external_num::ToPrimitive;
+use num_traits::ToPrimitive;
 use std::fmt;
 
 fn overflow<T: fmt::Display>(type_: &str, val: T) -> ! {
