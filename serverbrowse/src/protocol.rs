@@ -4,7 +4,6 @@ use common::num::LeU16;
 use common;
 
 use arrayvec::ArrayVec;
-use num::ToPrimitive;
 use std::default::Default;
 use std::fmt;
 use std::mem;
@@ -305,10 +304,10 @@ fn parse_server_info<RI,RS>(
             return fail("count sanity check");
         }
 
-        let offset = unwrap_or_return!(offset.to_u32(), fail("offset sanity check"));
+        let offset = unwrap_or_return!(offset.try_u32(), fail("offset sanity check"));
 
         let upper_limit = match version {
-            ServerInfoVersion::V664 => MAX_CLIENTS.assert_u32(),
+            ServerInfoVersion::V664 => MAX_CLIENTS,
             _ => i.num_clients.assert_u32(),
         };
 
