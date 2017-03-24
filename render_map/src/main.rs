@@ -4,7 +4,7 @@ extern crate common;
 extern crate datafile as df;
 extern crate logger;
 extern crate ndarray;
-extern crate num;
+extern crate num_traits;
 extern crate image;
 extern crate map;
 
@@ -18,7 +18,7 @@ use map::format;
 use map::reader;
 use ndarray::Array;
 use ndarray::Ix;
-use num::ToPrimitive;
+use num_traits::ToPrimitive;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map;

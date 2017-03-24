@@ -10,4 +10,4 @@ image = "0.10.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
 ndarray = "0.6.1"
-num = "0.1.27"
+num-traits = "0.1.32"
