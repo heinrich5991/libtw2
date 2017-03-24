@@ -203,6 +203,19 @@ impl CastFloat for f32 {
     }
 }
 
+/// Big-endian unsigned 32-bit integer
+///
+/// Is internally represented as `[u8; 4]`.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct BeU32([u8; 4]);
+
+/// Big-endian signed 32-bit integer
+///
+/// Is internally represented as `[u8; 4]`.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct BeI32([u8; 4]);
 
 /// Big-endian unsigned 16-bit integer
 ///
@@ -221,6 +234,42 @@ pub struct LeU16([u8; 2]);
 // ======================
 // BOILERPLATE CODE BELOW
 // ======================
+
+impl BeI32 {
+    pub fn from_i32(value: i32) -> BeI32 {
+        BeI32([
+            (value >> 24) as u8,
+            (value >> 16) as u8,
+            (value >> 8) as u8,
+            value as u8]
+        )
+    }
+    pub fn to_i32(self) -> i32 {
+        let BeI32(v) = self;
+        (v[0] as i32) << 24
+            | (v[1] as i32) << 16
+            | (v[2] as i32) << 8
+            | v[3] as i32
+    }
+}
+
+impl BeU32 {
+    pub fn from_u32(value: u32) -> BeU32 {
+        BeU32([
+            (value >> 24) as u8,
+            (value >> 16) as u8,
+            (value >> 8) as u8,
+            value as u8]
+        )
+    }
+    pub fn to_u32(self) -> u32 {
+        let BeU32(v) = self;
+        (v[0] as u32) << 24
+            | (v[1] as u32) << 16
+            | (v[2] as u32) << 8
+            | v[3] as u32
+    }
+}
 
 impl BeU16 {
     pub fn from_u16(value: u16) -> BeU16 {
