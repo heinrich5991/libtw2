@@ -2,14 +2,12 @@ extern crate buffer;
 extern crate common;
 extern crate huffman;
 extern crate libc;
-extern crate num;
 extern crate huffman_reference_sys as sys;
 
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
 use common::num::Cast;
-use num::ToPrimitive;
 
 pub struct Huffman {
     huffman: Vec<u8>,
@@ -47,7 +45,7 @@ impl Huffman {
                 buffer.remaining().assert_i32(), // TODO: saturating conversion to i32?
             )
         };
-        match result_len.to_usize() {
+        match result_len.try_usize() {
             Some(l) => unsafe { buffer.advance(l); Ok(buffer.initialized()) },
             None => Err(buffer::CapacityError),
         }
@@ -69,7 +67,7 @@ impl Huffman {
                 buffer.remaining().assert_i32(), // TODO: saturating conversion to i32?
             )
         };
-        match result_len.to_usize() {
+        match result_len.try_usize() {
             Some(l) => unsafe { buffer.advance(l); Ok(buffer.initialized()) },
             None => Err(huffman::DecompressionError::Capacity(buffer::CapacityError)),
         }
