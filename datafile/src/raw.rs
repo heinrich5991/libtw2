@@ -1,9 +1,9 @@
 use common::MapIterator;
+use common::num::Cast;
 use hexdump::hexdump_iter;
 use hexdump::sanitize_byte;
 use itertools::Itertools;
 use log;
-use num::ToPrimitive;
 use std::mem;
 use std::ops;
 use zlib;
@@ -262,7 +262,7 @@ impl Reader {
     }
     fn item_header(&self, index: usize) -> &format::ItemHeader {
         let slice = &self.items_raw
-            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].to_usize().unwrap())..]
+            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].assert_usize())..]
             [..relative_size_of::<format::ItemHeader,i32>()];
         // TODO: Find out why paranthesis are necessary.
         //
@@ -314,9 +314,9 @@ impl Reader {
     pub fn item(&self, index: usize) -> ItemView {
         let item_header = self.item_header(index);
         let data = &self.items_raw
-            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].to_usize().unwrap())..]
+            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].assert_usize())..]
             [relative_size_of::<format::ItemHeader,i32>()..]
-            [..relative_size_of_mult::<u8,i32>(item_header.size.to_usize().unwrap())];
+            [..relative_size_of_mult::<u8,i32>(item_header.size.assert_usize())];
         ItemView {
             type_id: item_header.type_id(),
             id: item_header.id(),
@@ -324,16 +324,16 @@ impl Reader {
         }
     }
     pub fn num_items(&self) -> usize {
-        self.header.hr.num_items.to_usize().unwrap()
+        self.header.hr.num_items.assert_usize()
     }
     pub fn num_data(&self) -> usize {
-        self.header.hr.num_data.to_usize().unwrap()
+        self.header.hr.num_data.assert_usize()
     }
     pub fn item_type_indices(&self, type_id: u16) -> ops::Range<usize> {
         for t in &self.item_types {
             if t.type_id as u16 == type_id {
-                let start = t.start.to_usize().unwrap();
-                let num = t.num.to_usize().unwrap();
+                let start = t.start.assert_usize();
+                let num = t.num.assert_usize();
                 // Overflow check was in Reader::check().
                 return start..start+num;
             }
@@ -341,10 +341,10 @@ impl Reader {
         0..0
     }
     pub fn item_type(&self, index: usize) -> u16 {
-        self.item_types[index].type_id.to_u16().unwrap()
+        self.item_types[index].type_id.assert_u16()
     }
     pub fn num_item_types(&self) -> usize {
-        self.header.hr.num_item_types.to_usize().unwrap()
+        self.header.hr.num_item_types.assert_usize()
     }
 
     pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView> {

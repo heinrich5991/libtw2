@@ -1,9 +1,9 @@
-use num::ToPrimitive;
 use std::mem;
 
 use bitmagic::CallbackNewExt;
 use bitmagic::as_mut_i32_slice;
 use bitmagic::to_little_endian;
+use common::num::Cast;
 use common::slice::mut_ref_slice;
 use raw::CallbackNew;
 use raw::ResultExt;
@@ -127,7 +127,7 @@ impl Header {
             error!("swaplen does not match expected swaplen, swaplen={} expected0={} expected1={}", self.hr.swaplen, expected_swaplen0, expected_swaplen1);
         } else {
             return Ok(HeaderCheckResult {
-                expected_size: expected_total_size.to_u32().unwrap(),
+                expected_size: expected_total_size.assert_u32(),
                 crude_version: self.hr.size != expected_size0,
             })
         }
@@ -135,11 +135,11 @@ impl Header {
     }
     fn calculate_size_field(&self, total_size: i32, crude_version: bool) -> i32 {
         // The first four i32 fields are not accounted for in the size field.
-        let result = total_size - mem::size_of::<i32>().to_i32().unwrap() * 4;
+        let result = total_size - mem::size_of::<i32>().assert_i32() * 4;
         if crude_version {
             // Error in the calculation which existed in some version of the
             // original code (it didn't account for the data_sizes).
-            result - mem::size_of::<i32>().to_i32().unwrap() * self.hr.num_data
+            result - mem::size_of::<i32>().assert_i32() * self.hr.num_data
         } else {
             result
         }
@@ -151,8 +151,8 @@ impl Header {
         // These two functions are just used to make the lines in this function
         // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
         // of the type as `u64`.
-        fn u(val: i32) -> u64 { val.to_u64().unwrap() }
-        fn s<T>() -> u64 { mem::size_of::<T>().to_u64().unwrap() }
+        fn u(val: i32) -> u64 { val.assert_u64() }
+        fn s<T>() -> u64 { mem::size_of::<T>().assert_u64() }
 
         let result: u64
             // The whole computation won't overflow because we're multiplying
@@ -165,7 +165,7 @@ impl Header {
             + u(self.hr.size_items) // items
             + u(self.hr.size_data); // data
 
-        result.to_i32().ok_or(Error::MalformedHeader)
+        result.try_i32().ok_or(Error::MalformedHeader)
     }
 }
 

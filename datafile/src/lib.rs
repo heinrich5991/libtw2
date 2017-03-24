@@ -5,7 +5,6 @@ extern crate common;
 extern crate file_offset;
 extern crate hexdump;
 extern crate itertools;
-extern crate num;
 extern crate zlib_minimal as zlib;
 
 pub use file::DataIter;
