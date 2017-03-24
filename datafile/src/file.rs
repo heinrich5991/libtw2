@@ -89,7 +89,7 @@ impl Reader {
             file: callback_data_new.file.into_inner(),
             seek_base: callback_data_new.seek_base.unwrap(),
         };
-        Ok(Reader { 
+        Ok(Reader {
             callback_data: callback_data,
             raw: raw,
         })
