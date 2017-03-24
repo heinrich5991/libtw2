@@ -5,7 +5,6 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
 common = { path = "../common/" }
-file_offset = { path = "../file_offset/" }
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.0"

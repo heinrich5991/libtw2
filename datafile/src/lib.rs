@@ -2,7 +2,6 @@
 extern crate log;
 
 extern crate common;
-extern crate file_offset;
 extern crate hexdump;
 extern crate itertools;
 extern crate zlib_minimal as zlib;
