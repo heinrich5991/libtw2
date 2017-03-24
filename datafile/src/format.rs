@@ -152,7 +152,7 @@ impl Header {
         // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
         // of the type as `u64`.
         fn u(val: i32) -> u64 { val.assert_u64() }
-        fn s<T>() -> u64 { mem::size_of::<T>().assert_u64() }
+        fn s<T>() -> u64 { mem::size_of::<T>().u64() }
 
         let result: u64
             // The whole computation won't overflow because we're multiplying

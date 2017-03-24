@@ -1,6 +1,6 @@
+use common::num::Cast;
 use common::vec;
 use datafile as df;
-use num::ToPrimitive;
 use std::io;
 use std::mem;
 use std::ops;
@@ -61,7 +61,7 @@ pub struct Group {
 }
 
 fn get_index(index: i32, indices: ops::Range<usize>) -> Option<usize> {
-    let index = unwrap_or_return!(index.to_usize(), None) + indices.start;
+    let index = unwrap_or_return!(index.try_usize(), None) + indices.start;
     if !(index < indices.end) {
         return None;
     }
@@ -77,11 +77,11 @@ impl Group {
         let v1 = try!(e(format::MapItemGroupV1::from_slice(raw)));
         let v2 = format::MapItemGroupV2::from_slice(raw);
         let v3 = format::MapItemGroupV3::from_slice(raw);
-        let layers_start = layer_indices.start + try!(e(v1.start_layer.to_usize()));
+        let layers_start = layer_indices.start + try!(e(v1.start_layer.try_usize()));
         if layers_start > layer_indices.end {
             return Err(MapError::MalformedGroup);
         }
-        let layers_end = layers_start + try!(e(v1.num_layers.to_usize()));
+        let layers_end = layers_start + try!(e(v1.num_layers.try_usize()));
         if layers_end > layer_indices.end {
             return Err(MapError::MalformedGroup);
         }
@@ -132,7 +132,7 @@ impl DdraceLayerSounds {
             Some(try!(e(get_index(v1.sound, sound_indices))))
         };
         Ok(DdraceLayerSounds {
-            num_sources: try!(e(v1.num_sources.to_usize())),
+            num_sources: try!(e(v1.num_sources.try_usize())),
             data: try!(e(get_index(v1.data, data_indices))),
             sound: sound,
             legacy: legacy,
@@ -163,7 +163,7 @@ impl LayerQuads {
         };
         let name = v2.map(|v2| v2.name_get()).unwrap_or([0; 12]);
         Ok(LayerQuads {
-            num_quads: try!(e(v1.num_quads.to_usize())),
+            num_quads: try!(e(v1.num_quads.try_usize())),
             data: try!(e(get_index(v1.data, data_indices))),
             image: image,
             name: name,
@@ -234,10 +234,10 @@ impl LayerTilemap {
         let ve = format::MapItemLayerV1TilemapExtraRace::from_slice(raw, v0.version, flags);
         // TODO: Standard settings for game group.
         let color = Color {
-            red: try!(e(v2.color_red.to_u8())),
-            green: try!(e(v2.color_green.to_u8())),
-            blue: try!(e(v2.color_blue.to_u8())),
-            alpha: try!(e(v2.color_alpha.to_u8())),
+            red: try!(e(v2.color_red.try_u8())),
+            green: try!(e(v2.color_green.try_u8())),
+            blue: try!(e(v2.color_blue.try_u8())),
+            alpha: try!(e(v2.color_alpha.try_u8())),
         };
         let color_env_and_offset = if v2.color_env == -1 {
             None
@@ -301,8 +301,8 @@ impl LayerTilemap {
         }
         let name = v3.map(|v3| v3.name_get()).unwrap_or([0; 12]);
         Ok(LayerTilemap {
-            width: try!(e(v2.width.to_u32())),
-            height: try!(e(v2.height.to_u32())),
+            width: try!(e(v2.width.try_u32())),
+            height: try!(e(v2.height.try_u32())),
             type_: type_,
             name: name,
         })
@@ -379,8 +379,8 @@ impl Image {
             Some(try!(e(get_index(v1.data, data_indices.clone()))))
         };
         Ok(Image {
-            width: try!(e(v1.width.to_u32())),
-            height: try!(e(v1.height.to_u32())),
+            width: try!(e(v1.width.try_u32())),
+            height: try!(e(v1.height.try_u32())),
             name: try!(e(get_index(v1.name, data_indices.clone()))),
             data: data,
         })
