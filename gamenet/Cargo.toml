@@ -10,11 +10,5 @@ common = { path = "../common/" }
 packer = { path = "../packer/" }
 warn = ">=0.1.1,<0.3.0"
 
-quickcheck = { version = "0.2.27", optional = true }
-quickcheck_macros = { version = "0.2.26", optional = true }
-
 [dev-dependencies]
 hexdump = "0.1.0"
-
-[features]
-nightly-test = ["quickcheck", "quickcheck_macros"]
