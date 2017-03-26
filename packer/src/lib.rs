@@ -1,6 +1,6 @@
-#![cfg_attr(all(feature = "nightly-test", test), feature(plugin))]
-#![cfg_attr(all(feature = "nightly-test", test), plugin(quickcheck_macros))]
-#[cfg(all(feature = "nightly-test", test))] extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
 extern crate arrayvec;
 extern crate buffer;
@@ -21,7 +21,7 @@ use warn::Warn;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Warning {
     OverlongIntEncoding,
-    IntPadding,
+    NonZeroIntPadding,
     ExcessData,
 }
 
@@ -67,7 +67,7 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Unexpect
         src = *unwrap_or_return!(iter.next(), Err(UnexpectedEnd));
         len += 1;
         if i == 3 && src & 0b1111_0000 != 0 {
-            warn.warn(Warning::IntPadding);
+            warn.warn(Warning::NonZeroIntPadding);
         }
         result |= ((src & 0b0111_1111) as i32) << (6 + 7 * i);
     }
@@ -177,6 +177,9 @@ impl<'a> Unpacker<'a> {
             iter: data.iter(),
         }
     }
+    pub fn is_empty(&self) -> bool {
+        self.iter.len() == 0
+    }
     fn use_up(&mut self) {
         // Advance the iterator to the end.
         self.iter.by_ref().count();
@@ -223,7 +226,7 @@ impl<'a> Unpacker<'a> {
         Ok(raw)
     }
     pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
-        if !self.as_slice().is_empty() {
+        if !self.is_empty() {
             warn.warn(Warning::ExcessData);
         }
         self.use_up();
@@ -350,6 +353,7 @@ mod test {
     use super::Warning::*;
     use super::Warning;
     use super::with_packer;
+    use warn::Ignore;
     use warn::Panic;
 
     fn assert_int_err(bytes: &[u8]) {
@@ -412,8 +416,8 @@ mod test {
     #[test] fn int_m64() { assert_int(b"\x7f", -64) }
     #[test] fn int_min() { assert_int(b"\xff\xff\xff\xff\x0f", i32::min_value()) }
     #[test] fn int_max() { assert_int(b"\xbf\xff\xff\xff\x0f", i32::max_value()) }
-    #[test] fn int_quirk1() { assert_int_warn(b"\xff\xff\xff\xff\xff", 0, IntPadding) }
-    #[test] fn int_quirk2() { assert_int_warn(b"\xbf\xff\xff\xff\xff", -1, IntPadding) }
+    #[test] fn int_quirk1() { assert_int_warn(b"\xff\xff\xff\xff\xff", 0, NonZeroIntPadding) }
+    #[test] fn int_quirk2() { assert_int_warn(b"\xbf\xff\xff\xff\xff", -1, NonZeroIntPadding) }
     #[test] fn int_empty() { assert_int_err(b"") }
     #[test] fn int_extend_empty() { assert_int_err(b"\x80") }
     #[test] fn int_overlong1() { assert_int_warn(b"\x80\x00", 0, OverlongIntEncoding) }
@@ -434,38 +438,28 @@ mod test {
         unpacker.finish(&mut warnings);
         assert_eq!(warnings, [ExcessData]);
     }
-}
 
-#[cfg(all(feature = "nightly-test", test))]
-mod test_nightly {
-    use arrayvec::ArrayVec;
-    use super::Unpacker;
-    use super::with_packer;
-    use warn::Ignore;
-    use warn::Panic;
+    quickcheck! {
+        fn int_roundtrip(int: i32) -> bool {
+            let mut buf: ArrayVec<[u8; 5]> = ArrayVec::new();
+            let mut unpacker = Unpacker::new(with_packer(&mut buf, |mut p| {
+                p.write_int(int).unwrap();
+                p.written()
+            }));
+            let read_int = unpacker.read_int(&mut Panic).unwrap();
+            int == read_int && unpacker.as_slice().is_empty()
+        }
 
-    #[quickcheck]
-    fn int_roundtrip(int: i32) -> bool {
-        let mut buf: ArrayVec<[u8; 5]> = ArrayVec::new();
-        let mut unpacker = Unpacker::new(with_packer(&mut buf, |mut p| {
-            p.write_int(int).unwrap();
-            p.written()
-        }));
-        let read_int = unpacker.read_int(&mut Panic).unwrap();
-        int == read_int && unpacker.as_slice().is_empty()
-    }
+        fn int_no_panic(data: Vec<u8>) -> bool {
+            let mut unpacker = Unpacker::new(&data);
+            let _ = unpacker.read_int(&mut Ignore);
+            true
+        }
 
-    #[quickcheck]
-    fn int_no_panic(data: Vec<u8>) -> bool {
-        let mut unpacker = Unpacker::new(&data);
-        let _ = unpacker.read_int(&mut Ignore);
-        true
-    }
-
-    #[quickcheck]
-    fn string_no_panic(data: Vec<u8>) -> bool {
-        let mut unpacker = Unpacker::new(&data);
-        let _ = unpacker.read_string();
-        true
+        fn string_no_panic(data: Vec<u8>) -> bool {
+            let mut unpacker = Unpacker::new(&data);
+            let _ = unpacker.read_string();
+            true
+        }
     }
 }
