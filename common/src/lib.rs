@@ -1,6 +1,6 @@
-#![cfg_attr(all(test, feature="nightly-test"), feature(plugin))]
-#![cfg_attr(all(test, feature="nightly-test"), plugin(quickcheck_macros))]
-#[cfg(all(test, feature="nightly-test"))] extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
 extern crate arrayvec;
 extern crate file_offset;

@@ -8,8 +8,6 @@ arrayvec = "0.3.12"
 file_offset = { path = "../file_offset/" }
 num-traits = "0.1.32"
 ref_slice = ">=0.1.0,<2.0"
-quickcheck = { version = "0.2.27", optional = true }
-quickcheck_macros = { version = "0.2.26", optional = true }
 
-[features]
-nightly-test = ["quickcheck", "quickcheck_macros"]
+[dev-dependencies]
+quickcheck = "0.4.1"
