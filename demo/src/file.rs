@@ -8,8 +8,9 @@ use std::io;
 use std::path::Path;
 use warn::Warn;
 
+use format::Warning;
 use format;
-use raw::CallbackNew;
+use raw::Callback;
 use raw;
 
 #[derive(Debug)]
@@ -46,37 +47,39 @@ impl From<raw::WrapCallbackError<io::Error>> for Error {
     }
 }
 
-struct CallbackDataNew {
+struct CallbackData {
     file: BufReader<File>,
 }
 
 pub struct Reader {
+    callback_data: CallbackData,
     raw: raw::Reader,
 }
 
 impl Reader {
-    fn new_impl<W: Warn<format::Warning>>(warn: &mut W, file: File)
+    fn new_impl<W: Warn<Warning>>(warn: &mut W, file: File)
         -> Result<Reader, Error>
     {
-        let mut callback_data_new = CallbackDataNew {
+        let mut callback_data = CallbackData {
             file: BufReader::new(file),
         };
-        let raw = raw::Reader::new(warn, &mut callback_data_new)?;
+        let raw = raw::Reader::new(warn, &mut callback_data)?;
         Ok(Reader {
+            callback_data: callback_data,
             raw: raw,
         })
     }
-    pub fn new<W: Warn<format::Warning>>(warn: &mut W, file: File)
+    pub fn new<W: Warn<Warning>>(warn: &mut W, file: File)
         -> Result<Reader, Error>
     {
         Reader::new_impl(warn, file)
     }
     pub fn open<W, P>(warn: &mut W, path: P) -> Result<Reader, Error>
-        where W: Warn<format::Warning>,
+        where W: Warn<Warning>,
               P: AsRef<Path>,
     {
         fn inner<W>(warn: &mut W, path: &Path) -> Result<Reader, Error>
-            where W: Warn<format::Warning>,
+            where W: Warn<Warning>,
         {
             Reader::new_impl(warn, File::open(path)?)
         }
@@ -103,9 +106,15 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[format::Tick] {
         self.raw.timeline_markers()
     }
+    pub fn read_chunk<'a, W>(&'a mut self, warn: &mut W)
+        -> Result<Option<format::Chunk<'a>>, Error>
+        where W: Warn<Warning>,
+    {
+        Ok(self.raw.read_chunk(warn, &mut self.callback_data)?)
+    }
 }
 
-impl CallbackNew for CallbackDataNew {
+impl Callback for CallbackData {
     type Error = io::Error;
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         self.file.read_retry(buffer)

@@ -1,8 +1,11 @@
+use buffer::Buffer;
+use buffer::BufferRef;
+use buffer::with_buffer;
 use common;
 use std::mem;
 use std::slice;
 
-use raw::CallbackNew;
+use raw::Callback;
 use raw::CallbackReadError;
 use raw::ResultExt;
 
@@ -20,7 +23,7 @@ pub fn as_mut_bytes<T: Packed>(x: &mut T) -> &mut [u8] {
     }
 }
 
-pub trait CallbackNewExt: CallbackNew {
+pub trait CallbackExt: Callback {
     fn read_raw<T: Packed>(&mut self) -> Result<T, CallbackReadError<Self::Error>> {
         let mut result = unsafe { mem::zeroed() };
         {
@@ -32,6 +35,20 @@ pub trait CallbackNewExt: CallbackNew {
         }
         Ok(result)
     }
+    fn read_buffer<'d, B: Buffer<'d>>(&mut self, buf: B)
+        -> Result<&'d [u8], Self::Error>
+    {
+        with_buffer(buf, |buf| self.read_buffer_ref(buf))
+    }
+    fn read_buffer_ref<'d, 's>(&mut self, mut buf: BufferRef<'d, 's>)
+        -> Result<&'d [u8], Self::Error>
+    {
+        unsafe {
+            let read = self.read(buf.uninitialized_mut())?;
+            buf.advance(read);
+            Ok(buf.initialized())
+        }
+    }
 }
 
-impl<T: CallbackNew> CallbackNewExt for T { }
+impl<T: Callback> CallbackExt for T { }

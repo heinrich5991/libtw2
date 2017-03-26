@@ -16,6 +16,7 @@ pub mod error;
 pub mod msg;
 pub mod snap_obj;
 
+pub use error::Error;
 pub use snap_obj::SnapObj;
 
 pub const VERSION: &'static [u8] = b"0.6 626fce9a778df4d4";

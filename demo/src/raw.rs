@@ -1,8 +1,48 @@
-use bitmagic::CallbackNewExt;
-use format;
+use arrayvec::ArrayVec;
+use buffer::Buffer;
+use buffer::with_buffer;
+use buffer;
+use common::num::Cast;
+use common::num::LeI32;
+use huffman::instances::TEEWORLDS as HUFFMAN;
+use huffman;
+use packer::Unpacker;
+use packer;
 use warn::Warn;
+use warn;
 
-pub trait CallbackNew {
+use bitmagic::CallbackExt;
+use format::Warning;
+use format;
+
+pub const MAX_SNAPSHOT_SIZE: usize = 65536;
+
+fn huffman_error(e: huffman::DecompressionError) -> format::Error {
+    use huffman::DecompressionError::*;
+    match e {
+        Capacity(_) => format::Error::HuffmanDecompressionTooLong,
+        InvalidInput => format::Error::HuffmanDecompressionError,
+    }
+}
+
+fn packer_warning(w: packer::Warning) -> format::Warning {
+    use packer::Warning::*;
+    match w {
+        OverlongIntEncoding => Warning::IntDecompressionOverlongEncoding,
+        NonZeroIntPadding => Warning::IntDecompressionNonZeroPadding,
+        ExcessData => unreachable!(),
+    }
+}
+
+fn packer_error(_: packer::UnexpectedEnd) -> format::Error {
+    format::Error::IntDecompressionError
+}
+
+fn buffer_error(_: buffer::CapacityError) -> format::Error {
+    format::Error::IntDecompressionTooLong
+}
+
+pub trait Callback {
     type Error;
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
     fn skip(&mut self, num_bytes: u32) -> Result<(), Self::Error>;
@@ -64,16 +104,24 @@ impl<T, CE> CallbackReadResultExt for Result<T, CallbackReadError<CE>> {
     }
 }
 
-pub struct Reader {
-    header_version: format::HeaderVersion,
+struct Inner {
+    version: format::Version,
     header: format::Header,
     timeline_markers: format::TimelineMarkers,
+    current_tick: Option<format::Tick>,
+    buffer1: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+    buffer2: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+}
+
+pub struct Reader {
+    i: Inner,
+    error_encountered: bool,
 }
 
 impl Reader {
     pub fn new<W, CB>(warn: &mut W, cb: &mut CB) -> Result<Reader, Error<CB::Error>>
-        where W: Warn<format::Warning>,
-              CB: CallbackNew,
+        where W: Warn<Warning>,
+              CB: Callback,
     {
         let header_version: format::HeaderVersionPacked =
             cb.read_raw().on_eof(format::Error::TooShortHeaderVersion)?;
@@ -92,37 +140,123 @@ impl Reader {
         let timeline_markers = timeline_markers.unpack(warn)?;
         cb.skip(header.map_size).wrap()?;
 
-        while let Some(chunk_header) = format::ChunkHeader::read(warn, cb, version)? {
-            println!("{:?}", chunk_header);
-            if let format::ChunkHeader::Chunk(_, size) = chunk_header {
-                cb.skip(size).wrap()?;
-            }
-        }
         Ok(Reader {
-            header_version: header_version,
-            header: header,
-            timeline_markers: timeline_markers,
+            i: Inner {
+                version: version,
+                header: header,
+                timeline_markers: timeline_markers,
+                current_tick: None,
+                buffer1: ArrayVec::new(),
+                buffer2: ArrayVec::new(),
+            },
+            error_encountered: false,
         })
     }
     pub fn version(&self) -> format::Version {
-        self.header_version.version
+        self.i.version
     }
     pub fn net_version(&self) -> &[u8] {
-        &self.header.net_version
+        &self.i.header.net_version
     }
     pub fn map_name(&self) -> &[u8] {
-        &self.header.map_name
+        &self.i.header.map_name
     }
     pub fn map_size(&self) -> u32 {
-        self.header.map_size
+        self.i.header.map_size
     }
     pub fn map_crc(&self) -> u32 {
-        self.header.map_crc
+        self.i.header.map_crc
     }
     pub fn timestamp(&self) -> &[u8] {
-        &self.header.timestamp
+        &self.i.header.timestamp
     }
     pub fn timeline_markers(&self) -> &[format::Tick] {
-        &self.timeline_markers.timeline_markers
+        &self.i.timeline_markers.timeline_markers
+    }
+    pub fn read_chunk<'a, W, CB>(&'a mut self, warn: &mut W, cb: &mut CB)
+        -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+        where W: Warn<Warning>,
+              CB: Callback,
+    {
+        assert!(!self.error_encountered, "reading new chunks isn't supported after errors");
+        let result = self.i.read_chunk(warn, cb);
+        if let Err(_) = result {
+            self.error_encountered = true;
+        }
+        result
+    }
+}
+
+impl Inner {
+    pub fn read_chunk<'a, W, CB>(&'a mut self, warn: &mut W, cb: &mut CB)
+        -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+        where W: Warn<Warning>,
+              CB: Callback,
+    {
+        use format::Chunk;
+        use format::ChunkHeader;
+        use format::ChunkType;
+        use format::Tickmarker;
+
+        let chunk_header;
+        if let Some(ch) = ChunkHeader::read(warn, cb, self.version)? {
+            chunk_header = ch;
+        } else {
+            return Ok(None);
+        }
+        match chunk_header {
+            ChunkHeader::Tickmarker(_, Tickmarker::Absolute(t)) => {
+                if let Some(previous) = self.current_tick {
+                    if previous >= t {
+                        warn.warn(Warning::NonIncreasingTick);
+                    }
+                }
+                self.current_tick = Some(t);
+                Ok(Some(Chunk::Tick(t)))
+            }
+            ChunkHeader::Tickmarker(_, Tickmarker::Delta(d)) => {
+                let cur = self.current_tick.unwrap_or_else(|| {
+                    warn.warn(Warning::StartingDeltaTick);
+                    format::Tick(0)
+                });
+                let result = format::Tick(cur.0.wrapping_add(d.i32()));
+                if result < cur {
+                    warn.warn(Warning::TickOverflow);
+                }
+                self.current_tick = Some(result);
+                Ok(Some(Chunk::Tick(result)))
+            }
+            ChunkHeader::Chunk(type_, size) => {
+                {
+                    self.buffer1.clear();
+                    let result = cb.read_buffer(self.buffer1.cap_at(size.usize())).wrap()?;
+                    if result.len() != size.usize() {
+                        return Err(format::Error::TooShort.into());
+                    }
+                }
+                self.buffer2.clear();
+                HUFFMAN.decompress(&self.buffer1, &mut self.buffer2)
+                    .map_err(huffman_error)?;
+                {
+                    self.buffer1.clear();
+                    let mut u = Unpacker::new(&self.buffer2);
+                    with_buffer(&mut self.buffer1, |mut buf| -> Result<(), format::Error> {
+                        while !u.is_empty() {
+                            let i = u.read_int(&mut warn::rev_map(warn, packer_warning))
+                                .map_err(packer_error)?;
+                            let packed = LeI32::from_i32(i);
+                            buf.write(packed.as_bytes()).map_err(buffer_error)?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                Ok(Some(match type_ {
+                    ChunkType::Unknown => return self.read_chunk(warn, cb),
+                    ChunkType::Snapshot => Chunk::Snapshot(&self.buffer1),
+                    ChunkType::SnapshotDelta => Chunk::SnapshotDelta(&self.buffer1),
+                    ChunkType::Message => Chunk::Message(&self.buffer1),
+                }))
+            }
+        }
     }
 }

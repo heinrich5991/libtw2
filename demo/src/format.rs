@@ -9,9 +9,9 @@ use std::u8;
 use warn::Warn;
 use warn;
 
-use bitmagic::CallbackNewExt;
+use bitmagic::CallbackExt;
 use bitmagic::Packed;
-use raw::CallbackNew;
+use raw::Callback;
 use raw::CallbackReadError;
 use raw::CallbackReadResultExt;
 use raw;
@@ -31,9 +31,14 @@ pub enum Version {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
     NonAbsoluteTickMarkerTick,
+    NonIncreasingTick,
     NonIncreasingTimelineMarkers,
     NonZeroTickmarkerPadding,
+    IntDecompressionOverlongEncoding,
+    IntDecompressionNonZeroPadding,
     OverlongChunkSizeEncoding,
+    StartingDeltaTick,
+    TickOverflow,
     UnknownChunkType,
     WeirdMapName,
     WeirdNetVersion,
@@ -44,6 +49,10 @@ pub enum Warning {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
+    HuffmanDecompressionError,
+    HuffmanDecompressionTooLong,
+    IntDecompressionError,
+    IntDecompressionTooLong,
     InvalidNumTimelineMarkers,
     NegativeLength,
     NegativeMapSize,
@@ -71,6 +80,14 @@ impl Version {
             Version::V5 => 5,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum Chunk<'a> {
+    Tick(Tick),
+    Snapshot(&'a [u8]),
+    SnapshotDelta(&'a [u8]),
+    Message(&'a [u8]),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -325,7 +342,7 @@ impl ChunkHeader {
     pub fn read<W, CB>(warn: &mut W, cb: &mut CB, version: Version)
         -> Result<Option<ChunkHeader>, raw::Error<CB::Error>>
         where W: Warn<Warning>,
-              CB: CallbackNew,
+              CB: Callback,
     {
         let chunk_header_start: ChunkHeaderStartPacked = match cb.read_raw() {
             Err(CallbackReadError::EndOfFile) => return Ok(None),
@@ -338,7 +355,7 @@ impl ChunkHeader {
     fn read_rest<W, CB>(warn: &mut W, cb: &mut CB, chs: ChunkHeaderStart)
         -> Result<ChunkHeader, raw::Error<CB::Error>>
         where W: Warn<Warning>,
-              CB: CallbackNew,
+              CB: Callback,
     {
         use self::ChunkHeaderStart as Chs;
         use self::ChunkSize as Cs;

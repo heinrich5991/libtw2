@@ -16,6 +16,17 @@ use warn::Panic;
 use warn::Warn;
 
 impl<'a> Game<'a> {
+    pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>
+        where W: Warn<Warning>
+    {
+        if let SystemOrGame::Game(msg_id) =
+            SystemOrGame::decode_id(try!(p.read_int(warn)))
+        {
+            Game::decode_msg(warn, msg_id, p)
+        } else {
+            Err(Error::UnknownId)
+        }
+    }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {

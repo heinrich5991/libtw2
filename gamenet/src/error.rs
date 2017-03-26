@@ -1,6 +1,6 @@
 use packer;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
     ControlCharacters,
     IntOutOfRange,

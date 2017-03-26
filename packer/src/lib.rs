@@ -18,17 +18,17 @@ use std::mem;
 use std::slice;
 use warn::Warn;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
     OverlongIntEncoding,
     NonZeroIntPadding,
     ExcessData,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExcessData;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct WeirdStringTermination;
 
 impl From<ExcessData> for Warning {
@@ -37,9 +37,14 @@ impl From<ExcessData> for Warning {
     }
 }
 
-#[derive(Clone, Copy, Debug)] pub struct ControlCharacters;
-#[derive(Clone, Copy, Debug)] pub struct IntOutOfRange;
-#[derive(Clone, Copy, Debug)] pub struct UnexpectedEnd;
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ControlCharacters;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IntOutOfRange;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UnexpectedEnd;
 
 // Format: ESDD_DDDD EDDD_DDDD EDDD_DDDD EDDD_DDDD PPPP_DDDD
 // E - Extend
