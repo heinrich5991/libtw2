@@ -15,12 +15,7 @@ optional = "0.0.12"
 void = ">=0.0.4,<2.0.0"
 warn = ">=0.1.1,<0.3.0"
 
-quickcheck = { version = "0.2.27", optional = true }
-quickcheck_macros = { version = "0.2.26", optional = true }
-
 [dev-dependencies]
 hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
-
-[features]
-nightly-test = ["quickcheck", "quickcheck_macros"]
+quickcheck = "0.4.1"

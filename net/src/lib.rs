@@ -1,6 +1,4 @@
-#![cfg_attr(all(feature = "nightly-test", test), feature(plugin))]
-#![cfg_attr(all(feature = "nightly-test", test), plugin(quickcheck_macros))]
-#[cfg(all(feature = "nightly-test", test))] extern crate quickcheck;
+#[cfg(test)] #[macro_use] extern crate quickcheck;
 #[cfg(test)] extern crate hexdump;
 #[cfg(test)] extern crate itertools;
 
