@@ -8,11 +8,7 @@ arrayvec = "0.3.12"
 buffer = "0.1.2"
 common = { path = "../common/" }
 itertools = ">=0.3.0,<0.5.0"
-quickcheck = { version = "0.2.27", optional = true }
-quickcheck_macros = { version = "0.2.26", optional = true }
 
 [dev-dependencies]
+quickcheck = "0.4.1"
 huffman-reference = { path = "reference" }
-
-[features]
-nightly-test = ["quickcheck", "quickcheck_macros"]

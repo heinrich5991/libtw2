@@ -1,6 +1,6 @@
-#![cfg_attr(all(test, feature="nightly-test"), feature(plugin))]
-#![cfg_attr(all(test, feature="nightly-test"), plugin(quickcheck_macros))]
-#[cfg(all(test, feature="nightly-test"))] extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
 extern crate arrayvec;
 extern crate buffer;
@@ -387,21 +387,21 @@ impl fmt::Display for SymbolRepr {
     }
 }
 
-#[cfg(all(test, feature="nightly-test"))]
-mod test_nightly {
+#[cfg(test)]
+mod test {
     use super::Node;
     use super::SymbolRepr;
 
-    #[quickcheck]
-    fn roundtrip_node((v0, v1): (u16, u16)) -> bool {
-        let n = Node { children: [v0, v1] };
-        n.to_symbol_repr().to_node() == n
-    }
+    quickcheck! {
+        fn roundtrip_node(v: (u16, u16)) -> bool {
+            let n = Node { children: [v.0, v.1] };
+            n.to_symbol_repr().to_node() == n
+        }
 
-    #[quickcheck]
-    fn roundtrip_symbol((v0, v1): (u32, u8)) -> bool {
-        let v0 = v0 ^ ((v0 >> 24) << 24);
-        let s = SymbolRepr { bits: v0, num_bits: v1 };
-        s.to_node().to_symbol_repr() == s
+        fn roundtrip_symbol(v: (u32, u8)) -> bool {
+            let v0 = v.0 ^ ((v.0 >> 24) << 24);
+            let s = SymbolRepr { bits: v0, num_bits: v.1 };
+            s.to_node().to_symbol_repr() == s
+        }
     }
 }
