@@ -12,7 +12,6 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger 0.0.1",
  "map 0.0.1",
- "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ndarray 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "net 0.0.1",
  "packer 0.0.1",
@@ -81,6 +80,7 @@ dependencies = [
  "buffer 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.0.1",
  "huffman 0.0.1",
+ "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
  "warn 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

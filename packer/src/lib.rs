@@ -174,13 +174,22 @@ pub fn with_packer<'a, B: Buffer<'a>, F, R>(buf: B, f: F) -> R
 
 pub struct Unpacker<'a> {
     iter: slice::Iter<'a, u8>,
+    demo: bool,
 }
 
 impl<'a> Unpacker<'a> {
-    pub fn new(data: &[u8]) -> Unpacker {
+    fn new_impl(data: &[u8], demo: bool) -> Unpacker {
         Unpacker {
             iter: data.iter(),
+            demo: demo,
         }
+    }
+    pub fn new(data: &[u8]) -> Unpacker {
+        Unpacker::new_impl(data, false)
+    }
+    pub fn new_from_demo(data: &[u8]) -> Unpacker {
+        assert!(data.len() % 4 == 0, "demo data must be padded to a multiple of four bytes");
+        Unpacker::new_impl(data, true)
     }
     pub fn is_empty(&self) -> bool {
         self.iter.len() == 0
@@ -231,8 +240,15 @@ impl<'a> Unpacker<'a> {
         Ok(raw)
     }
     pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
-        if !self.is_empty() {
-            warn.warn(Warning::ExcessData);
+        if !self.demo {
+            if !self.is_empty() {
+                warn.warn(Warning::ExcessData);
+            }
+        } else {
+            let rest = self.as_slice();
+            if rest.len() >= 4 || rest.iter().any(|&b| b != 0) {
+                warn.warn(Warning::ExcessData);
+            }
         }
         self.use_up();
     }

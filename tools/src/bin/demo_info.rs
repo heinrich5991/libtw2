@@ -2,7 +2,6 @@ extern crate demo;
 extern crate gamenet;
 extern crate hexdump;
 extern crate logger;
-#[macro_use] extern crate matches;
 extern crate packer;
 extern crate warn;
 
@@ -111,7 +110,7 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path)
     while let Some(chunk) = reader.read_chunk(warn::wrap(warn))? {
         match chunk {
             demo::Chunk::Message(bytes) => {
-                let mut u = packer::Unpacker::new(bytes);
+                let mut u = packer::Unpacker::new_from_demo(bytes);
                 println!("message {:?}", Game::decode(warn::wrap(warn), &mut u)?);
             },
             demo::Chunk::Tick(demo::Tick(t)) => println!("tick={}", t),
@@ -135,9 +134,6 @@ fn main() {
         have_args = true;
         let path = Path::new(&arg);
         match process(warn::closure(&mut |w| {
-            if matches!(w, Warning::Gamenet(packer::Warning::ExcessData)) {
-                return;
-            }
             println!("{}: {:?}", path.display(), w);
             update_warning_stats(&mut error_stats, w);
         }), path) {
