@@ -8,5 +8,6 @@ arrayvec = "0.3.22"
 buffer = "0.1.7"
 common = { path = "../common/" }
 huffman = { path = "../huffman/" }
+matches = "0.1.1"
 packer = { path = "../packer/" }
 warn = "0.2.1"

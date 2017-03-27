@@ -85,8 +85,8 @@ impl Version {
 #[derive(Clone, Debug)]
 pub enum Chunk<'a> {
     Tick(Tick),
-    Snapshot(&'a [u8]),
-    SnapshotDelta(&'a [u8]),
+    Snapshot(&'a [i32]),
+    SnapshotDelta(&'a [i32]),
     Message(&'a [u8]),
 }
 

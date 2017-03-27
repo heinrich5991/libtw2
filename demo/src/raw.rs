@@ -111,6 +111,7 @@ struct Inner {
     current_tick: Option<format::Tick>,
     buffer1: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
     buffer2: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+    buffer3: ArrayVec<[i32; MAX_SNAPSHOT_SIZE / 4]>,
 }
 
 pub struct Reader {
@@ -148,6 +149,7 @@ impl Reader {
                 current_tick: None,
                 buffer1: ArrayVec::new(),
                 buffer2: ArrayVec::new(),
+                buffer3: ArrayVec::new(),
             },
             error_encountered: false,
         })
@@ -237,7 +239,17 @@ impl Inner {
                 self.buffer2.clear();
                 HUFFMAN.decompress(&self.buffer1, &mut self.buffer2)
                     .map_err(huffman_error)?;
-                {
+                if matches!(type_, ChunkType::Snapshot | ChunkType::SnapshotDelta) {
+                    self.buffer3.clear();
+                    let mut u = Unpacker::new(&self.buffer2);
+                    while !u.is_empty() {
+                        let i = u.read_int(&mut warn::rev_map(warn, packer_warning))
+                            .map_err(packer_error)?;
+                        if self.buffer3.push(i).is_some() {
+                            return Err(format::Error::IntDecompressionTooLong.into());
+                        }
+                    }
+                } else {
                     self.buffer1.clear();
                     let mut u = Unpacker::new(&self.buffer2);
                     with_buffer(&mut self.buffer1, |mut buf| -> Result<(), format::Error> {
@@ -252,8 +264,8 @@ impl Inner {
                 }
                 Ok(Some(match type_ {
                     ChunkType::Unknown => return self.read_chunk(warn, cb),
-                    ChunkType::Snapshot => Chunk::Snapshot(&self.buffer1),
-                    ChunkType::SnapshotDelta => Chunk::SnapshotDelta(&self.buffer1),
+                    ChunkType::Snapshot => Chunk::Snapshot(&self.buffer3),
+                    ChunkType::SnapshotDelta => Chunk::SnapshotDelta(&self.buffer3),
                     ChunkType::Message => Chunk::Message(&self.buffer1),
                 }))
             }
