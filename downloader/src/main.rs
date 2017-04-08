@@ -6,7 +6,6 @@ extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
 extern crate logger;
-extern crate net;
 extern crate packer;
 extern crate rand;
 extern crate snapshot;
@@ -50,7 +49,6 @@ use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use net::net::ChunkOrEvent;
 use packer::IntUnpacker;
 use packer::Unpacker;
 use packer::with_packer;
@@ -100,6 +98,18 @@ impl<'a, W: fmt::Debug> warn::Warn<W> for WarnSnap<'a> {
 
 fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>> {
     iter.map(|s| Addr::from_str(&s).ok()).collect()
+}
+
+fn check_dummy_map(name: &[u8], crc: u32, size: i32) -> bool {
+    if name != b"dummy" {
+        return false;
+    }
+    match (crc, size) {
+        (0xbeae0b9f, 549) => {},
+        (0x6c760ac4, 306) => {},
+        _ => warn!("unknown dummy map, crc={}, size={}", crc, size),
+    }
+    true
 }
 
 struct Download {
@@ -152,7 +162,7 @@ impl Peer {
     fn needs_tick(&self) -> Timeout {
         cmp::min(Timeout::active(self.progress_timeout), self.state.needs_tick())
     }
-    fn tick<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) -> bool {
+    fn tick<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) {
         // TODO: What happens with peers that are already disconnected?
         let vote;
         match self.state {
@@ -163,15 +173,16 @@ impl Peer {
         if vote {
             if self.vote(pid, loop_) {
                 info!("voting done");
-                return true;
+                loop_.disconnect(pid, b"downloader");
+                return;
             }
             loop_.flush(pid);
         }
         if self.has_timed_out(loop_) {
             error!("timed out due to lack of progress");
-            return true;
+            loop_.disconnect(pid, b"downloader (timeout)");
+            return;
         }
-        false
     }
     fn vote<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) -> bool {
         fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, loop_: &mut L) {
@@ -326,36 +337,27 @@ impl<L: Loop> Application<L> for Main {
         self.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
     }
     fn on_tick(&mut self, loop_: &mut L) {
-        let mut remove = vec![];
         for (pid, peer) in self.peers.iter_mut() {
-            if peer.tick(pid, loop_) {
-                loop_.disconnect(pid, b"downloader");
-                remove.push(pid);
-            }
-        }
-        for pid in remove {
-            self.peers.remove(pid);
+            peer.tick(pid, loop_);
         }
     }
-    fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
-        let disconnect = {
-            let mut main = MainLoop {
-                peers: &mut self.peers,
-                loop_: loop_,
-            };
-            main.process_event(event)
-        };
-        if disconnect {
-            let pid = match event {
-                ChunkOrEvent::Chunk(Chunk { pid, ..  }) => pid,
-                ChunkOrEvent::Connect(pid) => pid,
-                ChunkOrEvent::Disconnect(pid, _) => pid,
-                ChunkOrEvent::Ready(pid) => pid,
-                _ => unreachable!(),
-            };
-            loop_.disconnect(pid, b"downloader");
-            self.peers.remove(pid);
+    fn on_packet(&mut self, loop_: &mut L, chunk: Chunk) {
+        self.loop_(loop_).on_packet(chunk.pid, chunk.vital, chunk.data);
+    }
+    fn on_connless_packet(&mut self, _: &mut L, chunk: ConnlessChunk) {
+        warn!("connless packet {} {:?}", chunk.addr, pretty::Bytes::new(chunk.data));
+    }
+    fn on_connect(&mut self, _: &mut L, _: PeerId) {
+        unreachable!();
+    }
+    fn on_ready(&mut self, loop_: &mut L, pid: PeerId) {
+        self.loop_(loop_).on_ready(pid);
+    }
+    fn on_disconnect(&mut self, _: &mut L, pid: PeerId, remote: bool, reason: &[u8]) {
+        if remote {
+            error!("disconnected pid={:?} error={}", pid, pretty::AlmostString::new(reason));
         }
+        self.peers.remove(pid);
     }
 }
 
@@ -373,9 +375,15 @@ impl Main {
         fs::create_dir_all("downloading").unwrap();
         loop_.run(main);
     }
+    fn loop_<'a, L: Loop+'a>(&'a mut self, loop_: &'a mut L) -> MainLoop<'a, L> {
+        MainLoop {
+            peers: &mut self.peers,
+            loop_: loop_,
+        }
+    }
 }
 impl<'a, L: Loop> MainLoop<'a, L> {
-    fn process_connected_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) -> bool {
+    fn on_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
         let _ = vital;
         let msg;
         match SystemOrGame::decode(&mut Warn(data), &mut Unpacker::new(data)) {
@@ -383,7 +391,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
             Err(err) => {
                 warn!("decode error {:?}:", err);
                 hexdump(LogLevel::Warn, data);
-                return false;
+                return;
             }
         }
         debug!("{:?}", msg);
@@ -419,7 +427,8 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         if let Some(_) = size.try_usize() {
                             if name.iter().any(|&b| b == b'/' || b == b'\\') {
                                 error!("invalid map name");
-                                return true;
+                                self.loop_.disconnect(pid, b"downloader (error)");
+                                return;
                             }
                             match peer.state {
                                 PeerState::MapChange => {},
@@ -427,10 +436,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                                 PeerState::ReadyToEnter if peer.dummy_map => {},
                                 _ => warn!("map change from state {:?}", peer.state),
                             }
-                            peer.dummy_map =
-                                crc as u32 == 0xbeae0b9f
-                                && size == 549
-                                && name == b"dummy";
+                            peer.dummy_map = check_dummy_map(name, crc as u32, size);
                             peer.current_votes.clear();
                             peer.num_snaps_since_reset = 0;
                             peer.snaps.reset();
@@ -458,7 +464,8 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             progress = true;
                         } else {
                             error!("invalid map size");
-                            return true;
+                            self.loop_.disconnect(pid, b"downloader (error)");
+                            return;
                         }
                     },
                     System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_)
@@ -477,7 +484,8 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                                     let num_players = num_players(snap);
                                     if num_players > 1 {
                                         error!("more than one player ({}) detected, quitting", num_players);
-                                        return true;
+                                        self.loop_.disconnect(pid, b"downloader");
+                                        return;
                                     }
                                 },
                                 Ok(None) => {
@@ -488,6 +496,11 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             }
                         }
                         if check_num_snaps && peer.num_snaps_since_reset % 25 == 3 {
+                            if peer.dummy_map && peer.num_snaps_since_reset == 3 {
+                                // DDNet needs the INPUT message as the first
+                                // chunk of the packet.
+                                self.loop_.force_flush(pid);
+                            }
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
                             self.loop_.sends(pid, Input {
                                 ack_snapshot: tick,
@@ -640,32 +653,14 @@ impl<'a, L: Loop> MainLoop<'a, L> {
             warn!("unprocessed message {:?}", msg);
         }
         self.loop_.flush(pid);
-        false
     }
-    fn process_event(&mut self, chunk: ChunkOrEvent<Addr>) -> bool {
-        match chunk {
-            ChunkOrEvent::Ready(pid) => {
-                self.peers[pid].state = PeerState::MapChange;
-                self.loop_.sends(pid, Info {
-                    version: VERSION,
-                    password: Some(b""),
-                });
-                self.loop_.flush(pid);
-                false
-            }
-            ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
-                self.process_connected_packet(pid, vital, data)
-            }
-            ChunkOrEvent::Connless(ConnlessChunk { addr, data, .. }) => {
-                warn!("connless packet {} {:?}", addr, pretty::Bytes::new(data));
-                false
-            }
-            ChunkOrEvent::Disconnect(pid, reason) => {
-                error!("disconnected pid={:?} error={}", pid, pretty::AlmostString::new(reason));
-                false
-            },
-            ChunkOrEvent::Connect(..) => unreachable!(),
-        }
+    fn on_ready(&mut self, pid: PeerId) {
+        self.peers[pid].state = PeerState::MapChange;
+        self.loop_.sends(pid, Info {
+            version: VERSION,
+            password: Some(b""),
+        });
+        self.loop_.flush(pid);
     }
 }
 

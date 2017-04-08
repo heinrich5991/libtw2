@@ -12,7 +12,6 @@ hexdump = "0.1.0"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
-net = { path = "../net/" }
 packer = { path = "../packer/" }
 rand = "0.3.10"
 snapshot = { path = "../snapshot/" }

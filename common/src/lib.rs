@@ -10,6 +10,7 @@ extern crate ref_slice;
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;
 pub use slice::relative_size_of_mult;
+pub use takeable::Takeable;
 
 #[macro_use]
 mod macros;
@@ -19,4 +20,5 @@ pub mod map_iter;
 pub mod num;
 pub mod pretty;
 pub mod slice;
+pub mod takeable;
 pub mod vec;

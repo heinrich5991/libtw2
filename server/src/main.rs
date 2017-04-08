@@ -1,5 +1,5 @@
 extern crate arrayvec;
-extern crate common;
+#[macro_use] extern crate common;
 extern crate datafile;
 extern crate event_loop;
 extern crate gamenet;
@@ -10,7 +10,6 @@ extern crate logger;
 extern crate map;
 #[macro_use] extern crate matches;
 extern crate ndarray;
-extern crate net;
 extern crate packer;
 extern crate snapshot;
 extern crate socket;
@@ -19,11 +18,14 @@ extern crate world;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
+use common::Takeable;
 use common::num::Cast;
 use common::num::CastFloat;
 use common::pretty::AlmostString;
 use event_loop::Addr;
 use event_loop::Application;
+use event_loop::Chunk;
+use event_loop::ConnlessChunk;
 use event_loop::Loop;
 use event_loop::PeerId;
 use event_loop::SocketLoop;
@@ -33,8 +35,8 @@ use event_loop::collections::PeerMap;
 use event_loop::collections::PeerSet;
 use gamenet::SnapObj;
 use gamenet::VERSION;
-use gamenet::enums::MAX_CLIENTS;
 use gamenet::enums::Emote;
+use gamenet::enums::MAX_CLIENTS;
 use gamenet::enums::Team;
 use gamenet::enums::Weapon;
 use gamenet::msg::Connless;
@@ -56,9 +58,6 @@ use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use ndarray::Array2;
-use net::net::Chunk;
-use net::net::ChunkOrEvent;
-use net::net::ConnlessChunk;
 use packer::Unpacker;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
@@ -67,11 +66,14 @@ use packer::with_packer;
 use snapshot::snap;
 use std::fmt::Write;
 use std::fmt;
+use std::fs::File;
+use std::io::Read;
 use std::time::Duration;
 use world::vec2;
 
 const TICKS_PER_SECOND: u32 = 50;
 const PLAYER_NAME_LENGTH: usize = 16-1; // -1 for null termination
+const MAPDOWNLOAD_CHUNK_SIZE: u64 = 1024-128;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -136,43 +138,55 @@ impl SnapBuilderExt for snap::Builder {
     }
 }
 
-pub struct Takeable<T> {
-    inner: Option<T>,
+struct MapContents {
+    // TODO: Implement an actual memory map. Is that possible in a safe way?
+    contents: Vec<u8>,
 }
 
-impl<T: Default> Default for Takeable<T> {
-    fn default() -> Takeable<T> {
-        Takeable::new(Default::default())
+impl Default for MapContents {
+    fn default() -> MapContents {
+        let mut file = File::open("dm1.map").unwrap();
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        MapContents {
+            contents: contents,
+        }
     }
 }
 
-impl<T> Takeable<T> {
-    pub fn new(value: T) -> Takeable<T> {
-        Takeable {
-            inner: Some(value),
+impl MapContents {
+    fn serve_request(&self, rmd: system::RequestMapData) -> Option<system::MapData> {
+        let chunk = unwrap_or_return!(rmd.chunk.try_u64());
+        let offset = chunk * MAPDOWNLOAD_CHUNK_SIZE;
+        if offset >= self.contents.len().u64() {
+            return None;
         }
-    }
-    pub fn empty() -> Takeable<T> {
-        Takeable {
-            inner: None,
+        let last = offset + MAPDOWNLOAD_CHUNK_SIZE >= self.contents.len().u64();
+        let offset = offset.assert_usize();
+        let data;
+        if !last {
+            data = &self.contents[offset..offset+MAPDOWNLOAD_CHUNK_SIZE.assert_usize()];
+        } else {
+            data = &self.contents[offset..];
         }
-    }
-    pub fn take(&mut self) -> T {
-        self.inner.take().unwrap_or_else(|| panic!("value taken when absent"))
-    }
-    pub fn restore(&mut self, value: T) {
-        assert!(self.inner.is_none(), "value restored when already present");
-        self.inner = Some(value);
+        Some(system::MapData {
+            last: last as i32,
+            crc: 0xf2159e6e_u32 as i32,
+            chunk: rmd.chunk,
+            data: data,
+        })
     }
 }
 
 struct Map {
     spawn: vec2,
     collision: Array2<Option<world::CollisionType>>,
+    data: MapContents,
 }
 
 impl Default for Map {
     fn default() -> Map {
+        let map_contents = MapContents::default();
         let reader = datafile::Reader::open("dm1.map").unwrap();
         let mut map = map::Reader::from_datafile(reader);
         map.check_version().unwrap();
@@ -186,6 +200,7 @@ impl Default for Map {
                 3 => Some(world::CollisionType::Unhookable),
                 _ => None,
             }),
+            data: map_contents,
         };
         for y in 0..result.collision.dim().0 {
             for x in 0..result.collision.dim().1 {
@@ -338,11 +353,23 @@ impl<L: Loop> Application<L> for Server {
     }
     fn on_tick(&mut self, loop_: &mut L) {
         if !self.peers.is_empty() {
-            ServerLoop { server: self, loop_: loop_ }.tick();
+            self.loop_(loop_).tick();
         }
     }
-    fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent<Addr>) {
-        ServerLoop { server: self, loop_: loop_ }.process_event(event);
+    fn on_packet(&mut self, loop_: &mut L, chunk: Chunk) {
+        self.loop_(loop_).on_packet(chunk.pid, chunk.vital, chunk.data);
+    }
+    fn on_connless_packet(&mut self, loop_: &mut L, chunk: ConnlessChunk) {
+        self.loop_(loop_).on_connless_packet(chunk.addr, chunk.data);
+    }
+    fn on_connect(&mut self, loop_: &mut L, pid: PeerId) {
+        self.loop_(loop_).on_connect(pid);
+    }
+    fn on_ready(&mut self, _: &mut L, _: PeerId) {
+        unreachable!();
+    }
+    fn on_disconnect(&mut self, loop_: &mut L, pid: PeerId, remote: bool, reason: &[u8]) {
+        self.loop_(loop_).on_disconnect(pid, remote, reason);
     }
 }
 
@@ -350,9 +377,12 @@ impl Server {
     fn run<L: Loop>() {
         L::accept_connections_on_port(8303).run(Server::default());
     }
+    fn loop_<'a, L: Loop+'a>(&'a mut self, loop_: &'a mut L) -> ServerLoop<'a, L> {
+        ServerLoop { server: self, loop_: loop_ }
+    }
 }
 impl<'a, L: Loop> ServerLoop<'a, L> {
-    fn process_client_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
+    fn on_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
         use PeerState::*;
 
         let msg = match SystemOrGame::decode(&mut Warn(pid, data), &mut Unpacker::new(data)) {
@@ -368,8 +398,8 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             return;
         }
         let mut processed = false;
-        let mut peer = self.server.peers.entry(pid).assert_occupied();
-        match (&peer.get().state, msg) {
+        let peer = &mut self.server.peers[pid];
+        match (&peer.state, msg) {
             (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
                 if info.version == VERSION {
                     if info.password == Some(b"foobar") {
@@ -379,10 +409,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                             size: 5805,
                         });
                         self.loop_.flush(pid);
-                        peer.get_mut().state = SystemReady;
+                        peer.state = SystemReady;
                     } else {
                         self.loop_.disconnect(pid, b"Wrong password");
-                        peer.remove();
                     }
                 } else {
                     let mut buf: ArrayString<[u8; 128]> = ArrayString::new();
@@ -400,13 +429,13 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                         )
                     }.unwrap());
                     self.loop_.disconnect(pid, buf.as_bytes());
-                    peer.remove();
                 }
                 processed = true;
             }
-            (&SystemReady, SystemOrGame::System(System::RequestMapData(..))) => {
-                self.loop_.disconnect(pid, b"Map download not supported");
-                peer.remove();
+            (&SystemReady, SystemOrGame::System(System::RequestMapData(rmd))) => {
+                if let Some(md) = self.server.map.data.serve_request(rmd) {
+                    self.loop_.sends(pid, md);
+                }
             }
             (&SystemReady, SystemOrGame::System(System::Ready(system::Ready))) => {
                 self.loop_.sendg(pid, game::SvMotd {
@@ -414,7 +443,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 });
                 self.loop_.sends(pid, system::ConReady);
                 self.loop_.flush(pid);
-                peer.get_mut().state = GameInfo;
+                peer.state = GameInfo;
                 processed = true;
             }
             (&GameInfo, SystemOrGame::Game(Game::ClStartInfo(info))) => {
@@ -423,12 +452,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
                 self.loop_.flush(pid);
-                peer.get_mut().state = SystemEnterGame(SystemEnterGameState::new(info.name));
+                peer.state = SystemEnterGame(SystemEnterGameState::new(info.name));
                 processed = true;
             }
             (&SystemEnterGame(..), SystemOrGame::System(System::EnterGame(system::EnterGame))) => {
-                let system_enter_game = peer.get_mut().state.assert_system_enter_game().clone();
-                peer.get_mut().state = Ingame(system_enter_game.into());
+                let system_enter_game = peer.state.assert_system_enter_game().clone();
+                peer.state = Ingame(system_enter_game.into());
                 processed = true;
             }
             (_, SystemOrGame::System(System::RconAuth(..))) => {
@@ -438,7 +467,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
             }
             (&Ingame(..), SystemOrGame::System(System::Input(input))) => {
-                let ingame = peer.get_mut().state.assert_ingame();
+                let ingame = peer.state.assert_ingame();
                 if let Err(e) = ingame.snaps.set_delta_tick(&mut Warn(pid, data), input.ack_snapshot) {
                     warn!("invalid input tick: {:?} ({})", e, input.ack_snapshot);
                 }
@@ -462,7 +491,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
             }
             (&Ingame(..), SystemOrGame::Game(Game::ClSetTeam(set_team))) => {
-                let ingame = peer.get_mut().state.assert_ingame();
+                let ingame = peer.state.assert_ingame();
                 // TODO: Spam filter
                 let join_spectators = set_team.team == Team::Spectators;
                 if ingame.spectator == join_spectators {
@@ -492,7 +521,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             warn!("unprocessed message {:?}", msg);
         }
     }
-    fn process_connless_packet(&mut self, addr: Addr, data: &[u8]) {
+    fn on_connless_packet(&mut self, addr: Addr, data: &[u8]) {
         let msg = match Connless::decode(&mut Warn(addr, data), &mut Unpacker::new(data)) {
             Ok(m) => m,
             Err(err) => {
@@ -526,37 +555,27 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             warn!("unprocessed message {:?}", msg);
         }
     }
-    fn process_event(&mut self, event: ChunkOrEvent<Addr>) {
-        match event {
-            ChunkOrEvent::Connect(pid) => {
-                if self.server.peers.is_empty() {
-                    self.server.game_start = self.loop_.time();
-                    self.server.game_tick = 0;
-                }
-                if self.server.peers.len() == MAX_CLIENTS.assert_usize() {
-                    self.loop_.reject(pid, b"This server is full");
-                    return;
-                }
-                self.loop_.accept(pid);
-                self.server.peers.insert(pid, Peer::default());
-                info!("{} starting to connect", pid);
-            },
-            ChunkOrEvent::Chunk(Chunk { pid, vital, data }) => {
-                self.process_client_packet(pid, vital, data);
-            },
-            ChunkOrEvent::Connless(ConnlessChunk { addr, data, .. }) => {
-                self.process_connless_packet(addr, data);
-            },
-            ChunkOrEvent::Ready(..) => unreachable!(),
-            ChunkOrEvent::Disconnect(pid, reason) => {
-                if !reason.is_empty() {
-                    info!("{} leaves the game ({})", pid, AlmostString::new(reason));
-                } else {
-                    info!("{} leaves the game", pid);
-                }
-                self.server.peers.remove(pid);
-            },
+    fn on_connect(&mut self, pid: PeerId) {
+        if self.server.peers.is_empty() {
+            self.server.game_start = self.loop_.time();
+            self.server.game_tick = 0;
         }
+        if self.server.peers.len() == MAX_CLIENTS.assert_usize() {
+            self.loop_.reject(pid, b"This server is full");
+            return;
+        }
+        self.loop_.accept(pid);
+        self.server.peers.insert(pid, Peer::default());
+        info!("{} starting to connect", pid);
+    }
+    fn on_disconnect(&mut self, pid: PeerId, remote: bool, reason: &[u8]) {
+        let _ = remote;
+        if !reason.is_empty() {
+            info!("{} leaves the game ({})", pid, AlmostString::new(reason));
+        } else {
+            info!("{} leaves the game", pid);
+        }
+        self.server.peers.remove(pid);
     }
     fn game_tick(&mut self) {
         for p in &mut self.server.players {

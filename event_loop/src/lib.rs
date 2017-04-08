@@ -1,4 +1,5 @@
 extern crate arrayvec;
+extern crate common;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
@@ -8,10 +9,12 @@ extern crate socket;
 extern crate warn;
 
 use arrayvec::ArrayVec;
+use common::Takeable;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use net::Net;
+use net::collections::PeerMap;
 use net::collections::PeerSet;
 use net::net::Callback;
 use socket::Socket;
@@ -21,12 +24,11 @@ use std::fmt;
 pub use net::Timeout;
 pub use net::Timestamp;
 pub use net::collections;
-pub use net::net::ConnlessChunk;
 pub use net::net::PeerId;
 pub use socket::Addr;
 
 pub type Chunk<'a> = net::net::Chunk<'a>;
-pub type ChunkOrEvent<'a> = net::net::ChunkOrEvent<'a, Addr>;
+pub type ConnlessChunk<'a> = net::net::ConnlessChunk<'a, Addr>;
 
 pub trait Loop {
     fn accept_connections_on_port(port: u16) -> Self;
@@ -38,6 +40,7 @@ pub trait Loop {
     fn disconnect(&mut self, pid: PeerId, reason: &[u8]);
     fn send_connless(&mut self, addr: Addr, data: &[u8]);
     fn send(&mut self, chunk: Chunk);
+    fn force_flush(&mut self, pid: PeerId);
     fn flush(&mut self, pid: PeerId);
     fn ignore(&mut self, pid: PeerId);
     fn accept(&mut self, pid: PeerId);
@@ -47,13 +50,18 @@ pub trait Loop {
 pub trait Application<L: Loop> {
     fn needs_tick(&mut self) -> Timeout;
     fn on_tick(&mut self, loop_: &mut L);
-    fn on_packet(&mut self, loop_: &mut L, event: ChunkOrEvent);
+    fn on_packet(&mut self, loop_: &mut L, chunk: Chunk);
+    fn on_connless_packet(&mut self, loop_: &mut L, chunk: ConnlessChunk);
+    fn on_connect(&mut self, loop_: &mut L, pid: PeerId);
+    fn on_ready(&mut self, loop_: &mut L, pid: PeerId);
+    fn on_disconnect(&mut self, loop_: &mut L, pid: PeerId, remote: bool, reason: &[u8]);
 }
 
 pub struct SocketLoop {
     socket: Socket,
     net: Net<Addr>,
     want_to_flush: PeerSet,
+    disconnected: Takeable<PeerMap<ArrayVec<[u8; 1024]>>>,
     server: bool,
 }
 
@@ -63,6 +71,7 @@ impl Loop for SocketLoop {
             socket: Socket::bound(port).unwrap(),
             net: Net::server(),
             want_to_flush: PeerSet::new(),
+            disconnected: Default::default(),
             server: true,
         }
     }
@@ -71,6 +80,7 @@ impl Loop for SocketLoop {
             socket: Socket::new().unwrap(),
             net: Net::client(),
             want_to_flush: PeerSet::new(),
+            disconnected: Default::default(),
             server: false,
         }
     }
@@ -86,6 +96,12 @@ impl Loop for SocketLoop {
                 self.net.flush(&mut self.socket, pid).unwrap();
             }
 
+            let mut disconnected = self.disconnected.take();
+            for (pid, reason) in disconnected.drain() {
+                application.on_disconnect(&mut self, pid, false, &reason);
+            }
+            self.disconnected.restore(disconnected);
+
             let sleep_timeout = cmp::min(self.net.needs_tick(), application.needs_tick());
             let sleep_duration = sleep_timeout.time_from(self.socket.time());
             if !self.server && sleep_duration.is_none() {
@@ -99,11 +115,30 @@ impl Loop for SocketLoop {
                 let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(addr, data), addr, data, &mut buf2);
                 res.unwrap();
                 for mut chunk in iter {
-                    if self.net.is_receive_chunk_still_valid(&mut chunk) {
-                        application.on_packet(&mut self, chunk);
+                    if !self.net.is_receive_chunk_still_valid(&mut chunk) {
+                        continue;
+                    }
+                    use net::net::ChunkOrEvent::*;
+                    match chunk {
+                        Chunk(c) =>
+                            application.on_packet(&mut self, c),
+                        Connless(c) =>
+                            application.on_connless_packet(&mut self, c),
+                        Connect(pid) =>
+                            application.on_connect(&mut self, pid),
+                        Ready(pid) =>
+                            application.on_ready(&mut self, pid),
+                        Disconnect(pid, r) =>
+                            application.on_disconnect(&mut self, pid, true, r),
                     }
                 }
             }
+
+            let mut disconnected = self.disconnected.take();
+            for (pid, reason) in disconnected.drain() {
+                application.on_disconnect(&mut self, pid, false, &reason);
+            }
+            self.disconnected.restore(disconnected);
         }
     }
     fn time(&mut self) -> Timestamp {
@@ -115,6 +150,11 @@ impl Loop for SocketLoop {
         pid
     }
     fn disconnect(&mut self, pid: PeerId, reason: &[u8]) {
+        if self.want_to_flush.contains(pid) {
+            self.net.flush(&mut self.socket, pid).unwrap();
+            self.want_to_flush.remove(pid);
+        }
+        self.disconnected.insert(pid, reason.iter().cloned().collect());
         self.net.disconnect(&mut self.socket, pid, reason).unwrap();
     }
     fn send_connless(&mut self, addr: Addr, data: &[u8]) {
@@ -122,6 +162,12 @@ impl Loop for SocketLoop {
     }
     fn send(&mut self, chunk: Chunk) {
         self.net.send(&mut self.socket, chunk).unwrap();
+    }
+    fn force_flush(&mut self, pid: PeerId) {
+        if self.want_to_flush.contains(pid) {
+            self.want_to_flush.remove(pid);
+        }
+        self.net.flush(&mut self.socket, pid).unwrap();
     }
     fn flush(&mut self, pid: PeerId) {
         self.want_to_flush.insert(pid);

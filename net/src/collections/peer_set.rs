@@ -44,6 +44,12 @@ impl PeerSet {
     pub fn insert(&mut self, pid: PeerId) -> bool {
         self.set.insert(pid, ()).is_none()
     }
+    pub fn remove(&mut self, pid: PeerId) {
+        self.set.remove(pid)
+    }
+    pub fn contains(&mut self, pid: PeerId) -> bool {
+        self.set.contains_key(pid)
+    }
 }
 
 impl FromIterator<PeerId> for PeerSet {

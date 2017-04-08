@@ -76,6 +76,9 @@ impl<T> PeerMap<T> {
             linear_map::Entry::Vacant(v) => Entry::Vacant(VacantEntry(v)),
         }
     }
+    pub fn contains_key(&mut self, pid: PeerId) -> bool {
+        self.map.contains_key(&pid)
+    }
 }
 
 impl<T> ops::Index<PeerId> for PeerMap<T> {
