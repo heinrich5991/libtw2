@@ -44,6 +44,7 @@ use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
 use gamenet::msg::connless;
+use gamenet::msg::game::SV_TUNE_PARAMS_DEFAULT;
 use gamenet::msg::game;
 use gamenet::msg::system;
 use gamenet::msg;
@@ -74,6 +75,42 @@ use world::vec2;
 const TICKS_PER_SECOND: u32 = 50;
 const PLAYER_NAME_LENGTH: usize = 16-1; // -1 for null termination
 const MAPDOWNLOAD_CHUNK_SIZE: u64 = 1024-128;
+
+pub const SV_TUNE_PARAMS_NOCOLLISION: game::SvTuneParams = game::SvTuneParams {
+    ground_control_speed: SV_TUNE_PARAMS_DEFAULT.ground_control_speed,
+    ground_control_accel: SV_TUNE_PARAMS_DEFAULT.ground_control_accel,
+    ground_friction: SV_TUNE_PARAMS_DEFAULT.ground_friction,
+    ground_jump_impulse: SV_TUNE_PARAMS_DEFAULT.ground_jump_impulse,
+    air_jump_impulse: SV_TUNE_PARAMS_DEFAULT.air_jump_impulse,
+    air_control_speed: SV_TUNE_PARAMS_DEFAULT.air_control_speed,
+    air_control_accel: SV_TUNE_PARAMS_DEFAULT.air_control_accel,
+    air_friction: SV_TUNE_PARAMS_DEFAULT.air_friction,
+    hook_length: SV_TUNE_PARAMS_DEFAULT.hook_length,
+    hook_fire_speed: SV_TUNE_PARAMS_DEFAULT.hook_fire_speed,
+    hook_drag_accel: SV_TUNE_PARAMS_DEFAULT.hook_drag_accel,
+    hook_drag_speed: SV_TUNE_PARAMS_DEFAULT.hook_drag_speed,
+    gravity: SV_TUNE_PARAMS_DEFAULT.gravity,
+    velramp_start: SV_TUNE_PARAMS_DEFAULT.velramp_start,
+    velramp_range: SV_TUNE_PARAMS_DEFAULT.velramp_range,
+    velramp_curvature: SV_TUNE_PARAMS_DEFAULT.velramp_curvature,
+    gun_curvature: SV_TUNE_PARAMS_DEFAULT.gun_curvature,
+    gun_speed: SV_TUNE_PARAMS_DEFAULT.gun_speed,
+    gun_lifetime: SV_TUNE_PARAMS_DEFAULT.gun_lifetime,
+    shotgun_curvature: SV_TUNE_PARAMS_DEFAULT.shotgun_curvature,
+    shotgun_speed: SV_TUNE_PARAMS_DEFAULT.shotgun_speed,
+    shotgun_speeddiff: SV_TUNE_PARAMS_DEFAULT.shotgun_speeddiff,
+    shotgun_lifetime: SV_TUNE_PARAMS_DEFAULT.shotgun_lifetime,
+    grenade_curvature: SV_TUNE_PARAMS_DEFAULT.grenade_curvature,
+    grenade_speed: SV_TUNE_PARAMS_DEFAULT.grenade_speed,
+    grenade_lifetime: SV_TUNE_PARAMS_DEFAULT.grenade_lifetime,
+    laser_reach: SV_TUNE_PARAMS_DEFAULT.laser_reach,
+    laser_bounce_delay: SV_TUNE_PARAMS_DEFAULT.laser_bounce_delay,
+    laser_bounce_num: SV_TUNE_PARAMS_DEFAULT.laser_bounce_num,
+    laser_bounce_cost: SV_TUNE_PARAMS_DEFAULT.laser_bounce_cost,
+    laser_damage: SV_TUNE_PARAMS_DEFAULT.laser_damage,
+    player_collision: game::TuneParam(0),
+    player_hooking: game::TuneParam(0),
+};
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -449,7 +486,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             (&GameInfo, SystemOrGame::Game(Game::ClStartInfo(info))) => {
                 info!("{}:{} enters the game", pid, AlmostString::new(info.name));
                 self.loop_.sendg(pid, game::SvVoteClearOptions);
-                self.loop_.sendg(pid, game::SV_TUNE_PARAMS_DEFAULT);
+                self.loop_.sendg(pid, SV_TUNE_PARAMS_NOCOLLISION);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
                 self.loop_.flush(pid);
                 peer.state = SystemEnterGame(SystemEnterGameState::new(info.name));
@@ -483,7 +520,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 };
                 if let Some(msg) = error {
                     self.loop_.sendg(pid, game::SvChat {
-                        team: Team::Red,
+                        team: false,
                         client_id: -1,
                         message: msg,
                     });
@@ -510,7 +547,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     write!(&mut msg, "'{}' joined the game", AlmostString::new(&ingame.name)).unwrap();
                 }
                 self.loop_.sendg(pid, game::SvChat {
-                    team: Team::Red,
+                    team: false,
                     client_id: -1,
                     message: msg.as_bytes(),
                 });
@@ -539,7 +576,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     token: request.token.i32(),
                     version: VERSION,
                     name: b"Rust Teeworlds Server",
-                    game_type: b"DM",
+                    game_type: b"MOD",
                     map: b"dm1",
                     flags: 1,
                     num_players: 0,
@@ -576,12 +613,17 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             info!("{} leaves the game", pid);
         }
         self.server.peers.remove(pid);
+        for i in 0..self.server.players.len() {
+            if self.server.players[i].pid == pid {
+                self.server.players.swap_remove(i);
+            }
+        }
     }
     fn game_tick(&mut self) {
         for p in &mut self.server.players {
             let input = self.server.peers[p.pid].state.assert_ingame().input;
-            p.character.tick(&mut self.server.map, input, &game::SV_TUNE_PARAMS_DEFAULT);
-            p.character.move_(&mut self.server.map, &game::SV_TUNE_PARAMS_DEFAULT);
+            p.character.tick(&mut self.server.map, input, &SV_TUNE_PARAMS_NOCOLLISION);
+            p.character.move_(&mut self.server.map, &SV_TUNE_PARAMS_NOCOLLISION);
             p.character.quantize();
         }
     }
@@ -589,10 +631,10 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         let mut peer_set = self.server.send_snapshots_peer_set.take();
         peer_set.clear();
         peer_set.extend(self.server.peers.keys());
-        for pid in &peer_set {
+        for snap_pid in &peer_set {
             let mut builder;
             let delta_tick;
-            if let PeerState::Ingame(ref mut ingame) = self.server.peers[pid].state {
+            if let PeerState::Ingame(ref mut ingame) = self.server.peers[snap_pid].state {
                 builder = ingame.snaps.new_builder();
                 delta_tick = ingame.snaps.delta_tick().unwrap_or(-1);
             } else {
@@ -611,7 +653,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             for (pid, peer) in self.server.peers.iter() {
                 if let PeerState::Ingame(ref ingame) = peer.state {
                     // TODO: Fix ID!
-                    builder.add(0, ClientInfo {
+                    builder.add(pid.0.assert_u16(), ClientInfo {
                         name: string_to_ints4(&ingame.name),
                         clan: string_to_ints3(b""),
                         country: -1,
@@ -620,9 +662,9 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                         color_body: 0,
                         color_feet: 0,
                     });
-                    builder.add(0, PlayerInfo {
-                        local: 1,
-                        client_id: 0,
+                    builder.add(pid.0.assert_u16(), PlayerInfo {
+                        local: (snap_pid == pid) as i32,
+                        client_id: pid.0.assert_i32(),
                         team: if ingame.spectator { Team::Spectators } else { Team::Red },
                         score: 0,
                         latency: 20,
@@ -630,7 +672,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
             }
             for player in &self.server.players {
-                builder.add(0, Character {
+                builder.add(player.pid.0.assert_u16(), Character {
                     character_core: player.character.to_net(),
                     player_flags: snap_obj::PLAYERFLAG_PLAYING,
                     health: 10,
@@ -644,15 +686,15 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             let snap = builder.finish();
             let crc = snap.crc();
             let game_tick = self.server.game_tick.assert_i32();
-            let delta = self.server.peers[pid].state.assert_ingame().snaps.add_snap(game_tick, snap);
+            let delta = self.server.peers[snap_pid].state.assert_ingame().snaps.add_snap(game_tick, snap);
 
             self.server.delta_buffer.clear();
             // TODO: Do this better:
             self.server.delta_buffer.reserve(64 * 1024);
             with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
             for m in snap::delta_chunks(game_tick, delta_tick, &self.server.delta_buffer, crc) {
-                self.loop_.sends(pid, m);
-                self.loop_.flush(pid);
+                self.loop_.sends(snap_pid, m);
+                self.loop_.flush(snap_pid);
             }
         }
         self.server.send_snapshots_peer_set.restore(peer_set);

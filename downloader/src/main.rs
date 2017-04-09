@@ -408,7 +408,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 ignored = true;
             },
             SystemOrGame::Game(Game::SvChat(chat)) => {
-                if chat.team == Team::Red && chat.client_id == -1 {
+                if !chat.team && chat.client_id == -1 {
                     ignored = true;
                     info!("*** {}", pretty::AlmostString::new(chat.message));
                 }
@@ -605,7 +605,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 },
                 PeerState::VoteSet(_) => match msg {
                     SystemOrGame::Game(Game::SvChat(chat)) => {
-                        if chat.client_id == -1 && chat.team == Team::Red {
+                        if !chat.team && chat.client_id == -1 {
                             if let Ok(message) = str::from_utf8(chat.message) {
                                 if message.contains("Wait") || message.contains("wait") {
                                     progress = true;

@@ -72,6 +72,7 @@ impl vec2 {
         self * (1.0 / self.length())
     }
     pub fn angle(self) -> Angle {
+        // TODO: Might be a source of inconsistency. :(
         Angle::from_radians(self.y.atan2(self.x))
     }
     pub fn distance(first: vec2, second: vec2) -> f32 {
@@ -136,7 +137,6 @@ pub const HOOK_RETRACTING1: i32 = 2;
 pub const HOOK_RETRACTING2: i32 = 3;
 pub const HOOK_FLYING: i32 = 4;
 pub const HOOK_ATTACHED_GRABBED: i32 = 5;
-
 
 #[derive(Clone, Copy)]
 pub enum Hook {

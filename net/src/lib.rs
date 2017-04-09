@@ -1,6 +1,6 @@
-#[cfg(test)] #[macro_use] extern crate quickcheck;
 #[cfg(test)] extern crate hexdump;
 #[cfg(test)] extern crate itertools;
+#[cfg(test)] #[macro_use] extern crate quickcheck;
 
 extern crate arrayvec;
 #[macro_use] extern crate assert_matches;

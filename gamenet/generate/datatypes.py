@@ -492,6 +492,13 @@ class Struct(NameValues):
                     array_type.name = canonicalize(a_name)
                     array_len += 1
 
+        if self.name == ("sv", "chat"):
+            for i in range(len(self.values)):
+                if (type(self.values[i]) == NetIntRange
+                        and self.values[i].name == ("team",)
+                        and self.values[i].min == "TEAM_SPECTATORS"
+                        and self.values[i].max == "TEAM_BLUE"):
+                    self.values[i] = NetBool(self.values[i].name)
         self.values = [member.update(enums, structs) for member in self.values]
 
     def emit_consts(self):
