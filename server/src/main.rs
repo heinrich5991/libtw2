@@ -383,7 +383,7 @@ struct ServerLoop<'a, L: Loop+'a> {
 impl<L: Loop> Application<L> for Server {
     fn needs_tick(&mut self) -> Timeout {
         if !self.peers.is_empty() {
-            Timeout::active(self.game_tick_time(self.game_tick + 1) + Duration::from_millis(1))
+            Timeout::active(self.game_tick_time(self.game_tick + 1))
         } else {
             Timeout::inactive()
         }
