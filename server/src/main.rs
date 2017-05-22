@@ -292,6 +292,24 @@ impl PeerState {
             panic!("not ingame");
         }
     }
+    fn net_name(&self) -> &[u8] {
+        use PeerState::*;
+        match *self {
+            SystemInfo | SystemReady | GameInfo => b"(connecting)",
+            SystemEnterGame(ref s) => &s.name,
+            Ingame(ref s) => &s.name,
+        }
+    }
+    fn is_player(&self) -> bool {
+        use PeerState::*;
+        match *self {
+            SystemInfo | SystemReady | GameInfo | SystemEnterGame(_) => false,
+            Ingame(ref s) => !s.spectator,
+        }
+    }
+    fn net_is_player(&self) -> i32 {
+        self.is_player() as i32
+    }
 }
 
 #[derive(Clone)]
@@ -536,6 +554,16 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         match msg {
             Connless::RequestInfo(request) => {
                 processed = true;
+                let mut clients_buf: ArrayVec<[u8; 1024]> = Default::default();
+                for (_, peer) in &self.server.peers {
+                    with_packer(&mut clients_buf, |p| connless::Client {
+                        name: peer.state.net_name(),
+                        clan: b"",
+                        country: -1,
+                        score: 0,
+                        is_player: peer.state.net_is_player(),
+                    }.encode(p).unwrap());
+                }
                 // TODO: Send clients. :)
                 self.loop_.sendc(addr, connless::Info {
                     token: request.token.i32(),
@@ -543,12 +571,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     name: b"Rust Teeworlds Server",
                     game_type: b"DM",
                     map: b"dm1",
-                    flags: 1,
-                    num_players: 0,
+                    flags: connless::INFO_FLAG_PASSWORD,
+                    num_players: self.server.players.len().assert_i32(),
                     max_players: MAX_CLIENTS,
-                    num_clients: 0,
+                    num_clients: self.server.peers.len().assert_i32(),
                     max_clients: MAX_CLIENTS,
-                    clients: msg::CLIENTS_DATA_NONE,
+                    clients: msg::ClientsData::from_bytes(&clients_buf),
                 });
             },
             _ => {},

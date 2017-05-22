@@ -27,12 +27,12 @@ pub struct ClientsData<'a> {
 }
 
 impl<'a> ClientsData<'a> {
-    fn from_bytes(bytes: &[u8]) -> ClientsData {
+    pub fn from_bytes(bytes: &[u8]) -> ClientsData {
         ClientsData {
             inner: bytes,
         }
     }
-    fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         self.inner
     }
 }

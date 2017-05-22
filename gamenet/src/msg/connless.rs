@@ -30,6 +30,40 @@ impl<'a> Connless<'a> {
     }
 }
 
+pub struct Client<'a> {
+    pub name: &'a [u8],
+    pub clan: &'a [u8],
+    pub country: i32,
+    pub score: i32,
+    pub is_player: i32,
+}
+
+impl<'a> Client<'a> {
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        try!(_p.write_string(self.name));
+        try!(_p.write_string(self.clan));
+        try!(_p.write_string(&string_from_int(self.country)));
+        try!(_p.write_string(&string_from_int(self.score)));
+        try!(_p.write_string(&string_from_int(self.is_player)));
+        Ok(_p.written())
+    }
+}
+
+impl<'a> fmt::Debug for Client<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Client")
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("clan", &pretty::Bytes::new(&self.clan))
+            .field("country", &self.country)
+            .field("score", &self.score)
+            .field("is_player", &self.is_player)
+            .finish()
+    }
+}
+
+pub const INFO_FLAG_PASSWORD: i32 = 1;
 
 pub const REQUEST_LIST: &'static [u8; 8] = b"\xff\xff\xff\xffreq2";
 pub const LIST: &'static [u8; 8] = b"\xff\xff\xff\xfflis2";
