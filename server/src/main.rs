@@ -65,6 +65,7 @@ use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
 use snapshot::snap;
+use std::cell::Cell;
 use std::fmt::Write;
 use std::fmt;
 use std::fs::File;
@@ -75,42 +76,6 @@ use world::vec2;
 const TICKS_PER_SECOND: u32 = 50;
 const PLAYER_NAME_LENGTH: usize = 16-1; // -1 for null termination
 const MAPDOWNLOAD_CHUNK_SIZE: u64 = 1024-128;
-
-pub const SV_TUNE_PARAMS_NOCOLLISION: game::SvTuneParams = game::SvTuneParams {
-    ground_control_speed: SV_TUNE_PARAMS_DEFAULT.ground_control_speed,
-    ground_control_accel: SV_TUNE_PARAMS_DEFAULT.ground_control_accel,
-    ground_friction: SV_TUNE_PARAMS_DEFAULT.ground_friction,
-    ground_jump_impulse: SV_TUNE_PARAMS_DEFAULT.ground_jump_impulse,
-    air_jump_impulse: SV_TUNE_PARAMS_DEFAULT.air_jump_impulse,
-    air_control_speed: SV_TUNE_PARAMS_DEFAULT.air_control_speed,
-    air_control_accel: SV_TUNE_PARAMS_DEFAULT.air_control_accel,
-    air_friction: SV_TUNE_PARAMS_DEFAULT.air_friction,
-    hook_length: SV_TUNE_PARAMS_DEFAULT.hook_length,
-    hook_fire_speed: SV_TUNE_PARAMS_DEFAULT.hook_fire_speed,
-    hook_drag_accel: SV_TUNE_PARAMS_DEFAULT.hook_drag_accel,
-    hook_drag_speed: SV_TUNE_PARAMS_DEFAULT.hook_drag_speed,
-    gravity: SV_TUNE_PARAMS_DEFAULT.gravity,
-    velramp_start: SV_TUNE_PARAMS_DEFAULT.velramp_start,
-    velramp_range: SV_TUNE_PARAMS_DEFAULT.velramp_range,
-    velramp_curvature: SV_TUNE_PARAMS_DEFAULT.velramp_curvature,
-    gun_curvature: SV_TUNE_PARAMS_DEFAULT.gun_curvature,
-    gun_speed: SV_TUNE_PARAMS_DEFAULT.gun_speed,
-    gun_lifetime: SV_TUNE_PARAMS_DEFAULT.gun_lifetime,
-    shotgun_curvature: SV_TUNE_PARAMS_DEFAULT.shotgun_curvature,
-    shotgun_speed: SV_TUNE_PARAMS_DEFAULT.shotgun_speed,
-    shotgun_speeddiff: SV_TUNE_PARAMS_DEFAULT.shotgun_speeddiff,
-    shotgun_lifetime: SV_TUNE_PARAMS_DEFAULT.shotgun_lifetime,
-    grenade_curvature: SV_TUNE_PARAMS_DEFAULT.grenade_curvature,
-    grenade_speed: SV_TUNE_PARAMS_DEFAULT.grenade_speed,
-    grenade_lifetime: SV_TUNE_PARAMS_DEFAULT.grenade_lifetime,
-    laser_reach: SV_TUNE_PARAMS_DEFAULT.laser_reach,
-    laser_bounce_delay: SV_TUNE_PARAMS_DEFAULT.laser_bounce_delay,
-    laser_bounce_num: SV_TUNE_PARAMS_DEFAULT.laser_bounce_num,
-    laser_bounce_cost: SV_TUNE_PARAMS_DEFAULT.laser_bounce_cost,
-    laser_damage: SV_TUNE_PARAMS_DEFAULT.laser_damage,
-    player_collision: game::TuneParam(0),
-    player_hooking: game::TuneParam(0),
-};
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -362,14 +327,14 @@ impl From<SystemEnterGameState> for IngameState {
 }
 
 struct Player {
-    character: world::Character,
+    character: Cell<world::Character>,
     pid: PeerId,
 }
 
 impl Player {
     fn new(pid: PeerId, spawn: vec2) -> Player {
         Player {
-            character: world::Character::spawn(spawn),
+            character: Cell::new(world::Character::spawn(spawn)),
             pid: pid,
         }
     }
@@ -486,7 +451,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             (&GameInfo, SystemOrGame::Game(Game::ClStartInfo(info))) => {
                 info!("{}:{} enters the game", pid, AlmostString::new(info.name));
                 self.loop_.sendg(pid, game::SvVoteClearOptions);
-                self.loop_.sendg(pid, SV_TUNE_PARAMS_NOCOLLISION);
+                self.loop_.sendg(pid, SV_TUNE_PARAMS_DEFAULT);
                 self.loop_.sendg(pid, game::SvReadyToEnter);
                 self.loop_.flush(pid);
                 peer.state = SystemEnterGame(SystemEnterGameState::new(info.name));
@@ -576,7 +541,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     token: request.token.i32(),
                     version: VERSION,
                     name: b"Rust Teeworlds Server",
-                    game_type: b"MOD",
+                    game_type: b"DM",
                     map: b"dm1",
                     flags: 1,
                     num_players: 0,
@@ -620,11 +585,53 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
     }
     fn game_tick(&mut self) {
-        for p in &mut self.server.players {
+        use world::Character;
+        use world::CharacterId;
+        struct OtherCharacters<'a> {
+            own_cid: CharacterId,
+            players: &'a [Player],
+        }
+        impl<'a> world::OtherCharacters for OtherCharacters<'a> {
+            type Iter = CharacterId;
+            fn is_self(&self, cid: CharacterId) -> bool {
+                cid == self.own_cid
+            }
+            fn get(&self, cid: CharacterId) -> Character {
+                assert!(!self.is_self(cid));
+                self.players[cid.0.usize()].character.get()
+            }
+            fn modify<F: FnOnce(&mut Character)>(&self, cid: CharacterId, f: F) {
+                let mut character = self.get(cid);
+                f(&mut character);
+                self.players[cid.0.usize()].character.set(character);
+            }
+            fn iter(&self) -> CharacterId {
+                CharacterId(0)
+            }
+            fn next(&self, iter: &mut CharacterId) -> Option<(CharacterId, Character)> {
+                if *iter == self.own_cid {
+                    *iter = CharacterId(iter.0 + 1);
+                }
+                let cur = *iter;
+                if cur.0.usize() == self.players.len() {
+                    return None;
+                }
+                *iter = CharacterId(iter.0 + 1);
+                Some((cur, self.get(cur)))
+            }
+        }
+
+        for (cid, p) in self.server.players.iter().enumerate() {
             let input = self.server.peers[p.pid].state.assert_ingame().input;
-            p.character.tick(&mut self.server.map, input, &SV_TUNE_PARAMS_NOCOLLISION);
-            p.character.move_(&mut self.server.map, &SV_TUNE_PARAMS_NOCOLLISION);
-            p.character.quantize();
+            let other = &mut OtherCharacters {
+                own_cid: CharacterId(cid.assert_u32()),
+                players: &self.server.players,
+            };
+            let mut character = p.character.get();
+            character.tick(&mut self.server.map, other, input, &SV_TUNE_PARAMS_DEFAULT);
+            character.move_(&mut self.server.map, other, &SV_TUNE_PARAMS_DEFAULT);
+            character.quantize();
+            p.character.set(character);
         }
     }
     fn send_snapshots(&mut self) {
@@ -673,7 +680,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             }
             for player in &self.server.players {
                 builder.add(player.pid.0.assert_u16(), Character {
-                    character_core: player.character.to_net(),
+                    character_core: player.character.get().to_net(),
                     player_flags: snap_obj::PLAYERFLAG_PLAYING,
                     health: 10,
                     armor: 0,

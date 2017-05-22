@@ -1,6 +1,7 @@
 extern crate common;
 extern crate gamenet;
 
+use common::num::Cast;
 use common::num::CastFloat;
 use gamenet::msg::game::SvTuneParams;
 use gamenet::snap_obj::CharacterCore;
@@ -13,6 +14,10 @@ use std::ops;
 pub const CHARACTER_SIZE: f32 = 28.0;
 pub const DISABLE_HOOK_DISTANCE: f32 = 46.0;
 pub const MAX_VELOCITY: f32 = 6000.0;
+pub const MAX_HOOK_GRAB_TIME: u32 = 60; // 1.2 s with 50 Hz ticks.
+
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CharacterId(pub u32);
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Default)]
@@ -61,6 +66,18 @@ impl ops::Div<f32> for vec2 {
     }
 }
 
+impl ops::AddAssign for vec2 {
+    fn add_assign(&mut self, rhs: vec2) {
+        *self = *self + rhs;
+    }
+}
+
+impl ops::MulAssign<f32> for vec2 {
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = *self * rhs;
+    }
+}
+
 impl vec2 {
     pub fn new(x: f32, y: f32) -> vec2 {
         vec2 { x: x, y: y }
@@ -78,8 +95,18 @@ impl vec2 {
     pub fn distance(first: vec2, second: vec2) -> f32 {
         (second - first).length()
     }
+    pub fn dot(first: vec2, second: vec2) -> f32 {
+        first.x * second.x + first.y * second.y
+    }
     pub fn mix(first: vec2, second: vec2, v: f32) -> vec2 {
-        first * (1.0 - v) + second * v
+        // Needs to be an exact copy of the original, otherwise could use:
+        // first * (1.0 - v) + second * v
+        first + (second - first) * v
+    }
+    pub fn closest_point_on_line(self, line_p0: vec2, line_p1: vec2) -> vec2 {
+        let line = line_p1 - line_p0;
+        let t = vec2::dot(line.normalize(), self - line_p0) / line.length();
+        vec2::mix(line_p0, line_p1, clamp(t, 0.0, 1.0))
     }
 }
 
@@ -148,7 +175,7 @@ pub enum Hook {
     Flying(vec2, vec2),
     /// Grabbed a player.
     // Grabbed(player_id, tick)
-    Grabbed(u32, u32),
+    Grabbed(CharacterId, u32),
     /// Attached to the ground.
     // Attached(pos)
     Attached(vec2),
@@ -179,7 +206,7 @@ impl Hook {
             Hook::Idle => return None,
             Hook::Flying(pos, _) => pos,
             Hook::Attached(pos) => pos,
-            Hook::Grabbed(..) => unimplemented!(),
+            Hook::Grabbed(..) => return None,
             Hook::Retracting0(pos) => pos,
             Hook::Retracting1(pos) => pos,
             Hook::Retracting2(pos) => pos,
@@ -198,14 +225,35 @@ impl Hook {
     fn net_dir(&self) -> vec2 {
         self.dir().unwrap_or_default()
     }
-    fn from_net(hook_state: i32, pos: vec2, dir: vec2, hooked_player: i32) -> Hook {
+    fn tick(&self) -> Option<u32> {
+        match *self {
+            Hook::Grabbed(_, tick) => Some(tick),
+            _ => None,
+        }
+    }
+    fn net_tick(&self) -> Tick {
+        Tick(self.tick().unwrap_or_default().assert_i32())
+    }
+    fn hooked_player(&self) -> Option<CharacterId> {
+        match *self {
+            Hook::Grabbed(cid, _) => Some(cid),
+            _ => None,
+        }
+    }
+    fn net_hooked_player(&self) -> i32 {
+        self.hooked_player().map(|c| c.0 as i32).unwrap_or(-1)
+    }
+    fn from_net(hook_state: i32, pos: vec2, dir: vec2, hooked_player: i32, hook_tick: Tick) -> Hook {
         // TODO: Warn on weird values.
         match hook_state {
             HOOK_RETRACTED => Hook::Retracted,
             HOOK_IDLE => Hook::Idle,
             HOOK_FLYING => Hook::Flying(pos, dir),
-            // TODO: Implement Hook::Grabbed
-            HOOK_ATTACHED_GRABBED => Hook::Attached(pos),
+            HOOK_ATTACHED_GRABBED => if hooked_player == -1 {
+                Hook::Attached(pos)
+            } else {
+                Hook::Grabbed(CharacterId(hooked_player as u32), hook_tick.0 as u32)
+            },
             HOOK_RETRACTING0 => Hook::Retracting0(pos),
             HOOK_RETRACTING1 => Hook::Retracting1(pos),
             HOOK_RETRACTING2 => Hook::Retracting2(pos),
@@ -252,6 +300,7 @@ impl MoveDirection {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Character {
     pos: vec2,
     vel: vec2,
@@ -260,6 +309,16 @@ pub struct Character {
     used_airjump: bool,
     angle: Angle,
     move_direction: MoveDirection,
+}
+
+pub trait OtherCharacters {
+    type Iter;
+    fn is_self(&self, cid: CharacterId) -> bool;
+    // Should panic if the cid points to itself or to no character at all.
+    fn get(&self, cid: CharacterId) -> Character;
+    fn modify<F: FnOnce(&mut Character)>(&self, cid: CharacterId, f: F);
+    fn iter(&self) -> Self::Iter;
+    fn next(&self, iter: &mut Self::Iter) -> Option<(CharacterId, Character)>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -342,7 +401,13 @@ impl Character {
             move_direction: Default::default(),
         }
     }
-    pub fn tick<C: Collision>(&mut self, collision: &mut C, input: PlayerInput, tuning: &SvTuneParams)
+    pub fn tick<C, OC>(&mut self,
+                       collision: &mut C,
+                       other_characters: &mut OC,
+                       input: PlayerInput,
+                       tuning: &SvTuneParams)
+        where C: Collision,
+              OC: OtherCharacters,
     {
         // Code copied from CCharacterCore::Tick
 
@@ -409,6 +474,26 @@ impl Character {
                         CollisionType::Unhookable => self.hook = Hook::Retracting0(p),
                     }
                 }
+                if tuning.player_hooking.to_float() != 0.0 {
+                    let mut iter = other_characters.iter();
+                    let mut min_distance = None;
+                    while let Some((cid, other)) = other_characters.next(&mut iter) {
+                        let closest = other.pos.closest_point_on_line(pos, new_pos);
+                        if vec2::distance(other.pos, closest) < SIZE {
+                            let new_minimum;
+                            let distance = vec2::distance(pos, other.pos);
+                            if let Some(md) = min_distance {
+                                new_minimum = distance < md;
+                            } else {
+                                new_minimum = true;
+                            }
+                            if new_minimum {
+                                min_distance = Some(distance);
+                                self.hook = Hook::Grabbed(cid, 0);
+                            }
+                        }
+                    }
+                }
                 if let Hook::Flying(..) = self.hook {
                     self.hook = Hook::Flying(new_pos, dir);
                 }
@@ -416,7 +501,7 @@ impl Character {
             Hook::Retracting0(pos) => self.hook = Hook::Retracting1(pos),
             Hook::Retracting1(pos) => self.hook = Hook::Retracting2(pos),
             Hook::Retracting2(_) => self.hook = Hook::Retracted,
-            Hook::Grabbed(..) => unimplemented!(),
+            Hook::Grabbed(..) => {}, // See below.
             Hook::Attached(_) => {}, // See below.
         }
 
@@ -449,19 +534,98 @@ impl Character {
             }
         }
 
+        if let Hook::Grabbed(hooked, mut tick) = self.hook {
+            // NOTE: Tick starts at 1, this is already executed in the tick the
+            // hook grabs the player.
+            tick += 1;
+            if tick > MAX_HOOK_GRAB_TIME {
+                self.hook = Hook::Retracted;
+            } else {
+                self.hook = Hook::Grabbed(hooked, tick);
+            }
+        }
+
+        let mut iter = other_characters.iter();
+        while let Some((cid, other)) = other_characters.next(&mut iter) {
+            let distance = vec2::distance(self.pos, other.pos);
+
+            if tuning.player_collision.to_float() != 0.0
+                && distance < SIZE * 1.25
+                && distance > 0.0
+            {
+                let dir_to_self = vec2::normalize(self.pos - other.pos);
+                let arbitrary_factor = SIZE * 1.45 - distance;
+                let additional_vel;
+                if self.vel.length() > 0.0001 {
+                    additional_vel = 1.0 - (vec2::dot(self.vel.normalize(), dir_to_self) + 1.0) / 2.0;
+                } else {
+                    additional_vel = 0.5;
+                }
+                self.vel += dir_to_self * arbitrary_factor * additional_vel * 0.75;
+                self.vel *= 0.85;
+            }
+
+            if let Hook::Grabbed(hooked_cid, _) = self.hook {
+                if tuning.player_hooking.to_float() != 0.0
+                    && cid == hooked_cid
+                    && distance > SIZE * 1.5
+                {
+                    let dir = vec2::normalize(self.pos - other.pos);
+                    let accel = tuning.hook_drag_accel.to_float() * distance / tuning.hook_length.to_float();
+                    let drag_speed = tuning.hook_drag_speed.to_float();
+                    other_characters.modify(cid, |other| {
+                        other.vel.x = saturated_add(-drag_speed, drag_speed, other.vel.x, accel * dir.x * 1.5);
+                        other.vel.y = saturated_add(-drag_speed, drag_speed, other.vel.y, accel * dir.y * 1.5);
+                    });
+                    self.vel.x = saturated_add(-drag_speed, drag_speed, self.vel.x, -accel * dir.x * 0.25);
+                    self.vel.y = saturated_add(-drag_speed, drag_speed, self.vel.y, -accel * dir.y * 0.25);
+                }
+            }
+        }
+
         // Clamp velocity.
         if self.vel.length() > MAX_VELOCITY {
             self.vel = self.vel.normalize() * MAX_VELOCITY;
         }
     }
-    pub fn move_<C: Collision>(&mut self, collision: &mut C, tuning: &SvTuneParams) {
+    pub fn move_<C, OC>(&mut self,
+                        collision: &mut C,
+                        other_characters: &mut OC,
+                        tuning: &SvTuneParams)
+        where C: Collision,
+              OC: OtherCharacters,
+    {
         let ramp_value = velocity_ramp(self.vel.length() * 50.0, tuning);
         self.vel.x *= ramp_value;
         let box_ = vec2::new(CHARACTER_SIZE, CHARACTER_SIZE);
         let (new_pos, new_vel) = collision.move_box(self.pos, self.vel, box_);
-        self.pos = new_pos;
         self.vel = new_vel;
         self.vel.x *= 1.0 / ramp_value;
+
+        if tuning.player_collision.to_float() != 0.0 {
+            let distance = vec2::distance(self.pos, new_pos);
+            let end = distance.trunc_to_i32() + 1;
+            let mut last_pos = self.pos;
+            for i in 0..end {
+                let fraction = i as f32 / distance;
+                let pos = vec2::mix(self.pos, new_pos, fraction);
+
+                let mut iter = other_characters.iter();
+                while let Some((_, other)) = other_characters.next(&mut iter) {
+                    let d = vec2::distance(pos, other.pos);
+                    if 0.0 < d && d < CHARACTER_SIZE {
+                        if fraction > 0.0 {
+                            self.pos = last_pos;
+                        } else if vec2::distance(new_pos, other.pos) > d {
+                            self.pos = new_pos;
+                        }
+                        return;
+                    }
+                }
+                last_pos = pos;
+            }
+        }
+        self.pos = new_pos;
     }
     fn net_jumped(&self) -> i32 {
         ((self.used_airjump as i32) << 1) | (self.jumped_already as i32)
@@ -483,13 +647,12 @@ impl Character {
             vel_x: network_vel.x.round_to_i32(),
             vel_y: network_vel.y.round_to_i32(),
             hook_state: self.hook.net_state(),
-            // TODO!
-            hook_tick: Tick(0),
+            hook_tick: self.hook.net_tick(),
             hook_x: hook_pos.x.round_to_i32(),
             hook_y: hook_pos.y.round_to_i32(),
             hook_dx: hook_dir.x.round_to_i32(),
             hook_dy: hook_dir.y.round_to_i32(),
-            hooked_player: -1,
+            hooked_player: self.hook.net_hooked_player(),
             jumped: self.net_jumped(),
             direction: self.move_direction.as_int(),
             angle: self.angle.to_net(),
@@ -505,6 +668,7 @@ impl Character {
                 vec2::new(core.hook_x as f32, core.hook_y as f32),
                 vec2::new(core.hook_dx as f32, core.hook_dy as f32) / 256.0,
                 core.hooked_player,
+                core.hook_tick,
             ),
             used_airjump: Character::used_airjump_from_net(core.jumped),
             jumped_already: Character::jumped_already_from_net(core.jumped),
