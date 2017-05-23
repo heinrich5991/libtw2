@@ -92,18 +92,22 @@ impl<'a, T: fmt::Debug, W: fmt::Debug> warn::Warn<W> for Warn<'a, T> {
     }
 }
 
+fn sends_impl<L: Loop+?Sized>(msg: System, pid: PeerId, vital: bool, loop_: &mut L) {
+    let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+    with_packer(&mut buf, |p| msg.encode(p).unwrap());
+    loop_.send(Chunk {
+        pid: pid,
+        vital: vital,
+        data: &buf,
+    })
+}
+
 trait LoopExt: Loop {
     fn sends<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
-        fn inner<L: Loop+?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
-            let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
-            with_packer(&mut buf, |p| msg.encode(p).unwrap());
-            loop_.send(Chunk {
-                pid: pid,
-                vital: true,
-                data: &buf,
-            })
-        }
-        inner(msg.into(), pid, self)
+        sends_impl(msg.into(), pid, true, self)
+    }
+    fn sends_nonvital<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
+        sends_impl(msg.into(), pid, false, self)
     }
     fn sendg<'a, G: Into<Game<'a>>>(&mut self, pid: PeerId, msg: G) {
         fn inner<L: Loop+?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
@@ -728,7 +732,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             self.server.delta_buffer.reserve(64 * 1024);
             with_packer(&mut self.server.delta_buffer, |p| delta.write(obj_size, p)).unwrap();
             for m in snap::delta_chunks(game_tick, delta_tick, &self.server.delta_buffer, crc) {
-                self.loop_.sends(snap_pid, m);
+                self.loop_.sends_nonvital(snap_pid, m);
                 self.loop_.flush(snap_pid);
             }
         }
