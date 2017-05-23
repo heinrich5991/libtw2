@@ -453,7 +453,7 @@ class Enum(NameValues):
         for i, name in enumerate(self.values):
             print("pub const {}_{}: i32 = {};".format(caps(self.name), caps(name), i + self.offset))
         print()
-        print("#[repr(C)]")
+        print("#[repr(i32)]")
         print("#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]")
         print("pub enum {} {{".format(title(self.name)))
         for i, name in enumerate(self.values):

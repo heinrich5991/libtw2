@@ -15,7 +15,7 @@ pub const EMOTE_SURPRISE: i32 = 3;
 pub const EMOTE_ANGRY: i32 = 4;
 pub const EMOTE_BLINK: i32 = 5;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Emote {
     Normal,
@@ -31,7 +31,7 @@ pub const POWERUP_ARMOR: i32 = 1;
 pub const POWERUP_WEAPON: i32 = 2;
 pub const POWERUP_NINJA: i32 = 3;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Powerup {
     Health,
@@ -57,7 +57,7 @@ pub const EMOTICON_WTF: i32 = 13;
 pub const EMOTICON_EYES: i32 = 14;
 pub const EMOTICON_QUESTION: i32 = 15;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Emoticon {
     Oop,
@@ -85,7 +85,7 @@ pub const WEAPON_GRENADE: i32 = 3;
 pub const WEAPON_RIFLE: i32 = 4;
 pub const WEAPON_NINJA: i32 = 5;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Weapon {
     Hammer,
@@ -100,7 +100,7 @@ pub const TEAM_SPECTATORS: i32 = -1;
 pub const TEAM_RED: i32 = 0;
 pub const TEAM_BLUE: i32 = 1;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Team {
     Spectators = -1,
@@ -150,7 +150,7 @@ pub const SOUND_CTF_GRAB_EN: i32 = 38;
 pub const SOUND_CTF_CAPTURE: i32 = 39;
 pub const SOUND_MENU: i32 = 40;
 
-#[repr(C)]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Sound {
     GunFire,
