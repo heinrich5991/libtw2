@@ -28,9 +28,9 @@ fn process(_: &Path, dfr: df::Reader, stats: &mut Stats)
         stats.total += 1;
         Ok(())
     });
-    let common = unwrap_or_return!(format::MapItemCommonV0::from_slice(item.data), e);
+    let common = unwrap_or_return!(format::MapItemCommonV0::from_slice(item.data).ok().and_then(|o| o), e);
     if common.version != 1 { return e; }
-    let info = unwrap_or_return!(format::MapItemInfoV1::from_slice(item.data), e);
+    let info = unwrap_or_return!(format::MapItemInfoV1::from_slice(item.data).ok().and_then(|o| o), e);
 
     if info.author != -1 { stats.author += 1; }
     if info.map_version != -1 { stats.map_version += 1; }

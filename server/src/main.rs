@@ -197,8 +197,7 @@ impl Default for Map {
         let mut map = map::Reader::from_datafile(reader);
         map.check_version().unwrap();
         let gamelayers = map.game_layers().unwrap();
-        let tiles = map.layer_tiles(gamelayers.game).unwrap();
-        let tiles = Array2::from_shape_vec((gamelayers.height.usize(), gamelayers.width.usize()), tiles).unwrap();
+        let tiles = map.layer_tiles(gamelayers.game()).unwrap();
         let result = Map {
             spawn: vec2::new(160.0, 160.0),
             collision: tiles.mapv(|t| match t.index {

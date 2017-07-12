@@ -3,13 +3,10 @@
 extern crate common;
 extern crate datafile as df;
 extern crate map;
-extern crate ndarray;
 extern crate tools;
 
 use common::num::Cast;
-use map::format;
 use map::reader;
-use ndarray::Array;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -109,10 +106,6 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
             let layer = try!(map.layer(i));
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue };
-            if tilemap.width == 0 || tilemap.height == 0 {
-                return Err(format::Error::MalformedLayerTilemap.into());
-            }
-
             let image_index = if let Some(i) = normal.image { i } else { continue };
             let process_this_layer = match images.entry(image_index) {
                 hash_map::Entry::Occupied(o) => *o.into_mut(),
@@ -128,11 +121,7 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
             }
             found = true;
 
-            let height = tilemap.height.usize();
-            let width = tilemap.width.usize();
-            let tiles = try!(map.layer_tiles(normal.data));
-            let tiles = try!(Array::from_shape_vec((height, width), tiles)
-                             .map_err(|_| format::Error::MalformedLayerTilemap));
+            let tiles = try!(map.layer_tiles(tilemap.tiles(normal.data)));
 
             for y in 0..tilemap.height+1 {
                 let above_y = cmp::max(y, 1) - 1;

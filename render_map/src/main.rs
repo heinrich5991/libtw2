@@ -16,8 +16,7 @@ use image::RgbaImage;
 use image::imageops;
 use map::format;
 use map::reader;
-use ndarray::Array;
-use ndarray::Ix;
+use ndarray::Array2;
 use num_traits::ToPrimitive;
 use std::cmp;
 use std::collections::HashMap;
@@ -103,23 +102,23 @@ struct Layer {
     detail: bool,
     color: Color,
     image: Option<usize>,
-    tiles: Array<format::Tile, (Ix, Ix)>,
+    tiles: Array2<format::Tile>,
 }
 
 struct Image {
-    data: Array<Color, (Ix, Ix)>,
+    data: Array2<Color>,
 }
 
 const TILE_NUM: u32 = 16;
 
-fn transform_image(tileset: Array<Color, (Ix, Ix)>, tile_len: u32)
-    -> Array<Color, (Ix, Ix)>
+fn transform_image(tileset: Array2<Color>, tile_len: u32)
+    -> Array2<Color>
 {
     let dim = tileset.dim();
     let height = dim.0.assert_u32();
     let width = dim.1.assert_u32();
     let result_len = (tile_len * TILE_NUM).usize();
-    let mut result = Array::default((result_len, result_len));
+    let mut result = Array2::default((result_len, result_len));
     if height == 0 || width == 0 {
         return result;
     }
@@ -197,7 +196,7 @@ fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool
 
 fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     -> Result<(), Error>
-    where E: FnMut(&str) -> Result<Option<Array<Color, (Ix, Ix)>>, Error>,
+    where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
 {
     let dfr = try!(df::Reader::open(path));
     let mut map = map::Reader::from_datafile(dfr);
@@ -223,20 +222,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
             let layer = try!(map.layer(i));
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
-            if tilemap.width == 0 || tilemap.height == 0 {
-                return Err(OwnError::TilemapEmpty.into());
-            }
-            let height = tilemap.height.usize();
-            let width = tilemap.width.usize();
-            let tiles = try!(map.layer_tiles(normal.data));
-            let tiles = try!(Array::from_shape_vec((height, width), tiles)
-                             .map_err(|_| OwnError::TilemapShape));
+            let tiles = try!(map.layer_tiles(tilemap.tiles(normal.data)));
 
             match images.entry(normal.image) {
                 hash_map::Entry::Occupied(_) => {},
                 hash_map::Entry::Vacant(v) => {
                     let data = match normal.image {
-                        None => Array::from_elem((1, 1), Color::white()),
+                        None => Array2::from_elem((1, 1), Color::white()),
                         Some(image_index) => {
                             let image = try!(map.image(image_index));
                             let height = image.height.usize();
@@ -248,7 +240,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
                                         return Err(OwnError::ImageShape.into());
                                     }
                                     let data: Vec<Color> = unsafe { vec::transmute(data) };
-                                    try!(Array::from_shape_vec((height, width), data)
+                                    try!(Array2::from_shape_vec((height, width), data)
                                          .map_err(|_| OwnError::ImageShape))
                                 }
                                 None => {
@@ -259,7 +251,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
                                               .and_then(sanitize)
                                               .map(&mut external)))
                                         .unwrap_or(None)
-                                        .unwrap_or_else(|| Array::from_elem((1, 1), Color::white()))
+                                        .unwrap_or_else(|| Array2::from_elem((1, 1), Color::white()))
                                 }
                             }
                         }
@@ -302,13 +294,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
     }
 
     for image in images.values_mut() {
-        image.data = transform_image(mem::replace(&mut image.data, Array::default((0, 0))), tile_len);
+        image.data = transform_image(mem::replace(&mut image.data, Array2::default((0, 0))), tile_len);
     }
 
     let result_width = width.checked_mul(tile_len).unwrap();
     let result_height = height.checked_mul(tile_len).unwrap();
 
-    let mut result: Array<Color, _> = Array::default((result_height.usize(), result_width.usize()));
+    let mut result: Array2<Color> = Array2::default((result_height.usize(), result_width.usize()));
 
     for l in &layers {
         let image = &images[&l.image];
@@ -368,8 +360,6 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 enum OwnError {
     EmptyMap,
     ImageShape,
-    TilemapEmpty,
-    TilemapShape,
 }
 
 #[derive(Debug)]
@@ -478,7 +468,7 @@ fn print_error_stats(error_stats: &ErrorStats) {
     println!("ok: {}", error_stats.ok);
 }
 
-fn load_external_image(path: &Path) -> Result<Option<Array<Color, (Ix, Ix)>>, Error> {
+fn load_external_image(path: &Path) -> Result<Option<Array2<Color>>, Error> {
     let image_result = image::open(path);
     match image_result {
         Err(ImageError::IoError(ref e)) => {
@@ -492,7 +482,7 @@ fn load_external_image(path: &Path) -> Result<Option<Array<Color, (Ix, Ix)>>, Er
     let (width, height) = image.dimensions();
     let raw: Vec<u8> = image.into_raw();
     let raw: Vec<Color> = unsafe { vec::transmute(raw) };
-    Ok(Some(Array::from_shape_vec((width.usize(), height.usize()), raw).unwrap()))
+    Ok(Some(Array2::from_shape_vec((width.usize(), height.usize()), raw).unwrap()))
 }
 
 fn main() {
@@ -505,7 +495,7 @@ fn main() {
     let mut error_stats = ErrorStats::default();
     let mut out_path_buf = OsString::new();
 
-    let mut external_images: HashMap<String, Option<Array<Color, (Ix, Ix)>>> = HashMap::new();
+    let mut external_images: HashMap<String, Option<Array2<Color>>> = HashMap::new();
     let mut external = |name: &str| match external_images.entry(name.into()) {
         hash_map::Entry::Occupied(o) => Ok(o.get().clone()),
         hash_map::Entry::Vacant(v) => {

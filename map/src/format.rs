@@ -17,39 +17,53 @@ pub trait MapItemExt: MapItem {
     fn sum_len() -> usize {
         Self::offset() + Self::len()
     }
-    fn from_slice(slice: &[i32]) -> Option<&Self> {
-        Self::from_slice_rest(slice).map(|(f, _)| f)
+    fn from_slice(slice: &[i32]) -> Result<Option<&Self>, TooShort> {
+        Self::from_slice_rest(slice).map(|o| o.map(|(f, _)| f))
     }
-    fn from_slice_mut(slice: &mut [i32]) -> Option<&mut Self> {
-        Self::from_slice_rest_mut(slice).map(|(f, _)| f)
+    fn from_slice_mut(slice: &mut [i32]) -> Result<Option<&mut Self>, TooShort> {
+        Self::from_slice_rest_mut(slice).map(|o| o.map(|(f, _)| f))
     }
-    fn from_slice_rest(slice: &[i32]) -> Option<(&Self, &[i32])> {
-        if slice.len() < Self::sum_len() {
-            return None;
+    fn from_slice_rest(slice: &[i32]) -> Result<Option<(&Self, &[i32])>, TooShort> {
+        if !Self::ignore_version() {
+            if slice.len() == 0 {
+                return Err(TooShort);
+            }
+            if slice[0] < Self::version() {
+                return Ok(None);
+            }
         }
-        if !Self::ignore_version() && slice[0] < Self::version() {
-            return None;
+        if slice.len() < Self::sum_len() {
+            return Err(TooShort);
         }
         let result: &[i32] = &slice[Self::offset()..];
         let (item, rest) = result.split_at(Self::len());
         assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some((unsafe { &*(item.as_ptr() as *const Self) }, rest))
+        Ok(Some((unsafe { &*(item.as_ptr() as *const Self) }, rest)))
     }
-    fn from_slice_rest_mut(slice: &mut [i32]) -> Option<(&mut Self, &mut [i32])> {
+    fn from_slice_rest_mut(slice: &mut [i32])
+        -> Result<Option<(&mut Self, &mut [i32])>, TooShort>
+    {
+        if !Self::ignore_version() {
+            if slice.len() == 0 {
+                return Err(TooShort);
+            }
+            if slice[0] < Self::version() {
+                return Ok(None);
+            }
+        }
         if slice.len() < Self::sum_len() {
-            return None;
+            return Err(TooShort);
         }
-        if slice[0] < Self::version() {
-            return None;
-        }
-        let result: &mut [i32] = &mut slice[Self::offset()..Self::sum_len()];
+        let result: &mut [i32] = &mut slice[Self::offset()..];
         let (item, rest) = result.split_at_mut(Self::len());
         assert!(item.len() * mem::size_of::<i32>() == mem::size_of::<Self>());
-        Some((unsafe { &mut *(item.as_ptr() as *mut Self) }, rest))
+        Ok(Some((unsafe { &mut *(item.as_mut_ptr() as *mut Self) }, rest)))
     }
 }
 
-impl<T:MapItem> MapItemExt for T { }
+impl<T: MapItem> MapItemExt for T { }
+
+pub struct TooShort;
 
 pub fn i32s_to_bytes(result: &mut [u8], input: &[i32]) {
     assert!(result.len() == input.len() * mem::size_of::<i32>());
@@ -217,7 +231,7 @@ pub trait EnvpointExt: Envpoint {
     }
 }
 
-impl<T:Envpoint> EnvpointExt for T { }
+impl<T: Envpoint> EnvpointExt for T { }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -285,24 +299,126 @@ pub const TILELAYERFLAG_SWITCH: u32 = 16;
 pub const TILELAYERFLAG_TUNE: u32 = 32;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum GroupError {
+    TooShort(usize),
+    TooShortV2(usize),
+    TooShortV3(usize),
+    InvalidVersion(i32),
+    // InvalidStartLayerIndex(start_layer, num_layers)
+    InvalidStartLayerIndex(i32, i32),
+    // InvalidNumLayers(start_layer, num_layers)
+    InvalidNumLayers(i32, i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum DdraceLayerSoundsError {
+    TooShort(usize),
+    TooShortV2(usize),
+    InvalidVersion(i32),
+    InvalidSoundIndex(i32),
+    InvalidNumSources(i32),
+    InvalidDataIndex(i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum LayerQuadsError {
+    TooShort(usize),
+    TooShortV2(usize),
+    InvalidVersion(i32),
+    InvalidImageIndex(i32),
+    InvalidNumQuads(i32),
+    InvalidDataIndex(i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ColorComponent {
+    Red,
+    Green,
+    Blue,
+    Alpha,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum LayerTilemapError {
+    TooShort(usize),
+    TooShortV2(usize),
+    TooShortV3(usize),
+    TooShortRaceTeleport(usize),
+    TooShortRaceSpeedup(usize),
+    TooShortDdraceFront(usize),
+    TooShortDdraceSwitch(usize),
+    TooShortDdraceTune(usize),
+    InvalidVersion(i32),
+    InvalidColor(ColorComponent, i32),
+    InvalidColorEnvelopeIndex(i32),
+    InvalidImageIndex(i32),
+    InvalidDataIndex(i32),
+    InvalidRaceTeleportDataIndex(i32),
+    InvalidRaceSpeedupDataIndex(i32),
+    InvalidDdraceFrontDataIndex(i32),
+    InvalidDdraceSwitchDataIndex(i32),
+    InvalidDdraceTuneDataIndex(i32),
+    InvalidFlags(i32),
+    InvalidWidth(i32),
+    InvalidHeight(i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum LayerError {
+    Tilemap(LayerTilemapError),
+    Quads(LayerQuadsError),
+    DdraceSounds(DdraceLayerSoundsError),
+    TooShort(usize),
+    InvalidFlags(i32),
+    InvalidType(i32),
+}
+
+impl From<LayerTilemapError> for LayerError {
+    fn from(e: LayerTilemapError) -> LayerError {
+        LayerError::Tilemap(e)
+    }
+}
+
+impl From<LayerQuadsError> for LayerError {
+    fn from(e: LayerQuadsError) -> LayerError {
+        LayerError::Quads(e)
+    }
+}
+
+impl From<DdraceLayerSoundsError> for LayerError {
+    fn from(e: DdraceLayerSoundsError) -> LayerError {
+        LayerError::DdraceSounds(e)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ImageError {
+    TooShort(usize),
+    InvalidVersion(i32),
+    InvalidDataIndex(i32),
+    InvalidWidth(i32),
+    InvalidHeight(i32),
+    InvalidNameIndex(i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
+    Group(usize, GroupError),
+    Layer(usize, LayerError),
+    Image(usize, ImageError),
+
     InconsistentGameLayerDimensions,
-    InvalidLayerFlags(u32),
-    InvalidLayerTilemapFlags(u32),
-    InvalidLayerType(i32),
     InvalidTilesLength(usize),
     InvalidTuneTilesLength(usize),
     InvalidVersion(i32),
-    MalformedDdraceLayerSounds,
-    MalformedGroup,
-    MalformedImage,
-    MalformedImageName,
-    MalformedInfo,
-    MalformedLayer,
-    MalformedLayerQuads,
-    MalformedLayerTilemap,
-    MalformedVersion,
+    MalformedImageName(usize),
+    // InvalidTilesDimensions(length, width, height)
+    InvalidTilesDimensions(usize, u32, u32),
+    // InvalidTuneTilesDimensions(length, width, height)
+    InvalidTuneTilesDimensions(usize, u32, u32),
+    EmptyVersion,
     MissingVersion,
+    MalformedInfo,
     NoGameLayer,
     TooManyGameGroups,
     TooManyGameLayers,

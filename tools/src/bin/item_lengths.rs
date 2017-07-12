@@ -100,8 +100,8 @@ fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
         }
 
         let version = match MapItemCommonV0::from_slice(item.data) {
-            Some(v) => v.version,
-            None => {
+            Ok(Some(v)) => v.version,
+            _ => {
                 if item.type_id != MAP_ITEMTYPE_ENVPOINTS {
                     register!(WeirdItem::empty(item.type_id));
                 }
@@ -143,7 +143,7 @@ fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
                     register!(WeirdItem::wrong_size(item.type_id, version, item.data.len(), MapItemEnvelopeV1::sum_len()));
                 }
                 check::<MapItemEnvelopeV2>(results, item.type_id, item.data);
-                if let Some(c) = MapItemCommonV0::from_slice(item.data) {
+                if let Ok(Some(c)) = MapItemCommonV0::from_slice(item.data) {
                     match env_version {
                         None => env_version = Some(c.version),
                         Some(v) if v == c.version => {},
@@ -162,7 +162,7 @@ fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
             },
             MAP_ITEMTYPE_LAYER => {
                 register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
-                if let Some((layer, rest)) = MapItemLayerV1::from_slice_rest(item.data) {
+                if let Ok(Some((layer, rest))) = MapItemLayerV1::from_slice_rest(item.data) {
                     match layer.type_ {
                         MAP_ITEMTYPE_LAYER_V1_TILEMAP => {
                             // Might panic, whatever...

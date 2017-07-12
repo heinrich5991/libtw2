@@ -49,7 +49,7 @@ impl From<rmp::encode::ValueWriteError> for Error {
     }
 }
 
-fn count(tiles: &[Tile], count: &mut [u64; 256]) {
+fn count<'a, I: Iterator<Item=&'a Tile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
@@ -84,9 +84,9 @@ fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     let game_layers = map.game_layers()?;
 
     let mut tiles_count = [0u64; 256];
-    count(&map.layer_tiles(game_layers.game)?, &mut tiles_count);
-    if let Some(f) = game_layers.front {
-        count(&map.layer_tiles(f)?, &mut tiles_count);
+    count(map.layer_tiles(game_layers.game())?.iter(), &mut tiles_count);
+    if let Some(f) = game_layers.front() {
+        count(map.layer_tiles(f)?.iter(), &mut tiles_count);
     }
 
     rmp::encode::write_uint(&mut output, game_layers.width.u64())?;

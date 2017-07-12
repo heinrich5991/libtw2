@@ -1,11 +1,13 @@
 use common::num::Cast;
 use common::vec;
 use datafile as df;
+use ndarray::Array2;
 use std::io;
 use std::mem;
 use std::ops;
 
 use format::Error as MapError;
+use format::MapItem;
 use format::MapItemExt;
 use format;
 
@@ -60,7 +62,7 @@ pub struct Group {
     pub name: [u8; 12],
 }
 
-fn get_index(index: i32, indices: ops::Range<usize>) -> Option<usize> {
+fn get_index_impl(index: i32, indices: ops::Range<usize>) -> Option<usize> {
     let index = unwrap_or_return!(index.try_usize(), None) + indices.start;
     if !(index < indices.end) {
         return None;
@@ -68,22 +70,97 @@ fn get_index(index: i32, indices: ops::Range<usize>) -> Option<usize> {
     Some(index)
 }
 
+fn get_index<E, II>(index: i32, indices: ops::Range<usize>, invalid_index: II)
+    -> Result<usize, E>
+    where II: FnOnce(i32) -> E,
+{
+    get_index_impl(index, indices).ok_or_else(|| invalid_index(index))
+}
+
+trait MapItemExtInternal: MapItem {
+    fn optional<E, TS>(slice: &[i32], too_short: TS)
+        -> Result<Option<&Self>, E>
+        where TS: FnOnce(usize) -> E,
+    {
+        Self::from_slice(slice).map_err(|_| too_short(slice.len()))
+    }
+    fn mandatory<E, TS, IV>(slice: &[i32], too_short: TS, invalid_version: IV)
+        -> Result<&Self, E>
+        where TS: FnOnce(usize) -> E,
+              IV: FnOnce(i32) -> E,
+    {
+        Self::optional(slice, too_short)?.ok_or_else(|| invalid_version(slice[0]))
+    }
+    fn optional_rest<E, TS>(slice: &[i32], too_short: TS)
+        -> Result<Option<(&Self, &[i32])>, E>
+        where TS: FnOnce(usize) -> E,
+    {
+        Self::from_slice_rest(slice).map_err(|_| too_short(slice.len()))
+    }
+    fn mandatory_rest<E, TS, IV>(slice: &[i32], too_short: TS, invalid_version: IV)
+        -> Result<(&Self, &[i32]), E>
+        where TS: FnOnce(usize) -> E,
+              IV: FnOnce(i32) -> E,
+    {
+        Self::optional_rest(slice, too_short)?.ok_or_else(|| invalid_version(slice[0]))
+    }
+}
+
+impl<T: MapItem> MapItemExtInternal for T { }
+
+trait AugmentResult {
+    type AddIndex;
+    fn add_index(self, index: usize) -> Self::AddIndex;
+}
+
+impl<T> AugmentResult for Result<T, format::GroupError> {
+    type AddIndex = Result<T, MapError>;
+    fn add_index(self, index: usize) -> Result<T, MapError> {
+        self.map_err(|e| MapError::Group(index, e))
+    }
+}
+
+impl<T> AugmentResult for Result<T, format::LayerError> {
+    type AddIndex = Result<T, MapError>;
+    fn add_index(self, index: usize) -> Result<T, MapError> {
+        self.map_err(|e| MapError::Layer(index, e))
+    }
+}
+
+impl<T> AugmentResult for Result<T, format::ImageError> {
+    type AddIndex = Result<T, MapError>;
+    fn add_index(self, index: usize) -> Result<T, MapError> {
+        self.map_err(|e| MapError::Image(index, e))
+    }
+}
+
+pub struct LayerTilesIndex {
+    data_index: usize,
+    width: u32,
+    height: u32,
+}
+
 impl Group {
     // TODO: Overlong raw?
-    fn from_raw(raw: &[i32], layer_indices: ops::Range<usize>) -> Result<Group,MapError> {
-        fn e<T>(option: Option<T>) -> Result<T,MapError> {
-            option.ok_or(MapError::MalformedGroup)
-        }
-        let v1 = try!(e(format::MapItemGroupV1::from_slice(raw)));
-        let v2 = format::MapItemGroupV2::from_slice(raw);
-        let v3 = format::MapItemGroupV3::from_slice(raw);
-        let layers_start = layer_indices.start + try!(e(v1.start_layer.try_usize()));
+    fn from_raw(raw: &[i32], layer_indices: ops::Range<usize>)
+        -> Result<Group, format::GroupError>
+    {
+        use format::GroupError::*;
+
+        let v1 = format::MapItemGroupV1::mandatory(raw, TooShort, InvalidVersion)?;
+        let v2 = format::MapItemGroupV2::optional(raw, TooShort)?;
+        let v3 = format::MapItemGroupV3::optional(raw, TooShort)?;
+
+        let sl = InvalidStartLayerIndex(v1.start_layer, v1.num_layers);
+        let nl = InvalidNumLayers(v1.start_layer, v1.num_layers);
+
+        let layers_start = layer_indices.start + v1.start_layer.try_usize().ok_or(sl)?;
         if layers_start > layer_indices.end {
-            return Err(MapError::MalformedGroup);
+            return Err(sl);
         }
-        let layers_end = layers_start + try!(e(v1.num_layers.try_usize()));
+        let layers_end = layers_start + v1.num_layers.try_usize().ok_or(nl)?;
         if layers_end > layer_indices.end {
-            return Err(MapError::MalformedGroup);
+            return Err(nl);
         }
         let clipping = v2.and_then(|v2| {
             if v2.use_clipping != 0 {
@@ -120,20 +197,26 @@ pub struct DdraceLayerSounds {
 }
 
 impl DdraceLayerSounds {
-    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, sound_indices: ops::Range<usize>, legacy: bool) -> Result<DdraceLayerSounds,MapError> {
-        fn e<T>(option: Option<T>) -> Result<T,MapError> {
-            option.ok_or(MapError::MalformedDdraceLayerSounds)
+    fn from_raw(
+        raw: &[i32],
+        data_indices: ops::Range<usize>,
+        sound_indices: ops::Range<usize>,
+        legacy: bool
+    ) -> Result<DdraceLayerSounds, format::DdraceLayerSoundsError>
+    {
+        use format::DdraceLayerSoundsError::*;
+        let v1 = format::MapItemLayerV1DdraceSoundsV1::mandatory(raw, TooShort, InvalidVersion)?;
+        if !legacy {
+            format::MapItemLayerV1DdraceSoundsV2::mandatory(raw, TooShortV2, InvalidVersion)?;
         }
-        let v1 = try!(e(format::MapItemLayerV1DdraceSoundsV1::from_slice(raw)));
-        if !legacy { try!(e(format::MapItemLayerV1DdraceSoundsV2::from_slice(raw))); }
         let sound = if v1.sound == -1 {
             None
         } else {
-            Some(try!(e(get_index(v1.sound, sound_indices))))
+            Some(get_index(v1.sound, sound_indices, InvalidSoundIndex)?)
         };
         Ok(DdraceLayerSounds {
-            num_sources: try!(e(v1.num_sources.try_usize())),
-            data: try!(e(get_index(v1.data, data_indices))),
+            num_sources: v1.num_sources.try_usize().ok_or(InvalidNumSources(v1.num_sources))?,
+            data: get_index(v1.data, data_indices, InvalidDataIndex)?,
             sound: sound,
             legacy: legacy,
             name: v1.name_get(),
@@ -150,21 +233,25 @@ pub struct LayerQuads {
 }
 
 impl LayerQuads {
-    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<LayerQuads,MapError> {
-        fn e<T>(option: Option<T>) -> Result<T,MapError> {
-            option.ok_or(MapError::MalformedLayerQuads)
-        }
-        let v1 = try!(e(format::MapItemLayerV1QuadsV1::from_slice(raw)));
-        let v2 = format::MapItemLayerV1QuadsV2::from_slice(raw);
+    fn from_raw(
+        raw: &[i32],
+        data_indices: ops::Range<usize>,
+        image_indices: ops::Range<usize>
+    ) -> Result<LayerQuads, format::LayerQuadsError>
+    {
+        use format::LayerQuadsError::*;
+
+        let v1 = format::MapItemLayerV1QuadsV1::mandatory(raw, TooShort, InvalidVersion)?;
+        let v2 = format::MapItemLayerV1QuadsV2::optional(raw, TooShortV2)?;
         let image = if v1.image == -1 {
             None
         } else {
-            Some(try!(e(get_index(v1.image, image_indices))))
+            Some(get_index(v1.image, image_indices, InvalidImageIndex)?)
         };
         let name = v2.map(|v2| v2.name_get()).unwrap_or([0; 12]);
         Ok(LayerQuads {
-            num_quads: try!(e(v1.num_quads.try_usize())),
-            data: try!(e(get_index(v1.data, data_indices))),
+            num_quads: v1.num_quads.try_usize().ok_or(InvalidNumQuads(v1.num_quads))?,
+            data: get_index(v1.data, data_indices, InvalidDataIndex)?,
             image: image,
             name: name,
         })
@@ -223,33 +310,62 @@ pub struct LayerTilemap {
 }
 
 impl LayerTilemap {
-    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>, image_indices: ops::Range<usize>) -> Result<LayerTilemap,MapError> {
-        fn e<T>(option: Option<T>) -> Result<T,MapError> {
-            option.ok_or(MapError::MalformedLayerTilemap)
+    pub fn tiles(&self, data_index: usize) -> LayerTilesIndex {
+        LayerTilesIndex {
+            data_index: data_index,
+            width: self.width,
+            height: self.height,
         }
-        let v0 = try!(e(format::MapItemLayerV1CommonV0::from_slice(raw)));
-        let v2 = try!(e(format::MapItemLayerV1TilemapV2::from_slice(raw)));
-        let v3 = format::MapItemLayerV1TilemapV3::from_slice(raw);
+    }
+}
+
+impl LayerTilemap {
+    fn from_raw(
+        raw: &[i32],
+        data_indices: ops::Range<usize>,
+        envelope_indices: ops::Range<usize>,
+        image_indices: ops::Range<usize>
+    ) -> Result<LayerTilemap, format::LayerTilemapError>
+    {
+        use format::ColorComponent::*;
+        use format::LayerTilemapError::*;
+
+        fn extra<TS>(raw: &[i32], version: i32, flags: u32, too_short: TS)
+            -> Result<&format::MapItemLayerV1TilemapExtraRace, format::LayerTilemapError>
+            where TS: FnOnce(usize) -> format::LayerTilemapError
+        {
+            format::MapItemLayerV1TilemapExtraRace::from_slice(raw, version, flags)
+                .ok_or_else(|| too_short(raw.len()))
+        }
+
+        let v0 = format::MapItemLayerV1CommonV0::mandatory(raw, TooShort, InvalidVersion)?;
+        let v2 = format::MapItemLayerV1TilemapV2::mandatory(raw, TooShortV2, InvalidVersion)?;
+        let v3 = format::MapItemLayerV1TilemapV3::optional(raw, TooShortV3)?;
         let flags = v2.flags as u32;
-        let ve = format::MapItemLayerV1TilemapExtraRace::from_slice(raw, v0.version, flags);
+
         // TODO: Standard settings for game group.
         let color = Color {
-            red: try!(e(v2.color_red.try_u8())),
-            green: try!(e(v2.color_green.try_u8())),
-            blue: try!(e(v2.color_blue.try_u8())),
-            alpha: try!(e(v2.color_alpha.try_u8())),
+            red: v2.color_red.try_u8().ok_or(InvalidColor(Red, v2.color_red))?,
+            green: v2.color_green.try_u8().ok_or(InvalidColor(Green, v2.color_green))?,
+            blue: v2.color_blue.try_u8().ok_or(InvalidColor(Blue, v2.color_blue))?,
+            alpha: v2.color_alpha.try_u8().ok_or(InvalidColor(Alpha, v2.color_alpha))?,
         };
         let color_env_and_offset = if v2.color_env == -1 {
             None
         } else {
-            Some((try!(e(get_index(v2.color_env, data_indices.clone()))), v2.color_env_offset))
+            let index = get_index(
+                v2.color_env,
+                envelope_indices.clone(),
+                InvalidColorEnvelopeIndex,
+            )?;
+            Some((index, v2.color_env_offset))
         };
         let image = if v2.image == -1 {
             None
         } else {
-            Some(try!(e(get_index(v2.image, image_indices))))
+            Some(get_index(v2.image, image_indices, InvalidImageIndex)?)
         };
-        let data = try!(e(get_index(v2.data, data_indices.clone())));
+        let data = get_index(v2.data, data_indices.clone(), InvalidDataIndex)?;
         let mut normal = false;
         let type_ = match flags {
             0 => {
@@ -266,43 +382,69 @@ impl LayerTilemap {
             }
             format::TILELAYERFLAG_TELEPORT => {
                 LayerTilemapType::RaceTeleport(
-                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    get_index(
+                        extra(raw, v0.version, flags, TooShortRaceTeleport)?.data,
+                        data_indices.clone(),
+                        InvalidRaceTeleportDataIndex,
+                    )?,
                     data,
                 )
             }
             format::TILELAYERFLAG_SPEEDUP => {
                 LayerTilemapType::RaceSpeedup(
-                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    get_index(
+                        extra(raw, v0.version, flags, TooShortRaceSpeedup)?.data,
+                        data_indices.clone(),
+                        InvalidRaceSpeedupDataIndex,
+                    )?,
                     data,
                 )
             }
             format::TILELAYERFLAG_FRONT => {
                 LayerTilemapType::DdraceFront(
-                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    get_index(
+                        extra(raw, v0.version, flags, TooShortDdraceFront)?.data,
+                        data_indices.clone(),
+                        InvalidDdraceFrontDataIndex,
+                    )?,
                     data,
                 )
             }
             format::TILELAYERFLAG_SWITCH => {
                 LayerTilemapType::DdraceSwitch(
-                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    get_index(
+                        extra(raw, v0.version, flags, TooShortDdraceSwitch)?.data,
+                        data_indices.clone(),
+                        InvalidDdraceSwitchDataIndex,
+                    )?,
                     data,
                 )
             }
             format::TILELAYERFLAG_TUNE => {
                 LayerTilemapType::DdraceTune(
-                    try!(e(get_index(try!(e(ve)).data, data_indices.clone()))),
+                    get_index(
+                        extra(raw, v0.version, flags, TooShortDdraceTune)?.data,
+                        data_indices.clone(),
+                        InvalidDdraceTuneDataIndex,
+                    )?,
                     data,
                 )
             }
-            _ => return Err(MapError::InvalidLayerTilemapFlags(flags)),
+            _ => return Err(InvalidFlags(v2.flags)),
         };
         if !normal {
             // TODO: Do some checking on the other fields.
         }
         let name = v3.map(|v3| v3.name_get()).unwrap_or([0; 12]);
+        let width = v2.width.try_u32().ok_or(InvalidWidth(v2.width))?;
+        let height = v2.height.try_u32().ok_or(InvalidHeight(v2.height))?;
+
+        if width == 0 { return Err(InvalidWidth(v2.width)); }
+        if height == 0 { return Err(InvalidHeight(v2.height)); }
+
         Ok(LayerTilemap {
-            width: try!(e(v2.width.try_u32())),
-            height: try!(e(v2.height.try_u32())),
+            width: width,
+            height: height,
             type_: type_,
             name: name,
         })
@@ -326,31 +468,39 @@ impl Layer {
     fn from_raw(
         raw: &[i32],
         data_indices: ops::Range<usize>,
+        envelope_indices: ops::Range<usize>,
         image_indices: ops::Range<usize>,
         sound_indices: ops::Range<usize>,
-    ) -> Result<Layer,MapError> {
-        let (v1, rest) = try!(format::MapItemLayerV1::from_slice_rest(raw)
-                              .ok_or(MapError::MalformedLayer));
+    ) -> Result<Layer, format::LayerError> {
+        use format::LayerError::*;
+
+        let (v1, rest) = format::MapItemLayerV1::mandatory_rest(
+            raw,
+            TooShort,
+            // MapItemLayerV1 doesn't check the version as it is not set by the
+            // reference implementation, and contains arbitrary garbage.
+            |_| unreachable!(),
+        )?;
         let flags = v1.flags as u32;
         if flags & !format::LAYERFLAGS_ALL != 0 {
-            return Err(MapError::InvalidLayerFlags(flags));
+            return Err(InvalidFlags(v1.flags));
         }
         let t = match v1.type_ {
             format::MAP_ITEMTYPE_LAYER_V1_TILEMAP =>
-                LayerType::Tilemap(try!(LayerTilemap::from_raw(
-                    rest, data_indices, image_indices
-                ))),
+                LayerType::Tilemap(LayerTilemap::from_raw(
+                    rest, data_indices, envelope_indices, image_indices
+                )?),
             format::MAP_ITEMTYPE_LAYER_V1_QUADS =>
-                LayerType::Quads(try!(LayerQuads::from_raw(
+                LayerType::Quads(LayerQuads::from_raw(
                     rest, data_indices, image_indices
-                ))),
+                )?),
             format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS
                 | format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS_LEGACY
-            =>  LayerType::DdraceSounds(try!(DdraceLayerSounds::from_raw(
+            =>  LayerType::DdraceSounds(DdraceLayerSounds::from_raw(
                     rest, data_indices, sound_indices,
                     v1.type_ != format::MAP_ITEMTYPE_LAYER_V1_DDRACE_SOUNDS,
-                ))),
-            _ => return Err(MapError::InvalidLayerType(v1.type_)),
+                )?),
+            _ => return Err(InvalidType(v1.type_)),
         };
         Ok(Layer {
             detail: flags & format::LAYERFLAG_DETAIL != 0,
@@ -367,21 +517,22 @@ pub struct Image {
 }
 
 impl Image {
-    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>) -> Result<Image,MapError> {
-        fn e<T>(option: Option<T>) -> Result<T,MapError> {
-            option.ok_or(MapError::MalformedImage)
-        }
-        let v1 = try!(e(format::MapItemImageV1::from_slice(raw)));
+    fn from_raw(raw: &[i32], data_indices: ops::Range<usize>)
+        -> Result<Image, format::ImageError>
+    {
+        use format::ImageError::*;
+
+        let v1 = format::MapItemImageV1::mandatory(raw, TooShort, InvalidVersion)?;
         // WARN if external is something other than 0,1
         let data = if v1.external != 0 {
             None
         } else {
-            Some(try!(e(get_index(v1.data, data_indices.clone()))))
+            Some(get_index(v1.data, data_indices.clone(), InvalidDataIndex)?)
         };
         Ok(Image {
-            width: try!(e(v1.width.try_u32())),
-            height: try!(e(v1.height.try_u32())),
-            name: try!(e(get_index(v1.name, data_indices.clone()))),
+            width: v1.width.try_u32().ok_or(InvalidWidth(v1.width))?,
+            height: v1.height.try_u32().ok_or(InvalidHeight(v1.height))?,
+            name: get_index(v1.name, data_indices.clone(), InvalidNameIndex)?,
             data: data,
         })
     }
@@ -391,12 +542,40 @@ pub struct GameLayers {
     pub group: Group,
     pub width: u32,
     pub height: u32,
-    pub game: usize,
-    pub teleport: Option<usize>,
-    pub speedup: Option<usize>,
-    pub front: Option<usize>,
-    pub switch: Option<usize>,
-    pub tune: Option<usize>,
+    pub game_raw: usize,
+    pub teleport_raw: Option<usize>,
+    pub speedup_raw: Option<usize>,
+    pub front_raw: Option<usize>,
+    pub switch_raw: Option<usize>,
+    pub tune_raw: Option<usize>,
+}
+
+impl GameLayers {
+    fn layer_tiles_index(&self, data_index: usize) -> LayerTilesIndex {
+        LayerTilesIndex {
+            data_index: data_index,
+            width: self.width,
+            height: self.height,
+        }
+    }
+    pub fn game(&self) -> LayerTilesIndex {
+        self.layer_tiles_index(self.game_raw)
+    }
+    pub fn teleport(&self) -> Option<LayerTilesIndex> {
+        self.teleport_raw.map(|i| self.layer_tiles_index(i))
+    }
+    pub fn speedup(&self) -> Option<LayerTilesIndex> {
+        self.speedup_raw.map(|i| self.layer_tiles_index(i))
+    }
+    pub fn front(&self) -> Option<LayerTilesIndex> {
+        self.front_raw.map(|i| self.layer_tiles_index(i))
+    }
+    pub fn switch(&self) -> Option<LayerTilesIndex> {
+        self.switch_raw.map(|i| self.layer_tiles_index(i))
+    }
+    pub fn tune(&self) -> Option<LayerTilesIndex> {
+        self.tune_raw.map(|i| self.layer_tiles_index(i))
+    }
 }
 
 pub struct Reader {
@@ -407,50 +586,57 @@ impl Reader {
     pub fn from_datafile(reader: df::Reader) -> Reader {
         Reader { reader: reader }
     }
-    pub fn check_version(&self) -> Result<(),MapError> {
-        let version = try!(self.version());
+    pub fn check_version(&self) -> Result<(), MapError> {
+        let version = self.version()?;
         if version != 1 {
             return Err(MapError::InvalidVersion(version));
         }
         Ok(())
     }
-    pub fn version(&self) -> Result<i32,MapError> {
-        let raw = try!(self.reader.find_item(format::MAP_ITEMTYPE_VERSION, 0)
-            .ok_or(MapError::MissingVersion));
-        let v0 = try!(format::MapItemCommonV0::from_slice(raw.data)
-            .ok_or(MapError::MalformedVersion));
+    pub fn version(&self) -> Result<i32, MapError> {
+        let raw = self.reader.find_item(format::MAP_ITEMTYPE_VERSION, 0)
+            .ok_or(MapError::MissingVersion)?;
+        let v0 = format::MapItemCommonV0::mandatory(
+            raw.data,
+            |_| MapError::EmptyVersion,
+            // MapItemCommonV0 doesn't check the version.
+            |_| unreachable!(),
+        )?;
         Ok(v0.version)
     }
     pub fn group_indices(&self) -> ops::Range<usize> {
         self.reader.item_type_indices(format::MAP_ITEMTYPE_GROUP)
     }
-    pub fn group(&self, index: usize) -> Result<Group,MapError> {
+    pub fn group(&self, index: usize) -> Result<Group, MapError> {
         // Doesn't fail if index is from Reader::groups().
         let raw = self.reader.item(index);
         assert!(raw.type_id == format::MAP_ITEMTYPE_GROUP);
         let layer_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_LAYER);
         Group::from_raw(raw.data, layer_indices)
+            .add_index(index)
     }
-    pub fn layer(&self, index: usize) -> Result<Layer,MapError> {
+    pub fn layer(&self, index: usize) -> Result<Layer, MapError> {
         // Doesn't fail if index is from Reader::group().
         let raw = self.reader.item(index);
         assert!(raw.type_id == format::MAP_ITEMTYPE_LAYER);
         let data_indices = 0..self.reader.num_data();
+        let envelope_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_ENVELOPE);
         let image_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_IMAGE);
         let sound_indices = self.reader.item_type_indices(format::MAP_ITEMTYPE_DDRACE_SOUND);
-        Layer::from_raw(raw.data, data_indices, image_indices, sound_indices)
+        Layer::from_raw(raw.data, data_indices, envelope_indices, image_indices, sound_indices)
+            .add_index(index)
     }
-    pub fn image(&self, index: usize) -> Result<Image,MapError> {
+    pub fn image(&self, index: usize) -> Result<Image, MapError> {
         let raw = self.reader.item(index);
         let data_indices = 0..self.reader.num_data();
         Image::from_raw(raw.data, data_indices)
+            .add_index(index)
     }
-    pub fn image_data(&mut self, data_index: usize) -> Result<Vec<u8>,Error> {
-        let raw = try!(self.reader.read_data(data_index));
-        Ok(raw)
+    pub fn image_data(&mut self, data_index: usize) -> Result<Vec<u8>, Error> {
+        Ok(self.reader.read_data(data_index)?)
     }
-    pub fn game_layers(&self) -> Result<GameLayers,MapError> {
-        fn put<T>(opt: &mut Option<T>, new: T) -> Result<(),MapError> {
+    pub fn game_layers(&self) -> Result<GameLayers, MapError> {
+        fn put<T>(opt: &mut Option<T>, new: T) -> Result<(), MapError> {
             match mem::replace(opt, Some(new)) {
                 None => Ok(()),
                 Some(_) => Err(MapError::TooManyGameLayers),
@@ -466,19 +652,19 @@ impl Reader {
         let mut tune = None;
         for i in self.group_indices() {
             // TODO: Just skip this group?
-            let group = try!(self.group(i));
+            let group = self.group(i)?;
             for k in group.layer_indices.clone() {
                 // TODO: Just as above, skip this layer in case of failure?
-                let layer = try!(self.layer(k));
+                let layer = self.layer(k)?;
                 if let LayerType::Tilemap(tilemap) = layer.t {
                     match tilemap.type_ {
                         LayerTilemapType::Normal(_) => continue,
-                        LayerTilemapType::Game(d) => try!(put(&mut game, d)),
-                        LayerTilemapType::RaceTeleport(d, _) => try!(put(&mut teleport, d)),
-                        LayerTilemapType::RaceSpeedup(d, _) => try!(put(&mut speedup, d)),
-                        LayerTilemapType::DdraceFront(d, _) => try!(put(&mut front, d)),
-                        LayerTilemapType::DdraceSwitch(d, _) => try!(put(&mut switch, d)),
-                        LayerTilemapType::DdraceTune(d, _) => try!(put(&mut tune, d)),
+                        LayerTilemapType::Game(d) => put(&mut game, d)?,
+                        LayerTilemapType::RaceTeleport(d, _) => put(&mut teleport, d)?,
+                        LayerTilemapType::RaceSpeedup(d, _) => put(&mut speedup, d)?,
+                        LayerTilemapType::DdraceFront(d, _) => put(&mut front, d)?,
+                        LayerTilemapType::DdraceSwitch(d, _) => put(&mut switch, d)?,
+                        LayerTilemapType::DdraceTune(d, _) => put(&mut tune, d)?,
                     }
                     match group_index_width_height {
                         Some((k, _, _)) if i != k => {
@@ -506,39 +692,64 @@ impl Reader {
             group: group,
             width: width,
             height: height,
-            game: game,
-            teleport: teleport,
-            speedup: speedup,
-            front: front,
-            switch: switch,
-            tune: tune,
+            game_raw: game,
+            teleport_raw: teleport,
+            speedup_raw: speedup,
+            front_raw: front,
+            switch_raw: switch,
+            tune_raw: tune,
         })
     }
-    pub fn image_name(&mut self, data_index: usize) -> Result<Vec<u8>,Error> {
-        let mut raw = try!(self.reader.read_data(data_index));
+    pub fn image_name(&mut self, data_index: usize) -> Result<Vec<u8>, Error> {
+        let mut raw = self.reader.read_data(data_index)?;
         if raw.pop() != Some(0) {
-            return Err(Error::Map(MapError::MalformedImageName))
+            return Err(Error::Map(MapError::MalformedImageName(data_index)))
         }
         for &c in &raw {
             match c {
-                b'/' | b'\\' | b'\0' => return Err(Error::Map(MapError::MalformedImageName)),
+                b'/' | b'\\' | b'\0' =>
+                    return Err(Error::Map(MapError::MalformedImageName(data_index))),
                 _ => {}
             }
         }
         Ok(raw)
     }
-    pub fn tune_layer_tiles(&mut self, data_index: usize) -> Result<Vec<format::TuneTile>,Error> {
-        let raw = try!(self.reader.read_data(data_index));
+    pub fn tune_layer_tiles_raw(&mut self, data_index: usize)
+        -> Result<Vec<format::TuneTile>, Error>
+    {
+        let raw = self.reader.read_data(data_index)?;
         if raw.len() % mem::size_of::<format::TuneTile>() != 0 {
             return Err(Error::Map(MapError::InvalidTuneTilesLength(raw.len())));
         }
-        Ok(unsafe { vec::transmute(raw) })
+        let tiles: Vec<format::TuneTile> = unsafe { vec::transmute(raw) };
+        Ok(tiles)
     }
-    pub fn layer_tiles(&mut self, data_index: usize) -> Result<Vec<format::Tile>,Error> {
-        let raw = try!(self.reader.read_data(data_index));
+    pub fn tune_layer_tiles(&mut self, index: LayerTilesIndex)
+        -> Result<Array2<format::TuneTile>, Error>
+    {
+        let LayerTilesIndex { data_index, width, height } = index;
+        let tiles = self.tune_layer_tiles_raw(data_index)?;
+        let len = tiles.len();
+        Ok(Array2::from_shape_vec((height.usize(), width.usize()), tiles)
+            .map_err(|_| MapError::InvalidTilesDimensions(len, height, width))?)
+    }
+    pub fn layer_tiles_raw(&mut self, data_index: usize)
+        -> Result<Vec<format::Tile>, Error>
+    {
+        let raw = self.reader.read_data(data_index)?;
         if raw.len() % mem::size_of::<format::Tile>() != 0 {
             return Err(Error::Map(MapError::InvalidTilesLength(raw.len())));
         }
-        Ok(unsafe { vec::transmute(raw) })
+        let tiles: Vec<format::Tile> = unsafe { vec::transmute(raw) };
+        Ok(tiles)
+    }
+    pub fn layer_tiles(&mut self, index: LayerTilesIndex)
+        -> Result<Array2<format::Tile>, Error>
+    {
+        let LayerTilesIndex { data_index, width, height } = index;
+        let tiles = self.layer_tiles_raw(data_index)?;
+        let len = tiles.len();
+        Ok(Array2::from_shape_vec((height.usize(), width.usize()), tiles)
+            .map_err(|_| MapError::InvalidTilesDimensions(len, height, width))?)
     }
 }

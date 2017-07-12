@@ -15,7 +15,7 @@ fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error
     for item in dfr.items() {
         let item: datafile::ItemView = item;
         fn print_map_item<T:MapItem+Debug>(slice: &[i32]) {
-            if let Some(mi) = T::from_slice(slice) {
+            if let Ok(Some(mi)) = T::from_slice(slice) {
                 print!(" {:?}", mi);
             }
         }
@@ -37,7 +37,7 @@ fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error
             },
             MAP_ITEMTYPE_ENVELOPE => {
                 print_map_item::<MapItemCommonV0>(item.data);
-                if let Some(c) = MapItemCommonV0::from_slice(item.data) {
+                if let Ok(Some(c)) = MapItemCommonV0::from_slice(item.data) {
                     match env_version {
                         None => env_version = Some(c.version),
                         Some(v) if v == c.version => {},
@@ -55,7 +55,7 @@ fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error
             MAP_ITEMTYPE_LAYER => {
                 print_map_item::<MapItemCommonV0>(item.data);
                 print_map_item::<MapItemLayerV1>(item.data);
-                if let Some((layer, rest)) = MapItemLayerV1::from_slice_rest(item.data) {
+                if let Ok(Some((layer, rest))) = MapItemLayerV1::from_slice_rest(item.data) {
                     print!(" {} {} {}", layer.type_, layer.flags, rest.len());
                     match layer.type_ {
                         MAP_ITEMTYPE_LAYER_V1_TILEMAP => {
