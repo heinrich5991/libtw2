@@ -67,7 +67,7 @@ name = "common"
 version = "0.0.1"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "file_offset 0.1.0",
+ "file_offset 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "ref_slice 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -116,6 +116,7 @@ dependencies = [
 [[package]]
 name = "file_offset"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "gamenet"
@@ -536,6 +537,7 @@ dependencies = [
 "checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
 "checksum either 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3d2b503c86dad62aaf414ecf2b8c527439abedb3f8d812537f0b12bfd6f32a91"
 "checksum env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aba65b63ffcc17ffacd6cf5aa843da7c5a25e3bd4bbe0b7def8b214e411250e5"
+"checksum file_offset 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a3896e632c0f19900f799224d94c9fbd0d74ced58fa2890bd464f0a9e9748972"
 "checksum gcc 0.3.40 (registry+https://github.com/rust-lang/crates.io-index)" = "872db9e59486ef2b14f8e8c10e9ef02de2bccef6363d7f34835dedb386b3d950"
 "checksum hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "850f3f2c33d20c0f96c4485e087dd580ff041d720988ebf4c84a42acf739262b"
 "checksum itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)" = "ac6e56e7cfd710efcf4c4f614bd101794845d9fe5f406b87ac5108b9153d033f"
