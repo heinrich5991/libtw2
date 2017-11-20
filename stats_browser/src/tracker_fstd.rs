@@ -9,7 +9,6 @@ use rust_time;
 
 use addr::Addr;
 use addr::ServerAddr;
-use base64::B64;
 
 use StatsBrowserCb;
 
@@ -185,8 +184,8 @@ fn print_start() {
 
 fn print_player_new(addr: LogAddr, info: &ClientInfo) {
     print_server("PLADD", addr, &[
-        &B64(&info.name),
-        &B64(&info.clan),
+        &String::from_utf8_lossy(&info.name),
+        &String::from_utf8_lossy(&info.clan),
         &info.is_player,
         &info.country,
     ]);
@@ -194,7 +193,7 @@ fn print_player_new(addr: LogAddr, info: &ClientInfo) {
 
 fn print_player_remove(addr: LogAddr, info: &ClientInfo) {
     print_server("PLDEL", addr, &[
-        &B64(&info.name),
+        &String::from_utf8_lossy(&info.name),
     ]);
 }
 
@@ -211,10 +210,10 @@ fn print_server_remove(addr: LogAddr, info: &ServerInfo) {
 fn print_server_change_impl(addr: LogAddr, new: bool, info: &ServerInfo) {
     print_server(if new { "SVADD" } else { "SVCHG" }, addr, &[
         &info.flags,
-        &B64(&info.version),
-        &B64(&info.game_type),
-        &B64(&info.map),
-        &B64(&info.name),
+        &String::from_utf8_lossy(&info.version),
+        &String::from_utf8_lossy(&info.game_type),
+        &String::from_utf8_lossy(&info.map),
+        &String::from_utf8_lossy(&info.name),
     ]);
 }
 
