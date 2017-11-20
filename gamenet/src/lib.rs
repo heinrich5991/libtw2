@@ -1,7 +1,3 @@
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
 extern crate arrayvec;
 extern crate buffer;
 extern crate common;
