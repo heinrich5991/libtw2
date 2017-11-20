@@ -9,6 +9,7 @@ name = "stats_browser"
 doc = false
 
 [dependencies]
+clap = "2.23.1"
 common = { path = "../common/" }
 log = "0.3.1"
 logger = { path = "../logger/" }
