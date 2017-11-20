@@ -39,6 +39,7 @@ pub trait Cast {
     fn try_u16(self) -> Option<u16> where Self: NU16;
     fn try_i32(self) -> Option<i32> where Self: NI32;
     fn try_u32(self) -> Option<u32> where Self: NU32;
+    fn try_i64(self) -> Option<i64> where Self: NI64;
     fn try_u64(self) -> Option<u64> where Self: NU64;
     fn try_usize(self) -> Option<usize> where Self: NUsize;
     fn assert_u8(self) -> u8 where Self: NU8;
@@ -61,6 +62,7 @@ impl Cast for u8 {
     fn try_u16(self) -> Option<u16> { unreachable!() }
     fn try_i32(self) -> Option<i32> { unreachable!() }
     fn try_u32(self) -> Option<u32> { unreachable!() }
+    fn try_i64(self) -> Option<i64> { unreachable!() }
     fn try_u64(self) -> Option<u64> { unreachable!() }
     fn try_usize(self) -> Option<usize> { unreachable!() }
     fn assert_u8(self) -> u8 { unreachable!() }
@@ -83,6 +85,7 @@ impl Cast for u16 {
     fn try_u16(self) -> Option<u16> { unreachable!() }
     fn try_i32(self) -> Option<i32> { unreachable!() }
     fn try_u32(self) -> Option<u32> { unreachable!() }
+    fn try_i64(self) -> Option<i64> { unreachable!() }
     fn try_u64(self) -> Option<u64> { unreachable!() }
     fn try_usize(self) -> Option<usize> { unreachable!() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
@@ -105,6 +108,7 @@ impl Cast for i32 {
     fn try_u16(self) -> Option<u16> { self.to_u16() }
     fn try_i32(self) -> Option<i32> { unreachable!() }
     fn try_u32(self) -> Option<u32> { self.to_u32() }
+    fn try_i64(self) -> Option<i64> { unreachable!() }
     fn try_u64(self) -> Option<u64> { self.to_u64() }
     fn try_usize(self) -> Option<usize> { self.to_usize() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
@@ -127,6 +131,7 @@ impl Cast for u32 {
     fn try_u16(self) -> Option<u16> { self.to_u16() }
     fn try_i32(self) -> Option<i32> { self.to_i32() }
     fn try_u32(self) -> Option<u32> { unreachable!() }
+    fn try_i64(self) -> Option<i64> { unreachable!() }
     fn try_u64(self) -> Option<u64> { unreachable!() }
     fn try_usize(self) -> Option<usize> { unreachable!() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
@@ -149,6 +154,7 @@ impl Cast for i64 {
     fn try_u16(self) -> Option<u16> { self.to_u16() }
     fn try_i32(self) -> Option<i32> { self.to_i32() }
     fn try_u32(self) -> Option<u32> { self.to_u32() }
+    fn try_i64(self) -> Option<i64> { unreachable!() }
     fn try_u64(self) -> Option<u64> { self.to_u64() }
     fn try_usize(self) -> Option<usize> { self.to_usize() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
@@ -171,6 +177,7 @@ impl Cast for u64 {
     fn try_u16(self) -> Option<u16> { self.to_u16() }
     fn try_i32(self) -> Option<i32> { self.to_i32() }
     fn try_u32(self) -> Option<u32> { self.to_u32() }
+    fn try_i64(self) -> Option<i64> { self.to_i64() }
     fn try_u64(self) -> Option<u64> { unreachable!() }
     fn try_usize(self) -> Option<usize> { self.to_usize() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }
@@ -193,6 +200,7 @@ impl Cast for usize {
     fn try_u16(self) -> Option<u16> { self.to_u16() }
     fn try_i32(self) -> Option<i32> { self.to_i32() }
     fn try_u32(self) -> Option<u32> { self.to_u32() }
+    fn try_i64(self) -> Option<i64> { self.to_i64() }
     fn try_u64(self) -> Option<u64> { unreachable!() }
     fn try_usize(self) -> Option<usize> { unreachable!() }
     fn assert_u8(self) -> u8 { unwrap_overflow("u8", self, self.to_u8()) }

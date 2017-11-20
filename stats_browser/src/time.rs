@@ -1,5 +1,4 @@
 use common::num::Cast;
-use num::ToPrimitive;
 use std::ops::Add;
 use std::ops::Sub;
 use std::time as std_time;
@@ -41,8 +40,8 @@ impl Sub<Time> for Time {
     fn sub(self, rhs: Time) -> Duration {
         let (Time(left), Time(right)) = (self, rhs);
         Duration(
-            right.checked_sub(left).map(|x| x.to_i64().expect("Overflow while converting to i64"))
-            .or_else(|| left.checked_sub(right).map(|x| -x.to_i64().expect("Overflow while converting to i64")))
+            right.checked_sub(left).map(|x| x.try_i64().expect("Overflow while converting to i64"))
+            .or_else(|| left.checked_sub(right).map(|x| -x.try_i64().expect("Overflow while converting to i64")))
             .expect("Overflow while subtracting")
         )
     }

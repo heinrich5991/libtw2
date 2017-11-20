@@ -1,7 +1,6 @@
 #![cfg(not(test))]
 
 #[macro_use] extern crate log;
-extern crate num;
 extern crate rustc_serialize;
 extern crate time as rust_time;
 

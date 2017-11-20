@@ -1,3 +1,4 @@
+use common::num::Cast;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::collections::hash_map::Entry;
@@ -5,8 +6,6 @@ use std::collections::hash_map;
 use std::collections::vec_deque;
 use std::default::Default;
 use std::iter;
-
-use num::ToPrimitive;
 
 use time::Duration;
 use time::Time;
@@ -32,7 +31,7 @@ impl<T> TimedWorkQueue<T> {
         }
     }
     fn duration_to_key(dur: Duration) -> u64 {
-        dur.milliseconds().to_u64().expect("Expected positive duration")
+        dur.milliseconds().try_u64().expect("Expected positive duration")
     }
     pub fn push(&mut self, dur: Duration, data: T) {
         let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
