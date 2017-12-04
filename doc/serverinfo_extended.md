@@ -14,7 +14,7 @@ the following UDP packet:
     [4] vanilla_request
     [1] token
 
-`magic_bytes` must be the ASCII representation of "ex".
+`magic_bytes` must be the ASCII representation of "xe".
 
 `extra_token` contains a 16 bit big-endian integer that should be shifted by 8
 to the left and combined with `token` with a bitwise or, before the extended
