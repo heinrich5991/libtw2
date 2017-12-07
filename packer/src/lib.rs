@@ -173,6 +173,7 @@ pub fn with_packer<'a, B: Buffer<'a>, F, R>(buf: B, f: F) -> R
 }
 
 pub struct Unpacker<'a> {
+    original: &'a [u8],
     iter: slice::Iter<'a, u8>,
     demo: bool,
 }
@@ -180,6 +181,7 @@ pub struct Unpacker<'a> {
 impl<'a> Unpacker<'a> {
     fn new_impl(data: &[u8], demo: bool) -> Unpacker {
         Unpacker {
+            original: data,
             iter: data.iter(),
             demo: demo,
         }
@@ -254,6 +256,9 @@ impl<'a> Unpacker<'a> {
     }
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
+    }
+    pub fn num_bytes_read(&self) -> usize {
+        self.original.len() - self.iter.len()
     }
 }
 

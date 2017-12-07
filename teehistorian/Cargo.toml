@@ -1,0 +1,17 @@
+[package]
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+name = "teehistorian"
+version = "0.0.1"
+
+[dependencies]
+arrayvec = "0.4.6"
+common = { path = "../common/" }
+serde = "1.0.23"
+serde_derive = "1.0.7"
+serde_json = "1.0.7"
+packer = { path = "../packer/" }
+warn = "0.2.2"
+
+[dev-dependencies]
+uuid = { version = "0.5.1", features = ["v3"] }

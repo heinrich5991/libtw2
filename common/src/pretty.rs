@@ -25,6 +25,16 @@ impl Bytes {
     }
 }
 
+pub struct BytesSlice<'a>([&'a [u8]]);
+
+impl<'a> BytesSlice<'a> {
+    pub fn new<'b>(bytes_slice: &'b [&'a [u8]]) -> &'b BytesSlice<'a> {
+        unsafe {
+            mem::transmute(bytes_slice)
+        }
+    }
+}
+
 struct Byte {
     string: ArrayVec<[u8; 4]>,
 }
@@ -61,6 +71,12 @@ impl fmt::Debug for Bytes {
         }
         try!(f.write_str("\""));
         Ok(())
+    }
+}
+
+impl<'a> fmt::Debug for BytesSlice<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_list().entries(self.0.iter().cloned().map(Bytes::new)).finish()
     }
 }
 
