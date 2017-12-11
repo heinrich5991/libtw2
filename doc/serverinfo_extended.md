@@ -70,6 +70,7 @@ The main server info packet looks like follows:
     [ 10] padding
     [  4] type
     [int] token
+    [str] version
     [str] name
     [str] map
     [int] map_crc
@@ -89,6 +90,9 @@ The main server info packet looks like follows:
 
 `token` must be the token from the request. If the server info isn't sent upon
 a request, it mut be -1.
+
+`version` contains the server version. The first three bytes must equal the
+client's version, otherwise it will be filtered out as "incompatible version".
 
 `name`, `map`, `game_type` are the server's name, its current map and gametype,
 respectively. `map_crc` is the current map's CRC (note that Teeworlds uses
