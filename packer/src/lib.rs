@@ -86,6 +86,7 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Unexpect
     Ok(result)
 }
 
+/// Sets the n-th bit of a byte conditionally.
 fn to_bit(b: bool, bit: u32) -> u8 {
     assert!(bit < 8);
     if b { 1 << bit } else { 0 }
@@ -369,6 +370,21 @@ pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
         warn.warn(WeirdStringTermination);
     }
     string
+}
+
+pub fn string_to_bytes<'a, B: Buffer<'a>>(buf: B, string: &[u8])
+    -> Result<&'a [u8], CapacityError>
+{
+    with_buffer(buf, |buf| string_to_bytes_buffer_ref(buf, string))
+}
+
+fn string_to_bytes_buffer_ref<'d, 's>(mut buf: BufferRef<'d, 's>, string: &[u8])
+    -> Result<&'d [u8], CapacityError>
+{
+    assert!(string.iter().all(|&b| b != 0));
+    buf.write(string)?;
+    buf.write(&[0])?;
+    Ok(buf.initialized())
 }
 
 #[cfg(test)]

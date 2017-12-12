@@ -8,6 +8,7 @@ use std::slice;
 use raw::Callback;
 use raw::CallbackReadError;
 use raw::ResultExt;
+use writer;
 
 /// Safe to write arbitrary bytes to this struct.
 pub unsafe trait Packed { }
@@ -20,6 +21,12 @@ unsafe impl Packed for u8 { }
 pub fn as_mut_bytes<T: Packed>(x: &mut T) -> &mut [u8] {
     unsafe {
         slice::from_raw_parts_mut(x as *mut _ as *mut _, mem::size_of_val(x))
+    }
+}
+
+pub fn as_bytes<T: Packed>(x: &T) -> &[u8] {
+    unsafe {
+        slice::from_raw_parts(x as *const _ as *const _, mem::size_of_val(x))
     }
 }
 
@@ -52,3 +59,11 @@ pub trait CallbackExt: Callback {
 }
 
 impl<T: Callback> CallbackExt for T { }
+
+pub trait WriteCallbackExt: writer::Callback {
+    fn write_raw<T: Packed>(&mut self, t: &T) -> Result<(), Self::Error> {
+        self.write(as_bytes(t))
+    }
+}
+
+impl<T: writer::Callback> WriteCallbackExt for T { }

@@ -4,6 +4,7 @@ use common::num::BeU32;
 use common::num::Cast;
 use common::num::LeU16;
 use packer::bytes_to_string;
+use packer::string_to_bytes;
 use std::iter::FromIterator;
 use std::u8;
 use warn::Warn;
@@ -11,12 +12,15 @@ use warn;
 
 use bitmagic::CallbackExt;
 use bitmagic::Packed;
+use bitmagic::WriteCallbackExt;
 use raw::Callback;
 use raw::CallbackReadError;
 use raw::CallbackReadResultExt;
 use raw;
+use writer;
 
 pub const MAGIC: &'static [u8; 7] = b"TWDEMO\0";
+pub const MAX_SNAPSHOT_SIZE: usize = 65536;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Tick(pub i32);
@@ -30,7 +34,7 @@ pub enum Version {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
-    NonAbsoluteTickMarkerTick,
+    NonAbsoluteTickmarkerTick,
     NonIncreasingTick,
     NonIncreasingTimelineMarkers,
     NonZeroTickmarkerPadding,
@@ -80,11 +84,18 @@ impl Version {
             Version::V5 => 5,
         }
     }
+    fn max_tick_delta(self) -> u8 {
+        match self {
+            Version::V3 | Version::V4 => CHUNKTICKMASK_TICK_V3,
+            Version::V5 => CHUNKTICKMASK_TICK_V5,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum Chunk<'a> {
-    Tick(Tick),
+    /// Tick(keyframe, tick)
+    Tick(bool, Tick),
     Snapshot(&'a [i32]),
     SnapshotDelta(&'a [i32]),
     Message(&'a [u8]),
@@ -93,6 +104,15 @@ pub enum Chunk<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct HeaderVersion {
     pub version: Version,
+}
+
+impl HeaderVersion {
+    pub fn pack(&self) -> HeaderVersionPacked {
+        HeaderVersionPacked {
+            magic: *MAGIC,
+            version: self.version.to_u8(),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -123,6 +143,25 @@ pub struct Header {
     pub type_: ArrayVec<[u8; 8]>,
     pub length: u32,
     pub timestamp: ArrayVec<[u8; 20]>,
+}
+
+impl Header {
+    pub fn pack(&self) -> HeaderPacked {
+        let mut result = HeaderPacked {
+            net_version: [0; 64],
+            map_name: [0; 64],
+            map_size: BeI32::from_i32(self.map_size.assert_i32()),
+            map_crc: BeU32::from_u32(self.map_crc),
+            type_: [0; 8],
+            length: BeI32::from_i32(self.length.assert_i32()),
+            timestamp: [0; 20],
+        };
+        string_to_bytes(&mut result.net_version[..], &self.net_version).unwrap();
+        string_to_bytes(&mut result.map_name[..], &self.map_name).unwrap();
+        string_to_bytes(&mut result.type_[..], &self.type_).unwrap();
+        string_to_bytes(&mut result.timestamp[..], &self.timestamp).unwrap();
+        result
+    }
 }
 
 #[derive(Copy)]
@@ -216,6 +255,20 @@ impl TimelineMarkersPacked {
         Ok(TimelineMarkers {
             timeline_markers: result,
         })
+    }
+}
+
+impl TimelineMarkers {
+    pub fn pack(&self) -> TimelineMarkersPacked {
+        let num_timeline_markers = self.timeline_markers.len().assert_i32();
+        let mut result = TimelineMarkersPacked {
+            num_timeline_markers: BeI32::from_i32(num_timeline_markers),
+            timeline_markers: [BeI32::from_i32(0); 64],
+        };
+        for (i, &tlm) in self.timeline_markers.iter().enumerate() {
+            result.timeline_markers[i] = BeI32::from_i32(tlm.0)
+        }
+        result
     }
 }
 
@@ -330,6 +383,22 @@ pub enum Tickmarker {
     Absolute(Tick),
 }
 
+impl Tickmarker {
+    pub fn new(tick: Tick, prev_tick: Option<Tick>, keyframe: bool, version: Version)
+        -> Tickmarker
+    {
+        if let Some(p) = prev_tick {
+            assert!(tick > p);
+            if let Some(d) = tick.0.checked_sub(p.0) {
+                if !keyframe && d <= version.max_tick_delta().i32() {
+                    return Tickmarker::Delta((tick.0 - p.0).assert_u8());
+                }
+            }
+        }
+        Tickmarker::Absolute(tick)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum ChunkHeader {
     /// Tickmarker(keyframe, tickmarker)
@@ -365,7 +434,7 @@ impl ChunkHeader {
         Ok(match chs {
             Chs::Tickmarker(keyframe, Ts::Delta(d)) => {
                 if keyframe {
-                    warn.warn(Warning::NonAbsoluteTickMarkerTick);
+                    warn.warn(Warning::NonAbsoluteTickmarkerTick);
                 }
                 Tickmarker(keyframe, Delta(d))
             },
@@ -389,5 +458,46 @@ impl ChunkHeader {
                 Chunk(type_, size_packed.to_u16().u32())
             },
         })
+    }
+    pub fn write<CB>(&self, cb: &mut CB, version: Version) -> Result<(), CB::Error>
+        where CB: writer::Callback,
+    {
+        assert!(version == Version::V5, "only v5 writing is implemented");
+        match *self {
+            ChunkHeader::Tickmarker(keyframe, Tickmarker::Delta(dt)) => {
+                assert!(dt <= version.max_tick_delta());
+                assert!(!keyframe);
+                cb.write(&[
+                    CHUNKTYPEFLAG_TICKMARKER |
+                    CHUNKTICKFLAG_INLINETICK |
+                    dt
+                ])?;
+            },
+            ChunkHeader::Tickmarker(keyframe, Tickmarker::Absolute(t)) => {
+                let keyframe_flag = if keyframe { CHUNKTICKFLAG_KEYFRAME } else { 0 };
+                cb.write(&[CHUNKTYPEFLAG_TICKMARKER | keyframe_flag])?;
+                cb.write_raw(&BeI32::from_i32(t.0))?;
+            },
+            ChunkHeader::Chunk(type_, size) => {
+                let type_raw = match type_ {
+                    ChunkType::Unknown => CHUNKTYPE_UNKNOWN,
+                    ChunkType::Snapshot => CHUNKTYPE_SNAPSHOT,
+                    ChunkType::Message => CHUNKTYPE_MESSAGE,
+                    ChunkType::SnapshotDelta => CHUNKTYPE_SNAPSHOTDELTA,
+                };
+                if size < CHUNKSIZE_ONEBYTEFOLLOWS.u32() {
+                    cb.write(&[type_raw | size.assert_u8()])?;
+                } else if size < 256 {
+                    cb.write(&[
+                        type_raw | CHUNKSIZE_ONEBYTEFOLLOWS,
+                        size.assert_u8(),
+                    ])?;
+                } else {
+                    cb.write(&[type_raw | CHUNKSIZE_TWOBYTESFOLLOW])?;
+                    cb.write_raw(&LeU16::from_u16(size.assert_u16()))?;
+                }
+            },
+        }
+        Ok(())
     }
 }

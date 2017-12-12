@@ -2,8 +2,10 @@ use common::io::ReadExt;
 use common::num::Cast;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Seek;
 use std::io::SeekFrom;
+use std::io::Write;
 use std::io;
 use std::path::Path;
 use warn::Warn;
@@ -12,6 +14,7 @@ use format::Warning;
 use format;
 use raw::Callback;
 use raw;
+use writer;
 
 #[derive(Debug)]
 pub enum Error {
@@ -121,5 +124,58 @@ impl Callback for CallbackData {
     }
     fn skip(&mut self, num_bytes: u32) -> io::Result<()> {
         self.file.seek(SeekFrom::Current(num_bytes.i64())).map(|_| ())
+    }
+}
+
+struct WriteCallbackData {
+    file: BufWriter<File>,
+}
+
+pub struct Writer {
+    callback_data: WriteCallbackData,
+    raw: writer::Writer,
+}
+
+impl Writer {
+    fn new_impl(file: File, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+        let mut callback_data = WriteCallbackData {
+            file: BufWriter::new(file),
+        };
+        let raw = writer::Writer::new(&mut callback_data, net_version, map_name, map_crc, type_, timestamp)?;
+        Ok(Writer {
+            callback_data: callback_data,
+            raw: raw,
+        })
+    }
+    pub fn new(file: File, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+        Self::new_impl(file, net_version, map_name, map_crc, type_, timestamp)
+    }
+    pub fn open<P: AsRef<Path>>(path: P, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+        fn inner(path: &Path, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+            Writer::new_impl(File::create(path)?, net_version, map_name, map_crc, type_, timestamp)
+        }
+        inner(path.as_ref(), net_version, map_name, map_crc, type_, timestamp)
+    }
+    pub fn write_chunk(&mut self, chunk: format::Chunk) -> io::Result<()> {
+        self.raw.write_chunk(&mut self.callback_data, chunk)
+    }
+    pub fn write_tick(&mut self, keyframe: bool, tick: format::Tick) -> io::Result<()> {
+        self.raw.write_tick(&mut self.callback_data, keyframe, tick)
+    }
+    pub fn write_snapshot(&mut self, snapshot: &[i32]) -> io::Result<()> {
+        self.raw.write_snapshot(&mut self.callback_data, snapshot)
+    }
+    pub fn write_snapshot_delta(&mut self, delta: &[i32]) -> io::Result<()> {
+        self.raw.write_snapshot_delta(&mut self.callback_data, delta)
+    }
+    pub fn write_message(&mut self, msg: &[u8]) -> io::Result<()> {
+        self.raw.write_message(&mut self.callback_data, msg)
+    }
+}
+
+impl writer::Callback for WriteCallbackData {
+    type Error = io::Error;
+    fn write(&mut self, data: &[u8]) -> io::Result<()> {
+        self.file.write_all(data)
     }
 }

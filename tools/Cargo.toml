@@ -20,5 +20,6 @@ net = { path = "../net/" }
 packer = { path = "../packer/" }
 rmp = "0.8.5"
 serverbrowse = { path = "../serverbrowse/" }
+snapshot = { path = "../snapshot/" }
 teehistorian = { path = "../teehistorian/" }
 warn = "0.2.2"

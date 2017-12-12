@@ -113,7 +113,7 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path)
                 let mut u = packer::Unpacker::new_from_demo(bytes);
                 println!("message {:?}", Game::decode(warn::wrap(warn), &mut u)?);
             },
-            demo::Chunk::Tick(demo::Tick(t)) => println!("tick={}", t),
+            demo::Chunk::Tick(_, demo::Tick(t)) => println!("tick={}", t),
             demo::Chunk::Snapshot(_) => println!("snapshot"),
             demo::Chunk::SnapshotDelta(_) => println!("snapshot_delta"),
         }

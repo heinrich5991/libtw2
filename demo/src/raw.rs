@@ -12,10 +12,9 @@ use warn::Warn;
 use warn;
 
 use bitmagic::CallbackExt;
+use format::MAX_SNAPSHOT_SIZE;
 use format::Warning;
 use format;
-
-pub const MAX_SNAPSHOT_SIZE: usize = 65536;
 
 fn huffman_error(e: huffman::DecompressionError) -> format::Error {
     use huffman::DecompressionError::*;
@@ -207,16 +206,16 @@ impl Inner {
             return Ok(None);
         }
         match chunk_header {
-            ChunkHeader::Tickmarker(_, Tickmarker::Absolute(t)) => {
+            ChunkHeader::Tickmarker(keyframe, Tickmarker::Absolute(t)) => {
                 if let Some(previous) = self.current_tick {
                     if previous >= t {
                         warn.warn(Warning::NonIncreasingTick);
                     }
                 }
                 self.current_tick = Some(t);
-                Ok(Some(Chunk::Tick(t)))
+                Ok(Some(Chunk::Tick(keyframe, t)))
             }
-            ChunkHeader::Tickmarker(_, Tickmarker::Delta(d)) => {
+            ChunkHeader::Tickmarker(keyframe, Tickmarker::Delta(d)) => {
                 let cur = self.current_tick.unwrap_or_else(|| {
                     warn.warn(Warning::StartingDeltaTick);
                     format::Tick(0)
@@ -226,7 +225,7 @@ impl Inner {
                     warn.warn(Warning::TickOverflow);
                 }
                 self.current_tick = Some(result);
-                Ok(Some(Chunk::Tick(result)))
+                Ok(Some(Chunk::Tick(keyframe, result)))
             }
             ChunkHeader::Chunk(type_, size) => {
                 {
