@@ -1,8 +1,435 @@
-pub trait Callback {
-    type Error;
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
+use common::num::Cast;
+use itertools::zip_eq;
+use packer::Unpacker;
+use std::fmt;
+use vec_map::VecMap;
+
+use bitmagic::CallbackExt;
+use format::Header;
+use format::MaybeEnd;
+use format::item::INPUT_LEN;
+use format::item;
+use format;
+
+macro_rules! unexp_end {
+    ($e:expr) => {
+        unexp_end!($e, Ok(None))
+    };
+    ($e:expr, $end:expr) => {
+        match $e {
+            Ok(x) => Ok(x),
+            Err(MaybeEnd::UnexpectedEnd) => return $end,
+            Err(MaybeEnd::Err(e)) => Err(e),
+        }
+    };
 }
 
-struct Reader {
+const BUFFER_SIZE: usize = 8192;
+
+pub fn read_header(data: &[u8])
+    -> Result<Option<(usize, Header)>, format::HeaderError>
+{
+    let mut p = Unpacker::new(data);
+    unexp_end!(format::read_magic(&mut p))?;
+    let header = unexp_end!(format::read_header(&mut p))?;
+    Ok(Some((p.num_bytes_read(), header)))
+}
+
+pub trait Callback {
+    type Error;
+    /// Return `Ok(None)` on EOF, `Ok(Some(n))` if `n` bytes were successfully
+    /// read (might be lower than `buffer.len()`.
+    fn read_at_most(&mut self, buffer: &mut [u8])
+        -> Result<Option<usize>, Self::Error>;
+}
+
+#[derive(Debug)]
+pub enum Error<CE> {
+    Teehistorian(format::Error),
+    Cb(CE),
+}
+
+impl<CE> From<format::HeaderError> for Error<CE> {
+    fn from(e: format::HeaderError) -> Error<CE> {
+        let e: format::Error = e.into();
+        e.into()
+    }
+}
+
+impl<CE> From<item::UnknownType> for Error<CE> {
+    fn from(e: item::UnknownType) -> Error<CE> {
+        item::Error::from(e).into()
+    }
+}
+
+impl<CE> From<MaybeEnd<item::UnknownType>> for MaybeEnd<Error<CE>> {
+    fn from(me: MaybeEnd<item::UnknownType>) -> MaybeEnd<Error<CE>> {
+        match me {
+            MaybeEnd::Err(e) => MaybeEnd::Err(item::Error::from(e).into()),
+            MaybeEnd::UnexpectedEnd => MaybeEnd::UnexpectedEnd,
+        }
+    }
+}
+
+impl<CE> From<item::Error> for Error<CE> {
+    fn from(e: item::Error) -> Error<CE> {
+        let e: format::Error = e.into();
+        e.into()
+    }
+}
+
+impl<CE> From<format::Error> for Error<CE> {
+    fn from(e: format::Error) -> Error<CE> {
+        Error::Teehistorian(e)
+    }
+}
+
+pub struct WrapCallbackError<CE>(pub CE);
+impl<CE> From<WrapCallbackError<CE>> for Error<CE> {
+    fn from(err: WrapCallbackError<CE>) -> Error<CE> {
+        Error::Cb(err.0)
+    }
+}
+pub trait ResultExt {
+    type ResultWrapped;
+    fn wrap(self) -> Self::ResultWrapped;
+}
+impl<T, CE> ResultExt for Result<T, CE> {
+    type ResultWrapped = Result<T, WrapCallbackError<CE>>;
+    fn wrap(self) -> Result<T, WrapCallbackError<CE>> {
+        self.map_err(WrapCallbackError)
+    }
+}
+
+struct Inner {
+    offset: usize,
     buffer: Vec<u8>,
+}
+
+#[derive(Clone, Copy)]
+pub struct Pos {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Pos {
+    fn wrapping_add(self, other: Pos) -> Pos {
+        Pos {
+            x: self.x.wrapping_add(other.x),
+            y: self.y.wrapping_add(other.x),
+        }
+    }
+}
+
+impl fmt::Debug for Pos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("")
+            .field(&self.x)
+            .field(&self.y)
+            .finish()
+    }
+}
+
+pub struct Reader {
+    inner: Inner,
+    tick: i32,
+    players: VecMap<Pos>,
+    inputs: VecMap<[i32; INPUT_LEN]>,
+    prev_player_cid: Option<i32>,
+    next_item_kind: Option<item::Kind>,
+    in_tick: bool,
+}
+
+impl Reader {
+    fn empty() -> Reader {
+        Reader {
+            inner: Inner {
+                offset: 0,
+                buffer: Vec::new(),
+            },
+            tick: 0,
+            players: VecMap::new(),
+            inputs: VecMap::new(),
+            prev_player_cid: None,
+            next_item_kind: None,
+            in_tick: false,
+        }
+    }
+    pub fn new<CB>(cb: &mut CB) -> Result<Reader, Error<CB::Error>>
+        where CB: Callback,
+    {
+        let mut reader = Reader::empty();
+        reader.new_impl(cb)?;
+        Ok(reader)
+    }
+    pub fn new_impl<CB>(&mut self, cb: &mut CB) -> Result<(), Error<CB::Error>>
+        where CB: Callback,
+    {
+        loop {
+            if let Some((read, header)) = read_header(&self.inner.buffer)? {
+                self.inner.offset += read;
+                Self::from_header_impl(&header)?;
+                return Ok(());
+            }
+            self.inner.read_more(cb)?;
+        }
+    }
+    pub fn from_header_impl(header: &Header) -> Result<(), format::Error> {
+        if header.version == 1 {
+            Ok(())
+        } else {
+            Err(format::Error::UnknownVersion)
+        }
+    }
+    pub fn from_header(header: &Header) -> Result<Reader, format::Error> {
+        Self::from_header_impl(header)?;
+        Ok(Reader::empty())
+    }
+    pub fn read<'a, CB>(&'a mut self, cb: &mut CB)
+        -> Result<Option<Item<'a>>, Error<CB::Error>>
+        where CB: Callback,
+    {
+        let item_kind = if let Some(ik) = self.next_item_kind.take() {
+            ik
+        } else {
+            self.inner.read_kind(cb)?
+        };
+
+        // WARN: Detect two consecutive `TickSkip`s.
+        if item_kind != item::Kind::TickSkip &&
+            item_kind != item::Kind::Finish &&
+            !self.in_tick
+        {
+            self.next_item_kind = Some(item_kind);
+            self.in_tick = true;
+            return Ok(Some(Item::TickStart(self.tick)));
+        }
+
+        if let Some(cid) = item_kind.player_cid() {
+            if self.prev_player_cid.map(|p| p >= cid).unwrap_or(false) {
+                let old_tick = self.tick;
+                self.tick = old_tick
+                    .checked_add(1).ok_or(format::Error::TickOverflow)?;
+                self.prev_player_cid = None;
+                self.next_item_kind = Some(item_kind);
+                self.in_tick = false;
+                return Ok(Some(Item::TickEnd(old_tick)));
+            }
+        } else if item_kind == item::Kind::Finish && self.in_tick {
+            self.next_item_kind = Some(item_kind);
+            self.in_tick = false;
+            return Ok(Some(Item::TickEnd(self.tick)));
+        }
+
+        Ok(Some(match self.inner.read_item(cb, item_kind)? {
+            format::Item::TickSkip(i) => {
+                let old_tick = self.tick;
+                let dt = i.dt.try_i32()
+                    .ok_or(format::Error::TickOverflow)?;
+                self.tick = self.tick
+                    .checked_add(1).ok_or(format::Error::TickOverflow)?
+                    .checked_add(dt).ok_or(format::Error::TickOverflow)?;
+                if self.in_tick {
+                    self.in_tick = false;
+                    Item::TickEnd(old_tick)
+                } else {
+                    self.in_tick = true;
+                    Item::TickStart(self.tick)
+                }
+            },
+            format::Item::Message(i) => Item::Message(i),
+            format::Item::Join(i) => Item::Join(i),
+            format::Item::Drop(i) => Item::Drop(i),
+            format::Item::ConsoleCommand(i) => Item::ConsoleCommand(i),
+
+            format::Item::PlayerDiff(i) => {
+                self.prev_player_cid = Some(i.cid);
+                let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
+                let player = self.players.get_mut(cid)
+                    .ok_or(format::Error::PlayerDiffWithoutNew)?;
+                let old_pos = *player;
+                *player = player.wrapping_add(Pos { x: i.dx, y: i.dy });
+                Item::PlayerChange(PlayerChange {
+                    cid: i.cid,
+                    pos: *player,
+                    old_pos: old_pos,
+                })
+            }
+            format::Item::PlayerNew(i) => {
+                self.prev_player_cid = Some(i.cid);
+                let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
+                let pos = Pos { x: i.x, y: i.y };
+                if self.players.insert(cid, pos).is_some() {
+                    return Err(format::Error::PlayerNewDuplicate.into());
+                }
+                Item::PlayerNew(Player { cid: i.cid, pos: pos })
+            },
+            format::Item::PlayerOld(i) => {
+                self.prev_player_cid = Some(i.cid);
+                let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
+                let pos = self.players.remove(cid)
+                    .ok_or(format::Error::PlayerOldWithoutNew)?;
+                Item::PlayerOld(Player { cid: i.cid, pos: pos })
+            },
+            format::Item::InputDiff(i) => {
+                let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
+                let input = self.inputs.get_mut(cid)
+                    .ok_or(format::Error::InputDiffWithoutNew)?;
+                for (i, d) in zip_eq(input.iter_mut(), i.diff.iter()) {
+                    *i = i.wrapping_add(*d);
+                }
+                Item::Input(Input { cid: i.cid, input: *input })
+            },
+            format::Item::InputNew(i) => {
+                let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
+                if self.inputs.insert(cid, i.new).is_some() {
+                    return Err(format::Error::InputDiffWithoutNew.into());
+                }
+                Item::Input(Input { cid: i.cid, input: i.new })
+            },
+            // WARN: Detect overlong teehistorian files.
+            format::Item::Finish(format::item::Finish) => return Ok(None),
+        }))
+    }
+    pub fn player_pos(&self, cid: i32) -> Option<Pos> {
+        self.players.get(cid.assert_usize()).cloned()
+    }
+    pub fn input(&self, cid: i32) -> Option<[i32; INPUT_LEN]> {
+        self.inputs.get(cid.assert_usize()).cloned()
+    }
+}
+
+impl Inner {
+    fn read_more<CB: Callback>(&mut self, cb: &mut CB)
+        -> Result<(), Error<CB::Error>>
+    {
+        if self.buffer.len() != self.buffer.capacity() {
+            if cb.read_buffer(&mut self.buffer).wrap()?.is_some() {
+                Ok(())
+            } else {
+                Err(format::Error::UnexpectedEnd.into())
+            }
+        } else {
+            if self.offset != 0 {
+                self.buffer.drain(0..self.offset);
+                self.offset = 0;
+            } else {
+                let len = self.buffer.len();
+                self.buffer.reserve(if len < BUFFER_SIZE {
+                    BUFFER_SIZE
+                } else {
+                    len
+                });
+            }
+            self.read_more(cb)
+        }
+    }
+    fn read_kind<CB>(&mut self, cb: &mut CB)
+        -> Result<item::Kind, Error<CB::Error>>
+        where CB: Callback,
+    {
+        loop {
+            let maybe_item_kind;
+            let num_bytes_read;
+            {
+                let mut p = Unpacker::new(&self.buffer[self.offset..]);
+                maybe_item_kind = item::Kind::decode(&mut p);
+                num_bytes_read = p.num_bytes_read();
+            }
+            match maybe_item_kind {
+                Ok(x) => {
+                    self.offset += num_bytes_read;
+                    return Ok(x);
+                },
+                Err(MaybeEnd::Err(x)) => return Err(x.into()),
+                Err(MaybeEnd::UnexpectedEnd) => self.read_more(cb)?,
+            }
+        }
+    }
+    fn read_item<'a, CB>(&'a mut self, cb: &mut CB, kind: item::Kind)
+        -> Result<format::Item<'a>, Error<CB::Error>>
+        where CB: Callback,
+    {
+        // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
+        let raw_self: *mut Inner = self;
+        unsafe {
+            loop {
+                let mut p = Unpacker::new(&(*raw_self).buffer[self.offset..]);
+                match kind.decode_rest(&mut p) {
+                    Ok(x) => {
+                        self.offset += p.num_bytes_read();
+                        return Ok(x);
+                    },
+                    Err(MaybeEnd::Err(x)) => return Err(x.into()),
+                    Err(MaybeEnd::UnexpectedEnd) => self.read_more(cb)?,
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Player {
+    pub cid: i32,
+    pub pos: Pos,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct PlayerChange {
+    pub cid: i32,
+    pub pos: Pos,
+    pub old_pos: Pos,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Input {
+    pub cid: i32,
+    pub input: [i32; INPUT_LEN],
+}
+
+#[derive(Clone)]
+pub enum Item<'a> {
+    TickStart(i32),
+    TickEnd(i32),
+    PlayerNew(Player),
+    PlayerChange(PlayerChange),
+    PlayerOld(Player),
+    Input(Input),
+    Message(item::Message<'a>),
+    Join(item::Join),
+    Drop(item::Drop<'a>),
+    ConsoleCommand(item::ConsoleCommand<'a>),
+}
+
+impl<'a> fmt::Debug for Item<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Item::TickStart(ref i) => f.debug_tuple("TickStart").field(&i).finish(),
+            Item::TickEnd(ref i) => f.debug_tuple("TickEnd").field(&i).finish(),
+            Item::PlayerNew(ref i) => {
+                f.debug_struct("PlayerNew")
+                    .field("cid", &i.cid)
+                    .field("pos", &i.pos)
+                    .finish()
+            },
+            Item::PlayerChange(ref i) => {
+                f.debug_struct("PlayerChange")
+                    .field("cid", &i.cid)
+                    .field("pos", &i.pos)
+                    .field("old_pos", &i.old_pos)
+                    .finish()
+            },
+            Item::PlayerOld(ref i) => {
+                f.debug_struct("PlayerOld")
+                    .field("cid", &i.cid)
+                    .field("pos", &i.pos)
+                    .finish()
+            },
+            Item::Input(ref i) => i.fmt(f),
+            Item::Message(ref i) => i.fmt(f),
+            Item::Join(ref i) => i.fmt(f),
+            Item::Drop(ref i) => i.fmt(f),
+            Item::ConsoleCommand(ref i) => i.fmt(f),
+        }
+    }
 }

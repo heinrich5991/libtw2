@@ -1,11 +1,12 @@
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use packer::UnexpectedEnd;
 use packer::Unpacker;
 use packer::positive;
 use std::fmt;
 use warn::Ignore;
+
+use super::MaybeEnd;
 
 pub const FINISH: i32 = -1;
 pub const TICK_SKIP: i32 = -2;
@@ -20,6 +21,91 @@ pub const CONSOLE_COMMAND: i32 = -10;
 
 pub const INPUT_LEN: usize = 10;
 pub const CONSOLE_COMMAND_MAX_ARGS: usize = 16;
+
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub enum Kind {
+    /// PlayerDiff(cid)
+    PlayerDiff(i32),
+    Finish,
+    TickSkip,
+    /// PlayerNew(cid)
+    PlayerNew(i32),
+    /// PlayerOld(cid)
+    PlayerOld(i32),
+    InputDiff,
+    InputNew,
+    Message,
+    Join,
+    Drop,
+    ConsoleCommand,
+}
+
+pub struct UnknownType(i32);
+
+impl From<UnknownType> for Error {
+    fn from(e: UnknownType) -> Error {
+        Error::UnknownType(e.0)
+    }
+}
+
+impl From<UnknownType> for MaybeEnd<UnknownType> {
+    fn from(e: UnknownType) -> MaybeEnd<UnknownType> {
+        MaybeEnd::Err(e)
+    }
+}
+
+impl From<MaybeEnd<UnknownType>> for MaybeEnd<Error> {
+    fn from(me: MaybeEnd<UnknownType>) -> MaybeEnd<Error> {
+        match me {
+            MaybeEnd::Err(e) => MaybeEnd::Err(e.into()),
+            MaybeEnd::UnexpectedEnd => MaybeEnd::UnexpectedEnd,
+        }
+    }
+}
+
+impl Kind {
+    pub fn decode(p: &mut Unpacker) -> Result<Kind, MaybeEnd<UnknownType>> {
+        Ok(match p.read_int(&mut Ignore)? {
+            i if i >= 0 => Kind::PlayerDiff(i),
+            FINISH => Kind::Finish,
+            TICK_SKIP => Kind::TickSkip,
+            PLAYER_NEW => Kind::PlayerNew(p.read_int(&mut Ignore)?),
+            PLAYER_OLD => Kind::PlayerOld(p.read_int(&mut Ignore)?),
+            INPUT_DIFF => Kind::InputDiff,
+            INPUT_NEW => Kind::InputNew,
+            MESSAGE => Kind::Message,
+            JOIN => Kind::Join,
+            DROP => Kind::Drop,
+            CONSOLE_COMMAND => Kind::ConsoleCommand,
+            x => return Err(UnknownType(x).into()),
+        })
+    }
+    pub fn decode_rest<'a>(&self, p: &mut Unpacker<'a>)
+        -> Result<Item<'a>, MaybeEnd<Error>>
+    {
+        Ok(match *self {
+            Kind::PlayerDiff(cid) => PlayerDiff::decode(cid, p)?.into(),
+            Kind::Finish => Finish::decode(p)?.into(),
+            Kind::TickSkip => TickSkip::decode(p)?.into(),
+            Kind::PlayerNew(cid) => PlayerNew::decode(cid, p)?.into(),
+            Kind::PlayerOld(cid) => PlayerOld::decode(cid, p)?.into(),
+            Kind::InputDiff => InputDiff::decode(p)?.into(),
+            Kind::InputNew => InputNew::decode(p)?.into(),
+            Kind::Message => Message::decode(p)?.into(),
+            Kind::Join => Join::decode(p)?.into(),
+            Kind::Drop => Drop::decode(p)?.into(),
+            Kind::ConsoleCommand => ConsoleCommand::decode(p)?.into(),
+        })
+    }
+    pub fn player_cid(&self) -> Option<i32> {
+        Some(match *self {
+            Kind::PlayerDiff(cid) => cid,
+            Kind::PlayerNew(cid) => cid,
+            Kind::PlayerOld(cid) => cid,
+            _ => return None,
+        })
+    }
+}
 
 #[derive(Clone)]
 pub enum Item<'a> {
@@ -102,40 +188,26 @@ pub struct ConsoleCommand<'a> {
 
 #[derive(Debug)]
 pub enum Error {
-    UnexpectedEnd,
     UnknownType(i32),
     NegativeDt,
     NegativeNumArgs,
     NumArgsTooLarge,
 }
 
-impl From<UnexpectedEnd> for Error {
-    fn from(_: UnexpectedEnd) -> Error {
-        Error::UnexpectedEnd
+impl From<Error> for MaybeEnd<Error> {
+    fn from(e: Error) -> MaybeEnd<Error> {
+        MaybeEnd::Err(e)
     }
 }
 
 impl<'a> Item<'a> {
-    pub fn decode(p: &mut Unpacker<'a>) -> Result<Item<'a>, Error> {
-        match p.read_int(&mut Ignore)? {
-            x if x >= 0 => Ok(PlayerDiff::decode(x, p)?.into()),
-            FINISH => Ok(Finish::decode(p)?.into()),
-            TICK_SKIP => Ok(TickSkip::decode(p)?.into()),
-            PLAYER_NEW => Ok(PlayerNew::decode(p)?.into()),
-            PLAYER_OLD => Ok(PlayerOld::decode(p)?.into()),
-            INPUT_DIFF => Ok(InputDiff::decode(p)?.into()),
-            INPUT_NEW => Ok(InputNew::decode(p)?.into()),
-            MESSAGE => Ok(Message::decode(p)?.into()),
-            JOIN => Ok(Join::decode(p)?.into()),
-            DROP => Ok(Drop::decode(p)?.into()),
-            CONSOLE_COMMAND => Ok(ConsoleCommand::decode(p)?.into()),
-            x => Err(Error::UnknownType(x)),
-        }
+    pub fn decode(p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
+        Kind::decode(p)?.decode_rest(p)
     }
 }
 
 impl PlayerDiff {
-    fn decode(cid: i32, _p: &mut Unpacker) -> Result<PlayerDiff, Error> {
+    fn decode(cid: i32, _p: &mut Unpacker) -> Result<PlayerDiff, MaybeEnd<Error>> {
         Ok(PlayerDiff {
             cid: cid,
             dx: _p.read_int(&mut Ignore)?,
@@ -145,13 +217,13 @@ impl PlayerDiff {
 }
 
 impl Finish {
-    fn decode(_p: &mut Unpacker) -> Result<Finish, Error> {
+    fn decode(_p: &mut Unpacker) -> Result<Finish, MaybeEnd<Error>> {
         Ok(Finish)
     }
 }
 
 impl TickSkip {
-    fn decode(_p: &mut Unpacker) -> Result<TickSkip, Error> {
+    fn decode(_p: &mut Unpacker) -> Result<TickSkip, MaybeEnd<Error>> {
         Ok(TickSkip {
             dt: positive(_p.read_int(&mut Ignore)?)
                 .map_err(|_| Error::NegativeDt)?
@@ -161,9 +233,9 @@ impl TickSkip {
 }
 
 impl PlayerNew {
-    fn decode(_p: &mut Unpacker) -> Result<PlayerNew, Error> {
+    fn decode(cid: i32, _p: &mut Unpacker) -> Result<PlayerNew, MaybeEnd<Error>> {
         Ok(PlayerNew {
-            cid: _p.read_int(&mut Ignore)?,
+            cid: cid,
             x: _p.read_int(&mut Ignore)?,
             y: _p.read_int(&mut Ignore)?,
         })
@@ -171,15 +243,15 @@ impl PlayerNew {
 }
 
 impl PlayerOld {
-    fn decode(_p: &mut Unpacker) -> Result<PlayerOld, Error> {
+    fn decode(cid: i32, _p: &mut Unpacker) -> Result<PlayerOld, MaybeEnd<Error>> {
         Ok(PlayerOld {
-            cid: _p.read_int(&mut Ignore)?,
+            cid: cid,
         })
     }
 }
 
 impl InputDiff {
-    fn decode(_p: &mut Unpacker) -> Result<InputDiff, Error> {
+    fn decode(_p: &mut Unpacker) -> Result<InputDiff, MaybeEnd<Error>> {
         Ok(InputDiff {
             cid: _p.read_int(&mut Ignore)?,
             diff: [
@@ -199,7 +271,7 @@ impl InputDiff {
 }
 
 impl InputNew {
-    fn decode(_p: &mut Unpacker) -> Result<InputNew, Error> {
+    fn decode(_p: &mut Unpacker) -> Result<InputNew, MaybeEnd<Error>> {
         Ok(InputNew {
             cid: _p.read_int(&mut Ignore)?,
             new: [
@@ -219,7 +291,7 @@ impl InputNew {
 }
 
 impl<'a> Message<'a> {
-    fn decode(_p: &mut Unpacker<'a>) -> Result<Message<'a>, Error> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<Message<'a>, MaybeEnd<Error>> {
         Ok(Message {
             cid: _p.read_int(&mut Ignore)?,
             msg: _p.read_data(&mut Ignore)?
@@ -228,7 +300,7 @@ impl<'a> Message<'a> {
 }
 
 impl Join {
-    fn decode(_p: &mut Unpacker) -> Result<Join, Error> {
+    fn decode(_p: &mut Unpacker) -> Result<Join, MaybeEnd<Error>> {
         Ok(Join {
             cid: _p.read_int(&mut Ignore)?,
         })
@@ -236,7 +308,7 @@ impl Join {
 }
 
 impl<'a> Drop<'a> {
-    fn decode(_p: &mut Unpacker<'a>) -> Result<Drop<'a>, Error> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<Drop<'a>, MaybeEnd<Error>> {
         Ok(Drop {
             cid: _p.read_int(&mut Ignore)?,
             reason: _p.read_string()?
@@ -245,7 +317,7 @@ impl<'a> Drop<'a> {
 }
 
 impl<'a> ConsoleCommand<'a> {
-    fn decode(_p: &mut Unpacker<'a>) -> Result<ConsoleCommand<'a>, Error> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<ConsoleCommand<'a>, MaybeEnd<Error>> {
         let cid = _p.read_int(&mut Ignore)?;
         let flag_mask = _p.read_int(&mut Ignore)? as u32;
         let cmd = _p.read_string()?;

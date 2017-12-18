@@ -23,8 +23,20 @@ pub struct Header<'a> {
 }
 
 #[derive(Debug)]
-pub enum HeaderError {
+pub enum MaybeEnd<E> {
+    Err(E),
     UnexpectedEnd,
+}
+
+impl<E> From<UnexpectedEnd> for MaybeEnd<E> {
+    fn from(_: UnexpectedEnd) -> MaybeEnd<E> {
+        MaybeEnd::UnexpectedEnd
+    }
+}
+
+#[derive(Debug)]
+pub enum HeaderError {
+    WrongMagic,
     MalformedJson,
     MalformedHeader,
     MalformedVersion,
@@ -32,28 +44,31 @@ pub enum HeaderError {
     MalformedMapCrc,
 }
 
-impl From<UnexpectedEnd> for HeaderError {
-    fn from(_: UnexpectedEnd) -> HeaderError {
-        HeaderError::UnexpectedEnd
+impl From<WrongMagic> for HeaderError {
+    fn from(_: WrongMagic) -> HeaderError {
+        HeaderError::WrongMagic
+    }
+}
+
+impl From<HeaderError> for MaybeEnd<HeaderError> {
+    fn from(e: HeaderError) -> MaybeEnd<HeaderError> {
+        MaybeEnd::Err(e)
     }
 }
 
 #[derive(Debug)]
-pub enum MagicError {
-    InvalidMagic,
-    UnexpectedEnd,
-}
+pub struct WrongMagic;
 
-impl From<UnexpectedEnd> for MagicError {
-    fn from(_: UnexpectedEnd) -> MagicError {
-        MagicError::UnexpectedEnd
+impl From<WrongMagic> for MaybeEnd<WrongMagic> {
+    fn from(e: WrongMagic) -> MaybeEnd<WrongMagic> {
+        MaybeEnd::Err(e)
     }
 }
 
-pub fn read_magic(p: &mut Unpacker) -> Result<(), MagicError> {
+pub fn read_magic(p: &mut Unpacker) -> Result<(), MaybeEnd<WrongMagic>> {
     let magic = p.read_raw(MAGIC_LEN)?;
     if magic != UUID {
-        return Err(MagicError::InvalidMagic);
+        return Err(WrongMagic.into());
     }
     Ok(())
 }
@@ -66,12 +81,9 @@ struct JsonHeader<'a> {
     map_crc: Cow<'a, str>,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct ReadHeader {
-    pos: usize,
-}
-
-pub fn read_header<'a>(p: &mut Unpacker<'a>) -> Result<Header<'a>, HeaderError> {
+pub fn read_header<'a>(p: &mut Unpacker<'a>)
+    -> Result<Header<'a>, MaybeEnd<HeaderError>>
+{
     use self::HeaderError::*;
     let header_data = p.read_string()?;
     let json_header: JsonHeader = serde_json::from_slice(header_data)
@@ -85,10 +97,35 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>) -> Result<Header<'a>, HeaderError> 
     Ok(header)
 }
 
+impl From<HeaderError> for Error {
+    fn from(e: HeaderError) -> Error {
+        Error::Header(e)
+    }
+}
+
+impl From<item::Error> for Error {
+    fn from(e: item::Error) -> Error {
+        Error::Item(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Header(HeaderError),
+    Item(item::Error),
+    UnknownVersion,
+    TickOverflow,
+    UnexpectedEnd,
+    InvalidClientId,
+    PlayerNewDuplicate,
+    PlayerDiffWithoutNew,
+    PlayerOldWithoutNew,
+    InputNewDuplicate,
+    InputDiffWithoutNew,
+}
+
 #[cfg(test)]
 mod test {
-    use super::ReadHeader;
-
     #[test]
     fn correct_uuid() {
         use super::UUID;
