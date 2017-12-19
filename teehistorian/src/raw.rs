@@ -1,7 +1,9 @@
 use common::num::Cast;
 use itertools::zip_eq;
 use packer::Unpacker;
+use std::cmp;
 use std::fmt;
+use std::ops;
 use vec_map::VecMap;
 
 use bitmagic::CallbackExt;
@@ -101,9 +103,22 @@ impl<T, CE> ResultExt for Result<T, CE> {
     }
 }
 
-struct Inner {
+pub struct Buffer {
     offset: usize,
     buffer: Vec<u8>,
+}
+
+impl Buffer {
+    pub fn new() -> Buffer {
+        Buffer {
+            offset: 0,
+            buffer: Vec::new(),
+        }
+    }
+    pub fn clear(&mut self) {
+        self.offset = 0;
+        self.buffer.clear();
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -116,7 +131,7 @@ impl Pos {
     fn wrapping_add(self, other: Pos) -> Pos {
         Pos {
             x: self.x.wrapping_add(other.x),
-            y: self.y.wrapping_add(other.x),
+            y: self.y.wrapping_add(other.y),
         }
     }
 }
@@ -131,10 +146,10 @@ impl fmt::Debug for Pos {
 }
 
 pub struct Reader {
-    inner: Inner,
     tick: i32,
     players: VecMap<Pos>,
     inputs: VecMap<[i32; INPUT_LEN]>,
+    max_cid: i32,
     prev_player_cid: Option<i32>,
     next_item_kind: Option<item::Kind>,
     in_tick: bool,
@@ -143,35 +158,34 @@ pub struct Reader {
 impl Reader {
     fn empty() -> Reader {
         Reader {
-            inner: Inner {
-                offset: 0,
-                buffer: Vec::new(),
-            },
             tick: 0,
             players: VecMap::new(),
             inputs: VecMap::new(),
+            max_cid: -1,
             prev_player_cid: None,
             next_item_kind: None,
             in_tick: false,
         }
     }
-    pub fn new<CB>(cb: &mut CB) -> Result<Reader, Error<CB::Error>>
+    pub fn new<CB>(cb: &mut CB, buffer: &mut Buffer)
+        -> Result<Reader, Error<CB::Error>>
         where CB: Callback,
     {
         let mut reader = Reader::empty();
-        reader.new_impl(cb)?;
+        reader.new_impl(cb, buffer)?;
         Ok(reader)
     }
-    pub fn new_impl<CB>(&mut self, cb: &mut CB) -> Result<(), Error<CB::Error>>
+    pub fn new_impl<CB>(&mut self, cb: &mut CB, buffer: &mut Buffer)
+        -> Result<(), Error<CB::Error>>
         where CB: Callback,
     {
         loop {
-            if let Some((read, header)) = read_header(&self.inner.buffer)? {
-                self.inner.offset += read;
+            if let Some((read, header)) = read_header(&buffer.buffer)? {
+                buffer.offset += read;
                 Self::from_header_impl(&header)?;
                 return Ok(());
             }
-            self.inner.read_more(cb)?;
+            buffer.read_more(cb)?;
         }
     }
     pub fn from_header_impl(header: &Header) -> Result<(), format::Error> {
@@ -185,14 +199,14 @@ impl Reader {
         Self::from_header_impl(header)?;
         Ok(Reader::empty())
     }
-    pub fn read<'a, CB>(&'a mut self, cb: &mut CB)
+    pub fn read<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
         -> Result<Option<Item<'a>>, Error<CB::Error>>
         where CB: Callback,
     {
         let item_kind = if let Some(ik) = self.next_item_kind.take() {
             ik
         } else {
-            self.inner.read_kind(cb)?
+            buffer.read_kind(cb)?
         };
 
         // WARN: Detect two consecutive `TickSkip`s.
@@ -221,7 +235,13 @@ impl Reader {
             return Ok(Some(Item::TickEnd(self.tick)));
         }
 
-        Ok(Some(match self.inner.read_item(cb, item_kind)? {
+        let item = buffer.read_item(cb, item_kind)?;
+
+        if let Some(cid) = item.cid() {
+            self.max_cid = cmp::max(self.max_cid, cid);
+        }
+
+        Ok(Some(match item {
             format::Item::TickSkip(i) => {
                 let old_tick = self.tick;
                 let dt = i.dt.try_i32()
@@ -297,9 +317,12 @@ impl Reader {
     pub fn input(&self, cid: i32) -> Option<[i32; INPUT_LEN]> {
         self.inputs.get(cid.assert_usize()).cloned()
     }
+    pub fn cids(&self) -> ops::Range<i32> {
+        0..self.max_cid+1
+    }
 }
 
-impl Inner {
+impl Buffer {
     fn read_more<CB: Callback>(&mut self, cb: &mut CB)
         -> Result<(), Error<CB::Error>>
     {
@@ -351,7 +374,7 @@ impl Inner {
         where CB: Callback,
     {
         // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
-        let raw_self: *mut Inner = self;
+        let raw_self: *mut Buffer = self;
         unsafe {
             loop {
                 let mut p = Unpacker::new(&(*raw_self).buffer[self.offset..]);

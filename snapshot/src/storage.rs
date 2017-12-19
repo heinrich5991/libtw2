@@ -112,7 +112,7 @@ impl Storage {
                 self.free.push(Snap::empty());
             }
 
-            let mut new_snap: &mut Snap = self.free.last_mut().unwrap();
+            let new_snap: &mut Snap = self.free.last_mut().unwrap();
             try!(new_snap.read_with_delta(wrap(warn), delta_snap, delta));
             if crc.map(|crc| crc != new_snap.crc()).unwrap_or(false) {
                 self.ack_tick = None;

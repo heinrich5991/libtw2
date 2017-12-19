@@ -150,7 +150,7 @@ impl Writer {
     pub fn new(file: File, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
         Self::new_impl(file, net_version, map_name, map_crc, type_, timestamp)
     }
-    pub fn open<P: AsRef<Path>>(path: P, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+    pub fn create<P: AsRef<Path>>(path: P, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
         fn inner(path: &Path, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
             Writer::new_impl(File::create(path)?, net_version, map_name, map_crc, type_, timestamp)
         }

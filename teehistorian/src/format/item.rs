@@ -204,6 +204,21 @@ impl<'a> Item<'a> {
     pub fn decode(p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
         Kind::decode(p)?.decode_rest(p)
     }
+    pub fn cid(&self) -> Option<i32> {
+        Some(match *self {
+            Item::PlayerDiff(ref i) => i.cid,
+            Item::Finish(_) => return None,
+            Item::TickSkip(_) => return None,
+            Item::PlayerNew(ref i) => i.cid,
+            Item::PlayerOld(ref i) => i.cid,
+            Item::InputDiff(ref i) => i.cid,
+            Item::InputNew(ref i) => i.cid,
+            Item::Message(ref i) => i.cid,
+            Item::Join(ref i) => i.cid,
+            Item::Drop(ref i) => i.cid,
+            Item::ConsoleCommand(ref i) => i.cid,
+        })
+    }
 }
 
 impl PlayerDiff {

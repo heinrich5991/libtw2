@@ -22,6 +22,9 @@ use writer;
 pub const MAGIC: &'static [u8; 7] = b"TWDEMO\0";
 pub const MAX_SNAPSHOT_SIZE: usize = 65536;
 
+pub const TYPE_CLIENT: &'static [u8] = b"client";
+pub const TYPE_SERVER: &'static [u8] = b"server";
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Tick(pub i32);
 

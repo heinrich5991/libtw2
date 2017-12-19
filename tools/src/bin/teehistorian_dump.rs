@@ -7,14 +7,16 @@ extern crate warn;
 
 use std::path::Path;
 use std::process;
+use teehistorian::Buffer;
 use teehistorian::Error;
 use teehistorian::Item;
 use teehistorian::Reader;
 
 fn process(path: &Path) -> Result<(), Error> {
-    let mut reader = Reader::open(path)?;
+    let mut buffer = Buffer::new();
+    let mut reader = Reader::open(path, &mut buffer)?;
     let mut tick = None;
-    while let Some(item) = reader.read()? {
+    while let Some(item) = reader.read(&mut buffer)? {
         match item {
             Item::TickStart(t) => {
                 assert!(tick.is_none());

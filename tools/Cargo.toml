@@ -22,4 +22,6 @@ rmp = "0.8.5"
 serverbrowse = { path = "../serverbrowse/" }
 snapshot = { path = "../snapshot/" }
 teehistorian = { path = "../teehistorian/" }
+vec_map = "0.8.0"
+void = "1.0.2"
 warn = "0.2.2"
