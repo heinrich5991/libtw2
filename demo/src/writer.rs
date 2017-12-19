@@ -137,6 +137,7 @@ impl Writer {
             }
             Ok(())
         }).expect("overlong ints chunk");
+        self.buffer1.clear();
         HUFFMAN.compress(&self.buffer2, &mut self.buffer1).expect("too long compression");
         Self::write_chunk_impl(cb, type_, &self.buffer1)
     }
