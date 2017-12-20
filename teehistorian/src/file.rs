@@ -4,6 +4,7 @@ use std::io;
 use std::ops;
 use std::path::Path;
 
+use format::Header;
 use format::item::INPUT_LEN;
 use format;
 use raw::Callback;
@@ -50,23 +51,29 @@ pub struct Reader {
 }
 
 impl Reader {
-    fn new_impl(file: File, buffer: &mut Buffer) -> Result<Reader, Error> {
+    fn new_impl<'a>(file: File, buffer: &'a mut Buffer)
+        -> Result<(Header<'a>, Reader), Error>
+    {
         let mut callback_data = CallbackData {
             file: file,
         };
-        let raw = raw::Reader::new(&mut callback_data, buffer)?;
-        Ok(Reader {
+        let (header, raw) = raw::Reader::new(&mut callback_data, buffer)?;
+        Ok((header, Reader {
             callback_data: callback_data,
             raw: raw,
-        })
+        }))
     }
-    pub fn new(file: File, buffer: &mut Buffer) -> Result<Reader, Error> {
+    pub fn new<'a>(file: File, buffer: &'a mut Buffer)
+        -> Result<(Header<'a>, Reader), Error>
+    {
         Reader::new_impl(file, buffer)
     }
-    pub fn open<P: AsRef<Path>>(path: P, buffer: &mut Buffer)
-        -> Result<Reader, Error>
+    pub fn open<'a, P: AsRef<Path>>(path: P, buffer: &'a mut Buffer)
+        -> Result<(Header, Reader), Error>
     {
-        fn inner(path: &Path, buffer: &mut Buffer) -> Result<Reader, Error> {
+        fn inner<'a>(path: &Path, buffer: &'a mut Buffer)
+            -> Result<(Header<'a>, Reader), Error>
+        {
             Reader::new_impl(File::open(path)?, buffer)
         }
         inner(path.as_ref(), buffer)

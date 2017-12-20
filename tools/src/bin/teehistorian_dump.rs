@@ -14,7 +14,7 @@ use teehistorian::Reader;
 
 fn process(path: &Path) -> Result<(), Error> {
     let mut buffer = Buffer::new();
-    let mut reader = Reader::open(path, &mut buffer)?;
+    let (_, mut reader) = Reader::open(path, &mut buffer)?;
     let mut tick = None;
     while let Some(item) = reader.read(&mut buffer)? {
         match item {

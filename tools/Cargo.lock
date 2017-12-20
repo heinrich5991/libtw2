@@ -22,6 +22,7 @@ dependencies = [
  "vec_map 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "world 0.0.1",
 ]
 
 [[package]]
@@ -611,6 +612,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "winapi-build"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "world"
+version = "0.0.1"
+dependencies = [
+ "common 0.0.1",
+ "gamenet 0.0.1",
+]
 
 [[package]]
 name = "zlib_minimal"

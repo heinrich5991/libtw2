@@ -7,11 +7,12 @@ use std::ops;
 use vec_map::VecMap;
 
 use bitmagic::CallbackExt;
-use format::Header;
 use format::MaybeEnd;
 use format::item::INPUT_LEN;
 use format::item;
 use format;
+
+pub use format::Header;
 
 macro_rules! unexp_end {
     ($e:expr) => {
@@ -167,25 +168,29 @@ impl Reader {
             in_tick: false,
         }
     }
-    pub fn new<CB>(cb: &mut CB, buffer: &mut Buffer)
-        -> Result<Reader, Error<CB::Error>>
+    pub fn new<'a, CB>(cb: &mut CB, buffer: &'a mut Buffer)
+        -> Result<(Header<'a>, Reader), Error<CB::Error>>
         where CB: Callback,
     {
         let mut reader = Reader::empty();
-        reader.new_impl(cb, buffer)?;
-        Ok(reader)
+        let header = reader.new_impl(cb, buffer)?;
+        Ok((header, reader))
     }
-    pub fn new_impl<CB>(&mut self, cb: &mut CB, buffer: &mut Buffer)
-        -> Result<(), Error<CB::Error>>
+    pub fn new_impl<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
+        -> Result<Header<'a>, Error<CB::Error>>
         where CB: Callback,
     {
         loop {
-            if let Some((read, header)) = read_header(&buffer.buffer)? {
-                buffer.offset += read;
-                Self::from_header_impl(&header)?;
-                return Ok(());
+            unsafe {
+                // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
+                let raw_buffer: *mut Buffer = buffer;
+                if let Some((read, header)) = read_header(&(*raw_buffer).buffer)? {
+                    buffer.offset += read;
+                    Self::from_header_impl(&header)?;
+                    return Ok(header);
+                }
+                buffer.read_more(cb)?;
             }
-            buffer.read_more(cb)?;
         }
     }
     pub fn from_header_impl(header: &Header) -> Result<(), format::Error> {

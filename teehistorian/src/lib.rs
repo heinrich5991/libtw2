@@ -22,6 +22,7 @@ pub use file::Buffer;
 pub use file::Error;
 pub use file::Item;
 pub use file::Reader;
+pub use raw::Header;
 pub use raw::Input;
 pub use raw::Player;
 pub use raw::PlayerChange;

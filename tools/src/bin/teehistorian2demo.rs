@@ -10,6 +10,7 @@ extern crate teehistorian;
 extern crate vec_map;
 extern crate void;
 extern crate warn;
+extern crate world;
 
 use arrayvec::ArrayVec;
 use common::num::Cast;
@@ -19,7 +20,10 @@ use gamenet::enums::Team;
 use gamenet::enums::Weapon;
 use gamenet::msg::Game;
 use gamenet::msg::game;
+use gamenet::snap_obj::PLAYER_INPUT_EMPTY;
+use gamenet::snap_obj::PlayerInput;
 use gamenet::snap_obj;
+use packer::IntUnpacker;
 use packer::Unpacker;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
@@ -30,11 +34,13 @@ use std::process;
 use teehistorian::Buffer;
 use teehistorian::Error;
 use teehistorian::Item;
+use teehistorian::Pos;
 use teehistorian::Reader;
 use vec_map::VecMap;
 use void::ResultVoidExt;
 use void::Void;
 use warn::Ignore;
+use world::vec2;
 
 struct Info {
     name: ArrayVec<[u8; 4*4-1]>,
@@ -78,18 +84,25 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     let mut buffer = Buffer::new();
     let mut snap_buffer = Vec::new();
     let mut snap_repr = Vec::new();
-    let mut th = Reader::open(in_, &mut buffer)?;
-    let mut demo = Writer::create(
-        out,
-        gamenet::VERSION,
-        b"GetSpeed",
-        0xd46ed0aa,
-        demo::format::TYPE_SERVER,
-        b"", // Timestamp
-    )?;
+    let mut th;
+    let mut demo;
+    {
+        let (header, teehistorian) = Reader::open(in_, &mut buffer)?;
+        th = teehistorian;
+        demo = Writer::create(
+            out,
+            gamenet::VERSION,
+            header.map_name.as_bytes(),
+            header.map_crc,
+            demo::format::TYPE_SERVER,
+            b"", // Timestamp
+        )?;
+    }
     let mut builder = snap::Builder::new();
     let mut last_tick = 0;
     let mut supplied_infos: VecMap<Info> = VecMap::new();
+    let mut inputs: VecMap<PlayerInput> = VecMap::new();
+    let mut prev_pos: VecMap<Pos> = VecMap::new();
     while let Some(item) = th.read(&mut buffer)? {
         let mut do_ticks = 0..0;
         match item {
@@ -99,6 +112,11 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             Item::TickEnd(tick) => {
                 last_tick = tick;
                 do_ticks = tick..tick+1;
+            },
+            Item::Input(input) => {
+                if let Ok(pi) = PlayerInput::decode(&mut Ignore, &mut IntUnpacker::new(&input.input)) {
+                    inputs.insert(input.cid.assert_usize(), pi);
+                }
             },
             Item::Message(msg) => {
                 let mut p = Unpacker::new(msg.msg);
@@ -118,11 +136,17 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
         }
         for tick in do_ticks {
             for cid in th.cids() {
-                if let Some(pos) = th.player_pos(cid) {
+                let maybe_pos = th.player_pos(cid);
+                if let Some(pos) = maybe_pos {
+                    let ppos = prev_pos.get(cid.assert_usize()).cloned().unwrap_or(pos);
+                    let input = inputs.get(cid.assert_usize()).unwrap_or(&PLAYER_INPUT_EMPTY);
                     let info = &supplied_infos[cid.assert_usize()];
                     let name: &[u8] = if !info.name.is_empty() {
                         &info.name
                     } else {
+                        // Theoretically we have to track all the names. We
+                        // don't do that, so just pretend we care and do the
+                        // common case.
                         b"(1)"
                     };
                     let client_info = snap_obj::ClientInfo {
@@ -138,19 +162,20 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                         local: 0,
                         client_id: cid,
                         team: Team::Red,
-                        score: 0,
+                        score: -9999,
                         latency: 0,
                     };
+                    let target = vec2::new(input.target_x as f32, input.target_y as f32);
                     let character = snap_obj::Character {
                         character_core: snap_obj::CharacterCore {
                             tick: tick,
                             x: pos.x,
                             y: pos.y,
-                            vel_x: 0,
-                            vel_y: 0,
-                            angle: 0,
-                            direction: 0,
-                            jumped: 0,
+                            vel_x: pos.x - ppos.x,
+                            vel_y: pos.y - ppos.y,
+                            angle: target.angle().to_net(),
+                            direction: input.direction,
+                            jumped: (input.jump != 0) as i32,
                             hooked_player: 0,
                             hook_state: -1,
                             hook_tick: snap_obj::Tick(0),
@@ -170,6 +195,10 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                     builder.add_item(snap_obj::CLIENT_INFO, cid.assert_u16(), client_info.encode()).unwrap();
                     builder.add_item(snap_obj::PLAYER_INFO, cid.assert_u16(), player_info.encode()).unwrap();
                     builder.add_item(snap_obj::CHARACTER, cid.assert_u16(), character.encode()).unwrap();
+
+                    prev_pos.insert(cid.assert_usize(), pos);
+                } else {
+                    prev_pos.remove(cid.assert_usize());
                 }
             }
             let game_info = snap_obj::GameInfo {
@@ -187,6 +216,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             demo.write_tick(true, demo::Tick(tick))?;
             snap_repr.clear();
             snap.write_full(|s| -> Result<(), Void> { Ok(snap_repr.extend(s)) }, &mut snap_buffer).void_unwrap();
+            // TODO: Write deltas…
             demo.write_snapshot(&snap_repr)?;
             builder = snap.recycle();
         }
