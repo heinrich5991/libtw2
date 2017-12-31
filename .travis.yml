@@ -6,3 +6,4 @@ rust:
 cache: cargo
 script:
     - ./forall cargo test
+    - ./forall cargo bench
