@@ -1,12 +1,12 @@
-#![feature(test)]
-
+#[macro_use] extern crate bencher;
 extern crate buffer;
 extern crate common;
 extern crate huffman;
 extern crate huffman_reference;
 extern crate itertools;
-extern crate test;
 
+use bencher::Bencher;
+use bencher::black_box;
 use common::num::Cast;
 use huffman::Huffman;
 use huffman_reference::Huffman as HuffmanReference;
@@ -50,100 +50,104 @@ fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
     })
 }
 
-#[bench]
-fn from_frequencies(b: &mut test::Bencher) {
+fn from_frequencies(b: &mut Bencher) {
     let frequencies = frequencies_default();
     b.iter(|| {
-        test::black_box(Huffman::from_frequencies(&frequencies).unwrap());
+        black_box(Huffman::from_frequencies(&frequencies).unwrap());
     });
 }
 
-#[bench]
-fn compressed_len_bug(b: &mut test::Bencher) {
+fn compressed_len_bug(b: &mut Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            test::black_box(h.compressed_len_bug(uncompressed));
+            black_box(h.compressed_len_bug(uncompressed));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
         .fold(0, |s, l| s + l.u64());
 }
 
-#[bench]
-fn compressed_len(b: &mut test::Bencher) {
+fn compressed_len(b: &mut Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            test::black_box(h.compressed_len(uncompressed));
+            black_box(h.compressed_len(uncompressed));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
         .fold(0, |s, l| s + l.u64());
 }
 
-#[bench]
-fn compress(b: &mut test::Bencher) {
+fn compress(b: &mut Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
     let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            let _ = test::black_box(h.compress(uncompressed, &mut buffer[..]));
+            let _ = black_box(h.compress(uncompressed, &mut buffer[..]));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
         .fold(0, |s, l| s + l.u64());
 }
 
-#[bench]
-fn decompress(b: &mut test::Bencher) {
+fn decompress(b: &mut Bencher) {
     let h = huffman_default();
     let test_cases = test_cases();
     let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(_, ref compressed) in &test_cases {
-            let _ = test::black_box(h.decompress(compressed, &mut buffer[..]));
+            let _ = black_box(h.decompress(compressed, &mut buffer[..]));
         }
     });
     b.bytes = test_cases.iter().map(|&(_, ref compressed)| compressed.len())
         .fold(0, |s, l| s + l.u64());
 }
 
-#[bench]
-fn from_frequencies_reference(b: &mut test::Bencher) {
+fn from_frequencies_reference(b: &mut Bencher) {
     let frequencies = frequencies_default();
     b.iter(|| {
-        test::black_box(HuffmanReference::from_frequencies(&frequencies).unwrap());
+        black_box(HuffmanReference::from_frequencies(&frequencies).unwrap());
     });
 }
 
-#[bench]
-fn compress_reference(b: &mut test::Bencher) {
+fn compress_reference(b: &mut Bencher) {
     let h = huffman_reference_default();
     let test_cases = test_cases();
     let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(ref uncompressed, _) in &test_cases {
-            let _ = test::black_box(h.compress(uncompressed, &mut buffer[..]));
+            let _ = black_box(h.compress(uncompressed, &mut buffer[..]));
         }
     });
     b.bytes = test_cases.iter().map(|&(ref uncompressed, _)| uncompressed.len())
         .fold(0, |s, l| s + l.u64());
 }
 
-#[bench]
-fn decompress_reference(b: &mut test::Bencher) {
+fn decompress_reference(b: &mut Bencher) {
     let h = huffman_reference_default();
     let test_cases = test_cases();
     let buffer = &mut (0..10240).map(|_| 0).collect_vec();
     b.iter(|| {
         for &(_, ref compressed) in &test_cases {
-            let _ = test::black_box(h.decompress(compressed, &mut buffer[..]));
+            let _ = black_box(h.decompress(compressed, &mut buffer[..]));
         }
     });
     b.bytes = test_cases.iter().map(|&(_, ref compressed)| compressed.len())
         .fold(0, |s, l| s + l.u64())
 }
+
+benchmark_group!(compression,
+    from_frequencies,
+    compressed_len_bug,
+    compressed_len,
+    compress,
+    decompress,
+    from_frequencies_reference,
+    compress_reference,
+    decompress_reference/*,*/
+);
+benchmark_main!(compression);
