@@ -9,6 +9,7 @@ arrayvec = "0.3.12"
 buffer = "0.1.6"
 clap = "2.23.1"
 common = { path = "../common/" }
+csv = "1.0.0-beta.5"
 datafile = { path = "../datafile/" }
 demo = { path = "../demo/" }
 gamenet = { path = "../gamenet/" }
@@ -20,9 +21,13 @@ net = { path = "../net/" }
 packer = { path = "../packer/" }
 rmp = "0.8.5"
 serverbrowse = { path = "../serverbrowse/" }
+serde = "1.0.23"
+serde_derive = "1.0.27"
 snapshot = { path = "../snapshot/" }
 teehistorian = { path = "../teehistorian/" }
+uuid = { version = "0.5.1", features = ["serde"] }
 vec_map = "0.8.0"
 void = "1.0.2"
+walkdir = "2.0.1"
 warn = "0.2.2"
 world = { path = "../world/" }

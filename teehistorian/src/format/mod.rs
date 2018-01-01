@@ -2,6 +2,7 @@ use packer::UnexpectedEnd;
 use packer::Unpacker;
 use serde_json;
 use std::borrow::Cow;
+use uuid::Uuid;
 
 pub use self::item::Item;
 
@@ -17,6 +18,8 @@ pub const UUID: [u8; MAGIC_LEN] = [
 #[derive(Debug)]
 pub struct Header<'a> {
     pub version: i32,
+    pub game_uuid: Uuid,
+    pub timestamp: Cow<'a, str>,
     pub map_name: Cow<'a, str>,
     pub map_size: u32,
     pub map_crc: u32,
@@ -40,6 +43,7 @@ pub enum HeaderError {
     MalformedJson,
     MalformedHeader,
     MalformedVersion,
+    MalformedGameUuid,
     MalformedMapSize,
     MalformedMapCrc,
 }
@@ -76,6 +80,8 @@ pub fn read_magic(p: &mut Unpacker) -> Result<(), MaybeEnd<WrongMagic>> {
 #[derive(Debug, Deserialize)]
 struct JsonHeader<'a> {
     version: Cow<'a, str>,
+    game_uuid: Cow<'a, str>,
+    start_time: Cow<'a, str>,
     map_name: Cow<'a, str>,
     map_size: Cow<'a, str>,
     map_crc: Cow<'a, str>,
@@ -90,6 +96,8 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>)
         .map_err(|e| if e.is_data() { MalformedHeader } else { MalformedJson })?;
     let header = Header {
         version: json_header.version.parse().map_err(|_| MalformedVersion)?,
+        game_uuid: json_header.game_uuid.parse().map_err(|_| MalformedGameUuid)?,
+        timestamp: json_header.start_time,
         map_name: json_header.map_name,
         map_size: json_header.map_size.parse().map_err(|_| MalformedMapSize)?,
         map_crc: u32::from_str_radix(&json_header.map_crc, 16).map_err(|_| MalformedMapCrc)?,
