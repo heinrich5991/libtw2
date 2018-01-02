@@ -32,7 +32,6 @@ use std::str::FromStr;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
-use std::u32;
 
 #[derive(Debug)]
 enum Direction {
