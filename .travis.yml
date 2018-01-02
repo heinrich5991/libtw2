@@ -6,4 +6,4 @@ rust:
 cache: cargo
 script:
     - ./forall cargo test
-    - ./forall cargo bench
+    - ./forall bash -c 'if [ -e benches ]; then cargo bench; fi'
