@@ -93,6 +93,20 @@ impl Projectile {
             start_tick: Tick(try!(_p.read_int(warn))),
         })
     }
+    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
+    {
+        // For the assert!()s.
+        self.encode();
+
+        try!(_p.write_int(self.x));
+        try!(_p.write_int(self.y));
+        try!(_p.write_int(self.vel_x));
+        try!(_p.write_int(self.vel_y));
+        try!(_p.write_int(self.type_.to_i32()));
+        try!(_p.write_int(self.start_tick.0));
+        Ok(_p.written())
+    }
 }
 
 impl PlayerInput {
@@ -808,7 +822,7 @@ class NetStruct(Member):
     def decode_expr(self):
         return "try!({}::decode_msg_inner(warn, _p))".format(self.type_)
     def encode_expr(self, self_expr):
-        return "unimplemented!()"
+        return "with_packer(&mut _p, |p| {}.encode_msg(p))".format(self_expr)
 
 class NetAddrs(Member):
     type_ = "&'a [AddrPacked]"

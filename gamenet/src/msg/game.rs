@@ -844,7 +844,7 @@ impl SvExtraProjectile {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(unimplemented!());
+        try!(with_packer(&mut _p, |p| self.projectile.encode_msg(p)));
         Ok(_p.written())
     }
 }
