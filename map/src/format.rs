@@ -278,6 +278,13 @@ pub struct Tile {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(C)]
+pub struct TeleTile {
+    pub number: u8,
+    pub index: u8,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[repr(C)]
 pub struct TuneTile {
     pub number: u8,
     pub index: u8,
@@ -409,11 +416,14 @@ pub enum Error {
 
     InconsistentGameLayerDimensions,
     InvalidTilesLength(usize),
+    InvalidTeleTilesLength(usize),
     InvalidTuneTilesLength(usize),
     InvalidVersion(i32),
     MalformedImageName(usize),
     // InvalidTilesDimensions(length, width, height)
     InvalidTilesDimensions(usize, u32, u32),
+    // InvalidTeleTilesDimensions(length, width, height)
+    InvalidTeleTilesDimensions(usize, u32, u32),
     // InvalidTuneTilesDimensions(length, width, height)
     InvalidTuneTilesDimensions(usize, u32, u32),
     EmptyVersion,

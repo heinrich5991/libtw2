@@ -733,6 +733,25 @@ impl Reader {
         Ok(Array2::from_shape_vec((height.usize(), width.usize()), tiles)
             .map_err(|_| MapError::InvalidTilesDimensions(len, height, width))?)
     }
+    pub fn tele_layer_tiles_raw(&mut self, data_index: usize)
+        -> Result<Vec<format::TeleTile>, Error>
+    {
+        let raw = self.reader.read_data(data_index)?;
+        if raw.len() % mem::size_of::<format::TeleTile>() != 0 {
+            return Err(Error::Map(MapError::InvalidTeleTilesLength(raw.len())));
+        }
+        let tiles: Vec<format::TeleTile> = unsafe { vec::transmute(raw) };
+        Ok(tiles)
+    }
+    pub fn tele_layer_tiles(&mut self, index: LayerTilesIndex)
+        -> Result<Array2<format::TeleTile>, Error>
+    {
+        let LayerTilesIndex { data_index, width, height } = index;
+        let tiles = self.tele_layer_tiles_raw(data_index)?;
+        let len = tiles.len();
+        Ok(Array2::from_shape_vec((height.usize(), width.usize()), tiles)
+            .map_err(|_| MapError::InvalidTilesDimensions(len, height, width))?)
+    }
     pub fn layer_tiles_raw(&mut self, data_index: usize)
         -> Result<Vec<format::Tile>, Error>
     {
