@@ -17,7 +17,7 @@ use itertools::Itertools;
 use log::LogLevel;
 use mio::Ready;
 use mio::Token;
-use mio::udp::UdpSocket;
+use mio::net::UdpSocket;
 use net2::UdpBuilder;
 use net::Timestamp;
 use net::net::Callback;
@@ -154,11 +154,10 @@ fn udp_socket(bindaddr: &SocketAddr) -> io::Result<Option<UdpSocket>> {
     Ok(Some(try!(UdpSocket::from_socket(try!(builder.bind(bindaddr))))))
 }
 
-fn swap<T, E>(res: Result<Option<T>, E>) -> Option<Result<T, E>> {
+fn non_block<T>(res: io::Result<T>) -> Option<io::Result<T>> {
     match res {
-        Ok(Some(x)) => Some(Ok(x)),
-        Ok(None) => None,
-        Err(x) => Some(Err(x)),
+        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
+        x => Some(x),
     }
 }
 
@@ -226,13 +225,13 @@ impl Socket {
         {
             let buf_slice = unsafe { buf.uninitialized_mut() };
             if result.is_none() && self.check_v6 {
-                if let Some(r) = swap(self.v6.as_ref().unwrap().recv_from(buf_slice)) {
+                if let Some(r) = non_block(self.v6.as_ref().unwrap().recv_from(buf_slice)) {
                     result = Some(r);
                     self.check_v6 = false;
                 }
             }
             if result.is_none() && self.check_v4 {
-                if let Some(r) = swap(self.v4.as_ref().unwrap().recv_from(buf_slice)) {
+                if let Some(r) = non_block(self.v4.as_ref().unwrap().recv_from(buf_slice)) {
                     result = Some(r);
                     self.check_v4 = false;
                 }
@@ -258,7 +257,7 @@ impl Socket {
         // ```
         // on loss-free networks.
         for ev in &self.events {
-            assert!(ev.kind() == Ready::readable());
+            assert!(ev.readiness() == Ready::readable());
             match ev.token() {
                 Token(4) => self.check_v4 = true,
                 Token(6) => self.check_v6 = true,
@@ -293,7 +292,7 @@ impl Callback<Addr> for Socket {
             return Err(io::Error::new(io::ErrorKind::Other,
                                       AddressFamilyNotSupported(())));
         }
-        swap(socket.send_to(data, &sock_addr))
+        non_block(socket.send_to(data, &sock_addr))
             .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
             .map(|s| assert!(data.len() == s))
         // TODO: Check for these errors and decide what to do with them
