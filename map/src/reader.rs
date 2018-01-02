@@ -5,6 +5,7 @@ use ndarray::Array2;
 use std::io;
 use std::mem;
 use std::ops;
+use std::path::Path;
 
 use format::Error as MapError;
 use format::MapItem;
@@ -583,6 +584,12 @@ pub struct Reader {
 }
 
 impl Reader {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Reader, Error> {
+        fn inner(path: &Path) -> Result<Reader, Error> {
+            Ok(Reader::from_datafile(df::Reader::open(path)?))
+        }
+        inner(path.as_ref())
+    }
     pub fn from_datafile(reader: df::Reader) -> Reader {
         Reader { reader: reader }
     }

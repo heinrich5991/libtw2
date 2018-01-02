@@ -78,9 +78,7 @@ fn tile(index: u8) -> Option<&'static str> {
 
 fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     let mut output = File::create(output_path)?;
-    let reader = datafile::Reader::open(path)?;
-
-    let mut map = map::Reader::from_datafile(reader);
+    let mut map = map::Reader::open(path)?;
     let game_layers = map.game_layers()?;
 
     let mut tiles_count = [0u64; 256];

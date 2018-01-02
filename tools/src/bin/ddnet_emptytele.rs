@@ -23,9 +23,7 @@ fn tele_tile_name(index: u8) -> Option<&'static str> {
 }
 
 fn process(path: &Path) -> Result<(), Error> {
-    let reader = datafile::Reader::open(path)?;
-
-    let mut map = map::Reader::from_datafile(reader);
+    let mut map = map::Reader::open(path)?;
     let game_layers = map.game_layers()?;
 
     let tele = if let Some(t) = game_layers.teleport() {
