@@ -1,11 +1,11 @@
-extern crate gcc;
+extern crate cc;
 
 fn main() {
-    let mut cfg = gcc::Config::new();
-    cfg.include("src/include");
-    cfg.cpp(true);
-    cfg.cpp_link_stdlib(None);
-    cfg.file("src/teeworlds/huffman.cpp");
-    cfg.file("src/api.cpp");
-    cfg.compile("libhuffman.a");
+    cc::Build::new()
+        .include("src/include")
+        .cpp(true)
+        .cpp_link_stdlib(None)
+        .file("src/teeworlds/huffman.cpp")
+        .file("src/api.cpp")
+        .compile("huffman");
 }
