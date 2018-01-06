@@ -6,6 +6,7 @@ extern crate arrayvec;
 extern crate file_offset;
 extern crate num_traits;
 extern crate ref_slice;
+extern crate unreachable;
 
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;
