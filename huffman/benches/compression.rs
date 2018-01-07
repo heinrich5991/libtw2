@@ -148,6 +148,6 @@ benchmark_group!(compression,
     decompress,
     from_frequencies_reference,
     compress_reference,
-    decompress_reference/*,*/
+    decompress_reference,
 );
 benchmark_main!(compression);

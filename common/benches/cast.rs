@@ -64,6 +64,6 @@ benchmark_group!(cast,
     u32_try_u8,
     u32_try_u8_inline,
     u8_u32,
-    u8_u32_inline/*,*/
+    u8_u32_inline,
 );
 benchmark_main!(cast);
