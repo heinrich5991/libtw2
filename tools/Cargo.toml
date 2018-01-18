@@ -14,6 +14,7 @@ datafile = { path = "../datafile/" }
 demo = { path = "../demo/" }
 gamenet = { path = "../gamenet/" }
 hexdump = "0.1.0"
+itertools = "0.7.4"
 log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
