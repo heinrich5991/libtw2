@@ -193,16 +193,12 @@ impl Reader {
             }
         }
     }
-    pub fn from_header_impl(header: &Header) -> Result<(), format::Error> {
+    fn from_header_impl(header: &Header) -> Result<(), format::Error> {
         if header.version == 1 {
             Ok(())
         } else {
             Err(format::Error::UnknownVersion)
         }
-    }
-    pub fn from_header(header: &Header) -> Result<Reader, format::Error> {
-        Self::from_header_impl(header)?;
-        Ok(Reader::empty())
     }
     pub fn read<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
         -> Result<Option<Item<'a>>, Error<CB::Error>>
