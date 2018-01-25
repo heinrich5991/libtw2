@@ -612,6 +612,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         for i in 0..self.server.players.len() {
             if self.server.players[i].pid == pid {
                 self.server.players.swap_remove(i);
+                break;
             }
         }
     }
