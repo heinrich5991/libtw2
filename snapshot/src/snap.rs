@@ -183,22 +183,24 @@ impl Snap {
         }
         Ok(())
     }
-    pub fn write_full<'a, F, E>(&self, mut write: F, buf: &mut Vec<i32>) -> Result<(), E>
-        where F: FnMut(&[i32]) -> Result<(), E>
+    pub fn write<'d, 's>(&self, buf: &mut Vec<i32>, mut p: Packer<'d, 's>)
+        -> Result<&'d [u8], CapacityError>
     {
         let keys = buf;
         keys.clear();
         keys.extend(self.offsets.keys().cloned());
         keys.sort_unstable_by_key(|&k| k as u32);
-        write(&[
-            self.buf.len().checked_add(self.offsets.len()).expect("snap size overflow")
-                .checked_mul(mem::size_of::<i32>()).expect("snap size overflow")
-                .assert_i32(), // data_size
-            self.offsets.len().assert_i32(), // num_items
-        ])?;
+        let data_size = self.buf.len()
+            .checked_add(self.offsets.len()).expect("snap size overflow")
+            .checked_mul(mem::size_of::<i32>()).expect("snap size overflow")
+            .assert_i32();
+        p.write_int(data_size)?;
+        let num_items = self.offsets.len().assert_i32();
+        p.write_int(num_items)?;
+
         let mut offset = 0;
         for &key in &*keys {
-            write(&[offset])?;
+            p.write_int(offset)?;
             let key_offset = self.offsets[&key].clone();
             offset = offset
                 .checked_add((key_offset.end - key_offset.start + 1).usize()
@@ -207,10 +209,12 @@ impl Snap {
                 .expect("offset overflow");
         }
         for &key in &*keys {
-            write(&[key])?;
-            write(&self.buf[to_usize(self.offsets[&key].clone())])?;
+            p.write_int(key)?;
+            for &i in &self.buf[to_usize(self.offsets[&key].clone())] {
+                p.write_int(i)?;
+            }
         }
-        Ok(())
+        Ok(p.written())
     }
     pub fn crc(&self) -> i32 {
         self.buf.iter().fold(0, |s, &a| s.wrapping_add(a))

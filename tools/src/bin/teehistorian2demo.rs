@@ -8,7 +8,6 @@ extern crate packer;
 extern crate snapshot;
 extern crate teehistorian;
 extern crate vec_map;
-extern crate void;
 extern crate warn;
 extern crate world;
 
@@ -28,6 +27,8 @@ use packer::Unpacker;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
+use packer::with_packer;
+use snapshot::snap::MAX_SNAPSHOT_SIZE;
 use snapshot::snap;
 use std::path::Path;
 use std::process;
@@ -37,10 +38,10 @@ use teehistorian::Item;
 use teehistorian::Pos;
 use teehistorian::Reader;
 use vec_map::VecMap;
-use void::ResultVoidExt;
-use void::Void;
 use warn::Ignore;
 use world::vec2;
+
+const TICKS_PER_SECOND: i32 = 50;
 
 struct Info {
     name: ArrayVec<[u8; 4*4-1]>,
@@ -83,7 +84,6 @@ impl<'a> From<game::ClStartInfo<'a>> for Info {
 fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     let mut buffer = Buffer::new();
     let mut snap_buffer = Vec::new();
-    let mut snap_repr = Vec::new();
     let mut th;
     let mut demo;
     {
@@ -98,6 +98,9 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             b"", // Timestamp
         )?;
     }
+    let mut delta = snap::Delta::new();
+    let mut last_full_snap_tick = None;
+    let mut last_snap = None;
     let mut builder = snap::Builder::new();
     let mut last_tick = 0;
     let mut supplied_infos: VecMap<Info> = VecMap::new();
@@ -213,12 +216,30 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             };
             builder.add_item(snap_obj::GAME_INFO, 0, game_info.encode()).unwrap();
             let snap = builder.finish();
-            demo.write_tick(true, demo::Tick(tick))?;
-            snap_repr.clear();
-            snap.write_full(|s| -> Result<(), Void> { Ok(snap_repr.extend(s)) }, &mut snap_buffer).void_unwrap();
-            // TODO: Write deltas…
-            demo.write_snapshot(&snap_repr)?;
-            builder = snap.recycle();
+
+            let mut encoded: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]> = ArrayVec::new();
+            match (&last_snap, last_full_snap_tick) {
+                (&Some(ref l), Some(t)) if tick - t <= 5 * TICKS_PER_SECOND => {
+                    demo.write_tick(false, demo::Tick(tick))?;
+                    delta.create(l, &snap);
+                    demo.write_snapshot_delta(with_packer(&mut encoded, |p| {
+                        delta.write(snap_obj::obj_size, p).unwrap()
+                    }))?;
+                },
+                _ => {
+                    demo.write_tick(true, demo::Tick(tick))?;
+                    demo.write_snapshot(with_packer(&mut encoded, |p| {
+                        snap.write(&mut snap_buffer, p).unwrap()
+                    }))?;
+                    last_full_snap_tick = Some(tick);
+                }
+            }
+            if let Some(l) = last_snap {
+                builder = l.recycle();
+            } else {
+                builder = snap::Builder::new();
+            }
+            last_snap = Some(snap);
         }
     }
     Ok(())

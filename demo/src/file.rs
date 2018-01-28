@@ -162,10 +162,10 @@ impl Writer {
     pub fn write_tick(&mut self, keyframe: bool, tick: format::Tick) -> io::Result<()> {
         self.raw.write_tick(&mut self.callback_data, keyframe, tick)
     }
-    pub fn write_snapshot(&mut self, snapshot: &[i32]) -> io::Result<()> {
+    pub fn write_snapshot(&mut self, snapshot: &[u8]) -> io::Result<()> {
         self.raw.write_snapshot(&mut self.callback_data, snapshot)
     }
-    pub fn write_snapshot_delta(&mut self, delta: &[i32]) -> io::Result<()> {
+    pub fn write_snapshot_delta(&mut self, delta: &[u8]) -> io::Result<()> {
         self.raw.write_snapshot_delta(&mut self.callback_data, delta)
     }
     pub fn write_message(&mut self, msg: &[u8]) -> io::Result<()> {

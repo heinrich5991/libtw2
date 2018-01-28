@@ -6,7 +6,6 @@ use common::num::LeI32;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer::with_packer;
 use std::mem;
-use std::slice;
 
 use bitmagic::WriteCallbackExt;
 use format::Chunk;
@@ -41,26 +40,6 @@ fn nullterminated_arrayvec_from_slice<A: Array>(data: &[A::Item]) -> ArrayVec<A>
 }
 
 const WRITER_VERSION: Version = Version::V5;
-
-struct BytesToInts<'a>(slice::Chunks<'a, u8>);
-
-impl<'a> BytesToInts<'a> {
-    fn new(bytes: &'a [u8]) -> BytesToInts<'a> {
-        BytesToInts(bytes.chunks(mem::size_of::<LeI32>()))
-    }
-}
-
-impl<'a> Iterator for BytesToInts<'a> {
-    type Item = i32;
-    fn next(&mut self) -> Option<i32> {
-        fn g(bytes: &[u8], idx: usize) -> u8 {
-            bytes.get(idx).cloned().unwrap_or(0)
-        }
-        self.0.next().map(|b| {
-            LeI32::from_bytes(&[g(b, 0), g(b, 1), g(b, 2), g(b, 3)]).to_i32()
-        })
-    }
-}
 
 
 impl Writer {
@@ -110,51 +89,47 @@ impl Writer {
         self.prev_tick = Some(tick);
         Ok(())
     }
-    fn write_chunk_impl<CB>(cb: &mut CB, type_: ChunkType, data: &[u8])
-        -> Result<(), CB::Error>
+    fn write_chunk_impl<CB>(
+        cb: &mut CB,
+        buffer: &mut ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+        type_: ChunkType,
+        data: &[u8]
+    ) -> Result<(), CB::Error>
         where CB: Callback,
     {
-        ChunkHeader::Chunk(type_, data.len().assert_u32())
+        buffer.clear();
+        HUFFMAN.compress(&data, &mut *buffer).expect("too long compression");
+        ChunkHeader::Chunk(type_, buffer.len().assert_u32())
             .write(cb, WRITER_VERSION)?;
-        cb.write(data)?;
+        cb.write(buffer)?;
         Ok(())
     }
-    fn write_chunk_bytes<CB>(&mut self, cb: &mut CB, type_: ChunkType, data: &[u8])
+    pub fn write_snapshot<CB: Callback>(&mut self, cb: &mut CB, snapshot: &[u8])
         -> Result<(), CB::Error>
-        where CB: Callback,
     {
-        self.write_chunk_ints(cb, type_, BytesToInts::new(data))
+        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::Snapshot, snapshot)
     }
-    fn write_chunk_ints<CB, I>(&mut self, cb: &mut CB, type_: ChunkType, data: I)
-        -> Result<(), CB::Error>
-        where CB: Callback,
-              I: IntoIterator<Item=i32>,
-    {
-        self.buffer2.clear();
-        with_packer(&mut self.buffer2, |mut p| -> Result<(), buffer::CapacityError> {
-            for i in data {
-                p.write_int(i)?;
-            }
-            Ok(())
-        }).expect("overlong ints chunk");
-        self.buffer1.clear();
-        HUFFMAN.compress(&self.buffer2, &mut self.buffer1).expect("too long compression");
-        Self::write_chunk_impl(cb, type_, &self.buffer1)
-    }
-    pub fn write_snapshot<CB: Callback>(&mut self, cb: &mut CB, snapshot: &[i32])
+    pub fn write_snapshot_delta<CB: Callback>(&mut self, cb: &mut CB, delta: &[u8])
         -> Result<(), CB::Error>
     {
-        self.write_chunk_ints(cb, ChunkType::Snapshot, snapshot.iter().cloned())
-    }
-    pub fn write_snapshot_delta<CB: Callback>(&mut self, cb: &mut CB, delta: &[i32])
-        -> Result<(), CB::Error>
-    {
-        self.write_chunk_ints(cb, ChunkType::SnapshotDelta, delta.iter().cloned())
+        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::SnapshotDelta, delta)
     }
     pub fn write_message<CB: Callback>(&mut self, cb: &mut CB, msg: &[u8])
         -> Result<(), CB::Error>
     {
-        self.write_chunk_bytes(cb, ChunkType::Message, msg)
+        self.buffer2.clear();
+        with_packer(&mut self.buffer2, |mut p| -> Result<(), buffer::CapacityError> {
+            for b in msg.chunks(mem::size_of::<LeI32>()) {
+                // Get or return 0.
+                fn g(bytes: &[u8], idx: usize) -> u8 {
+                    bytes.get(idx).cloned().unwrap_or(0)
+                }
+                let i = LeI32::from_bytes(&[g(b, 0), g(b, 1), g(b, 2), g(b, 3)]).to_i32();
+                p.write_int(i)?;
+            }
+            Ok(())
+        }).expect("overlong message");
+        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::Message, &self.buffer2)
     }
     // TODO: Add a `finalize` function that writes the demo length into the
     // original header.

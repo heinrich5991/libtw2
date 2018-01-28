@@ -99,8 +99,8 @@ impl Version {
 pub enum Chunk<'a> {
     /// Tick(keyframe, tick)
     Tick(bool, Tick),
-    Snapshot(&'a [i32]),
-    SnapshotDelta(&'a [i32]),
+    Snapshot(&'a [u8]),
+    SnapshotDelta(&'a [u8]),
     Message(&'a [u8]),
 }
 
