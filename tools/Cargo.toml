@@ -7,6 +7,7 @@ license = "MIT/Apache-2.0"
 [dependencies]
 arrayvec = "0.3.12"
 buffer = "0.1.6"
+chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.23.1"
 common = { path = "../common/" }
 csv = "1.0.0-beta.5"
@@ -23,6 +24,7 @@ packer = { path = "../packer/" }
 rmp = "0.8.5"
 serverbrowse = { path = "../serverbrowse/" }
 serde = "1.0.23"
+serde_json = "1.0.7"
 serde_derive = "1.0.27"
 snapshot = { path = "../snapshot/" }
 teehistorian = { path = "../teehistorian/" }

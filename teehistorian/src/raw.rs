@@ -122,7 +122,7 @@ impl Buffer {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct Pos {
     pub x: i32,
     pub y: i32,
@@ -147,6 +147,7 @@ impl fmt::Debug for Pos {
 }
 
 pub struct Reader {
+    version: format::Version,
     tick: i32,
     players: VecMap<Pos>,
     inputs: VecMap<[i32; INPUT_LEN]>,
@@ -157,8 +158,9 @@ pub struct Reader {
 }
 
 impl Reader {
-    fn empty() -> Reader {
+    fn empty(version: format::Version) -> Reader {
         Reader {
+            version: version,
             tick: 0,
             players: VecMap::new(),
             inputs: VecMap::new(),
@@ -172,11 +174,11 @@ impl Reader {
         -> Result<(Header<'a>, Reader), Error<CB::Error>>
         where CB: Callback,
     {
-        let mut reader = Reader::empty();
-        let header = reader.new_impl(cb, buffer)?;
+        let header = Reader::new_impl(cb, buffer)?;
+        let reader = Reader::from_header(&header)?;
         Ok((header, reader))
     }
-    pub fn new_impl<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
+    fn new_impl<'a, CB>(cb: &mut CB, buffer: &'a mut Buffer)
         -> Result<Header<'a>, Error<CB::Error>>
         where CB: Callback,
     {
@@ -186,19 +188,18 @@ impl Reader {
                 let raw_buffer: *mut Buffer = buffer;
                 if let Some((read, header)) = read_header(&(*raw_buffer).buffer)? {
                     buffer.offset += read;
-                    Self::from_header_impl(&header)?;
                     return Ok(header);
                 }
                 buffer.read_more(cb)?;
             }
         }
     }
-    fn from_header_impl(header: &Header) -> Result<(), format::Error> {
-        if header.version == 1 {
-            Ok(())
-        } else {
-            Err(format::Error::UnknownVersion)
-        }
+    pub fn from_header(header: &Header) -> Result<Reader, format::Error> {
+        Ok(match header.version {
+            1 => Reader::empty(format::Version::V1),
+            2 => Reader::empty(format::Version::V2),
+            _ => return Err(format::Error::UnknownVersion),
+        })
     }
     pub fn read<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
         -> Result<Option<Item<'a>>, Error<CB::Error>>
@@ -207,7 +208,7 @@ impl Reader {
         let item_kind = if let Some(ik) = self.next_item_kind.take() {
             ik
         } else {
-            buffer.read_kind(cb)?
+            buffer.read_kind(cb, self.version)?
         };
 
         // WARN: Detect two consecutive `TickSkip`s.
@@ -262,6 +263,10 @@ impl Reader {
             format::Item::Join(i) => Item::Join(i),
             format::Item::Drop(i) => Item::Drop(i),
             format::Item::ConsoleCommand(i) => Item::ConsoleCommand(i),
+            format::Item::AuthInit(i) => Item::AuthInit(i),
+            format::Item::AuthLogin(i) => Item::AuthLogin(i),
+            format::Item::AuthLogout(i) => Item::AuthLogout(i),
+            format::Item::UnknownEx(i) => Item::UnknownEx(i),
 
             format::Item::PlayerDiff(i) => {
                 self.prev_player_cid = Some(i.cid);
@@ -348,7 +353,7 @@ impl Buffer {
             self.read_more(cb)
         }
     }
-    fn read_kind<CB>(&mut self, cb: &mut CB)
+    fn read_kind<CB>(&mut self, cb: &mut CB, version: format::Version)
         -> Result<item::Kind, Error<CB::Error>>
         where CB: Callback,
     {
@@ -357,7 +362,7 @@ impl Buffer {
             let num_bytes_read;
             {
                 let mut p = Unpacker::new(&self.buffer[self.offset..]);
-                maybe_item_kind = item::Kind::decode(&mut p);
+                maybe_item_kind = item::Kind::decode(&mut p, version);
                 num_bytes_read = p.num_bytes_read();
             }
             match maybe_item_kind {
@@ -392,26 +397,28 @@ impl Buffer {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Player {
     pub cid: i32,
     pub pos: Pos,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct PlayerChange {
     pub cid: i32,
     pub pos: Pos,
     pub old_pos: Pos,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Input {
     pub cid: i32,
     pub input: [i32; INPUT_LEN],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum Item<'a> {
     TickStart(i32),
     TickEnd(i32),
@@ -423,6 +430,10 @@ pub enum Item<'a> {
     Join(item::Join),
     Drop(item::Drop<'a>),
     ConsoleCommand(item::ConsoleCommand<'a>),
+    AuthInit(item::AuthInit<'a>),
+    AuthLogin(item::AuthLogin<'a>),
+    AuthLogout(item::AuthLogout),
+    UnknownEx(item::UnknownEx<'a>),
 }
 
 impl<'a> fmt::Debug for Item<'a> {
@@ -454,6 +465,10 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::Join(ref i) => i.fmt(f),
             Item::Drop(ref i) => i.fmt(f),
             Item::ConsoleCommand(ref i) => i.fmt(f),
+            Item::AuthInit(ref i) => i.fmt(f),
+            Item::AuthLogin(ref i) => i.fmt(f),
+            Item::AuthLogout(ref i) => i.fmt(f),
+            Item::UnknownEx(ref i) => i.fmt(f),
         }
     }
 }

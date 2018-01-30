@@ -1,3 +1,4 @@
+extern crate chrono;
 extern crate clap;
 extern crate csv;
 extern crate itertools;
@@ -8,6 +9,8 @@ extern crate teehistorian;
 extern crate uuid;
 extern crate walkdir;
 
+use chrono::DateTime;
+use chrono::FixedOffset;
 use itertools::Itertools;
 use itertools::sorted;
 use std::borrow::Cow;
@@ -105,7 +108,7 @@ impl From<u32> for HexU32 {
 struct Record<'a> {
     path: &'a Path,
     game_uuid: Uuid,
-    timestamp: Cow<'a, str>,
+    timestamp: DateTime<FixedOffset>,
     map_name: Cow<'a, str>,
     map_crc: HexU32,
     map_size: u32,
@@ -116,7 +119,7 @@ impl<'a> From<&'a ReadRecord> for Record<'a> {
         Record {
             path: &r.path,
             game_uuid: r.game_uuid,
-            timestamp: Cow::from(&r.timestamp[..]),
+            timestamp: r.timestamp,
             map_name: Cow::from(&r.map_name[..]),
             map_crc: r.map_crc.into(),
             map_size: r.map_size,
@@ -195,7 +198,7 @@ fn handle_dir<'a>(
 struct ReadRecord {
     path: PathBuf,
     game_uuid: Uuid,
-    timestamp: String,
+    timestamp: DateTime<FixedOffset>,
     map_name: String,
     map_crc: HexU32,
     map_size: u32,

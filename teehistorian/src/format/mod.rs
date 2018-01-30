@@ -1,3 +1,5 @@
+use chrono::DateTime;
+use chrono::FixedOffset;
 use packer::UnexpectedEnd;
 use packer::Unpacker;
 use serde_json;
@@ -15,11 +17,23 @@ pub const UUID: [u8; MAGIC_LEN] = [
     0xb1, 0xd8, 0xda, 0x6f, 0x60, 0xc1, 0x5d, 0xd1,
 ];
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Version {
+    V1,
+    V2,
+}
+
+impl Version {
+    fn has_ex(self) -> bool {
+        self != Version::V1
+    }
+}
+
 #[derive(Debug)]
 pub struct Header<'a> {
     pub version: i32,
     pub game_uuid: Uuid,
-    pub timestamp: Cow<'a, str>,
+    pub timestamp: DateTime<FixedOffset>,
     pub map_name: Cow<'a, str>,
     pub map_size: u32,
     pub map_crc: u32,
@@ -44,6 +58,7 @@ pub enum HeaderError {
     MalformedHeader,
     MalformedVersion,
     MalformedGameUuid,
+    MalformedStartTime,
     MalformedMapSize,
     MalformedMapCrc,
 }
@@ -94,10 +109,15 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>)
     let header_data = p.read_string()?;
     let json_header: JsonHeader = serde_json::from_slice(header_data)
         .map_err(|e| if e.is_data() { MalformedHeader } else { MalformedJson })?;
+    let version = json_header.version.parse().map_err(|_| MalformedVersion)?;
     let header = Header {
-        version: json_header.version.parse().map_err(|_| MalformedVersion)?,
+        version: version,
         game_uuid: json_header.game_uuid.parse().map_err(|_| MalformedGameUuid)?,
-        timestamp: json_header.start_time,
+        timestamp: (if version == 1 {
+            DateTime::parse_from_str(&json_header.start_time, "%Y-%m-%d %H:%M:%S %z")
+        } else {
+            json_header.start_time.parse()
+        }).map_err(|_| MalformedStartTime)?,
         map_name: json_header.map_name,
         map_size: json_header.map_size.parse().map_err(|_| MalformedMapSize)?,
         map_crc: u32::from_str_radix(&json_header.map_crc, 16).map_err(|_| MalformedMapCrc)?,
@@ -134,9 +154,7 @@ pub enum Error {
 
 #[cfg(test)]
 mod test {
-    #[test]
-    fn correct_uuid() {
-        use super::UUID;
+    fn assert_uuid(uuid: [u8; 16], identifier: &str) {
         use uuid::Uuid;
 
         const UUID_TEEWORLDS: [u8; 16] = [
@@ -144,11 +162,20 @@ mod test {
             0xe0, 0x5d, 0xda, 0xaa, 0xc4, 0xe6, 0x4c, 0xfb,
             0xb6, 0x42, 0x5d, 0x48, 0xe8, 0x0c, 0x00, 0x29,
         ];
-        const UUID_STRING: &'static str = "teehistorian@ddnet.tw";
 
         let ns = Uuid::from_bytes(&UUID_TEEWORLDS).unwrap();
-        let ours = Uuid::from_bytes(&UUID).unwrap();
-        let correct = Uuid::new_v3(&ns, UUID_STRING);
+        let ours = Uuid::from_bytes(&uuid).unwrap();
+        let correct = Uuid::new_v3(&ns, identifier);
         assert_eq!(ours, correct);
+    }
+
+    #[test]
+    fn correct_uuids() {
+        use super::UUID;
+        use super::item;
+        assert_uuid(UUID, "teehistorian@ddnet.tw");
+        assert_uuid(item::UUID_AUTH_INIT, "teehistorian-auth-init@ddnet.tw");
+        assert_uuid(item::UUID_AUTH_LOGIN, "teehistorian-auth-login@ddnet.tw");
+        assert_uuid(item::UUID_AUTH_LOGOUT, "teehistorian-auth-logout@ddnet.tw");
     }
 }

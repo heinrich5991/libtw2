@@ -3,10 +3,15 @@ use common::num::Cast;
 use common::pretty;
 use packer::Unpacker;
 use packer::positive;
+use serde::Serialize;
+use serde::ser::SerializeSeq;
+use serde;
 use std::fmt;
+use uuid::Uuid;
 use warn::Ignore;
 
 use super::MaybeEnd;
+use super::Version;
 
 pub const FINISH: i32 = -1;
 pub const TICK_SKIP: i32 = -2;
@@ -18,9 +23,26 @@ pub const MESSAGE: i32 = -7;
 pub const JOIN: i32 = -8;
 pub const DROP: i32 = -9;
 pub const CONSOLE_COMMAND: i32 = -10;
+pub const EX: i32 = -11;
 
 pub const INPUT_LEN: usize = 10;
 pub const CONSOLE_COMMAND_MAX_ARGS: usize = 16;
+
+pub const UUID_AUTH_INIT: [u8; 16] = [
+    // "60daba5c-52c4-3aeb-b8ba-b2953fb55a17"
+    0x60, 0xda, 0xba, 0x5c, 0x52, 0xc4, 0x3a, 0xeb,
+    0xb8, 0xba, 0xb2, 0x95, 0x3f, 0xb5, 0x5a, 0x17,
+];
+pub const UUID_AUTH_LOGIN: [u8; 16] = [
+    // "37ecd3b8-9218-3bb9-a71b-a935b86f6a81"
+    0x37, 0xec, 0xd3, 0xb8, 0x92, 0x18, 0x3b, 0xb9,
+    0xa7, 0x1b, 0xa9, 0x35, 0xb8, 0x6f, 0x6a, 0x81,
+];
+pub const UUID_AUTH_LOGOUT: [u8; 16] = [
+    // "d4f5abe8-edd2-3fb9-abd8-1c8bb84f4a63"
+    0xd4, 0xf5, 0xab, 0xe8, 0xed, 0xd2, 0x3f, 0xb9,
+    0xab, 0xd8, 0x1c, 0x8b, 0xb8, 0x4f, 0x4a, 0x63,
+];
 
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Kind {
@@ -38,6 +60,7 @@ pub enum Kind {
     Join,
     Drop,
     ConsoleCommand,
+    Ex,
 }
 
 pub struct UnknownType(i32);
@@ -64,7 +87,9 @@ impl From<MaybeEnd<UnknownType>> for MaybeEnd<Error> {
 }
 
 impl Kind {
-    pub fn decode(p: &mut Unpacker) -> Result<Kind, MaybeEnd<UnknownType>> {
+    pub fn decode(p: &mut Unpacker, version: Version)
+        -> Result<Kind, MaybeEnd<UnknownType>>
+    {
         Ok(match p.read_int(&mut Ignore)? {
             i if i >= 0 => Kind::PlayerDiff(i),
             FINISH => Kind::Finish,
@@ -77,6 +102,7 @@ impl Kind {
             JOIN => Kind::Join,
             DROP => Kind::Drop,
             CONSOLE_COMMAND => Kind::ConsoleCommand,
+            EX if version.has_ex() => Kind::Ex,
             x => return Err(UnknownType(x).into()),
         })
     }
@@ -95,6 +121,7 @@ impl Kind {
             Kind::Join => Join::decode(p)?.into(),
             Kind::Drop => Drop::decode(p)?.into(),
             Kind::ConsoleCommand => ConsoleCommand::decode(p)?.into(),
+            Kind::Ex => Item::decode_ex(p)?,
         })
     }
     pub fn player_cid(&self) -> Option<i32> {
@@ -107,7 +134,26 @@ impl Kind {
     }
 }
 
-#[derive(Clone)]
+fn serialize_str_lossy<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer,
+{
+    String::from_utf8_lossy(bytes).serialize(s)
+}
+
+fn serialize_str_slice_lossy<S>(bytess: &ArrayVec<[&[u8]; 16]>, s: S)
+    -> Result<S::Ok, S::Error>
+    where S: serde::Serializer,
+{
+    let mut seq = s.serialize_seq(Some(bytess.len()))?;
+    for &bytes in bytess {
+        seq.serialize_element(&String::from_utf8_lossy(bytes))?;
+    }
+    seq.end()
+}
+
+#[derive(Clone, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum Item<'a> {
     PlayerDiff(PlayerDiff),
     Finish(Finish),
@@ -120,70 +166,106 @@ pub enum Item<'a> {
     Join(Join),
     Drop(Drop<'a>),
     ConsoleCommand(ConsoleCommand<'a>),
+
+    AuthInit(AuthInit<'a>),
+    AuthLogin(AuthLogin<'a>),
+    AuthLogout(AuthLogout),
+
+    UnknownEx(UnknownEx<'a>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlayerDiff {
     pub cid: i32,
     pub dx: i32,
     pub dy: i32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Finish;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TickSkip {
     pub dt: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlayerNew {
     pub cid: i32,
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlayerOld {
     pub cid: i32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct InputDiff {
     pub cid: i32,
     pub diff: [i32; INPUT_LEN],
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct InputNew {
     pub cid: i32,
     pub new: [i32; INPUT_LEN],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Message<'a> {
     pub cid: i32,
     pub msg: &'a [u8],
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Join {
     pub cid: i32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Drop<'a> {
     pub cid: i32,
+    #[serde(serialize_with = "serialize_str_lossy")]
     pub reason: &'a [u8],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct ConsoleCommand<'a> {
     pub cid: i32,
     pub flag_mask: u32,
+    #[serde(serialize_with = "serialize_str_lossy")]
     pub cmd: &'a [u8],
+    #[serde(serialize_with = "serialize_str_slice_lossy")]
     pub args: ArrayVec<[&'a [u8]; CONSOLE_COMMAND_MAX_ARGS]>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AuthInit<'a> {
+    pub cid: i32,
+    pub level: i32,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub identity: &'a [u8],
+}
+
+#[derive(Clone, Serialize)]
+pub struct AuthLogin<'a> {
+    pub cid: i32,
+    pub level: i32,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub identity: &'a [u8],
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AuthLogout {
+    pub cid: i32,
+}
+
+#[derive(Clone, Serialize)]
+pub struct UnknownEx<'a> {
+    pub uuid: Uuid,
+    pub data: &'a [u8],
 }
 
 #[derive(Debug)]
@@ -201,8 +283,23 @@ impl From<Error> for MaybeEnd<Error> {
 }
 
 impl<'a> Item<'a> {
-    pub fn decode(p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
-        Kind::decode(p)?.decode_rest(p)
+    pub fn decode(p: &mut Unpacker<'a>, version: Version)
+        -> Result<Item<'a>, MaybeEnd<Error>>
+    {
+        Kind::decode(p, version)?.decode_rest(p)
+    }
+    pub fn decode_ex(p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
+        let uuid = p.read_uuid()?;
+        let data = p.read_data(&mut Ignore)?;
+        Ok(match *uuid.as_bytes() {
+            UUID_AUTH_INIT => AuthInit::decode(&mut Unpacker::new(data))?.into(),
+            UUID_AUTH_LOGIN => AuthLogin::decode(&mut Unpacker::new(data))?.into(),
+            UUID_AUTH_LOGOUT => AuthLogout::decode(&mut Unpacker::new(data))?.into(),
+            _ => UnknownEx {
+                uuid: uuid,
+                data: data,
+            }.into(),
+        })
     }
     pub fn cid(&self) -> Option<i32> {
         Some(match *self {
@@ -217,6 +314,10 @@ impl<'a> Item<'a> {
             Item::Join(ref i) => i.cid,
             Item::Drop(ref i) => i.cid,
             Item::ConsoleCommand(ref i) => i.cid,
+            Item::AuthInit(ref i) => i.cid,
+            Item::AuthLogin(ref i) => i.cid,
+            Item::AuthLogout(ref i) => i.cid,
+            Item::UnknownEx(_) => return None,
         })
     }
 }
@@ -351,6 +452,34 @@ impl<'a> ConsoleCommand<'a> {
     }
 }
 
+impl<'a> AuthInit<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<AuthInit<'a>, MaybeEnd<Error>> {
+        Ok(AuthInit {
+            cid: _p.read_int(&mut Ignore)?,
+            level: _p.read_int(&mut Ignore)?,
+            identity: _p.read_string()?,
+        })
+    }
+}
+
+impl<'a> AuthLogin<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<AuthLogin<'a>, MaybeEnd<Error>> {
+        Ok(AuthLogin {
+            cid: _p.read_int(&mut Ignore)?,
+            level: _p.read_int(&mut Ignore)?,
+            identity: _p.read_string()?,
+        })
+    }
+}
+
+impl AuthLogout {
+    fn decode(_p: &mut Unpacker) -> Result<AuthLogout, MaybeEnd<Error>> {
+        Ok(AuthLogout {
+            cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
 impl<'a> fmt::Debug for Item<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -365,6 +494,10 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::Join(ref i) => i.fmt(f),
             Item::Drop(ref i) => i.fmt(f),
             Item::ConsoleCommand(ref i) => i.fmt(f),
+            Item::AuthInit(ref i) => i.fmt(f),
+            Item::AuthLogin(ref i) => i.fmt(f),
+            Item::AuthLogout(ref i) => i.fmt(f),
+            Item::UnknownEx(ref i) => i.fmt(f),
         }
     }
 }
@@ -394,6 +527,35 @@ impl<'a> fmt::Debug for ConsoleCommand<'a> {
             .field("flag_mask", &self.flag_mask)
             .field("cmd", &pretty::Bytes::new(&self.cmd))
             .field("args", &pretty::BytesSlice::new(&self.args))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for AuthInit<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("AuthInit")
+            .field("cid", &self.cid)
+            .field("level", &self.level)
+            .field("identity", &pretty::Bytes::new(&self.identity))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for AuthLogin<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("AuthLogin")
+            .field("cid", &self.cid)
+            .field("level", &self.level)
+            .field("identity", &pretty::Bytes::new(&self.identity))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for UnknownEx<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("UnknownEx")
+            .field("uuid", &self.uuid)
+            .field("data", &pretty::Bytes::new(&self.data))
             .finish()
     }
 }
@@ -461,5 +623,29 @@ impl<'a> From<Drop<'a>> for Item<'a> {
 impl<'a> From<ConsoleCommand<'a>> for Item<'a> {
     fn from(i: ConsoleCommand<'a>) -> Item<'a> {
         Item::ConsoleCommand(i)
+    }
+}
+
+impl<'a> From<AuthInit<'a>> for Item<'a> {
+    fn from(i: AuthInit<'a>) -> Item<'a> {
+        Item::AuthInit(i)
+    }
+}
+
+impl<'a> From<AuthLogin<'a>> for Item<'a> {
+    fn from(i: AuthLogin<'a>) -> Item<'a> {
+        Item::AuthLogin(i)
+    }
+}
+
+impl<'a> From<AuthLogout> for Item<'a> {
+    fn from(i: AuthLogout) -> Item<'a> {
+        Item::AuthLogout(i)
+    }
+}
+
+impl<'a> From<UnknownEx<'a>> for Item<'a> {
+    fn from(i: UnknownEx<'a>) -> Item<'a> {
+        Item::UnknownEx(i)
     }
 }

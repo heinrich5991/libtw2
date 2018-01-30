@@ -1,5 +1,6 @@
 extern crate arrayvec;
 extern crate buffer;
+extern crate chrono;
 #[macro_use]
 extern crate common;
 extern crate itertools;
