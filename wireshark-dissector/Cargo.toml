@@ -1,0 +1,22 @@
+[package]
+name = "wireshark-dissector"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+arrayvec = "0.3.22"
+common = { path = "../common/" }
+huffman = { path = "../huffman/" }
+net = { path = "../net/" }
+warn = "0.2.2"
+wireshark-dissector-sys = { path = "sys" }

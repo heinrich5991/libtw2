@@ -1,0 +1,56 @@
+#!/bin/sh
+(
+echo "#![allow(bad_style)]"
+bindgen \
+	--no-prepend-enum-name \
+	--opaque-type 'GByteArray' \
+	--opaque-type 'GHashTable' \
+	--opaque-type 'GRegex' \
+	--opaque-type 'GSList' \
+	--opaque-type 'address' \
+	--opaque-type 'epan_column_info' \
+	--opaque-type 'epan_session' \
+	--opaque-type 'frame_data' \
+	--opaque-type 'proto_item' \
+	--opaque-type 'proto_tree' \
+	--opaque-type 'tvbuff_t' \
+	--opaque-type 'wmem_allocator_t' \
+	--opaque-type 'wmem_list_t' \
+	--opaque-type 'wtap_pkthdr' \
+	--opaque-type 'wtap_pseudo_header' \
+	--whitelist-function '^add_new_data_source$' \
+	--whitelist-function '^col_clear$' \
+	--whitelist-function '^col_set_str$' \
+	--whitelist-function '^create_dissector_handle$' \
+	--whitelist-function '^dissector_add_uint$' \
+	--whitelist-function '^memcpy$' \
+	--whitelist-function '^proto_item_add_subtree$' \
+	--whitelist-function '^proto_register_field_array$' \
+	--whitelist-function '^proto_register_protocol$' \
+	--whitelist-function '^proto_register_subtree_array$' \
+	--whitelist-function '^proto_tree_add_boolean_format$' \
+	--whitelist-function '^proto_tree_add_item$' \
+	--whitelist-function '^proto_tree_add_string_format$' \
+	--whitelist-function '^proto_tree_add_uint_format$' \
+	--whitelist-function '^tvb_captured_length$' \
+	--whitelist-function '^tvb_memcpy$' \
+	--whitelist-function '^tvb_new_child_real_data$' \
+	--whitelist-function '^tvb_new_subset_remaining$' \
+	--whitelist-function '^wmem_alloc$' \
+	--whitelist-type '^field_display_e$' \
+	--whitelist-var '^COL_INFO$' \
+	--whitelist-var '^COL_PROTOCOL$' \
+	--whitelist-var '^ENC_BIG_ENDIAN$' \
+	--whitelist-var '^ENC_NA$' \
+	--whitelist-var '^FT_UINT8$' \
+	--whitelist-var '^HFILL$' \
+	bindgen.h \
+	-- \
+	$(pkg-config wireshark --cflags)
+echo
+) > src/lib.rs
+cargo fmt
+
+# These makes the resulting source contain errors.
+#--opaque-type 'circuit_type' \
+#--opaque-type 'port_type' \

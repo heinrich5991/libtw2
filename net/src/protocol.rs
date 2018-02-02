@@ -140,6 +140,7 @@ pub struct Chunk<'a> {
 #[derive(Clone, Debug)]
 pub struct ChunksIter<'a> {
     data: &'a [u8],
+    initial_len: usize,
     num_remaining_chunks: i32,
     checked_num_chunks_warning: bool,
 }
@@ -148,6 +149,7 @@ impl<'a> ChunksIter<'a> {
     pub fn new(data: &'a [u8], num_chunks: u8) -> ChunksIter<'a> {
         ChunksIter {
             data: data,
+            initial_len: data.len(),
             num_remaining_chunks: num_chunks.i32(),
             checked_num_chunks_warning: false,
         }
@@ -156,6 +158,9 @@ impl<'a> ChunksIter<'a> {
         warn.warn(Warning::ChunksUnknownData);
         self.data = &[];
         None
+    }
+    pub fn pos(&self) -> usize {
+        self.initial_len - self.data.len()
     }
     pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
         where W: Warn<Warning>
@@ -169,22 +174,11 @@ impl<'a> ChunksIter<'a> {
             }
             return None;
         }
-        let (raw_header, mut chunk_data_and_rest) =
-            unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(self.data),
-                              self.excess_data(warn));
-        let header = raw_header.unpack_warn(&mut Ignore);
-        let vital;
-        if header.flags & CHUNKFLAG_VITAL != 0 {
-            let (header, d) =
-                unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(self.data),
-                                  self.excess_data(warn));
-            let header = header.unpack_warn(warn);
-            chunk_data_and_rest = d;
-            vital = Some((header.sequence, header.h.flags & CHUNKFLAG_RESEND != 0));
-        } else {
-            raw_header.unpack_warn(warn);
-            vital = None;
-        }
+        let (header, sequence, chunk_data_and_rest) = unwrap_or_return!(
+            read_chunk_header(warn, self.data),
+            self.excess_data(warn)
+        );
+        let vital = sequence.map(|s| (s, header.flags & CHUNKFLAG_RESEND != 0));
         let size = header.size.usize();
         if chunk_data_and_rest.len() < size {
             return self.excess_data(warn);
@@ -245,7 +239,7 @@ pub fn write_chunk_impl<'d, 's>(bytes: &[u8],
     let vital_flag = if vital.is_some() { CHUNKFLAG_VITAL } else { 0 };
     let flags = vital_flag | resend_flag;
 
-    let header_non_vital = ChunkHeader {
+    let header_nonvital = ChunkHeader {
         flags: flags,
         size: size,
     };
@@ -254,12 +248,12 @@ pub fn write_chunk_impl<'d, 's>(bytes: &[u8],
     let header2;
     let header: &[u8] = if vital.is_some() {
         header1 = ChunkHeaderVital {
-            h: header_non_vital,
+            h: header_nonvital,
             sequence: sequence,
         }.pack();
         header1.as_bytes()
     } else {
-        header2 = header_non_vital.pack();
+        header2 = header_nonvital.pack();
         header2.as_bytes()
     };
     try!(buffer.write(header));
@@ -531,14 +525,14 @@ impl PacketHeader {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChunkHeader {
-    flags: u8, // u2
-    size: u16, // u10
+    pub flags: u8, // u2
+    pub size: u16, // u10
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChunkHeaderVital {
-    h: ChunkHeader,
-    sequence: u16, // u16
+    pub h: ChunkHeader,
+    pub sequence: u16, // u16
 }
 
 #[repr(C, packed)]
@@ -554,6 +548,26 @@ pub struct ChunkHeaderVitalPacked {
     flags_size: u8, // u2 u6
     sequence_size: u8, // u4 u4
     sequence: u8,
+}
+
+/// -> Some((chunk_header, sequence, rest))
+pub fn read_chunk_header<'a, W>(warn: &mut W, data: &'a [u8])
+    -> Option<(ChunkHeader, Option<u16>, &'a [u8])>
+    where W: Warn<Warning>,
+{
+    let (raw_header, chunk_data_and_rest) =
+        unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(data));
+
+    let header = raw_header.unpack_warn(&mut Ignore);
+    Some(if header.flags & CHUNKFLAG_VITAL != 0 {
+        let (header, chunk_data_and_rest_vital) =
+            unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(data));
+        let header = header.unpack_warn(warn);
+        (header.h, Some(header.sequence), chunk_data_and_rest_vital)
+    } else {
+        raw_header.unpack_warn(warn);
+        (header, None, chunk_data_and_rest)
+    })
 }
 
 impl ChunkHeaderPacked {
