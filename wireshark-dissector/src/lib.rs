@@ -25,11 +25,13 @@ use std::os::raw::c_void;
 use warn::Ignore;
 
 const TW_PORT: u32 = 8303;
-static mut PROTO_TW: c_int = -1;
+static mut PROTO_TW_PACKET: c_int = -1;
+static mut PROTO_TW_CHUNK: c_int = -1;
 
 static mut ETT_PACKET: c_int = -1;
 static mut ETT_PACKET_FLAGS: c_int = -1;
 static mut ETT_CHUNK: c_int = -1;
+static mut ETT_CHUNK_FLAGS: c_int = -1;
 
 static mut HF_PACKET_FLAGS: c_int = -1;
 static mut HF_PACKET_CONTROL: c_int = -1;
@@ -41,6 +43,8 @@ static mut HF_PACKET_NUM_CHUNKS: c_int = -1;
 static mut HF_PACKET_CTRL: c_int = -1;
 static mut HF_PACKET_CTRL_CLOSE_REASON: c_int = -1;
 static mut HF_CHUNK_FLAGS: c_int = -1;
+static mut HF_CHUNK_RESEND: c_int = -1;
+static mut HF_CHUNK_VITAL: c_int = -1;
 static mut HF_CHUNK_SIZE: c_int = -1;
 static mut HF_CHUNK_SEQ: c_int = -1;
 
@@ -62,13 +66,13 @@ fn unpack_header(data: &[u8]) -> Option<protocol::PacketHeader> {
 unsafe extern "C" fn dissect_tw(
     tvb: *mut sys::tvbuff_t,
     pinfo: *mut sys::packet_info,
-    tree: *mut sys::proto_tree,
+    ttree: *mut sys::proto_tree,
     _data: *mut c_void,
 ) -> c_int {
     sys::col_set_str((*pinfo).cinfo, sys::COL_PROTOCOL as c_int, c("TW\0"));
     sys::col_clear((*pinfo).cinfo, sys::COL_INFO as c_int);
 
-    let ti = sys::proto_tree_add_item(tree, PROTO_TW, tvb, 0, -1, sys::ENC_NA);
+    let ti = sys::proto_tree_add_item(ttree, PROTO_TW_PACKET, tvb, 0, -1, sys::ENC_NA);
     let tree = sys::proto_item_add_subtree(ti, ETT_PACKET);
 
     let original_tvb = tvb;
@@ -90,9 +94,9 @@ unsafe extern "C" fn dissect_tw(
     }
 
     macro_rules! field_boolean {
-        ($tree:expr, $hf:expr, $from:expr, $to: expr, $value:expr, $fmt:expr, $($args:tt)*) => {{
+        ($tree:expr, $hf:expr, $from:expr, $value:expr, $fmt:expr, $($args:tt)*) => {{
             let value: bool = $value;
-            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, $to, value as c_uint, $fmt, $($args)*)
+            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value as c_uint, $fmt, $($args)*)
         }};
     }
 
@@ -128,46 +132,46 @@ unsafe extern "C" fn dissect_tw(
         if ctrl { flags_description.add("control"); }
     }
     let flags_field = field_uint!(tree, HF_PACKET_FLAGS, 0, 1, header.flags,
-        "{} = Flags: {}",
-        Bitfield::new(&data[0..1], 0b1111_0000),
+        "Flags: {} ({})",
         flags_description.or("none"),
+        Bitfield::new(&data[0..1], 0b1111_0000),
     );
     let flag_tree = sys::proto_item_add_subtree(flags_field, ETT_PACKET_FLAGS);
 
     if !connless {
-        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, 1, compression,
+        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_COMPRESSION.u64() << 4),
             if compression { "Compressed" } else { "Not compressed" },
         );
-        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, 1, request_resend,
+        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, request_resend,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_REQUEST_RESEND.u64() << 4),
             if request_resend { "Resend requested" } else { "No resend requested" },
         );
     } else {
-        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, 1, compression,
+        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
             "{} = Not compressed (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
-        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, 1, request_resend,
+        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, request_resend,
             "{} = No resend requested (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
     }
-    field_boolean!(flag_tree, HF_PACKET_CONNLESS, 0, 1, connless,
+    field_boolean!(flag_tree, HF_PACKET_CONNLESS, 0, connless,
         "{} = {}",
         Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONNLESS.u64() << 4),
         if connless { "Connectionless" } else { "Connection-oriented" },
     );
     if !connless {
-        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, 1, ctrl,
+        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONTROL.u64() << 4),
             if ctrl { "Control message" } else { "Not a control message" },
         );
     } else {
-        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, 1, ctrl,
+        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
             "{} = Not a control message (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
@@ -175,9 +179,9 @@ unsafe extern "C" fn dissect_tw(
     if !connless {
         // TODO: Warn if `padding != 0`.
         field_uint!(tree, HF_PACKET_ACK, 0, 2, header.ack,
-            "{} = Acknowleged sequence number: {}",
-            Bitfield::new(&data[0..2], 0b0000_0011_1111_1111),
+            "Acknowleged sequence number: {} ({})",
             header.ack,
+            Bitfield::new(&data[0..2], 0b0000_0011_1111_1111),
         );
         if !ctrl {
             field_uint!(tree, HF_PACKET_NUM_CHUNKS, 2, 1, header.num_chunks,
@@ -255,6 +259,9 @@ unsafe extern "C" fn dissect_tw(
                 } else {
                     continue;
                 };
+                let ti = sys::proto_tree_add_item(ttree, PROTO_TW_CHUNK, tvb, 0, -1, sys::ENC_NA);
+                let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
+
                 let offset = offset + 3;
                 let mut flags_description: CommaSeparated<[u8; 256]> =
                     CommaSeparated::new();
@@ -263,21 +270,33 @@ unsafe extern "C" fn dissect_tw(
                 if resend { flags_description.add("re-sent"); }
                 if vital { flags_description.add("vital"); }
 
-                field_uint!(tree, HF_CHUNK_FLAGS, offset.assert_i32(), 1, header.flags,
-                    "{} = Flags: {}",
-                    Bitfield::new(&data[offset..offset+1], 0b1100_0000),
+                let flags_field = field_uint!(tree, HF_CHUNK_FLAGS, offset.assert_i32(), 1, header.flags,
+                    "Flags: {} ({})",
                     flags_description.or("none"),
+                    Bitfield::new(&data[offset..offset+1], 0b1100_0000),
+                );
+                let flag_tree = sys::proto_item_add_subtree(flags_field, ETT_CHUNK_FLAGS);
+                field_boolean!(flag_tree, HF_CHUNK_RESEND, 0, resend,
+                    "{} = {}",
+                    Bitfield::new(&data[offset..offset+1], protocol::CHUNKFLAG_RESEND.u64() << 6),
+                    if ctrl { "Was re-sent" } else { "Was sent for the first time" },
+                );
+                field_boolean!(flag_tree, HF_CHUNK_VITAL, 0, vital,
+                    "{} = {}",
+                    Bitfield::new(&data[offset..offset+1], protocol::CHUNKFLAG_VITAL.u64() << 6),
+                    if ctrl { "Will be transferred reliably" } else { "Will not be transferred reliably" },
                 );
                 field_uint!(tree, HF_CHUNK_SIZE, offset.assert_i32(), 2, header.size,
-                    "{} = Size: {}",
-                    Bitfield::new(&data[offset..offset+2], 0b0011_1111_0000_1111),
+                    "Size: {} {} ({})",
                     header.size,
+                    if header.size != 1 { "bytes" } else { "byte" },
+                    Bitfield::new(&data[offset..offset+2], 0b0011_1111_0000_1111),
                 );
                 if let Some(s) = sequence {
                     field_uint!(tree, HF_CHUNK_SEQ, offset.assert_i32() + 1, 2, s,
-                        "{} = Sequence number: {}",
-                        Bitfield::new(&data[offset+1..offset+3], 0b1100_0000_1111_1111),
+                        "Sequence number: {} ({})",
                         s,
+                        Bitfield::new(&data[offset+1..offset+3], 0b1100_0000_1111_1111),
                     );
                 }
             }
@@ -305,7 +324,7 @@ unsafe fn proto_register_teeworlds() {
         same_name_next: 0 as _,
     };
 
-    static mut HF: [sys::hf_register_info; 12] = unsafe {[
+    static mut PACKET_HF: [sys::hf_register_info; 9] = unsafe {[
         sys::hf_register_info {
             p_id: &HF_PACKET_FLAGS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
@@ -393,6 +412,8 @@ unsafe fn proto_register_teeworlds() {
                 ..HFRI_DEFAULT
             },
         },
+    ]};
+    static mut CHUNK_HF: [sys::hf_register_info; 5] = unsafe {[
         sys::hf_register_info {
             p_id: &HF_CHUNK_FLAGS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
@@ -400,6 +421,24 @@ unsafe fn proto_register_teeworlds() {
                 abbrev: b"tw.chunk.flags\0" as *const _ as *const c_char,
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_CHUNK_RESEND as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: b"Resend\0" as *const _ as *const c_char,
+                abbrev: b"tw.flags.resend\0" as *const _ as *const c_char,
+                type_: sys::FT_BOOLEAN,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_CHUNK_VITAL as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: b"Vital\0" as *const _ as *const c_char,
+                abbrev: b"tw.flags.vital\0" as *const _ as *const c_char,
+                type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
         },
@@ -425,24 +464,31 @@ unsafe fn proto_register_teeworlds() {
         },
     ]};
 
-    static mut ETT: [*const c_int; 3] = unsafe {[
+    static mut ETT: [*const c_int; 4] = unsafe {[
         &ETT_PACKET,
         &ETT_PACKET_FLAGS,
         &ETT_CHUNK,
+        &ETT_CHUNK_FLAGS,
     ]};
 
-    PROTO_TW = sys::proto_register_protocol(
-        c("Teeworlds Protocol\0"),
-        c("Teeworlds\0"),
-        c("tw\0"),
+    PROTO_TW_PACKET = sys::proto_register_protocol(
+        c("Teeworlds Protocol packet\0"),
+        c("Teeworlds packet\0"),
+        c("twp\0"),
     );
-    sys::proto_register_field_array(PROTO_TW, HF.as_mut_ptr(), HF.len().assert_i32());
+    PROTO_TW_CHUNK = sys::proto_register_protocol(
+        c("Teeworlds Protocol chunk\0"),
+        c("Teeworlds chunk\0"),
+        c("twc\0"),
+    );
+    sys::proto_register_field_array(PROTO_TW_PACKET, PACKET_HF.as_mut_ptr(), PACKET_HF.len().assert_i32());
+    sys::proto_register_field_array(PROTO_TW_CHUNK, CHUNK_HF.as_mut_ptr(), CHUNK_HF.len().assert_i32());
     sys::proto_register_subtree_array(ETT.as_ptr(), ETT.len().assert_i32());
 }
 
 unsafe fn proto_reg_handoff_teeworlds() {
-    let tw_handle = sys::create_dissector_handle(Some(dissect_tw), PROTO_TW);
-    sys::dissector_add_uint(c("udp.port\0"), TW_PORT, tw_handle);
+    let tw_packet = sys::create_dissector_handle(Some(dissect_tw), PROTO_TW_PACKET);
+    sys::dissector_add_uint(c("udp.port\0"), TW_PORT, tw_packet);
 }
 
 #[no_mangle]
