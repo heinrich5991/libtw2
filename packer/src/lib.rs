@@ -5,7 +5,7 @@ extern crate quickcheck;
 extern crate arrayvec;
 extern crate buffer;
 #[macro_use] extern crate common;
-extern crate uuid;
+#[cfg(feature = "uuid")] extern crate uuid;
 extern crate warn;
 
 use arrayvec::ArrayVec;
@@ -17,7 +17,7 @@ use common::num::Cast;
 use std::iter;
 use std::mem;
 use std::slice;
-use uuid::Uuid;
+#[cfg(feature = "uuid")] use uuid::Uuid;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -244,6 +244,7 @@ impl<'a> Unpacker<'a> {
         self.iter = rest.iter();
         Ok(raw)
     }
+    #[cfg(feature = "uuid")]
     pub fn read_uuid(&mut self) -> Result<Uuid, UnexpectedEnd> {
         Ok(Uuid::from_bytes(self.read_raw(mem::size_of::<Uuid>())?).unwrap())
     }
