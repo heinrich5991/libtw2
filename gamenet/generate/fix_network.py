@@ -41,6 +41,13 @@ network.Connless = [
         NetIntString("max_clients"),
         NetClients("clients"),
     ]),
+    NetConnless("Heartbeat", "bea2", [
+        NetBigEndianU16("alt_port"),
+    ]),
+    NetConnless("ForwardCheck", "fw??", []),
+    NetConnless("ForwardResponse", "fw!!", []),
+    NetConnless("ForwardOk", "fwok", []),
+    NetConnless("ForwardError", "fwer", []),
 ]
 
 enums = {e.name: e for e in network.Enums}
