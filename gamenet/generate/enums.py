@@ -2,12 +2,10 @@ import network
 import fix_network
 import datatypes
 
-datatypes.emit_header_enums()
+emit = datatypes.Emit()
 
-for e in network.Enums:
-    e.emit_definition()
-    print()
+with emit:
+    datatypes.emit_header_enums()
+    datatypes.emit_enum_module(network.Enums)
 
-for e in network.Enums:
-    e.emit_impl()
-    print()
+emit.dump()

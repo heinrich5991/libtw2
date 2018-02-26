@@ -1,7 +1,15 @@
 use buffer::CapacityError;
 use common::slice;
 use debug::DebugSlice;
-use enums::*;
+use enums::Emote;
+use enums::FLAG_MISSING;
+use enums::MAX_CLIENTS;
+use enums::SPEC_FREEVIEW;
+use enums::Sound;
+use enums::TEAM_BLUE;
+use enums::TEAM_RED;
+use enums::Team;
+use enums::Weapon;
 use error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;

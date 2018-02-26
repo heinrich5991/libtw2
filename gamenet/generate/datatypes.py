@@ -1,4 +1,5 @@
 from collections import namedtuple
+import threading
 
 def title(c):
     return "".join(p.title() for p in c)
@@ -49,10 +50,61 @@ class NameValues:
         self.enums = enums
         self.structs = structs
 
+class Emit:
+    def __init__(self):
+        self.cur_indent = 0
+        self.lines = []
+        self.imports = set()
+        self.previous_emits = []
+    def __enter__(self):
+        self.previous_emits.append(_emit_get())
+        _emit_set(self)
+    def __exit__(self, exc_type, exc_value, traceback):
+        if _emit_get() != self:
+            raise RuntimeError("unexpected value for current emit")
+        _emit_set(self.previous_emits.pop())
+    def indent(self, level=1):
+        class Indent:
+            def __init__(self, emit, level):
+                self.emit = emit
+                self.level = level
+            def __enter__(self):
+                self.emit.cur_indent += self.level
+            def __exit__(self, exc_type, exc_value, traceback):
+                self.emit.cur_indent -= self.level
+        return Indent(self, level)
+    def print(self, string=""):
+        self.lines += ["    " * self.cur_indent + l for l in (string + "\n").splitlines()]
+    def import_(self, *args):
+        self.imports.update(args)
+    def dump(self):
+        if self.imports:
+            for i in sorted(self.imports):
+                _print("use {};".format(i))
+            _print()
+        _print("\n".join(self.lines))
+
+thread_local = threading.local()
+thread_local.emit = object()
+
+def _emit_set(emit):
+    thread_local.emit = emit
+
+def _emit_get():
+    return thread_local.emit
+
+_print = print
+def print(*args):
+    return _emit_get().print(*args)
+
+def import_(*args):
+    return _emit_get().import_(*args)
+
+def indent(*args):
+    return _emit_get().indent(*args)
+
 def emit_header_enums():
     print("""\
-use packer::IntOutOfRange;
-
 pub const MAX_CLIENTS: i32 = 16;
 pub const SPEC_FREEVIEW: i32 = -1;
 pub const MAX_SNAPSHOT_PACKSIZE: usize = 900;
@@ -63,22 +115,16 @@ pub const FLAG_TAKEN: i32 = -1;
 """)
 
 def emit_header_snap_obj():
+    import_(
+        "buffer::CapacityError",
+        "enums::Weapon",
+        "error::Error",
+        "packer::Packer",
+        "packer::Unpacker",
+        "packer::Warning",
+        "warn::Warn",
+    )
     print("""\
-use buffer::CapacityError;
-use common::slice;
-use debug::DebugSlice;
-use enums::*;
-use error::Error;
-use packer::ExcessData;
-use packer::IntUnpacker;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::in_range;
-use packer::positive;
-use std::fmt;
-use warn::Warn;
-
 #[derive(Clone, Copy, Debug)]
 pub struct Tick(pub i32);
 
@@ -159,24 +205,17 @@ pub const PLAYER_INPUT_EMPTY: PlayerInput = PlayerInput {
 """)
 
 def emit_header_msg_game():
+    import_(
+        "buffer::CapacityError",
+        "error::Error",
+        "packer::Packer",
+        "packer::Unpacker",
+        "packer::Warning",
+        "packer::with_packer",
+        "super::SystemOrGame",
+        "warn::Warn",
+    )
     print("""\
-use buffer::CapacityError;
-use common::pretty;
-use debug::DebugSlice;
-use enums::*;
-use error::Error;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::in_range;
-use packer::sanitize;
-use packer::to_bool;
-use packer::with_packer;
-use std::fmt;
-use super::SystemOrGame;
-use warn::Panic;
-use warn::Warn;
-
 impl<'a> Game<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>
         where W: Warn<Warning>
@@ -252,24 +291,18 @@ impl TuneParam {
 """)
 
 def emit_header_msg_connless():
+    import_(
+        "buffer::CapacityError",
+        "common::pretty",
+        "error::Error",
+        "packer::Unpacker",
+        "packer::Warning",
+        "packer::with_packer",
+        "std::fmt",
+        "super::string_from_int",
+        "warn::Warn",
+    )
     print("""\
-use buffer::CapacityError;
-use common::num::BeU16;
-use common::pretty;
-use error::Error;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::with_packer;
-use std::fmt;
-use super::AddrPacked;
-use super::AddrPackedSliceExt;
-use super::ClientsData;
-use super::int_from_string;
-use super::string_from_int;
-use warn::Warn;
-use warn::wrap;
-
 impl<'a> Connless<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
         let id = try!(_p.read_raw(8));
@@ -340,6 +373,15 @@ def emit_enum_from(name, structs):
         print("}")
 
 def emit_enum_msg(name, structs):
+    import_(
+        "buffer::CapacityError",
+        "error::Error",
+        "packer::Packer",
+        "packer::Unpacker",
+        "packer::Warning",
+        "std::fmt",
+        "warn::Warn",
+    )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     emit_enum_def(name, structs)
@@ -376,7 +418,27 @@ def emit_enum_msg(name, structs):
     print("}")
     emit_enum_from(name, structs)
 
+def emit_enum_msg_module(name, structs):
+    for s in structs:
+        s.emit_consts()
+    print()
+    emit_enum_msg(name, structs)
+    for s in structs:
+        s.emit_definition()
+        print()
+    for s in structs:
+        s.emit_impl_encode_decode()
+        s.emit_impl_debug()
+        print()
+
 def emit_enum_obj(name, structs):
+    import_(
+        "error::Error",
+        "packer::ExcessData",
+        "packer::IntUnpacker",
+        "std::fmt",
+        "warn::Warn",
+    )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     emit_enum_def(name, structs)
@@ -413,7 +475,32 @@ def emit_enum_obj(name, structs):
     print("}")
     emit_enum_from(name, structs)
 
+def emit_enum_obj_module(name, structs, flags):
+    for f in flags:
+        f.emit_definition()
+        print()
+    for s in structs:
+        s.emit_consts()
+    print()
+    emit_enum_obj(name, structs)
+    print()
+    for s in structs:
+        s.emit_definition()
+        print()
+    for s in structs:
+        s.emit_impl_debug()
+        s.emit_impl_encode_decode_int()
+        print()
+    emit_snap_obj_sizes(structs)
+
 def emit_enum_connless(name, structs):
+    import_(
+        "buffer::CapacityError",
+        "error::Error",
+        "packer::Warning",
+        "std::fmt",
+        "warn::Warn",
+    )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     emit_enum_def(name, structs)
@@ -450,6 +537,19 @@ def emit_enum_connless(name, structs):
     print("}")
     emit_enum_from(name, structs)
 
+def emit_enum_connless_module(name, structs):
+    for s in structs:
+        s.emit_consts()
+    print()
+    emit_enum_connless(name, structs)
+    for s in structs:
+        s.emit_definition()
+        print()
+    for s in structs:
+        s.emit_impl_encode_decode()
+        s.emit_impl_debug()
+        print()
+
 def emit_snap_obj_sizes(objects):
     print("pub fn obj_size(type_: u16) -> Option<u32> {")
     print("    Some(match type_ {")
@@ -459,11 +559,22 @@ def emit_snap_obj_sizes(objects):
     print("    })")
     print("}")
 
+def emit_enum_module(enums):
+    for e in enums:
+        e.emit_definition()
+        print()
+    for e in enums:
+        e.emit_impl()
+        print()
+
 class Enum(NameValues):
     def __init__(self, name, values, offset=0):
         super().__init__(name, [canonicalize(v) for v in values])
         self.offset = offset
     def emit_definition(self):
+        import_(
+            "packer::IntOutOfRange",
+        )
         for i, name in enumerate(self.values):
             print("pub const {}_{}: i32 = {};".format(caps(self.name), caps(name), i + self.offset))
         print()
@@ -571,12 +682,22 @@ class Struct(NameValues):
         else:
             print("pub struct {};".format(title(self.name)))
     def emit_impl_encode_decode(self):
+        import_(
+            "buffer::CapacityError",
+            "error::Error",
+            "packer::Packer",
+            "packer::Unpacker",
+            "packer::Warning",
+            "std::fmt",
+            "warn::Warn",
+        )
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
         if self.values:
             print("        let result = Ok({} {{".format(title(self.name)))
-            for m in self.values:
-                m.emit_decode()
+            with indent(3):
+                for m in self.values:
+                    m.emit_decode()
             print("        });")
         else:
             print("        let result = Ok({});".format(title(self.name)))
@@ -584,10 +705,11 @@ class Struct(NameValues):
         print("        result")
         print("    }")
         print("    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {{".format(title(self.name), l=self.lifetime()))
-        for m in self.values:
-            m.emit_assert()
-        for m in self.values:
-            m.emit_encode()
+        with indent(2):
+            for m in self.values:
+                m.emit_assert()
+            for m in self.values:
+                m.emit_encode()
         print("        Ok(_p.written())")
         print("    }")
         print("}")
@@ -598,8 +720,9 @@ class Struct(NameValues):
         if self.super:
             super = self.structs[self.super]
             print("            .field(\"{n}\", &self.{n})".format(n=snake(super.name)))
-        for m in self.values:
-            m.emit_debug()
+        with indent(3):
+            for m in self.values:
+                m.emit_debug()
         print("            .finish()")
         print("    }")
         print("}")
@@ -610,6 +733,14 @@ class NetObject(Struct):
         print("#[repr(C)]")
         super().emit_definition()
     def emit_impl_encode_decode_int(self):
+        import_(
+            "common::slice",
+            "error::Error",
+            "packer::ExcessData",
+            "packer::IntUnpacker",
+            "warn::Warn",
+        )
+
         if self.super:
             super = self.structs[self.super]
         else:
@@ -626,8 +757,9 @@ class NetObject(Struct):
             print("        Ok({} {{".format(title(self.name)))
             if super:
                 print("            {}: try!({}::decode_inner(_p)),".format(snake(super.name), title(super.name), super.lifetime()))
-            for m in self.values:
-                m.emit_decode_int()
+            with indent(3):
+                for m in self.values:
+                    m.emit_decode_int()
             print("        })")
         else:
             print("        Ok({})".format(title(self.name)))
@@ -635,8 +767,9 @@ class NetObject(Struct):
         print("    pub fn encode(&self) -> &[i32] {")
         if super:
             print("        self.{}.encode();".format(snake(super.name)))
-        for m in self.values:
-            m.emit_assert()
+        with indent(2):
+            for m in self.values:
+                m.emit_assert()
         print("        unsafe { slice::transmute(slice::ref_slice(self)) }")
         print("    }")
         print("}")
@@ -646,7 +779,9 @@ class NetObject(Struct):
             size += self.structs[self.super].int_size()
         return size
 
-class NetEvent(NetObject): pass
+class NetEvent(NetObject):
+    pass
+
 class NetMessage(Struct):
     const_type = "i32"
 
@@ -667,17 +802,17 @@ class Member:
     def update(self, enums, structs):
         return self
     def emit_decode(self):
-        print("            {}: {},".format(snake(self.name), self.decode_expr()))
+        print("{}: {},".format(snake(self.name), self.decode_expr()))
     def emit_decode_int(self):
-        print("            {}: {},".format(snake(self.name), self.decode_int_expr()))
+        print("{}: {},".format(snake(self.name), self.decode_int_expr()))
     def emit_assert(self):
         assertion = self.assert_expr("self.{}".format(snake(self.name)))
         if assertion is not None:
-            print("        {};".format(assertion))
+            print("{};".format(assertion))
     def emit_encode(self):
-        print("        try!({});".format(self.encode_expr("self.{}".format(snake(self.name)))))
+        print("try!({});".format(self.encode_expr("self.{}".format(snake(self.name)))))
     def emit_debug(self):
-        print("            .field(\"{}\", &{})".format(snake(self.name), self.debug_expr("self.{}".format(snake(self.name)))))
+        print(".field(\"{}\", &{})".format(snake(self.name), self.debug_expr("self.{}".format(snake(self.name)))))
     def validate_expr(self, self_expr):
         pass
     def assert_expr(self, self_expr):
@@ -692,28 +827,25 @@ class NetArray(Member):
         self.count = count
         self.type_ = "[{}; {}]".format(inner.type_, count)
     def decode_expr(self):
-        indent = "\n" + 4*4*" "
-        return "[{}{},\n            ]".format(
-                indent,
-                (","+indent).join(self.inner.decode_expr() for _ in range(self.count))
-        )
+        return "[\n{}]".format("".join(
+            "    {},\n".format(self.inner.decode_expr()) for _ in range(self.count)
+        ))
     def emit_assert(self):
         assert_expr = self.inner.assert_expr("e")
         if assert_expr:
-            print("        for e in &self.{} {{".format(snake(self.name)))
-            print("            {};".format(assert_expr))
-            print("        }")
+            print("for e in &self.{} {{".format(snake(self.name)))
+            print("    {};".format(assert_expr))
+            print("}")
     def emit_encode(self):
-        print("        for e in &self.{} {{".format(snake(self.name)))
-        print("            try!({});".format(self.inner.encode_expr("e")))
-        print("        }")
+        print("for e in &self.{} {{".format(snake(self.name)))
+        print("    try!({});".format(self.inner.encode_expr("e")))
+        print("}")
     def decode_int_expr(self):
-        indent = "\n" + 4*4*" "
-        return "[{}{},\n            ]".format(
-                indent,
-                (","+indent).join(self.inner.decode_int_expr() for _ in range(self.count))
-        )
+        return "[\n{}]".format("".join(
+            "    {},\n".format(self.inner.decode_int_expr()) for _ in range(self.count)
+        ))
     def debug_expr(self, self_expr):
+        import_("debug::DebugSlice")
         return "DebugSlice::new(&{}, |e| {})".format(self_expr, self.inner.debug_expr("e"))
     def int_size(self):
         return self.inner.int_size() * self.count
@@ -725,12 +857,18 @@ class NetString(Member):
     def encode_expr(self, self_expr):
         return "_p.write_string({})".format(self_expr)
     def debug_expr(self, self_expr):
+        import_("common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
 
 class NetStringStrict(NetString):
     def decode_expr(self):
+        import_("packer::sanitize")
         return "try!(sanitize(warn, {}))".format(super().decode_expr())
     def assert_expr(self, self_expr):
+        import_(
+            "packer::sanitize",
+            "warn::Panic",
+        )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
 
 class NetIntAny(Member):
@@ -743,6 +881,12 @@ class NetIntAny(Member):
         return "try!(_p.read_int())"
     def int_size(self):
         return 1
+
+def import_consts(value):
+    value = str(value)
+    for const in "FLAG_MISSING MAX_CLIENTS SPEC_FREEVIEW TEAM_BLUE TEAM_RED".split():
+        if const in value:
+            import_("enums::{}".format(const))
 
 class NetIntRange(NetIntAny):
     def __init__(self, name, min, max):
@@ -766,10 +910,18 @@ class NetIntRange(NetIntAny):
             self.max = len(enums[("weapon",)].values) - 1
         return self
     def decode_expr(self):
+        import_("packer::in_range")
+        import_consts(self.min)
+        import_consts(self.max)
         return "try!(in_range({}, {}, {}))".format(super().decode_expr(), self.min, self.max)
     def assert_expr(self, self_expr):
+        import_consts(self.min)
+        import_consts(self.max)
         return "assert!({} <= {s} && {s} <= {})".format(self.min, self.max, s=self_expr)
     def decode_int_expr(self):
+        import_("packer::in_range")
+        import_consts(self.min)
+        import_consts(self.max)
         return "try!(in_range({}, {}, {}))".format(super().decode_int_expr(), self.min, self.max)
 
 class NetIntPositive(NetIntAny):
@@ -778,10 +930,12 @@ class NetIntPositive(NetIntAny):
     def update(self, enums, structs):
         return self
     def decode_expr(self):
+        import_("packer::positive")
         return "try!(positive({}))".format(super().decode_expr())
     def assert_expr(self, self_expr):
         return "assert!({} >= 0)".format(self_expr)
     def decode_int_expr(self):
+        import_("packer::positive")
         return "try!(positive({}))".format(super().decode_int_expr())
 
 class NetEnum(NetIntAny):
@@ -790,15 +944,18 @@ class NetEnum(NetIntAny):
         self.enum_name = canonicalize(enum_name)
         self.type_ = title(self.enum_name)
     def decode_expr(self):
+        import_("enums::{}".format(title(self.enum_name)))
         return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.to_i32()".format(self_expr))
     def decode_int_expr(self):
+        import_("enums::{}".format(title(self.enum_name)))
         return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_int_expr())
 
 class NetBool(NetIntAny):
     type_ = "bool"
     def decode_expr(self):
+        import_("packer::to_bool")
         return "try!(to_bool({}))".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
@@ -822,11 +979,19 @@ class NetStruct(Member):
     def decode_expr(self):
         return "try!({}::decode_msg_inner(warn, _p))".format(self.type_)
     def encode_expr(self, self_expr):
+        import_("packer::with_packer")
         return "with_packer(&mut _p, |p| {}.encode_msg(p))".format(self_expr)
 
 class NetAddrs(Member):
     type_ = "&'a [AddrPacked]"
+    def definition(self):
+        import_("super::AddrPacked")
+        return super().definition()
     def decode_expr(self):
+        import_(
+            "super::AddrPackedSliceExt",
+            "warn::wrap",
+        )
         return "AddrPackedSliceExt::from_bytes(wrap(warn), try!(_p.read_rest()))"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)
@@ -834,8 +999,10 @@ class NetAddrs(Member):
 class NetBigEndianU16(Member):
     type_ = "u16"
     def decode_expr(self):
+        import_("common::num::BeU16")
         return "{ let s = try!(_p.read_raw(2)); BeU16::from_bytes(&[s[0], s[1]]).to_u16() }"
     def encode_expr(self, self_expr):
+        import_("common::num::BeU16")
         return "_p.write_raw(BeU16::from_u16({}).as_bytes())".format(self_expr)
 
 class NetU8(Member):
@@ -848,15 +1015,21 @@ class NetU8(Member):
 class NetIntString(NetString):
     type_ = "i32"
     def decode_expr(self):
+        import_("super::int_from_string")
         return "try!(int_from_string(try!(_p.read_string())))"
     def encode_expr(self, self_expr):
+        import_("super::string_from_int")
         return "_p.write_string(&string_from_int({}))".format(self_expr)
     def debug_expr(self, self_expr):
         return self_expr
 
 class NetClients(Member):
     type_ = "ClientsData<'a>"
+    def definition(self):
+        import_("super::ClientsData")
+        return super().definition()
     def decode_expr(self):
+        import_("super::ClientsData")
         return "ClientsData::from_bytes(try!(_p.read_rest()))"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)

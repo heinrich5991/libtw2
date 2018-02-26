@@ -1,7 +1,12 @@
 use buffer::CapacityError;
 use common::pretty;
 use debug::DebugSlice;
-use enums::*;
+use enums::Emoticon;
+use enums::MAX_CLIENTS;
+use enums::SPEC_FREEVIEW;
+use enums::Sound;
+use enums::Team;
+use enums::Weapon;
 use error::Error;
 use packer::Packer;
 use packer::Unpacker;
