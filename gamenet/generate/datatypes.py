@@ -850,6 +850,25 @@ class NetArray(Member):
     def int_size(self):
         return self.inner.int_size() * self.count
 
+class NetOptional(Member):
+    def __init__(self, name, inner):
+        super().__init__(name)
+        self.inner = inner
+        self.type_ = "Option<{}>".format(inner.type_)
+    def decode_expr(self):
+        START="try!("
+        END=")"
+        inner_decode = self.inner.decode_expr()
+        if not inner_decode.startswith(START) or not inner_decode.endswith(END):
+            raise ValueError("can't form an optional of this type")
+        return "{}.ok()".format(inner_decode[len(START):-len(END)])
+    def encode_expr(self, self_expr):
+        return self.inner.encode_expr("{}.unwrap()").format(self_expr)
+    def debug_expr(self, self_expr):
+        return "{}.as_ref().map(|v| {})".format(self_expr, self.inner.debug_expr("v"))
+    def assert_expr(self, self_expr):
+        return "assert!({}.is_some())".format(self_expr)
+
 class NetString(Member):
     type_ = "&'a [u8]"
     def decode_expr(self):
@@ -870,6 +889,16 @@ class NetStringStrict(NetString):
             "warn::Panic",
         )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
+
+class NetData(Member):
+    type_ = "&'a [u8]"
+    def decode_expr(self):
+        return "try!(_p.read_data(warn))"
+    def encode_expr(self, self_expr):
+        return "_p.write_data({})".format(self_expr)
+    def debug_expr(self, self_expr):
+        import_("common::pretty")
+        return "pretty::Bytes::new(&{})".format(self_expr)
 
 class NetIntAny(Member):
     type_ = "i32"
