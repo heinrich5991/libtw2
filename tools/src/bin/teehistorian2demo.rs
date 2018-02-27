@@ -30,6 +30,7 @@ use packer::string_to_ints6;
 use packer::with_packer;
 use snapshot::snap::MAX_SNAPSHOT_SIZE;
 use snapshot::snap;
+use std::ffi::OsString;
 use std::path::Path;
 use std::process;
 use teehistorian::Buffer;
@@ -259,12 +260,19 @@ fn main() {
         )
         .arg(Arg::with_name("DEMO")
             .help("Sets the output demo file")
-            .required(true)
         )
         .get_matches();
 
+    let mut buffer;
     let in_ = Path::new(matches.value_of_os("TEEHISTORIAN").unwrap());
-    let out = Path::new(matches.value_of_os("DEMO").unwrap());
+    let out = match matches.value_of_os("DEMO").map(Path::new) {
+        Some(o) => o,
+        None => {
+            buffer = OsString::from(in_);
+            buffer.push(".demo");
+            Path::new(&buffer)
+        },
+    };
 
     match process(in_, out) {
         Ok(()) => {},
