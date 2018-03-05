@@ -24,29 +24,6 @@ NETMSGS_SYSTEM = [
     (26, "rcon_cmd_remove", "vital", ["s:name"]),
 ]
 
-header = """\
-impl<'a> System<'a> {
-    pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>
-        where W: Warn<Warning>
-    {
-        if let SystemOrGame::System(msg_id) =
-            SystemOrGame::decode_id(try!(p.read_int(warn)))
-        {
-            System::decode_msg(warn, msg_id, p)
-        } else {
-            Err(Error::UnknownId)
-        }
-    }
-    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
-        try!(p.write_int(SystemOrGame::System(self.msg_id()).encode_id()));
-        try!(with_packer(&mut p, |p| self.encode_msg(p)));
-        Ok(p.written())
-    }
-}
-"""
-
 def make_msgs(msgs):
     result = []
     for msg_id, name, vital, members in msgs:
@@ -83,7 +60,7 @@ def main():
     msgs = make_msgs(NETMSGS_SYSTEM)
     emit = datatypes.Emit()
     with emit:
-        generate_header()
+        datatypes.emit_header_msg_system()
         datatypes.emit_enum_msg_module("System", msgs)
     emit.dump()
 
