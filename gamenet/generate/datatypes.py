@@ -164,7 +164,7 @@ impl PlayerInput {
             jump: try!(_p.read_int(warn)),
             fire: try!(_p.read_int(warn)),
             hook: try!(_p.read_int(warn)),
-            player_flags: try!(in_range(try!(_p.read_int(warn)), 0, 256)),
+            player_flags: try!(_p.read_int(warn)),
             wanted_weapon: try!(_p.read_int(warn)),
             next_weapon: try!(_p.read_int(warn)),
             prev_weapon: try!(_p.read_int(warn)),
@@ -692,7 +692,7 @@ class Struct(NameValues):
                         and self.values[i].min == "TEAM_SPECTATORS"
                         and self.values[i].max == "TEAM_BLUE"):
                     self.values[i] = NetBool(self.values[i].name)
-        self.values = [member.update(enums, structs) for member in self.values]
+        self.values = [member.update(self, enums, structs) for member in self.values]
 
     def emit_consts(self):
         print("pub const {}: {} = {};".format(caps(self.name), self.const_type, self.index))
@@ -833,7 +833,7 @@ class Member:
         return "{}: {}".format(snake(self.name), self.type_)
     def contains_lifetime(self):
         return "'a" in self.type_
-    def update(self, enums, structs):
+    def update(self, parent, enums, structs):
         return self
     def emit_decode(self):
         print("{}: {},".format(snake(self.name), self.decode_expr()))
@@ -956,13 +956,15 @@ class NetIntRange(NetIntAny):
         super().__init__(name)
         self.min = min
         self.max = max
-    def update(self, enums, structs):
+    def update(self, parent, enums, structs):
         min = str(self.min)
         max = str(self.max)
         if min == "0" and max == "max_int":
             return NetIntPositive(self.name)
         if min == "TEAM_SPECTATORS" and max == "TEAM_BLUE":
             return NetEnum(self.name, "team")
+        if parent.name == ("player", "input") and self.name == ("player", "flags") and min == "0" and max == "256":
+            return NetIntAny(self.name)
         if self.name == ("hooked", "player") and min == "0":
             self.min = -1
         elif self.name == ("emote",) and max == str(len(enums[("emote",)].values)):
@@ -990,8 +992,6 @@ class NetIntRange(NetIntAny):
 class NetIntPositive(NetIntAny):
     def __init__(self, name):
         super().__init__(name)
-    def update(self, enums, structs):
-        return self
     def decode_expr(self):
         import_("packer::positive")
         return "try!(positive({}))".format(super().decode_expr())

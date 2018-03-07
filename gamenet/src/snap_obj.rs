@@ -60,7 +60,7 @@ impl PlayerInput {
             jump: try!(_p.read_int(warn)),
             fire: try!(_p.read_int(warn)),
             hook: try!(_p.read_int(warn)),
-            player_flags: try!(in_range(try!(_p.read_int(warn)), 0, 256)),
+            player_flags: try!(_p.read_int(warn)),
             wanted_weapon: try!(_p.read_int(warn)),
             next_weapon: try!(_p.read_int(warn)),
             prev_weapon: try!(_p.read_int(warn)),
@@ -600,14 +600,13 @@ impl PlayerInput {
             jump: try!(_p.read_int()),
             fire: try!(_p.read_int()),
             hook: try!(_p.read_int()),
-            player_flags: try!(in_range(try!(_p.read_int()), 0, 256)),
+            player_flags: try!(_p.read_int()),
             wanted_weapon: try!(_p.read_int()),
             next_weapon: try!(_p.read_int()),
             prev_weapon: try!(_p.read_int()),
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(0 <= self.player_flags && self.player_flags <= 256);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
