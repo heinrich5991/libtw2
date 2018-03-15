@@ -39,6 +39,6 @@ impl<T> ops::Deref for Takeable<T> {
 
 impl<T> ops::DerefMut for Takeable<T> {
     fn deref_mut(&mut self) -> &mut T {
-        self.inner.as_mut().unwrap_or_else(|| panic!("value mutable borrowed when absent"))
+        self.inner.as_mut().unwrap_or_else(|| panic!("value mutably borrowed when absent"))
     }
 }
