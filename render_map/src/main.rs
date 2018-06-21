@@ -1,13 +1,17 @@
 #![cfg(not(test))]
 
+#[macro_use]
+extern crate clap;
 extern crate common;
 extern crate datafile as df;
+extern crate image;
 extern crate logger;
+extern crate map;
 extern crate ndarray;
 extern crate num_traits;
-extern crate image;
-extern crate map;
 
+use clap::App;
+use clap::Arg;
 use common::num::Cast;
 use common::slice;
 use common::vec;
@@ -21,18 +25,21 @@ use num_traits::ToPrimitive;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map;
-use std::env;
 use std::ffi::OsString;
 use std::fmt;
 use std::io;
 use std::mem;
 use std::path::Path;
+use std::process;
 use std::str;
 
 // TODO: Skip empty tiles (i.e. don't count tiles that have index != 0, but are
 //       graphically empty.
 
-const SIZE: u32 = 200;
+struct Config {
+    size: u32,
+    render_detail: bool,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -99,7 +106,6 @@ impl Color {
 }
 
 struct Layer {
-    detail: bool,
     color: Color,
     image: Option<usize>,
     tiles: Array2<format::Tile>,
@@ -194,7 +200,7 @@ fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool
     (iy, ix)
 }
 
-fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
+fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Config)
     -> Result<(), Error>
     where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
 {
@@ -220,6 +226,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 
         for i in group.layer_indices {
             let layer = try!(map.layer(i));
+            if layer.detail && !config.render_detail { continue; }
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
             let tiles = try!(map.layer_tiles(tilemap.tiles(normal.data)));
@@ -274,7 +281,6 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
             }
 
             layers.push(Layer {
-                detail: layer.detail,
                 color: normal.color.into(),
                 image: normal.image,
                 tiles: tiles,
@@ -289,7 +295,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
         return Err(OwnError::EmptyMap.into());
     }
     let mut tile_len = 64;
-    while tile_len != 1 && tile_len * tile_len * width * height > 16 * SIZE * SIZE {
+    while tile_len != 1 && tile_len * tile_len * width * height > 16 * config.size * config.size {
         tile_len /= 2;
     }
 
@@ -341,10 +347,10 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E)
 
     let (mut new_width, mut new_height) = if width / height < 6 && height / width < 6 {
         let sqrt = (height * width).to_f32().unwrap().sqrt().to_u32().unwrap();
-        (width * SIZE / sqrt, height * SIZE / sqrt)
+        (width * config.size / sqrt, height * config.size / sqrt)
     } else {
         let size = cmp::max(height, width);
-        let result_size = (SIZE.to_f32().unwrap() * 6.to_f32().unwrap().sqrt()).to_u32().unwrap();
+        let result_size = (config.size.to_f32().unwrap() * 6.to_f32().unwrap().sqrt()).to_u32().unwrap();
         (width * result_size / size, height * result_size / size)
     };
     if new_width == 0 { new_width = 1; }
@@ -439,6 +445,17 @@ struct ErrorStats {
     ok: u64,
 }
 
+impl ErrorStats {
+    fn has_errors(&self) -> bool {
+        false
+            || !self.map_errors.is_empty()
+            || !self.df_errors.is_empty()
+            || !self.own_errors.is_empty()
+            || !self.image_errors.is_empty()
+            || !self.io_errors.is_empty()
+    }
+}
+
 fn update_error_stats(stats: &mut ErrorStats, err: Error) {
     match err {
         Error::Map(e) => *stats.map_errors.entry(e).or_insert(0) += 1,
@@ -488,9 +505,33 @@ fn load_external_image(path: &Path) -> Result<Option<Array2<Color>>, Error> {
 fn main() {
     logger::init();
 
-    let mut args = env::args_os();
-    let program_name = args.next().unwrap_or_else(|| "render_map".into());
-    let num_args = args.len();
+    let matches = App::new("Teeworlds map renderer")
+        .about("Reads a Teeworlds map file and renders a PNG thumbnail.")
+        .arg(Arg::with_name("size")
+            .help("Sets the approximate area of the thumbnail to size*size pixels")
+            .long("size")
+            .takes_value(true)
+            .value_name("SIZE")
+            .default_value("200")
+        )
+        .arg(Arg::with_name("no-detail")
+            .help("Don't render layers marked as \"Detail\" in the map editor")
+            .long("no-detail")
+        )
+        .arg(Arg::with_name("map")
+            .help("Map to render")
+            .multiple(true)
+            .value_name("MAP")
+        )
+        .get_matches();
+
+    let config = Config {
+        size: value_t!(matches, "size", u32).unwrap_or_else(|e| e.exit()),
+        render_detail: !matches.is_present("no-detail"),
+    };
+
+    let args = matches.values_of_os("map").unwrap();
+    let mut num_args: u64 = 0;
 
     let mut error_stats = ErrorStats::default();
     let mut out_path_buf = OsString::new();
@@ -505,11 +546,12 @@ fn main() {
     };
 
     for arg in args {
+        num_args += 1;
         out_path_buf.clear();
         out_path_buf.push(&arg);
         out_path_buf.push(".png");
         let path = Path::new(&arg);
-        match process(path, Path::new(&out_path_buf), &mut external) {
+        match process(path, Path::new(&out_path_buf), &mut external, &config) {
             Ok(()) => error_stats.ok += 1,
             Err(err) => {
                 println!("{}: {}", path.display(), err);
@@ -517,12 +559,10 @@ fn main() {
             }
         }
     }
-    if num_args == 0 {
-        println!("USAGE: {} <MAP>...", Path::new(&program_name).display());
-        return;
+    if num_args != 1 {
+        print_error_stats(&error_stats);
     }
-    if num_args == 1 {
-        return;
+    if error_stats.has_errors() {
+        process::exit(1);
     }
-    print_error_stats(&error_stats);
 }
