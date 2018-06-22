@@ -188,14 +188,14 @@ fn swap<T, E>(v: Option<Result<T, E>>) -> Result<Option<T>, E> {
 fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool, hflip: bool, tile_len: u32)
     -> (u32, u32)
 {
+    if rotate {
+        iy = (tile_len-1) - mem::replace(&mut ix, iy);
+    }
     if vflip {
         ix = (tile_len-1) - ix;
     }
     if hflip {
         iy = (tile_len-1) - iy;
-    }
-    if rotate {
-        ix = (tile_len-1) - mem::replace(&mut iy, ix);
     }
     (iy, ix)
 }
