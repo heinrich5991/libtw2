@@ -210,9 +210,9 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     let mut layers = vec![];
     let mut images = HashMap::new();
 
-    let mut min_x = 0;
+    let mut min_x = u32::max_value();
     let mut max_x = 0;
-    let mut min_y = 0;
+    let mut min_y = u32::max_value();
     let mut max_y = 0;
 
     for g in map.group_indices() {
@@ -288,12 +288,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         }
     }
 
+    if min_x > max_x || min_y > max_y {
+        return Err(OwnError::EmptyMap.into());
+    }
+
     let width = max_x - min_x;
     let height = max_y - min_y;
 
-    if width == 0 || height == 0 {
-        return Err(OwnError::EmptyMap.into());
-    }
     let mut tile_len = 64;
     while tile_len != 1 && tile_len * tile_len * width * height > 16 * config.size * config.size {
         tile_len /= 2;
@@ -317,8 +318,8 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         }
         for y in 0..height {
             for x in 0..width {
-                let layer_y = cmp::min(l.tiles.dim().0 - 1, y.usize());
-                let layer_x = cmp::min(l.tiles.dim().1 - 1, x.usize());
+                let layer_y = cmp::min(l.tiles.dim().0 - 1, (min_y + y).usize());
+                let layer_x = cmp::min(l.tiles.dim().1 - 1, (min_x + x).usize());
                 let tile = l.tiles[(layer_y, layer_x)];
 
                 let rotate = tile.flags & format::TILEFLAG_ROTATE != 0;
