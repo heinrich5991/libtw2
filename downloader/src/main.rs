@@ -1,4 +1,5 @@
 extern crate arrayvec;
+#[macro_use] extern crate clap;
 extern crate common;
 extern crate event_loop;
 extern crate gamenet;
@@ -13,6 +14,10 @@ extern crate tempfile;
 extern crate warn;
 
 use arrayvec::ArrayVec;
+use clap::App;
+use clap::Arg;
+use clap::Error;
+use clap::ErrorKind;
 use common::num::Cast;
 use common::pretty;
 use event_loop::Addr;
@@ -57,14 +62,12 @@ use snapshot::format::Item as SnapItem;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashSet;
-use std::env;
 use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::io;
 use std::mem;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::str;
 use std::time::Duration;
 use std::u32;
@@ -94,10 +97,6 @@ impl<'a, W: fmt::Debug> warn::Warn<W> for WarnSnap<'a> {
     fn warn(&mut self, w: W) {
         warn!("{:?} for {:?}", w, self.0);
     }
-}
-
-fn parse_connections<'a, I: Iterator<Item=String>>(iter: I) -> Option<Vec<Addr>> {
-    iter.map(|s| Addr::from_str(&s).ok()).collect()
 }
 
 fn check_dummy_map(name: &[u8], crc: u32, size: i32) -> bool {
@@ -162,7 +161,7 @@ impl Peer {
     fn needs_tick(&self) -> Timeout {
         cmp::min(Timeout::active(self.progress_timeout), self.state.needs_tick())
     }
-    fn tick<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) {
+    fn tick<L: Loop>(&mut self, pid: PeerId, config: &Config, loop_: &mut L) {
         // TODO: What happens with peers that are already disconnected?
         let vote;
         match self.state {
@@ -171,32 +170,32 @@ impl Peer {
             _ => vote = false,
         }
         if vote {
-            if self.vote(pid, loop_) {
+            if self.vote(pid, config, loop_) {
                 info!("voting done");
-                loop_.disconnect(pid, b"downloader");
+                loop_.disconnect(pid, config.nick.as_bytes());
                 return;
             }
             loop_.flush(pid);
         }
         if self.has_timed_out(loop_) {
             error!("timed out due to lack of progress");
-            loop_.disconnect(pid, b"downloader (timeout)");
+            loop_.disconnect(pid, config.timeout.as_bytes());
             return;
         }
     }
-    fn vote<L: Loop>(&mut self, pid: PeerId, loop_: &mut L) -> bool {
-        fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, loop_: &mut L) {
+    fn vote<L: Loop>(&mut self, pid: PeerId, config: &Config, loop_: &mut L) -> bool {
+        fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, reason: &[u8], loop_: &mut L) {
             loop_.sendg(pid, ClCallVote {
                 type_: game::CL_CALL_VOTE_TYPE_OPTION,
                 value: vote,
-                reason: b"downloader",
+                reason: reason,
             });
             visited_votes.insert(vote.to_owned());
         }
         // TODO: This probably has bad performance:
         self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
         if let Some(ref vote) = self.previous_vote {
-            send_vote(&mut self.visited_votes, vote, pid, loop_);
+            send_vote(&mut self.visited_votes, vote, pid, config.nick.as_bytes(), loop_);
             info!("voting for {}", pretty::AlmostString::new(vote));
         } else {
             self.previous_vote = None;
@@ -214,7 +213,7 @@ impl Peer {
             if let Some(vote) = self.previous_vote.as_ref() {
                 self.previous_list_vote = Some(vote.to_owned());
                 info!("list-voting for {}", pretty::AlmostString::new(vote));
-                send_vote(&mut self.visited_votes, &vote, pid, loop_);
+                send_vote(&mut self.visited_votes, &vote, pid, config.nick.as_bytes(), loop_);
             } else {
                 return true;
             }
@@ -323,22 +322,31 @@ fn num_players(snap: &Snap) -> u32 {
     num_players
 }
 
+struct Config {
+    nick: String,
+    clan: String,
+    timeout: String,
+    error: String,
+}
+
 struct Main {
     peers: PeerMap<Peer>,
+    config: Config,
 }
 
 struct MainLoop<'a, L: Loop+'a> {
     peers: &'a mut PeerMap<Peer>,
+    config: &'a Config,
     loop_: &'a mut L,
 }
 
-impl<L: Loop> Application<L> for Main {
+impl<'a, L: Loop> Application<L> for Main {
     fn needs_tick(&mut self) -> Timeout {
         self.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
     }
     fn on_tick(&mut self, loop_: &mut L) {
         for (pid, peer) in self.peers.iter_mut() {
-            peer.tick(pid, loop_);
+            peer.tick(pid, &self.config, loop_);
         }
     }
     fn on_packet(&mut self, loop_: &mut L, chunk: Chunk) {
@@ -362,9 +370,10 @@ impl<L: Loop> Application<L> for Main {
 }
 
 impl Main {
-    fn run<L: Loop>(addresses: &[Addr]) {
+    fn run<L: Loop>(addresses: &[Addr], config: Config) {
         let mut main = Main {
             peers: PeerMap::with_capacity(addresses.len()),
+            config: config,
         };
         let mut loop_ = L::client();
         for &addr in addresses {
@@ -378,6 +387,7 @@ impl Main {
     fn loop_<'a, L: Loop+'a>(&'a mut self, loop_: &'a mut L) -> MainLoop<'a, L> {
         MainLoop {
             peers: &mut self.peers,
+            config: &self.config,
             loop_: loop_,
         }
     }
@@ -427,7 +437,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         if let Some(_) = size.try_usize() {
                             if name.iter().any(|&b| b == b'/' || b == b'\\') {
                                 error!("invalid map name");
-                                self.loop_.disconnect(pid, b"downloader (error)");
+                                self.loop_.disconnect(pid, self.config.error.as_bytes());
                                 return;
                             }
                             match peer.state {
@@ -464,7 +474,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             progress = true;
                         } else {
                             error!("invalid map size");
-                            self.loop_.disconnect(pid, b"downloader (error)");
+                            self.loop_.disconnect(pid, self.config.error.as_bytes());
                             return;
                         }
                     },
@@ -484,7 +494,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                                     let num_players = num_players(snap);
                                     if num_players > 1 {
                                         error!("more than one player ({}) detected, quitting", num_players);
-                                        self.loop_.disconnect(pid, b"downloader");
+                                        self.loop_.disconnect(pid, self.config.nick.as_bytes());
                                         return;
                                     }
                                 },
@@ -580,8 +590,8 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                     SystemOrGame::System(System::ConReady(..)) => {
                         progress = true;
                         self.loop_.sendg(pid, ClStartInfo {
-                            name: b"downloader",
-                            clan: b"",
+                            name: self.config.nick.as_bytes(),
+                            clan: self.config.clan.as_bytes(),
                             country: -1,
                             skin: b"default",
                             use_custom_color: false,
@@ -597,7 +607,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         progress = true;
                         self.loop_.sends(pid, EnterGame);
                         self.loop_.sendg(pid, ClSetTeam { team: Team::Red });
-                        if peer.vote(pid, self.loop_) {
+                        if peer.vote(pid, &self.config, self.loop_) {
                             peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
                     }
@@ -666,7 +676,48 @@ impl<'a, L: Loop> MainLoop<'a, L> {
 
 fn main() {
     logger::init();
-    let args = env::args().dropping(1);
-    let addresses = parse_connections(args).expect("invalid addresses");
-    Main::run::<SocketLoop>(&addresses);
+
+    let matches = App::new("Teeworlds server map scraper")
+        .about("Tries to download every map from an otherwise empty Teeworlds server.")
+        .arg(Arg::with_name("nick")
+            .help("Sets the nickname sent to servers")
+            .long("nick")
+            .takes_value(true)
+            .value_name("NICK")
+            .default_value("downloader")
+        )
+        .arg(Arg::with_name("clan")
+            .help("Sets the clan name sent to servers")
+            .long("clan")
+            .takes_value(true)
+            .value_name("CLAN")
+            .default_value("")
+        )
+        .arg(Arg::with_name("server")
+            .help("Server to scrape")
+            .multiple(true)
+            .required(true)
+            .value_name("SERVER")
+        )
+        .get_matches();
+
+    let addresses = values_t!(matches, "server", Addr).unwrap_or_else(|e| e.exit());
+    let nick = matches.value_of("nick").unwrap();
+    let clan = matches.value_of("clan").unwrap();
+
+    if nick.len() >= 15 {
+        Error::with_description("Nick can have at most 15 bytes", ErrorKind::ValueValidation).exit();
+    }
+    if clan.len() >= 11 {
+        Error::with_description("Clan can have at most 11 bytes", ErrorKind::ValueValidation).exit();
+    }
+
+    let config = Config {
+        nick: nick.to_owned(),
+        clan: clan.to_owned(),
+        timeout: format!("{} (timeout)", nick),
+        error: format!("{} (error", nick),
+    };
+
+    Main::run::<SocketLoop>(&addresses, config);
 }

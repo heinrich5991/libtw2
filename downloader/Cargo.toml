@@ -6,6 +6,7 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 arrayvec = "0.3.12"
+clap = "2.31.2"
 common = { path = "../common/" }
 event_loop = { path = "../event_loop/" }
 gamenet = { path = "../gamenet/" }
