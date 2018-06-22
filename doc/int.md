@@ -51,3 +51,36 @@ Examples
 `0100 0000` (note that the `bits` field is all zeros).
 
 64 is encoded as `1000 0000  0000 0001`.
+
+Unpacker from ddnet source
+================================
+```cpp
+const unsigned char *CVariableInt::Unpack(const unsigned char *pSrc, int *pInOut)
+{
+	int Sign = (*pSrc>>6)&1;
+	*pInOut = *pSrc&0x3F;
+
+	do
+	{
+		if(!(*pSrc&0x80)) break;
+		pSrc++;
+		*pInOut |= (*pSrc&(0x7F))<<(6);
+
+		if(!(*pSrc&0x80)) break;
+		pSrc++;
+		*pInOut |= (*pSrc&(0x7F))<<(6+7);
+
+		if(!(*pSrc&0x80)) break;
+		pSrc++;
+		*pInOut |= (*pSrc&(0x7F))<<(6+7+7);
+
+		if(!(*pSrc&0x80)) break;
+		pSrc++;
+		*pInOut |= (*pSrc&(0x7F))<<(6+7+7+7);
+	} while(0);
+
+	pSrc++;
+	*pInOut ^= -Sign; // if(sign) *i = ~(*i)
+	return pSrc;
+}
+```
