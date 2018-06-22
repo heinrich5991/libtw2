@@ -522,6 +522,7 @@ fn main() {
         .arg(Arg::with_name("map")
             .help("Map to render")
             .multiple(true)
+            .required(true)
             .value_name("MAP")
         )
         .get_matches();
