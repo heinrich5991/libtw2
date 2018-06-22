@@ -36,9 +36,17 @@ use std::str;
 // TODO: Skip empty tiles (i.e. don't count tiles that have index != 0, but are
 //       graphically empty.
 
+struct Rect {
+    min_x: u32,
+    min_y: u32,
+    max_x: u32,
+    max_y: u32,
+}
+
 struct Config {
     size: u32,
     render_detail: bool,
+    crop: Option<Rect>,
 }
 
 #[repr(C)]
@@ -288,6 +296,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         }
     }
 
+    if let Some(ref c) = config.crop {
+        min_x = c.min_x;
+        min_y = c.min_y;
+        max_x = c.max_x;
+        max_y = c.max_y;
+    }
+
     if min_x > max_x || min_y > max_y {
         return Err(OwnError::EmptyMap.into());
     }
@@ -520,16 +535,48 @@ fn main() {
             .long("no-detail")
         )
         .arg(Arg::with_name("map")
-            .help("Map to render")
+            .help("Map to render (output file is the same with \".png\" appended)")
             .multiple(true)
             .required(true)
             .value_name("MAP")
         )
+        .arg(Arg::with_name("crop")
+            .help("Crop to these tile coordinates (min_x,min_y,max_x,max_y)")
+            .long("crop")
+            .use_delimiter(true)
+            .number_of_values(4)
+            .value_name("CROP")
+        )
         .get_matches();
+
+    let crop = if !matches.is_present("crop") {
+        None
+    } else {
+        let crop = values_t!(matches, "crop", u32).unwrap_or_else(|e| e.exit());
+        if crop[0] > crop[2] {
+            clap::Error::with_description(
+                "min_x must be smaller or equal to max_x",
+                clap::ErrorKind::ValueValidation
+            ).exit();
+        }
+        if crop[1] > crop[3] {
+            clap::Error::with_description(
+                "min_y must be smaller or equal to max_y",
+                clap::ErrorKind::ValueValidation
+            ).exit();
+        }
+        Some(Rect {
+            min_x: crop[0],
+            min_y: crop[1],
+            max_x: crop[2] + 1,
+            max_y: crop[3] + 1,
+        })
+    };
 
     let config = Config {
         size: value_t!(matches, "size", u32).unwrap_or_else(|e| e.exit()),
         render_detail: !matches.is_present("no-detail"),
+        crop: crop,
     };
 
     let args = matches.values_of_os("map").unwrap();
