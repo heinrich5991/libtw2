@@ -5,7 +5,8 @@ ITEMS = [
         [],
     ]),
     (1, "info", [
-        ["author", "map_version", "credits", "license"],
+        ["author", "version", "credits", "license"],
+        ["settings"]
     ]),
     (2, "image", [
         ["width", "height", "external", "name", "data"],
@@ -460,10 +461,28 @@ pub enum ImageError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum InfoError {
+    TooShort(usize),
+    InvalidVersion(i32),
+    InvalidAuthorIndex(i32),
+    InvalidVersionIndex(i32),
+    InvalidCreditsIndex(i32),
+    InvalidLicenseIndex(i32),
+    InvalidSettingsIndex(i32),
+}
+
+impl From<InfoError> for Error {
+    fn from(e: InfoError) -> Error {
+        Error::Info(e)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
     Group(usize, GroupError),
     Layer(usize, LayerError),
     Image(usize, ImageError),
+    Info(InfoError),
 
     InconsistentGameLayerDimensions,
     InvalidTilesLength(usize),
@@ -479,7 +498,10 @@ pub enum Error {
     InvalidTuneTilesDimensions(usize, u32, u32),
     EmptyVersion,
     MissingVersion,
-    MalformedInfo,
+    MissingInfo,
+    InvalidStringMissingNullTermination,
+    InvalidStringNullTermination,
+    InvalidSettingsMissingNullTermination,
     NoGameLayer,
     TooManyGameGroups,
     TooManyGameLayers,
@@ -567,10 +589,12 @@ def generate_impl_map_item(items):
     for (_, name, versions) in items:
         offset = 1
         for (i, version) in enumerate(versions):
-            if name != "layer":
-                ignore_version = "false"
-            else:
-                ignore_version = "true"
+            ignore_version = False
+            if name == "layer":
+                ignore_version = True
+            elif i == 1 and name == "info":
+                ignore_version = True
+            ignore_version = "true" if ignore_version else "false"
             result.append("""\
 impl MapItem for {s} {{ \
 fn version() -> i32 {{ {v} }} \

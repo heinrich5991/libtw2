@@ -44,7 +44,7 @@ pub struct Color {
     pub alpha: u8,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Clipping {
     pub x: i32,
     pub y: i32,
@@ -76,6 +76,16 @@ fn get_index<E, II>(index: i32, indices: ops::Range<usize>, invalid_index: II)
     where II: FnOnce(i32) -> E,
 {
     get_index_impl(index, indices).ok_or_else(|| invalid_index(index))
+}
+
+fn get_index_opt<E, II>(index: i32, indices: ops::Range<usize>, invalid_index: II)
+    -> Result<Option<usize>, E>
+    where II: FnOnce(i32) -> E,
+{
+    if index == -1 {
+        return Ok(None);
+    }
+    get_index_impl(index, indices).ok_or_else(|| invalid_index(index)).map(Some)
 }
 
 trait MapItemExtInternal: MapItem {
@@ -210,15 +220,10 @@ impl DdraceLayerSounds {
         if !legacy {
             format::MapItemLayerV1DdraceSoundsV2::mandatory(raw, TooShortV2, InvalidVersion)?;
         }
-        let sound = if v1.sound == -1 {
-            None
-        } else {
-            Some(get_index(v1.sound, sound_indices, InvalidSoundIndex)?)
-        };
         Ok(DdraceLayerSounds {
             num_sources: v1.num_sources.try_usize().ok_or(InvalidNumSources(v1.num_sources))?,
             data: get_index(v1.data, data_indices, InvalidDataIndex)?,
-            sound: sound,
+            sound: get_index_opt(v1.sound, sound_indices, InvalidSoundIndex)?,
             legacy: legacy,
             name: v1.name_get(),
         })
@@ -244,16 +249,11 @@ impl LayerQuads {
 
         let v1 = format::MapItemLayerV1QuadsV1::mandatory(raw, TooShort, InvalidVersion)?;
         let v2 = format::MapItemLayerV1QuadsV2::optional(raw, TooShortV2)?;
-        let image = if v1.image == -1 {
-            None
-        } else {
-            Some(get_index(v1.image, image_indices, InvalidImageIndex)?)
-        };
         let name = v2.map(|v2| v2.name_get()).unwrap_or([0; 12]);
         Ok(LayerQuads {
             num_quads: v1.num_quads.try_usize().ok_or(InvalidNumQuads(v1.num_quads))?,
             data: get_index(v1.data, data_indices, InvalidDataIndex)?,
-            image: image,
+            image: get_index_opt(v1.image, image_indices, InvalidImageIndex)?,
             name: name,
         })
     }
@@ -361,11 +361,7 @@ impl LayerTilemap {
             )?;
             Some((index, v2.color_env_offset))
         };
-        let image = if v2.image == -1 {
-            None
-        } else {
-            Some(get_index(v2.image, image_indices, InvalidImageIndex)?)
-        };
+        let image = get_index_opt(v2.image, image_indices, InvalidImageIndex)?;
         let data = get_index(v2.data, data_indices.clone(), InvalidDataIndex)?;
         let mut normal = false;
         let type_ = match flags {
@@ -579,6 +575,65 @@ impl GameLayers {
     }
 }
 
+pub struct Info {
+    pub author: Option<usize>,
+    pub version: Option<usize>,
+    pub credits: Option<usize>,
+    pub license: Option<usize>,
+    pub settings: Option<usize>,
+}
+
+impl Info {
+    pub fn from_raw(raw: &[i32], data_indices: ops::Range<usize>)
+        -> Result<Info, format::InfoError>
+    {
+        use format::InfoError::*;
+
+        let v1 = format::MapItemInfoV1::mandatory(raw, TooShort, InvalidVersion)?;
+        let v2 = format::MapItemInfoV2::from_slice(raw).ok().and_then(|x| x);
+        Ok(Info {
+            author: get_index_opt(v1.author, data_indices.clone(), InvalidAuthorIndex)?,
+            version: get_index_opt(v1.version, data_indices.clone(), InvalidVersionIndex)?,
+            credits: get_index_opt(v1.credits, data_indices.clone(), InvalidCreditsIndex)?,
+            license: get_index_opt(v1.license, data_indices.clone(), InvalidLicenseIndex)?,
+            settings: if let Some(v2) = v2 {
+                get_index_opt(v2.settings, data_indices.clone(), InvalidSettingsIndex)?
+            } else {
+                None
+            },
+        })
+    }
+}
+
+pub struct Settings {
+    pub raw: Vec<u8>,
+}
+
+#[derive(Clone, Copy)]
+pub struct SettingsIter<'a> {
+    settings: &'a [u8],
+    pos: usize,
+}
+
+impl Settings {
+    pub fn iter(&self) -> SettingsIter {
+        SettingsIter {
+            settings: &self.raw,
+            pos: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for SettingsIter<'a> {
+    type Item = &'a [u8];
+    fn next(&mut self) -> Option<&'a [u8]> {
+        let len = self.settings[self.pos..].iter().position(|&b| b == 0)?;
+        let cur_pos = self.pos;
+        self.pos += len + 1;
+        Some(&self.settings[cur_pos..cur_pos + len])
+    }
+}
+
 pub struct Reader {
     pub reader: df::Reader,
 }
@@ -610,6 +665,12 @@ impl Reader {
             |_| unreachable!(),
         )?;
         Ok(v0.version)
+    }
+    pub fn info(&self) -> Result<Info, MapError> {
+        let raw = self.reader.find_item(format::MAP_ITEMTYPE_INFO, 0)
+            .ok_or(MapError::MissingInfo)?;
+        let data_indices = 0..self.reader.num_data();
+        Ok(Info::from_raw(raw.data, data_indices)?)
     }
     pub fn group_indices(&self) -> ops::Range<usize> {
         self.reader.item_type_indices(format::MAP_ITEMTYPE_GROUP)
@@ -777,5 +838,30 @@ impl Reader {
         let len = tiles.len();
         Ok(Array2::from_shape_vec((height.usize(), width.usize()), tiles)
             .map_err(|_| MapError::InvalidTilesDimensions(len, height, width))?)
+    }
+    pub fn string(&mut self, data_index: usize)
+        -> Result<Vec<u8>, Error>
+    {
+        let mut raw = self.reader.read_data(data_index)?;
+        if let Some(0) = raw.pop() {
+            // ok
+        } else {
+            return Err(format::Error::InvalidStringMissingNullTermination.into());
+        }
+        if raw.iter().any(|&b| b == 0) {
+            return Err(format::Error::InvalidStringNullTermination.into());
+        }
+        Ok(raw)
+    }
+    pub fn settings(&mut self, data_index: usize)
+        -> Result<Settings, Error>
+    {
+        let raw = self.reader.read_data(data_index)?;
+        if raw.len() == 0 || raw[raw.len() - 1] != 0 {
+            return Err(format::Error::InvalidSettingsMissingNullTermination.into());
+        }
+        Ok(Settings {
+            raw: raw
+        })
     }
 }

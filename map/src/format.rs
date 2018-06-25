@@ -409,10 +409,28 @@ pub enum ImageError {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum InfoError {
+    TooShort(usize),
+    InvalidVersion(i32),
+    InvalidAuthorIndex(i32),
+    InvalidVersionIndex(i32),
+    InvalidCreditsIndex(i32),
+    InvalidLicenseIndex(i32),
+    InvalidSettingsIndex(i32),
+}
+
+impl From<InfoError> for Error {
+    fn from(e: InfoError) -> Error {
+        Error::Info(e)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
     Group(usize, GroupError),
     Layer(usize, LayerError),
     Image(usize, ImageError),
+    Info(InfoError),
 
     InconsistentGameLayerDimensions,
     InvalidTilesLength(usize),
@@ -428,7 +446,10 @@ pub enum Error {
     InvalidTuneTilesDimensions(usize, u32, u32),
     EmptyVersion,
     MissingVersion,
-    MalformedInfo,
+    MissingInfo,
+    InvalidStringMissingNullTermination,
+    InvalidStringNullTermination,
+    InvalidSettingsMissingNullTermination,
     NoGameLayer,
     TooManyGameGroups,
     TooManyGameLayers,
@@ -453,9 +474,15 @@ pub struct MapItemVersionV1;
 #[repr(C)]
 pub struct MapItemInfoV1 {
     pub author: i32,
-    pub map_version: i32,
+    pub version: i32,
     pub credits: i32,
     pub license: i32,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct MapItemInfoV2 {
+    pub settings: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -534,6 +561,7 @@ pub struct MapItemDdraceSoundV1 {
 
 unsafe impl OnlyI32 for MapItemVersionV1 { }
 unsafe impl OnlyI32 for MapItemInfoV1 { }
+unsafe impl OnlyI32 for MapItemInfoV2 { }
 unsafe impl OnlyI32 for MapItemImageV1 { }
 unsafe impl OnlyI32 for MapItemImageV2 { }
 unsafe impl OnlyI32 for MapItemEnvelopeV1 { }
@@ -546,6 +574,7 @@ unsafe impl OnlyI32 for MapItemDdraceSoundV1 { }
 
 impl MapItem for MapItemVersionV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemInfoV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
+impl MapItem for MapItemInfoV2 { fn version() -> i32 { 2 } fn offset() -> usize { 5 } fn ignore_version() -> bool { true } }
 impl MapItem for MapItemImageV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemImageV2 { fn version() -> i32 { 2 } fn offset() -> usize { 6 } fn ignore_version() -> bool { false } }
 impl MapItem for MapItemEnvelopeV1 { fn version() -> i32 { 1 } fn offset() -> usize { 1 } fn ignore_version() -> bool { false } }
@@ -581,9 +610,15 @@ impl fmt::Debug for MapItemVersionV1 {
 impl fmt::Debug for MapItemInfoV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(_f, "author={:?}", self.author));
-        try!(write!(_f, " map_version={:?}", self.map_version));
+        try!(write!(_f, " version={:?}", self.version));
         try!(write!(_f, " credits={:?}", self.credits));
         try!(write!(_f, " license={:?}", self.license));
+        Ok(())
+    }
+}
+impl fmt::Debug for MapItemInfoV2 {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(_f, "settings={:?}", self.settings));
         Ok(())
     }
 }
