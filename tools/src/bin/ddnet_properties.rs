@@ -62,10 +62,14 @@ fn tile(index: u8) -> Option<&'static str> {
         17 => "EHOOK_START",
         19 => "HIT_START",
         21 => "SOLO_START",
+        
+        96 => "TELE_GUN",
         104 => "NPC_START",
         105 => "SUPER_START",
         106 => "JETPACK_START",
         107 => "NPH_START",
+        112 => "TELE_GRENADE",
+        128 => "TELE_LASER",
 
         199 => "WEAPON_SHOTGUN",
         200 => "WEAPON_GRENADE",
