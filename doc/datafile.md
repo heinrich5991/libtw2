@@ -6,7 +6,7 @@ game maps. Despite having been used for quite some time, it has not yet been
 formally described. The format enables one to store fixed-size "items" along
 with variable-sized "data items".
 
-The format of designed in a way that makes it easy to directly load most parts
+The format is designed in a way that makes it easy to directly load most parts
 into the memory (i. e. in version 4 everything except for the data block, as
 the data block is stored compressed in the file). In this document the versions
 3 and 4 of Teeworlds datafiles will be explained.
@@ -25,7 +25,7 @@ integer `id` and an array of 32-bit signed integers `data`. The combination of
 Data items
 ----------
 
-Data items are an array of bytes (8-bit unsigend integers) `data`. `id` is
+A data item is an array of bytes (8-bit unsigned integers) `data`. `id` is
 unique amongst all data items, the only possible IDs are from 0 (incl.) to the
 number of data items (excl.). These data items are indexed via unsigned
 integers, counting sequentially in the order they are laid out in the file.
@@ -168,9 +168,10 @@ integers.
 Each item offset is the offset of the item with the corresponding index,
 relative to the first item's position in the file.
 
-Each data offset are offset of the data with the corresponding index, relative
-to the position of the first data in the file. The data item's size can then be
-calculated from the next data item's offset or the size of the data section.
+Each data offset is an offset of the data with the corresponding index,
+relative to the position of the first data item in the file. The data item's
+size can then be calculated from the next data item's offset or the size of the
+data section.
 
 Each data size is the size of the uncompressed data of the data with the
 corresponding index. Note that this field is only present in datafile version

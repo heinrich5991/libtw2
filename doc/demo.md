@@ -67,8 +67,8 @@ new tick, it looks like follows (sizes specified in bits):
 
 `type` can be one of `1` (snapshot), `2` (message) or `3` (snapshot delta).
 
-`size` determines the size of the following `chunk_data` unless on of the
-special values `30` or `31` are used.  `30` indicates that `chunk_header`
+`size` determines the size of the following `chunk_data` unless one of the
+special values `30` or `31` are used. `30` indicates that `chunk_header`
 contains one additional byte whose numerical value specifies the length of the
 following `chunk_data`, `31` indicates that `chunk_header` contains one
 additional little-endian 16-bit integer specifying the length of the following
