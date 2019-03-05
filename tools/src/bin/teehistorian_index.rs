@@ -143,16 +143,22 @@ fn contains<'a>(
     Ok(found)
 }
 
+struct Config {
+    ignore_ext: bool,
+}
+
 fn handle_dir<'a>(
     base: &mut slice::Iter<'a, ReadRecord>,
     writer: &mut csv::Writer<Box<Write>>,
     dir: &Path,
+    config: &Config,
 ) -> Result<(), ()>
 {
     fn helper<'a>(
         base: &mut slice::Iter<'a, ReadRecord>,
         writer: &mut csv::Writer<Box<Write>>,
         dir: &Path,
+        config: &Config,
     ) -> Result<(), Error>
     {
         let mut buffer = Buffer::new();
@@ -160,7 +166,9 @@ fn handle_dir<'a>(
             .sort_by(|a, b| a.file_name().cmp(b.file_name()))
         {
             let entry = entry?;
-            if entry.path().extension() != Some(OsStr::new("teehistorian")) {
+            if !config.ignore_ext &&
+                entry.path().extension() != Some(OsStr::new("teehistorian"))
+            {
                 continue;
             }
             if !entry.file_type().is_file() {
@@ -188,7 +196,8 @@ fn handle_dir<'a>(
         }
         Ok(())
     }
-    helper(base, writer, dir).map_err(|e| eprintln!("{}: {:?}", dir.display(), e))
+    helper(base, writer, dir, config)
+        .map_err(|e| eprintln!("{}: {:?}", dir.display(), e))
 }
 
 // Why do I need a separate one for this. :(
@@ -226,6 +235,7 @@ fn handle_args(
     base: Option<&Path>,
     output: Option<&Path>,
     dirs: Vec<PathBuf>,
+    config: &Config,
 ) -> Result<(), ()>
 {
     let base = swap(base.map(|b| {
@@ -242,7 +252,7 @@ fn handle_args(
     });
 
     for dir in dirs {
-        handle_dir(&mut base_iter, &mut csv_out, &dir)?;
+        handle_dir(&mut base_iter, &mut csv_out, &dir, config)?;
     }
 
     for record in base_iter {
@@ -278,6 +288,11 @@ fn main() {
             .help("Directories to scan (current directory if none are given)")
             .multiple(true)
         )
+        .arg(Arg::with_name("ignore-ext")
+            .long("--ignore-ext")
+            .help("Don't check for the .teehistorian file extension before \
+                   indexing a file")
+        )
         .get_matches();
 
     let paths = matches.values_of_os("DIRECTORY");
@@ -289,6 +304,9 @@ fn main() {
         (None, Some(i)) => (Some(Path::new(i)), Some(Path::new(i))),
         (Some(_), Some(_)) => unreachable!(),
     };
+    let config = Config {
+        ignore_ext: matches.is_present("ignore-ext"),
+    };
 
     let dirs = if let Some(p) = paths {
         sorted(p.into_iter().map(|p| PathBuf::from(p)))
@@ -296,7 +314,7 @@ fn main() {
         vec![PathBuf::from(".")]
     };
 
-    if handle_args(input, output, dirs).is_err() {
+    if handle_args(input, output, dirs, &config).is_err() {
         process::exit(1);
     }
 }
