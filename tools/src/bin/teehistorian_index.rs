@@ -160,10 +160,10 @@ fn handle_dir<'a>(
             .sort_by(|a, b| a.file_name().cmp(b.file_name()))
         {
             let entry = entry?;
-            if !entry.file_type().is_file() {
+            if entry.path().extension() != Some(OsStr::new("teehistorian")) {
                 continue;
             }
-            if entry.path().extension() != Some(OsStr::new("teehistorian")) {
+            if !entry.file_type().is_file() {
                 continue;
             }
             if contains(base, writer, entry.path())? {
