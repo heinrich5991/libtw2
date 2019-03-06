@@ -39,16 +39,14 @@ bindgen \
 	--whitelist-function '^wmem_alloc$' \
 	--whitelist-type '^field_display_e$' \
 	--whitelist-var '^COL_INFO$' \
-	--whitelist-var '^COL_PROTOCOL$' \
 	--whitelist-var '^ENC_BIG_ENDIAN$' \
 	--whitelist-var '^ENC_NA$' \
-	--whitelist-var '^FT_UINT8$' \
-	--whitelist-var '^HFILL$' \
 	bindgen.h \
 	-- \
 	$(pkg-config wireshark --cflags)
 echo
 ) > src/lib.rs
+python fix.py src/lib.rs
 cargo fmt
 
 # These makes the resulting source contain errors.

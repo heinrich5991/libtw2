@@ -10,7 +10,6 @@ where
     storage: Storage,
     align: [Align; 0],
 }
-
 impl<Storage, Align> __BindgenBitfieldUnit<Storage, Align>
 where
     Storage: AsRef<[u8]> + AsMut<[u8]>,
@@ -19,73 +18,78 @@ where
     pub fn new(storage: Storage) -> Self {
         Self { storage, align: [] }
     }
-
     #[inline]
     pub fn get_bit(&self, index: usize) -> bool {
         debug_assert!(index / 8 < self.storage.as_ref().len());
-
         let byte_index = index / 8;
         let byte = self.storage.as_ref()[byte_index];
-
-        let bit_index = index % 8;
+        let bit_index = if cfg!(target_endian = "big") {
+            7 - (index % 8)
+        } else {
+            index % 8
+        };
         let mask = 1 << bit_index;
-
         byte & mask == mask
     }
-
     #[inline]
     pub fn set_bit(&mut self, index: usize, val: bool) {
         debug_assert!(index / 8 < self.storage.as_ref().len());
-
         let byte_index = index / 8;
         let byte = &mut self.storage.as_mut()[byte_index];
-
-        let bit_index = index % 8;
+        let bit_index = if cfg!(target_endian = "big") {
+            7 - (index % 8)
+        } else {
+            index % 8
+        };
         let mask = 1 << bit_index;
-
         if val {
             *byte |= mask;
         } else {
             *byte &= !mask;
         }
     }
-
     #[inline]
     pub fn get(&self, bit_offset: usize, bit_width: u8) -> u64 {
         debug_assert!(bit_width <= 64);
         debug_assert!(bit_offset / 8 < self.storage.as_ref().len());
         debug_assert!((bit_offset + (bit_width as usize)) / 8 <= self.storage.as_ref().len());
-
         let mut val = 0;
-
         for i in 0..(bit_width as usize) {
             if self.get_bit(i + bit_offset) {
-                val |= 1 << i;
+                let index = if cfg!(target_endian = "big") {
+                    bit_width as usize - 1 - i
+                } else {
+                    i
+                };
+                val |= 1 << index;
             }
         }
-
         val
     }
-
     #[inline]
     pub fn set(&mut self, bit_offset: usize, bit_width: u8, val: u64) {
         debug_assert!(bit_width <= 64);
         debug_assert!(bit_offset / 8 < self.storage.as_ref().len());
         debug_assert!((bit_offset + (bit_width as usize)) / 8 <= self.storage.as_ref().len());
-
         for i in 0..(bit_width as usize) {
             let mask = 1 << i;
             let val_bit_is_set = val & mask == mask;
-            self.set_bit(i + bit_offset, val_bit_is_set);
+            let index = if cfg!(target_endian = "big") {
+                bit_width as usize - 1 - i
+            } else {
+                i
+            };
+            self.set_bit(index + bit_offset, val_bit_is_set);
         }
     }
 }
-pub const ENC_BIG_ENDIAN: ::std::os::raw::c_uint = 0;
-pub const ENC_NA: ::std::os::raw::c_uint = 0;
+pub const ENC_BIG_ENDIAN: u32 = 0;
+pub const ENC_NA: u32 = 0;
 pub type guint8 = ::std::os::raw::c_uchar;
 pub type guint16 = ::std::os::raw::c_ushort;
 pub type guint32 = ::std::os::raw::c_uint;
 pub type guint64 = ::std::os::raw::c_ulong;
+pub type gsize = ::std::os::raw::c_ulong;
 pub type __time_t = ::std::os::raw::c_long;
 pub type time_t = __time_t;
 pub type gchar = ::std::os::raw::c_char;
@@ -101,20 +105,19 @@ extern "C" {
         __n: usize,
     ) -> *mut ::std::os::raw::c_void;
 }
-/// A public opaque type representing one wmem allocation pool.
+#[doc = " A public opaque type representing one wmem allocation pool."]
 pub type wmem_allocator_t = u8;
 extern "C" {
-
-    /// Allocate the requested amount of memory in the given pool.
-    ///
-    /// @param allocator The allocator object to use to allocate the memory.
-    /// @param size The amount of memory to allocate.
-    /// @return A void pointer to the newly allocated memory.
+    #[doc = " Allocate the requested amount of memory in the given pool."]
+    #[doc = ""]
+    #[doc = " @param allocator The allocator object to use to allocate the memory."]
+    #[doc = " @param size The amount of memory to allocate."]
+    #[doc = " @return A void pointer to the newly allocated memory."]
     pub fn wmem_alloc(allocator: *mut wmem_allocator_t, size: usize)
         -> *mut ::std::os::raw::c_void;
 }
 pub type wmem_list_t = u8;
-/// data structure to hold time values with nanosecond resolution
+#[doc = " data structure to hold time values with nanosecond resolution"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct nstime_t {
@@ -164,22 +167,20 @@ extern "C" {
     ) -> *mut tvbuff_t;
 }
 extern "C" {
-
-    /// Similar to tvb_new_subset_length_caplen() but with backing_length and reported_length set
-    /// to -1.  Can throw ReportedBoundsError.
+    #[doc = " Similar to tvb_new_subset_length_caplen() but with backing_length and reported_length set"]
+    #[doc = " to -1.  Can throw ReportedBoundsError."]
     pub fn tvb_new_subset_remaining(backing: *mut tvbuff_t, backing_offset: gint) -> *mut tvbuff_t;
 }
 extern "C" {
     pub fn tvb_captured_length(tvb: *const tvbuff_t) -> guint;
 }
 extern "C" {
-
-    /// Returns target for convenience. Does not suffer from possible
-    /// expense of tvb_get_ptr(), since this routine is smart enough
-    /// to copy data in chunks if the request range actually exists in
-    /// different TVBUFF_REAL_DATA tvbuffs. This function assumes that the
-    /// target memory is already allocated; it does not allocate or free the
-    /// target memory.
+    #[doc = " Returns target for convenience. Does not suffer from possible"]
+    #[doc = " expense of tvb_get_ptr(), since this routine is smart enough"]
+    #[doc = " to copy data in chunks if the request range actually exists in"]
+    #[doc = " different TVBUFF_REAL_DATA tvbuffs. This function assumes that the"]
+    #[doc = " target memory is already allocated; it does not allocate or free the"]
+    #[doc = " target memory."]
     pub fn tvb_memcpy(
         tvb: *mut tvbuff_t,
         target: *mut ::std::os::raw::c_void,
@@ -189,12 +190,482 @@ extern "C" {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct epan_session {
-    _unused: [u8; 0],
+pub struct Buffer {
+    pub data: *mut guint8,
+    pub allocated: gsize,
+    pub start: gsize,
+    pub first_free: gsize,
+}
+#[test]
+fn bindgen_test_layout_Buffer() {
+    assert_eq!(
+        ::std::mem::size_of::<Buffer>(),
+        32usize,
+        concat!("Size of: ", stringify!(Buffer))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<Buffer>(),
+        8usize,
+        concat!("Alignment of ", stringify!(Buffer))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<Buffer>())).data as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(Buffer),
+            "::",
+            stringify!(data)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<Buffer>())).allocated as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(Buffer),
+            "::",
+            stringify!(allocated)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<Buffer>())).start as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(Buffer),
+            "::",
+            stringify!(start)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<Buffer>())).first_free as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(Buffer),
+            "::",
+            stringify!(first_free)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union wtap_pseudo_header {
+    pub _bindgen_opaque_blob: [u64; 19usize],
+}
+#[test]
+fn bindgen_test_layout_wtap_pseudo_header() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_pseudo_header>(),
+        152usize,
+        concat!("Size of: ", stringify!(wtap_pseudo_header))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_pseudo_header>(),
+        8usize,
+        concat!("Alignment of ", stringify!(wtap_pseudo_header))
+    );
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct wtap_packet_header {
+    pub caplen: guint32,
+    pub len: guint32,
+    pub pkt_encap: ::std::os::raw::c_int,
+    pub interface_id: guint32,
+    pub drop_count: guint64,
+    pub pack_flags: guint32,
+    pub pseudo_header: wtap_pseudo_header,
+}
+#[test]
+fn bindgen_test_layout_wtap_packet_header() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_packet_header>(),
+        184usize,
+        concat!("Size of: ", stringify!(wtap_packet_header))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_packet_header>(),
+        8usize,
+        concat!("Alignment of ", stringify!(wtap_packet_header))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).caplen as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(caplen)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).len as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(len)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).pkt_encap as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(pkt_encap)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).interface_id as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(interface_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).drop_count as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(drop_count)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_packet_header>())).pack_flags as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(pack_flags)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_packet_header>())).pseudo_header as *const _ as usize
+        },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_packet_header),
+            "::",
+            stringify!(pseudo_header)
+        )
+    );
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct wtap_pkthdr {
+pub struct wtap_ft_specific_header {
+    pub record_type: guint,
+}
+#[test]
+fn bindgen_test_layout_wtap_ft_specific_header() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_ft_specific_header>(),
+        4usize,
+        concat!("Size of: ", stringify!(wtap_ft_specific_header))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_ft_specific_header>(),
+        4usize,
+        concat!("Alignment of ", stringify!(wtap_ft_specific_header))
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_ft_specific_header>())).record_type as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_ft_specific_header),
+            "::",
+            stringify!(record_type)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct wtap_syscall_header {
+    pub record_type: guint,
+    pub byte_order: ::std::os::raw::c_int,
+    pub timestamp: guint64,
+    pub thread_id: guint64,
+    pub event_len: guint32,
+    pub event_filelen: guint32,
+    pub event_type: guint16,
+    pub cpu_id: guint16,
+}
+#[test]
+fn bindgen_test_layout_wtap_syscall_header() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_syscall_header>(),
+        40usize,
+        concat!("Size of: ", stringify!(wtap_syscall_header))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_syscall_header>(),
+        8usize,
+        concat!("Alignment of ", stringify!(wtap_syscall_header))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).record_type as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(record_type)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).byte_order as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(byte_order)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).timestamp as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(timestamp)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).thread_id as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(thread_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).event_len as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(event_len)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_syscall_header>())).event_filelen as *const _ as usize
+        },
+        28usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(event_filelen)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).event_type as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(event_type)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_syscall_header>())).cpu_id as *const _ as usize },
+        34usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_syscall_header),
+            "::",
+            stringify!(cpu_id)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct wtap_rec {
+    pub rec_type: guint,
+    pub presence_flags: guint32,
+    pub ts: nstime_t,
+    pub tsprec: ::std::os::raw::c_int,
+    pub rec_header: wtap_rec__bindgen_ty_1,
+    pub opt_comment: *mut gchar,
+    pub has_comment_changed: gboolean,
+    pub options_buf: Buffer,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union wtap_rec__bindgen_ty_1 {
+    pub packet_header: wtap_packet_header,
+    pub ft_specific_header: wtap_ft_specific_header,
+    pub syscall_header: wtap_syscall_header,
+    _bindgen_union_align: [u64; 23usize],
+}
+#[test]
+fn bindgen_test_layout_wtap_rec__bindgen_ty_1() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_rec__bindgen_ty_1>(),
+        184usize,
+        concat!("Size of: ", stringify!(wtap_rec__bindgen_ty_1))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_rec__bindgen_ty_1>(),
+        8usize,
+        concat!("Alignment of ", stringify!(wtap_rec__bindgen_ty_1))
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_rec__bindgen_ty_1>())).packet_header as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec__bindgen_ty_1),
+            "::",
+            stringify!(packet_header)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_rec__bindgen_ty_1>())).ft_specific_header as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec__bindgen_ty_1),
+            "::",
+            stringify!(ft_specific_header)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<wtap_rec__bindgen_ty_1>())).syscall_header as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec__bindgen_ty_1),
+            "::",
+            stringify!(syscall_header)
+        )
+    );
+}
+#[test]
+fn bindgen_test_layout_wtap_rec() {
+    assert_eq!(
+        ::std::mem::size_of::<wtap_rec>(),
+        264usize,
+        concat!("Size of: ", stringify!(wtap_rec))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<wtap_rec>(),
+        8usize,
+        concat!("Alignment of ", stringify!(wtap_rec))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).rec_type as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(rec_type)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).presence_flags as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(presence_flags)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).ts as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(ts)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).tsprec as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(tsprec)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).rec_header as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(rec_header)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).opt_comment as *const _ as usize },
+        216usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(opt_comment)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).has_comment_changed as *const _ as usize },
+        224usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(has_comment_changed)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).options_buf as *const _ as usize },
+        232usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(options_buf)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct epan_session {
     _unused: [u8; 0],
 }
 pub type frame_data = [u64; 11usize];
@@ -205,165 +676,152 @@ pub const PT_TCP: port_type = 2;
 pub const PT_UDP: port_type = 3;
 pub const PT_DCCP: port_type = 4;
 pub const PT_IPX: port_type = 5;
-pub const PT_NCP: port_type = 6;
-pub const PT_EXCHG: port_type = 7;
-pub const PT_DDP: port_type = 8;
-pub const PT_SBCCS: port_type = 9;
-pub const PT_IDP: port_type = 10;
-pub const PT_TIPC: port_type = 11;
-pub const PT_USB: port_type = 12;
-pub const PT_I2C: port_type = 13;
-pub const PT_IBQP: port_type = 14;
-pub const PT_BLUETOOTH: port_type = 15;
-pub const PT_TDMOP: port_type = 16;
+pub const PT_DDP: port_type = 6;
+pub const PT_IDP: port_type = 7;
+pub const PT_USB: port_type = 8;
+pub const PT_I2C: port_type = 9;
+pub const PT_IBQP: port_type = 10;
+pub const PT_BLUETOOTH: port_type = 11;
 pub type port_type = u32;
-pub const CT_NONE: circuit_type = 0;
-pub const CT_DLCI: circuit_type = 1;
-pub const CT_ISDN: circuit_type = 2;
-pub const CT_X25: circuit_type = 3;
-pub const CT_ISUP: circuit_type = 4;
-pub const CT_IAX2: circuit_type = 5;
-pub const CT_H223: circuit_type = 6;
-pub const CT_BICC: circuit_type = 7;
-pub const CT_DVBCI: circuit_type = 8;
-pub const CT_ISO14443: circuit_type = 9;
-pub type circuit_type = u32;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct endpoint {
+    _unused: [u8; 0],
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _packet_info {
-    /// < name of protocol currently being dissected
+    #[doc = "< name of protocol currently being dissected"]
     pub current_proto: *const ::std::os::raw::c_char,
-    /// < Column formatting information
+    #[doc = "< Column formatting information"]
     pub cinfo: *mut epan_column_info,
-    /// < Presence flags for some items
+    #[doc = "< Presence flags for some items"]
     pub presence_flags: guint32,
-    /// < Frame number
+    #[doc = "< Frame number"]
     pub num: guint32,
-    /// < Packet absolute time stamp
+    #[doc = "< Packet absolute time stamp"]
     pub abs_ts: nstime_t,
-    /// < Relative timestamp (yes, it can be negative)
+    #[doc = "< Relative timestamp (yes, it can be negative)"]
     pub rel_ts: nstime_t,
-    /// < Per-packet encapsulation/data-link type
-    pub pkt_encap: gint,
     pub fd: *mut frame_data,
     pub pseudo_header: *mut wtap_pseudo_header,
-    /// < Record metadata
-    pub phdr: *mut wtap_pkthdr,
-    /// < Frame data sources
+    #[doc = "< Record metadata"]
+    pub rec: *mut wtap_rec,
+    #[doc = "< Frame data sources"]
     pub data_src: *mut GSList,
-    /// < link-layer source address
+    #[doc = "< link-layer source address"]
     pub dl_src: address,
-    /// < link-layer destination address
+    #[doc = "< link-layer destination address"]
     pub dl_dst: address,
-    /// < network-layer source address
+    #[doc = "< network-layer source address"]
     pub net_src: address,
-    /// < network-layer destination address
+    #[doc = "< network-layer destination address"]
     pub net_dst: address,
-    /// < source address (net if present, DL otherwise )
+    #[doc = "< source address (net if present, DL otherwise )"]
     pub src: address,
-    /// < destination address (net if present, DL otherwise )
+    #[doc = "< destination address (net if present, DL otherwise )"]
     pub dst: address,
-    /// < First encountered VLAN Id if pressent otherwise 0
+    #[doc = "< First encountered VLAN Id if present otherwise 0"]
     pub vlan_id: guint32,
-    /// < type of circuit, for protocols with a VC identifier
-    pub ctype: circuit_type,
-    /// < circuit ID, for protocols with a VC identifier
-    pub circuit_id: guint32,
-    /// < reason why reassembly wasn't done, if any
+    #[doc = "< reason why reassembly wasn\'t done, if any"]
     pub noreassembly_reason: *const ::std::os::raw::c_char,
-    /// < TRUE if the protocol is only a fragment
+    #[doc = "< TRUE if the protocol is only a fragment"]
     pub fragmented: gboolean,
     pub flags: _packet_info__bindgen_ty_1,
-    /// < type of the following two port numbers
+    #[doc = "< type of the following two port numbers"]
     pub ptype: port_type,
-    /// < source port
+    #[doc = "< source port"]
     pub srcport: guint32,
-    /// < destination port
+    #[doc = "< destination port"]
     pub destport: guint32,
-    /// < matched uint for calling subdissector from table
+    #[doc = "< matched uint for calling subdissector from table"]
     pub match_uint: guint32,
-    /// < matched string for calling subdissector from table
+    #[doc = "< matched string for calling subdissector from table"]
     pub match_string: *const ::std::os::raw::c_char,
-    /// < >0 if this segment could be desegmented.
-    /// A dissector that can offer this API (e.g.
-    /// TCP) sets can_desegment=2, then
-    /// can_desegment is decremented by 1 each time
-    /// we pass to the next subdissector. Thus only
-    /// the dissector immediately above the
-    /// protocol which sets the flag can use it
+    #[doc = "< TRUE if endpoint member should be used for conversations"]
+    pub use_endpoint: gboolean,
+    #[doc = "< Data that can be used for conversations"]
+    pub conv_endpoint: *mut endpoint,
+    #[doc = "< >0 if this segment could be desegmented."]
+    #[doc = "A dissector that can offer this API (e.g."]
+    #[doc = "TCP) sets can_desegment=2, then"]
+    #[doc = "can_desegment is decremented by 1 each time"]
+    #[doc = "we pass to the next subdissector. Thus only"]
+    #[doc = "the dissector immediately above the"]
+    #[doc = "protocol which sets the flag can use it"]
     pub can_desegment: guint16,
-    /// < Value of can_desegment before current
-    /// dissector was called.  Supplied so that
-    /// dissectors for proxy protocols such as
-    /// SOCKS can restore it, allowing the
-    /// dissectors that they call to use the
-    /// TCP dissector's desegmentation (SOCKS
-    /// just retransmits TCP segments once it's
-    /// finished setting things up, so the TCP
-    /// desegmentor can desegment its payload).
+    #[doc = "< Value of can_desegment before current"]
+    #[doc = "dissector was called.  Supplied so that"]
+    #[doc = "dissectors for proxy protocols such as"]
+    #[doc = "SOCKS can restore it, allowing the"]
+    #[doc = "dissectors that they call to use the"]
+    #[doc = "TCP dissector\'s desegmentation (SOCKS"]
+    #[doc = "just retransmits TCP segments once it\'s"]
+    #[doc = "finished setting things up, so the TCP"]
+    #[doc = "desegmentor can desegment its payload)."]
     pub saved_can_desegment: guint16,
-    /// < offset to stuff needing desegmentation
+    #[doc = "< offset to stuff needing desegmentation"]
     pub desegment_offset: ::std::os::raw::c_int,
-    /// < requested desegmentation additional length
-    /// or
-    /// DESEGMENT_ONE_MORE_SEGMENT:
-    /// Desegment one more full segment
-    /// (warning! only partially implemented)
-    /// DESEGMENT_UNTIL_FIN:
-    /// Desgment all data for this tcp session
-    /// until the FIN segment.
+    #[doc = "< requested desegmentation additional length"]
+    #[doc = "or"]
+    #[doc = "DESEGMENT_ONE_MORE_SEGMENT:"]
+    #[doc = "Desegment one more full segment"]
+    #[doc = "(warning! only partially implemented)"]
+    #[doc = "DESEGMENT_UNTIL_FIN:"]
+    #[doc = "Desgment all data for this tcp session"]
+    #[doc = "until the FIN segment."]
     pub desegment_len: guint32,
-    /// < >0 if the subdissector has specified
-    /// a value in 'bytes_until_next_pdu'.
-    /// When a dissector detects that the next PDU
-    /// will start beyond the start of the next
-    /// segment, it can set this value to 2
-    /// and 'bytes_until_next_pdu' to the number of
-    /// bytes beyond the next segment where the
-    /// next PDU starts.
-    ///
-    /// If the protocol dissector below this
-    /// one is capable of PDU tracking it can
-    /// use this hint to detect PDUs that starts
-    /// unaligned to the segment boundaries.
-    /// The TCP dissector is using this hint from
-    /// (some) protocols to detect when a new PDU
-    /// starts in the middle of a tcp segment.
-    ///
-    /// There is intelligence in the glue between
-    /// dissector layers to make sure that this
-    /// request is only passed down to the protocol
-    /// immediately below the current one and not
-    /// any further.
+    #[doc = "< >0 if the subdissector has specified"]
+    #[doc = "a value in \'bytes_until_next_pdu\'."]
+    #[doc = "When a dissector detects that the next PDU"]
+    #[doc = "will start beyond the start of the next"]
+    #[doc = "segment, it can set this value to 2"]
+    #[doc = "and \'bytes_until_next_pdu\' to the number of"]
+    #[doc = "bytes beyond the next segment where the"]
+    #[doc = "next PDU starts."]
+    #[doc = ""]
+    #[doc = "If the protocol dissector below this"]
+    #[doc = "one is capable of PDU tracking it can"]
+    #[doc = "use this hint to detect PDUs that starts"]
+    #[doc = "unaligned to the segment boundaries."]
+    #[doc = "The TCP dissector is using this hint from"]
+    #[doc = "(some) protocols to detect when a new PDU"]
+    #[doc = "starts in the middle of a tcp segment."]
+    #[doc = ""]
+    #[doc = "There is intelligence in the glue between"]
+    #[doc = "dissector layers to make sure that this"]
+    #[doc = "request is only passed down to the protocol"]
+    #[doc = "immediately below the current one and not"]
+    #[doc = "any further."]
     pub want_pdu_tracking: guint16,
     pub bytes_until_next_pdu: guint32,
-    /// < Packet was captured as an
-    /// outbound (P2P_DIR_SENT)
-    /// inbound (P2P_DIR_RECV)
-    /// unknown (P2P_DIR_UNKNOWN)
+    #[doc = "< Packet was captured as an"]
+    #[doc = "outbound (P2P_DIR_SENT)"]
+    #[doc = "inbound (P2P_DIR_RECV)"]
+    #[doc = "unknown (P2P_DIR_UNKNOWN)"]
     pub p2p_dir: ::std::os::raw::c_int,
-    /// < a hash table passed from one dissector to another
+    #[doc = "< a hash table passed from one dissector to another"]
     pub private_table: *mut GHashTable,
-    /// < layers of each protocol
+    #[doc = "< layers of each protocol"]
     pub layers: *mut wmem_list_t,
-    /// < The current "depth" or layer number in the current frame
+    #[doc = "< The current \"depth\" or layer number in the current frame"]
     pub curr_layer_num: guint8,
     pub link_number: guint16,
-    /// < clnp/cotp source reference (can't use srcport, this would confuse tpkt)
+    #[doc = "< clnp/cotp source reference (can\'t use srcport, this would confuse tpkt)"]
     pub clnp_srcref: guint16,
-    /// < clnp/cotp destination reference (can't use dstport, this would confuse tpkt)
+    #[doc = "< clnp/cotp destination reference (can\'t use dstport, this would confuse tpkt)"]
     pub clnp_dstref: guint16,
-    /// < 3GPP messages are sometime different UP link(UL) or Downlink(DL)
+    #[doc = "< 3GPP messages are sometime different UP link(UL) or Downlink(DL)"]
     pub link_dir: ::std::os::raw::c_int,
-    /// < Per packet proto data
+    #[doc = "< Per packet proto data"]
     pub proto_data: *mut GSList,
-    /// < A list of frames which this one depends on
+    #[doc = "< A list of frames which this one depends on"]
     pub dependent_frames: *mut GSList,
     pub frame_end_routines: *mut GSList,
-    /// < Memory pool scoped to the pinfo struct
+    #[doc = "< Memory pool scoped to the pinfo struct"]
     pub pool: *mut wmem_allocator_t,
     pub epan: *mut epan_session,
-    /// < name of heur list if this packet is being heuristically dissected
+    #[doc = "< name of heur list if this packet is being heuristically dissected"]
     pub heur_list_name: *const gchar,
 }
 #[repr(C)]
@@ -500,18 +958,8 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).pkt_encap as *const _ as usize },
-        56usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_packet_info),
-            "::",
-            stringify!(pkt_encap)
-        )
-    );
-    assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).fd as *const _ as usize },
-        64usize,
+        56usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -521,7 +969,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).pseudo_header as *const _ as usize },
-        72usize,
+        64usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -530,18 +978,18 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).phdr as *const _ as usize },
-        80usize,
+        unsafe { &(*(::std::ptr::null::<_packet_info>())).rec as *const _ as usize },
+        72usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
             "::",
-            stringify!(phdr)
+            stringify!(rec)
         )
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).data_src as *const _ as usize },
-        88usize,
+        80usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -551,7 +999,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).dl_src as *const _ as usize },
-        96usize,
+        88usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -561,7 +1009,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).dl_dst as *const _ as usize },
-        120usize,
+        112usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -571,7 +1019,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).net_src as *const _ as usize },
-        144usize,
+        136usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -581,7 +1029,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).net_dst as *const _ as usize },
-        168usize,
+        160usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -591,7 +1039,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).src as *const _ as usize },
-        192usize,
+        184usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -601,7 +1049,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).dst as *const _ as usize },
-        216usize,
+        208usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -611,7 +1059,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).vlan_id as *const _ as usize },
-        240usize,
+        232usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -620,30 +1068,10 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).ctype as *const _ as usize },
-        244usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_packet_info),
-            "::",
-            stringify!(ctype)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).circuit_id as *const _ as usize },
-        248usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(_packet_info),
-            "::",
-            stringify!(circuit_id)
-        )
-    );
-    assert_eq!(
         unsafe {
             &(*(::std::ptr::null::<_packet_info>())).noreassembly_reason as *const _ as usize
         },
-        256usize,
+        240usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -653,7 +1081,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).fragmented as *const _ as usize },
-        264usize,
+        248usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -663,7 +1091,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).flags as *const _ as usize },
-        268usize,
+        252usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -673,7 +1101,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).ptype as *const _ as usize },
-        272usize,
+        256usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -683,7 +1111,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).srcport as *const _ as usize },
-        276usize,
+        260usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -693,7 +1121,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).destport as *const _ as usize },
-        280usize,
+        264usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -703,7 +1131,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).match_uint as *const _ as usize },
-        284usize,
+        268usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -713,12 +1141,32 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).match_string as *const _ as usize },
-        288usize,
+        272usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
             "::",
             stringify!(match_string)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_packet_info>())).use_endpoint as *const _ as usize },
+        280usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_packet_info),
+            "::",
+            stringify!(use_endpoint)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_packet_info>())).conv_endpoint as *const _ as usize },
+        288usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_packet_info),
+            "::",
+            stringify!(conv_endpoint)
         )
     );
     assert_eq!(
@@ -975,62 +1423,86 @@ pub const FT_STRINGZPAD: ftenum = 44;
 pub const FT_FCWWN: ftenum = 45;
 pub const FT_NUM_TYPES: ftenum = 46;
 pub type ftenum = u32;
+#[doc = "< none"]
 pub const BASE_NONE: field_display_e = 0;
+#[doc = "< decimal"]
 pub const BASE_DEC: field_display_e = 1;
+#[doc = "< hexadecimal"]
 pub const BASE_HEX: field_display_e = 2;
+#[doc = "< octal"]
 pub const BASE_OCT: field_display_e = 3;
+#[doc = "< decimal (hexadecimal)"]
 pub const BASE_DEC_HEX: field_display_e = 4;
+#[doc = "< hexadecimal (decimal)"]
 pub const BASE_HEX_DEC: field_display_e = 5;
+#[doc = "< call custom routine (in ->strings) to format"]
 pub const BASE_CUSTOM: field_display_e = 6;
+#[doc = "< decimal-format float"]
 pub const BASE_FLOAT: field_display_e = 0;
+#[doc = "< shows non-printable ASCII characters as C-style escapes"]
 pub const STR_ASCII: field_display_e = 0;
+#[doc = "< shows non-printable UNICODE characters as \\\\uXXXX (XXX for now non-printable characters display depends on UI)"]
 pub const STR_UNICODE: field_display_e = 7;
+#[doc = "< hexadecimal bytes with a period (.) between each byte"]
 pub const SEP_DOT: field_display_e = 8;
+#[doc = "< hexadecimal bytes with a dash (-) between each byte"]
 pub const SEP_DASH: field_display_e = 9;
+#[doc = "< hexadecimal bytes with a colon (:) between each byte"]
 pub const SEP_COLON: field_display_e = 10;
+#[doc = "< hexadecimal bytes with a space between each byte"]
 pub const SEP_SPACE: field_display_e = 11;
+#[doc = "< Used for IPv4 address that shouldn\'t be resolved (like for netmasks)"]
 pub const BASE_NETMASK: field_display_e = 12;
+#[doc = "< UDP port"]
 pub const BASE_PT_UDP: field_display_e = 13;
+#[doc = "< TCP port"]
 pub const BASE_PT_TCP: field_display_e = 14;
+#[doc = "< DCCP port"]
 pub const BASE_PT_DCCP: field_display_e = 15;
+#[doc = "< SCTP port"]
 pub const BASE_PT_SCTP: field_display_e = 16;
+#[doc = "< OUI resolution"]
+pub const BASE_OUI: field_display_e = 17;
 pub type field_display_e = u32;
+#[doc = "< Field is not referenced"]
 pub const HF_REF_TYPE_NONE: hf_ref_type = 0;
+#[doc = "< Field is indirectly referenced (only applicable for FT_PROTOCOL) via. its child"]
 pub const HF_REF_TYPE_INDIRECT: hf_ref_type = 1;
+#[doc = "< Field is directly referenced"]
 pub const HF_REF_TYPE_DIRECT: hf_ref_type = 2;
 pub type hf_ref_type = u32;
-/// information describing a header field
+#[doc = " information describing a header field"]
 pub type header_field_info = _header_field_info;
-/// information describing a header field
+#[doc = " information describing a header field"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _header_field_info {
-    /// < [FIELDNAME] full name of this field
+    #[doc = "< [FIELDNAME] full name of this field"]
     pub name: *const ::std::os::raw::c_char,
-    /// < [FIELDABBREV] abbreviated name of this field
+    #[doc = "< [FIELDABBREV] abbreviated name of this field"]
     pub abbrev: *const ::std::os::raw::c_char,
-    /// < [FIELDTYPE] field type, one of FT_ (from ftypes.h)
+    #[doc = "< [FIELDTYPE] field type, one of FT_ (from ftypes.h)"]
     pub type_: ftenum,
-    /// < [FIELDDISPLAY] one of BASE_, or field bit-width if FT_BOOLEAN and non-zero bitmask
+    #[doc = "< [FIELDDISPLAY] one of BASE_, or field bit-width if FT_BOOLEAN and non-zero bitmask"]
     pub display: ::std::os::raw::c_int,
-    /// < [FIELDCONVERT] value_string, val64_string, range_string or true_false_string,
-    /// typically converted by VALS(), RVALS() or TFS().
-    /// If this is an FT_PROTOCOL or BASE_PROTOCOL_INFO then it points to the
-    /// associated protocol_t structure
+    #[doc = "< [FIELDCONVERT] value_string, val64_string, range_string or true_false_string,"]
+    #[doc = "typically converted by VALS(), RVALS() or TFS()."]
+    #[doc = "If this is an FT_PROTOCOL or BASE_PROTOCOL_INFO then it points to the"]
+    #[doc = "associated protocol_t structure"]
     pub strings: *const ::std::os::raw::c_void,
-    /// < [BITMASK] bitmask of interesting bits
+    #[doc = "< [BITMASK] bitmask of interesting bits"]
     pub bitmask: guint64,
-    /// < [FIELDDESCR] Brief description of field
+    #[doc = "< [FIELDDESCR] Brief description of field"]
     pub blurb: *const ::std::os::raw::c_char,
-    /// < Field ID
+    #[doc = "< Field ID"]
     pub id: ::std::os::raw::c_int,
-    /// < parent protocol tree
+    #[doc = "< parent protocol tree"]
     pub parent: ::std::os::raw::c_int,
-    /// < is this field referenced by a filter
+    #[doc = "< is this field referenced by a filter"]
     pub ref_type: hf_ref_type,
-    /// < ID of previous hfinfo with same abbrev
+    #[doc = "< ID of previous hfinfo with same abbrev"]
     pub same_name_prev_id: ::std::os::raw::c_int,
-    /// < Link to next hfinfo with same abbrev
+    #[doc = "< Link to next hfinfo with same abbrev"]
     pub same_name_next: *mut header_field_info,
 }
 #[test]
@@ -1170,13 +1642,13 @@ fn bindgen_test_layout__header_field_info() {
         )
     );
 }
-/// Used when registering many fields at once, using proto_register_field_array()
+#[doc = " Used when registering many fields at once, using proto_register_field_array()"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct hf_register_info {
-    /// < written to by register() function
+    #[doc = "< written to by register() function"]
     pub p_id: *mut ::std::os::raw::c_int,
-    /// < the field info to be registered
+    #[doc = "< the field info to be registered"]
     pub hfinfo: header_field_info,
 }
 #[test]
@@ -1212,16 +1684,15 @@ fn bindgen_test_layout_hf_register_info() {
         )
     );
 }
-/// A protocol tree element.
+#[doc = " A protocol tree element."]
 pub type proto_tree = [u64; 6usize];
-/// A protocol item element.
+#[doc = " A protocol item element."]
 pub type proto_item = [u64; 6usize];
 extern "C" {
-
-    /// Create a subtree under an existing item.
-    /// @param ti the parent item of the new subtree
-    /// @param idx one of the ett_ array elements registered with proto_register_subtree_array()
-    /// @return the new subtree
+    #[doc = " Create a subtree under an existing item."]
+    #[doc = "@param ti the parent item of the new subtree"]
+    #[doc = "@param idx one of the ett_ array elements registered with proto_register_subtree_array()"]
+    #[doc = "@return the new subtree"]
     pub fn proto_item_add_subtree(ti: *mut proto_item, idx: gint) -> *mut proto_tree;
 }
 extern "C" {
@@ -1235,19 +1706,18 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
-
-    /// Add a formatted FT_STRING or FT_STRINGZPAD to a proto_tree, with the
-    /// format generating the entire string for the entry, including any field
-    /// name.
-    /// @param tree the tree to append this item to
-    /// @param hfindex field index
-    /// @param tvb the tv buffer of the current data
-    /// @param start start of data in tvb
-    /// @param length length of data in tvb
-    /// @param value data to display
-    /// @param format printf like format string
-    /// @param ... printf like parameters
-    /// @return the newly created item
+    #[doc = " Add a formatted FT_STRING or FT_STRINGZPAD to a proto_tree, with the"]
+    #[doc = "format generating the entire string for the entry, including any field"]
+    #[doc = "name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
     pub fn proto_tree_add_string_format(
         tree: *mut proto_tree,
         hfindex: ::std::os::raw::c_int,
@@ -1260,18 +1730,17 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
-
-    /// Add a formatted FT_BOOLEAN to a proto_tree, with the format generating
-    /// the entire string for the entry, including any field name.
-    /// @param tree the tree to append this item to
-    /// @param hfindex field index
-    /// @param tvb the tv buffer of the current data
-    /// @param start start of data in tvb
-    /// @param length length of data in tvb
-    /// @param value data to display
-    /// @param format printf like format string
-    /// @param ... printf like parameters
-    /// @return the newly created item
+    #[doc = " Add a formatted FT_BOOLEAN to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
     pub fn proto_tree_add_boolean_format(
         tree: *mut proto_tree,
         hfindex: ::std::os::raw::c_int,
@@ -1284,19 +1753,18 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
-
-    /// Add a formatted FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree,
-    /// with the format generating the entire string for the entry, including any
-    /// field name.
-    /// @param tree the tree to append this item to
-    /// @param hfindex field index
-    /// @param tvb the tv buffer of the current data
-    /// @param start start of data in tvb
-    /// @param length length of data in tvb
-    /// @param value data to display
-    /// @param format printf like format string
-    /// @param ... printf like parameters
-    /// @return the newly created item
+    #[doc = " Add a formatted FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree,"]
+    #[doc = "with the format generating the entire string for the entry, including any"]
+    #[doc = "field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
     pub fn proto_tree_add_uint_format(
         tree: *mut proto_tree,
         hfindex: ::std::os::raw::c_int,
@@ -1309,12 +1777,11 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
-
-    /// Register a new protocol.
-    /// @param name the full name of the new protocol
-    /// @param short_name abbreviated name of the new protocol
-    /// @param filter_name protocol name used for a display filter string
-    /// @return the new protocol handle
+    #[doc = " Register a new protocol."]
+    #[doc = "@param name the full name of the new protocol"]
+    #[doc = "@param short_name abbreviated name of the new protocol"]
+    #[doc = "@param filter_name protocol name used for a display filter string"]
+    #[doc = "@return the new protocol handle"]
     pub fn proto_register_protocol(
         name: *const ::std::os::raw::c_char,
         short_name: *const ::std::os::raw::c_char,
@@ -1322,11 +1789,10 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-
-    /// Register a header_field array.
-    /// @param parent the protocol handle from proto_register_protocol()
-    /// @param hf the hf_register_info array
-    /// @param num_records the number of records in hf
+    #[doc = " Register a header_field array."]
+    #[doc = "@param parent the protocol handle from proto_register_protocol()"]
+    #[doc = "@param hf the hf_register_info array"]
+    #[doc = "@param num_records the number of records in hf"]
     pub fn proto_register_field_array(
         parent: ::std::os::raw::c_int,
         hf: *mut hf_register_info,
@@ -1334,90 +1800,146 @@ extern "C" {
     );
 }
 extern "C" {
-
-    /// Register a protocol subtree (ett) array.
-    /// @param indices array of ett indices
-    /// @param num_indices the number of records in indices
+    #[doc = " Register a protocol subtree (ett) array."]
+    #[doc = "@param indices array of ett indices"]
+    #[doc = "@param num_indices the number of records in indices"]
     pub fn proto_register_subtree_array(
-        indices: *const *const gint,
+        indices: *const *mut gint,
         num_indices: ::std::os::raw::c_int,
     );
 }
+#[doc = "  Helper routines for column utility structures and routines."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct epan_column_info {
     _unused: [u8; 0],
 }
 pub type column_info = epan_column_info;
+#[doc = "< 0) 802.1Q vlan ID"]
 pub const COL_8021Q_VLAN_ID: _bindgen_ty_21 = 0;
+#[doc = "< 1) Absolute date, as YYYY-MM-DD, and time"]
 pub const COL_ABS_YMD_TIME: _bindgen_ty_21 = 1;
+#[doc = "< 2) Absolute date, as YYYY/DOY, and time"]
 pub const COL_ABS_YDOY_TIME: _bindgen_ty_21 = 2;
+#[doc = "< 3) Absolute time"]
 pub const COL_ABS_TIME: _bindgen_ty_21 = 3;
+#[doc = "< 4) VSAN - Cisco MDS-specific"]
 pub const COL_VSAN: _bindgen_ty_21 = 4;
+#[doc = "< 5) Cumulative number of bytes"]
 pub const COL_CUMULATIVE_BYTES: _bindgen_ty_21 = 5;
+#[doc = "< 6) Custom column (any filter name\'s contents)"]
 pub const COL_CUSTOM: _bindgen_ty_21 = 6;
+#[doc = "< 7) DCE/RPC connection oriented call id OR datagram sequence number"]
 pub const COL_DCE_CALL: _bindgen_ty_21 = 7;
+#[doc = "< 8) Delta time"]
 pub const COL_DELTA_TIME: _bindgen_ty_21 = 8;
+#[doc = "< 9) Delta time displayed"]
 pub const COL_DELTA_TIME_DIS: _bindgen_ty_21 = 9;
+#[doc = "< 10) Resolved dest"]
 pub const COL_RES_DST: _bindgen_ty_21 = 10;
+#[doc = "< 11) Unresolved dest"]
 pub const COL_UNRES_DST: _bindgen_ty_21 = 11;
+#[doc = "< 12) Resolved dest port"]
 pub const COL_RES_DST_PORT: _bindgen_ty_21 = 12;
+#[doc = "< 13) Unresolved dest port"]
 pub const COL_UNRES_DST_PORT: _bindgen_ty_21 = 13;
+#[doc = "< 14) Destination address"]
 pub const COL_DEF_DST: _bindgen_ty_21 = 14;
+#[doc = "< 15) Destination port"]
 pub const COL_DEF_DST_PORT: _bindgen_ty_21 = 15;
+#[doc = "< 16) Expert Info"]
 pub const COL_EXPERT: _bindgen_ty_21 = 16;
+#[doc = "< 17) FW-1 monitor interface/direction"]
 pub const COL_IF_DIR: _bindgen_ty_21 = 17;
+#[doc = "< 18) IEEE 802.11 (and WiMax?) - Channel"]
 pub const COL_FREQ_CHAN: _bindgen_ty_21 = 18;
+#[doc = "< 19) Data link layer dest address"]
 pub const COL_DEF_DL_DST: _bindgen_ty_21 = 19;
+#[doc = "< 20) Data link layer source address"]
 pub const COL_DEF_DL_SRC: _bindgen_ty_21 = 20;
+#[doc = "< 21) Resolved DL dest"]
 pub const COL_RES_DL_DST: _bindgen_ty_21 = 21;
+#[doc = "< 22) Unresolved DL dest"]
 pub const COL_UNRES_DL_DST: _bindgen_ty_21 = 22;
+#[doc = "< 23) Resolved DL source"]
 pub const COL_RES_DL_SRC: _bindgen_ty_21 = 23;
+#[doc = "< 24) Unresolved DL source"]
 pub const COL_UNRES_DL_SRC: _bindgen_ty_21 = 24;
+#[doc = "< 25) IEEE 802.11 - received signal strength"]
 pub const COL_RSSI: _bindgen_ty_21 = 25;
+#[doc = "< 26) IEEE 802.11 - TX rate in Mbps"]
 pub const COL_TX_RATE: _bindgen_ty_21 = 26;
+#[doc = "< 27) IP DSCP Value"]
 pub const COL_DSCP_VALUE: _bindgen_ty_21 = 27;
+#[doc = "< 28) Description"]
 pub const COL_INFO: _bindgen_ty_21 = 28;
+#[doc = "< 29) Resolved net dest"]
 pub const COL_RES_NET_DST: _bindgen_ty_21 = 29;
+#[doc = "< 30) Unresolved net dest"]
 pub const COL_UNRES_NET_DST: _bindgen_ty_21 = 30;
+#[doc = "< 31) Resolved net source"]
 pub const COL_RES_NET_SRC: _bindgen_ty_21 = 31;
+#[doc = "< 32) Unresolved net source"]
 pub const COL_UNRES_NET_SRC: _bindgen_ty_21 = 32;
+#[doc = "< 33) Network layer dest address"]
 pub const COL_DEF_NET_DST: _bindgen_ty_21 = 33;
+#[doc = "< 34) Network layer source address"]
 pub const COL_DEF_NET_SRC: _bindgen_ty_21 = 34;
+#[doc = "< 35) Packet list item number"]
 pub const COL_NUMBER: _bindgen_ty_21 = 35;
+#[doc = "< 36) Packet length in bytes"]
 pub const COL_PACKET_LENGTH: _bindgen_ty_21 = 36;
+#[doc = "< 37) Protocol"]
 pub const COL_PROTOCOL: _bindgen_ty_21 = 37;
+#[doc = "< 38) Relative time"]
 pub const COL_REL_TIME: _bindgen_ty_21 = 38;
+#[doc = "< 39) Source address"]
 pub const COL_DEF_SRC: _bindgen_ty_21 = 39;
+#[doc = "< 40) Source port"]
 pub const COL_DEF_SRC_PORT: _bindgen_ty_21 = 40;
+#[doc = "< 41) Resolved source"]
 pub const COL_RES_SRC: _bindgen_ty_21 = 41;
+#[doc = "< 42) Unresolved source"]
 pub const COL_UNRES_SRC: _bindgen_ty_21 = 42;
+#[doc = "< 43) Resolved source port"]
 pub const COL_RES_SRC_PORT: _bindgen_ty_21 = 43;
+#[doc = "< 44) Unresolved source port"]
 pub const COL_UNRES_SRC_PORT: _bindgen_ty_21 = 44;
+#[doc = "< 45) Q.921 TEI"]
 pub const COL_TEI: _bindgen_ty_21 = 45;
+#[doc = "< 46) UTC date, as YYYY-MM-DD, and time"]
 pub const COL_UTC_YMD_TIME: _bindgen_ty_21 = 46;
+#[doc = "< 47) UTC date, as YYYY/DOY, and time"]
 pub const COL_UTC_YDOY_TIME: _bindgen_ty_21 = 47;
+#[doc = "< 48) UTC time"]
 pub const COL_UTC_TIME: _bindgen_ty_21 = 48;
+#[doc = "< 49) Command line-specified time (default relative)"]
 pub const COL_CLS_TIME: _bindgen_ty_21 = 49;
+#[doc = "< 50) Should always be last"]
 pub const NUM_COL_FMTS: _bindgen_ty_21 = 50;
+#[doc = " All of the possible columns in summary listing."]
+#[doc = ""]
+#[doc = " NOTE1: The entries MUST remain in this order, or else you need to reorder"]
+#[doc = "        the slist[] and dlist[] arrays in column.c to match!"]
+#[doc = ""]
+#[doc = " NOTE2: Please add the COL_XYZ entry in the appropriate spot, such that the"]
+#[doc = "        dlist[] array remains in alphabetical order!"]
 pub type _bindgen_ty_21 = u32;
 extern "C" {
-
-    /// Clears the text of a column element.
-    ///
-    /// @param cinfo the current packet row
-    /// @param col the column to use, e.g. COL_INFO
+    #[doc = " Clears the text of a column element."]
+    #[doc = ""]
+    #[doc = " @param cinfo the current packet row"]
+    #[doc = " @param col the column to use, e.g. COL_INFO"]
     pub fn col_clear(cinfo: *mut column_info, col: gint);
 }
 extern "C" {
-
-    /// Set (replace) the text of a column element, the text won't be copied.
-    ///
-    /// Usually used to set const strings!
-    ///
-    /// @param cinfo the current packet row
-    /// @param col the column to use, e.g. COL_INFO
-    /// @param str the string to set
+    #[doc = " Set (replace) the text of a column element, the text won\'t be copied."]
+    #[doc = ""]
+    #[doc = " Usually used to set const strings!"]
+    #[doc = ""]
+    #[doc = " @param cinfo the current packet row"]
+    #[doc = " @param col the column to use, e.g. COL_INFO"]
+    #[doc = " @param str the string to set"]
     pub fn col_set_str(cinfo: *mut column_info, col: gint, str: *const gchar);
 }
 #[repr(C)]
@@ -1442,8 +1964,7 @@ extern "C" {
     );
 }
 extern "C" {
-
-    /// Create an anonymous handle for a dissector.
+    #[doc = " Create an anonymous handle for a dissector."]
     pub fn create_dissector_handle(
         dissector: dissector_t,
         proto: ::std::os::raw::c_int,
@@ -1454,22 +1975,5 @@ extern "C" {
         pinfo: *mut packet_info,
         tvb: *mut tvbuff_t,
         name: *const ::std::os::raw::c_char,
-    );
-}
-#[repr(C)]
-pub union wtap_pseudo_header {
-    pub _bindgen_opaque_blob: [u8; 0usize],
-}
-#[test]
-fn bindgen_test_layout_wtap_pseudo_header() {
-    assert_eq!(
-        ::std::mem::size_of::<wtap_pseudo_header>(),
-        0usize,
-        concat!("Size of: ", stringify!(wtap_pseudo_header))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<wtap_pseudo_header>(),
-        0usize,
-        concat!("Alignment of ", stringify!(wtap_pseudo_header))
     );
 }
