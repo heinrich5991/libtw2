@@ -16,7 +16,7 @@ const BUFSIZE: usize = 2048;
 fn do_(socket: UdpSocket, addr: SocketAddr) {
     let mut buf = [0; BUFSIZE];
 
-    browse_protocol::request_info_6(|x| socket.send_to(x, &addr).unwrap());
+    socket.send_to(&browse_protocol::request_info_6(0), addr).unwrap();
 
     loop {
         let (len, from) = socket.recv_from(&mut buf).unwrap();

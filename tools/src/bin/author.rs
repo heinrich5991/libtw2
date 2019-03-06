@@ -1,20 +1,20 @@
 #![cfg(not(test))]
 
-#[macro_use] extern crate common;
+extern crate common;
 extern crate datafile as df;
 extern crate map;
 extern crate tools;
 
 use map::format;
-use map::format::MapItemExt;
 use std::path::Path;
 
 #[derive(Default)]
 struct Stats {
     author: u64,
-    map_version: u64,
+    version: u64,
     credits: u64,
     license: u64,
+    settings: u64,
     info: u64,
     total: u64,
 }
@@ -22,32 +22,33 @@ struct Stats {
 fn process(_: &Path, dfr: df::Reader, stats: &mut Stats)
     -> Result<(), map::Error>
 {
-    let e = Err(map::Error::Map(format::Error::MalformedInfo));
-
-    let item = unwrap_or_return!(dfr.find_item(format::MAP_ITEMTYPE_INFO, 0), {
-        stats.total += 1;
-        Ok(())
-    });
-    let common = unwrap_or_return!(format::MapItemCommonV0::from_slice(item.data).ok().and_then(|o| o), e);
-    if common.version != 1 { return e; }
-    let info = unwrap_or_return!(format::MapItemInfoV1::from_slice(item.data).ok().and_then(|o| o), e);
-
-    if info.author != -1 { stats.author += 1; }
-    if info.map_version != -1 { stats.map_version += 1; }
-    if info.credits != -1 { stats.credits += 1; }
-    if info.license != -1 { stats.license += 1; }
+    let map = map::Reader::from_datafile(dfr);
+    let info = match map.info() {
+        Ok(i) => i,
+        Err(format::Error::MissingInfo) => {
+            stats.total += 1;
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
+    };
+    if info.author.is_some() { stats.author += 1; }
+    if info.version.is_some() { stats.version += 1; }
+    if info.credits.is_some() { stats.credits += 1; }
+    if info.license.is_some() { stats.license += 1; }
+    if info.settings.is_some() { stats.settings += 1; }
     stats.info += 1;
     stats.total += 1;
     Ok(())
 }
 
 fn print_stats(stats: &Stats) {
-    println!("author:      {:5}", stats.author);
-    println!("map_version: {:5}", stats.map_version);
-    println!("credits:     {:5}", stats.credits);
-    println!("license:     {:5}", stats.license);
-    println!("info:        {:5}", stats.info);
-    println!("total:       {:5}", stats.total);
+    println!("author:   {:5}", stats.author);
+    println!("version:  {:5}", stats.version);
+    println!("credits:  {:5}", stats.credits);
+    println!("license:  {:5}", stats.license);
+    println!("settings: {:5}", stats.settings);
+    println!("info:     {:5}", stats.info);
+    println!("total:    {:5}", stats.total);
 }
 
 fn main() {

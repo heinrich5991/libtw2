@@ -144,9 +144,9 @@ impl<'a> StatsBrowser<'a> {
         let mut send = |data: &[u8]| socket.send_to(data, master.addr.unwrap()).unwrap();
 
         debug!("Requesting count and list from {}", master.domain);
-        if protocol::request_count(|y| send(y)).would_block()
-            || protocol::request_list_5(|y| send(y)).would_block()
-            || protocol::request_list_6(|y| send(y)).would_block()
+        if send(&protocol::request_count()).would_block()
+            || send(&protocol::request_list_5()).would_block()
+            || send(&protocol::request_list_6()).would_block()
         {
             debug!("Failed to send count or list request, would block");
             return Err(());
@@ -188,8 +188,8 @@ impl<'a> StatsBrowser<'a> {
         let mut send = |data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
 
         let would_block = match server_addr.version {
-            ProtocolVersion::V5 => protocol::request_info_5(|x| send(x)).would_block(),
-            ProtocolVersion::V6 => protocol::request_info_6(|x| send(x)).would_block(),
+            ProtocolVersion::V5 => send(&protocol::request_info_5(0)).would_block(),
+            ProtocolVersion::V6 => send(&protocol::request_info_6(0)).would_block(),
         };
 
         if would_block {

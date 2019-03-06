@@ -44,6 +44,7 @@ impl fmt::Display for LogVersion {
             ServerInfoVersion::V5 => "5",
             ServerInfoVersion::V6 => "6",
             ServerInfoVersion::V664 => "6_64",
+            ServerInfoVersion::V6Ex => "6_ex",
             ServerInfoVersion::V7 => "7",
         };
         fmt::Display::fmt(&output, f)
@@ -136,6 +137,7 @@ impl StatsBrowserCb for Tracker {
     fn on_server_change(&mut self, addr: ServerAddr, old: &ServerInfo, new: &ServerInfo) {
         // If the info version changed, treat the server as a new one.
         if old.info_version != new.info_version {
+            // TODO: This looks wrong in the presence of players.
             self.on_server_remove(addr, old);
             self.on_server_new(addr, new);
         }
