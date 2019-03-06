@@ -464,11 +464,11 @@ unsafe fn proto_register_teeworlds() {
         },
     ]};
 
-    static mut ETT: [*const c_int; 4] = unsafe {[
-        &ETT_PACKET,
-        &ETT_PACKET_FLAGS,
-        &ETT_CHUNK,
-        &ETT_CHUNK_FLAGS,
+    static mut ETT: [*mut c_int; 4] = unsafe {[
+        &ETT_PACKET as *const _ as *mut _,
+        &ETT_PACKET_FLAGS as *const _ as *mut _,
+        &ETT_CHUNK as *const _ as *mut _,
+        &ETT_CHUNK_FLAGS as *const _ as *mut _,
     ]};
 
     PROTO_TW_PACKET = sys::proto_register_protocol(

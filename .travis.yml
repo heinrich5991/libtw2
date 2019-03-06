@@ -5,5 +5,5 @@ rust:
     - nightly
 cache: cargo
 script:
-    - ./forall cargo test
-    - ./forall bash -c 'if [ -e benches ]; then cargo bench; fi'
+    - cargo test
+    - cargo bench
