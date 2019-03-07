@@ -171,7 +171,7 @@ fn handle_dir<'a>(
             {
                 continue;
             }
-            if !entry.file_type().is_file() {
+            if entry.file_type().is_dir() {
                 continue;
             }
             if contains(base, writer, entry.path())? {
