@@ -26,6 +26,7 @@ bindgen \
 	--whitelist-function '^memcpy$' \
 	--whitelist-function '^proto_item_add_subtree$' \
 	--whitelist-function '^proto_register_field_array$' \
+	--whitelist-function '^proto_register_plugin$' \
 	--whitelist-function '^proto_register_protocol$' \
 	--whitelist-function '^proto_register_subtree_array$' \
 	--whitelist-function '^proto_tree_add_boolean_format$' \

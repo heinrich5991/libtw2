@@ -102,7 +102,7 @@ extern "C" {
     pub fn memcpy(
         __dest: *mut ::std::os::raw::c_void,
         __src: *const ::std::os::raw::c_void,
-        __n: usize,
+        __n: ::std::os::raw::c_ulong,
     ) -> *mut ::std::os::raw::c_void;
 }
 #[doc = " A public opaque type representing one wmem allocation pool."]
@@ -250,6 +250,7 @@ fn bindgen_test_layout_Buffer() {
     );
 }
 #[repr(C)]
+#[repr(align(8))]
 #[derive(Copy, Clone)]
 pub union wtap_pseudo_header {
     pub _bindgen_opaque_blob: [u64; 19usize],
@@ -825,11 +826,11 @@ pub struct _packet_info {
     pub heur_list_name: *const gchar,
 }
 #[repr(C)]
+#[repr(align(4))]
 #[derive(Debug, Copy, Clone)]
 pub struct _packet_info__bindgen_ty_1 {
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 1usize], u8>,
     pub __bindgen_padding_0: [u8; 3usize],
-    pub __bindgen_align: [u32; 0usize],
 }
 #[test]
 fn bindgen_test_layout__packet_info__bindgen_ty_1() {
@@ -1688,6 +1689,49 @@ fn bindgen_test_layout_hf_register_info() {
 pub type proto_tree = [u64; 6usize];
 #[doc = " A protocol item element."]
 pub type proto_item = [u64; 6usize];
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct proto_plugin {
+    pub register_protoinfo: ::std::option::Option<unsafe extern "C" fn()>,
+    pub register_handoff: ::std::option::Option<unsafe extern "C" fn()>,
+}
+#[test]
+fn bindgen_test_layout_proto_plugin() {
+    assert_eq!(
+        ::std::mem::size_of::<proto_plugin>(),
+        16usize,
+        concat!("Size of: ", stringify!(proto_plugin))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<proto_plugin>(),
+        8usize,
+        concat!("Alignment of ", stringify!(proto_plugin))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<proto_plugin>())).register_protoinfo as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(proto_plugin),
+            "::",
+            stringify!(register_protoinfo)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<proto_plugin>())).register_handoff as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(proto_plugin),
+            "::",
+            stringify!(register_handoff)
+        )
+    );
+}
+extern "C" {
+    #[doc = " Register dissector plugin with the plugin system."]
+    pub fn proto_register_plugin(plugin: *const proto_plugin);
+}
 extern "C" {
     #[doc = " Create a subtree under an existing item."]
     #[doc = "@param ti the parent item of the new subtree"]
