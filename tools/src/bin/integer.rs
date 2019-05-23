@@ -39,5 +39,6 @@ fn main() {
         let encoded = un.into_inner().unwrap();
         let mut up = Unpacker::new(&encoded);
         println!("{}", up.read_int(&mut Stdout).unwrap());
+        up.finish(&mut Stdout);
     }
 }
