@@ -21,36 +21,36 @@ fn unwrap_overflow<T: fmt::Display, U: TypeName>(original: T, val: Option<U>) ->
 }
 
 pub trait Cast {
-    fn i8(self) -> i8 where Self: I8;
-    fn u8(self) -> u8 where Self: U8;
-    fn i16(self) -> i16 where Self: I16;
-    fn u16(self) -> u16 where Self: U16;
-    fn i32(self) -> i32 where Self: I32;
-    fn u32(self) -> u32 where Self: U32;
-    fn i64(self) -> i64 where Self: I64;
-    fn u64(self) -> u64 where Self: U64;
-    fn isize(self) -> isize where Self: Isize;
-    fn usize(self) -> usize where Self: Usize;
-    fn try_i8(self) -> Option<i8> where Self: NI8;
-    fn try_u8(self) -> Option<u8> where Self: NU8;
-    fn try_i16(self) -> Option<i16> where Self: NI16;
-    fn try_u16(self) -> Option<u16> where Self: NU16;
-    fn try_i32(self) -> Option<i32> where Self: NI32;
-    fn try_u32(self) -> Option<u32> where Self: NU32;
-    fn try_i64(self) -> Option<i64> where Self: NI64;
-    fn try_u64(self) -> Option<u64> where Self: NU64;
-    fn try_isize(self) -> Option<isize> where Self: NIsize;
-    fn try_usize(self) -> Option<usize> where Self: NUsize;
-    fn assert_i8(self) -> i8 where Self: NI8;
-    fn assert_u8(self) -> u8 where Self: NU8;
-    fn assert_i16(self) -> i16 where Self: NI16;
-    fn assert_u16(self) -> u16 where Self: NU16;
-    fn assert_i32(self) -> i32 where Self: NI32;
-    fn assert_u32(self) -> u32 where Self: NU32;
-    fn assert_i64(self) -> i64 where Self: NI64;
-    fn assert_u64(self) -> u64 where Self: NU64;
-    fn assert_isize(self) -> isize where Self: NIsize;
-    fn assert_usize(self) -> usize where Self: NUsize;
+    fn i8(self) -> i8 where Self: Sized + I8;
+    fn u8(self) -> u8 where Self: Sized + U8;
+    fn i16(self) -> i16 where Self: Sized + I16;
+    fn u16(self) -> u16 where Self: Sized + U16;
+    fn i32(self) -> i32 where Self: Sized + I32;
+    fn u32(self) -> u32 where Self: Sized + U32;
+    fn i64(self) -> i64 where Self: Sized + I64;
+    fn u64(self) -> u64 where Self: Sized + U64;
+    fn isize(self) -> isize where Self: Sized + Isize;
+    fn usize(self) -> usize where Self: Sized + Usize;
+    fn try_i8(self) -> Option<i8> where Self: Sized + NI8;
+    fn try_u8(self) -> Option<u8> where Self: Sized + NU8;
+    fn try_i16(self) -> Option<i16> where Self: Sized + NI16;
+    fn try_u16(self) -> Option<u16> where Self: Sized + NU16;
+    fn try_i32(self) -> Option<i32> where Self: Sized + NI32;
+    fn try_u32(self) -> Option<u32> where Self: Sized + NU32;
+    fn try_i64(self) -> Option<i64> where Self: Sized + NI64;
+    fn try_u64(self) -> Option<u64> where Self: Sized + NU64;
+    fn try_isize(self) -> Option<isize> where Self: Sized + NIsize;
+    fn try_usize(self) -> Option<usize> where Self: Sized + NUsize;
+    fn assert_i8(self) -> i8 where Self: Sized + NI8;
+    fn assert_u8(self) -> u8 where Self: Sized + NU8;
+    fn assert_i16(self) -> i16 where Self: Sized + NI16;
+    fn assert_u16(self) -> u16 where Self: Sized + NU16;
+    fn assert_i32(self) -> i32 where Self: Sized + NI32;
+    fn assert_u32(self) -> u32 where Self: Sized + NU32;
+    fn assert_i64(self) -> i64 where Self: Sized + NI64;
+    fn assert_u64(self) -> u64 where Self: Sized + NU64;
+    fn assert_isize(self) -> isize where Self: Sized + NIsize;
+    fn assert_usize(self) -> usize where Self: Sized + NUsize;
 }
 
 pub trait I8 { }
