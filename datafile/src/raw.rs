@@ -101,31 +101,31 @@ impl Reader {
             cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(format::Error::TooShort))
         }
 
-        let header = try!(format::Header::read(cb));
-        let header_check = try!(header.check_size_and_swaplen());
+        let header = format::Header::read(cb)?;
+        let header_check = header.check_size_and_swaplen()?;
         let version = match header.hv.version {
             3 => Version::V3,
             4 => if !header_check.crude_version { Version::V4 } else { Version::V4Crude },
             _ => unreachable!(), // Should have been caught earlier, in Header::read().
         };
-        let item_types_raw = try!(read_i32s(cb, header.hr.num_item_types as usize));
-        let item_offsets = try!(read_i32s(cb, header.hr.num_items as usize));
-        let data_offsets = try!(read_i32s(cb, header.hr.num_data as usize));
+        let item_types_raw = read_i32s(cb, header.hr.num_item_types as usize)?;
+        let item_offsets = read_i32s(cb, header.hr.num_items as usize)?;
+        let data_offsets = read_i32s(cb, header.hr.num_data as usize)?;
         let uncomp_data_sizes = if !version.has_compressed_data() {
             None
         } else {
-            Some(try!(read_i32s(cb, header.hr.num_data as usize)))
+            Some(read_i32s(cb, header.hr.num_data as usize)?)
         };
 
         // Possible failure of relative_size_of_mult should have been caught in Header::read().
-        let items_raw = try!(read_i32s(cb, relative_size_of_mult::<u8,i32>(header.hr.size_items as usize)));
+        let items_raw = read_i32s(cb, relative_size_of_mult::<u8,i32>(header.hr.size_items as usize))?;
 
-        try!(cb.set_seek_base());
+        cb.set_seek_base()?;
 
-        try!(try!(cb.ensure_filesize(header_check.expected_size)).map_err(|()| {
+        cb.ensure_filesize(header_check.expected_size)?.map_err(|()| {
             error!("file is not long enough, wanted {}", header_check.expected_size);
             format::Error::TooShort
-        }));
+        })?;
 
         let result = Reader {
             header: header,
@@ -136,7 +136,7 @@ impl Reader {
             items_raw: items_raw,
             version: version,
         };
-        try!(result.check());
+        result.check()?;
         Ok(result)
     }
     pub fn check(&self) -> Result<(), format::Error> {
@@ -268,11 +268,11 @@ impl Reader {
     }
     pub fn read_data<'a>(&self, mut cb: &'a mut dyn CallbackReadData, index: usize) -> Result<(), Error> {
         let raw_data_len = self.data_size_file(index);
-        let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort)));
+        let raw_data = cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort))?;
 
         if let Some(ref uds) = self.uncomp_data_sizes {
             let data_len = uds[index] as usize;
-            try!(cb.alloc_data_buffer(data_len));
+            cb.alloc_data_buffer(data_len)?;
             let mut data = cb.data_buffer();
 
             match zlib::uncompress(data, &raw_data) {
@@ -290,7 +290,7 @@ impl Reader {
             }
         } else {
             let data_len = raw_data_len;
-            try!(cb.alloc_data_buffer(data_len));
+            cb.alloc_data_buffer(data_len)?;
             let mut data = cb.data_buffer();
             data.iter_mut().set_from(raw_data.iter().cloned());
             Ok(())
@@ -371,7 +371,7 @@ impl Reader {
             }
         }
         for i in 0..self.num_data() {
-            try!(self.read_data(cb, i));
+            self.read_data(cb, i)?;
             let data = cb.data_buffer();
             let len = data.len();
             debug!("data id={} size={}", i, len);

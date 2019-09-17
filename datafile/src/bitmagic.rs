@@ -53,7 +53,7 @@ pub trait CallbackNewExt {
 
 impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
     fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(), CallbackReadError> {
-        let read = try!(self.read(buffer));
+        let read = self.read(buffer)?;
         if read != buffer.len() {
             return Err(CallbackReadError::EndOfFile);
         }
@@ -63,13 +63,13 @@ impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
         self.read_exact(transmute_mut_slice(buffer))
     }
     fn read_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T]) -> Result<usize, CallbackError> {
-        let read = try!(self.read(unsafe { transmute_mut_slice(buffer) }));
+        let read = self.read(unsafe { transmute_mut_slice(buffer) })?;
         let read_i32s = read / mem::size_of::<i32>();
         unsafe { from_little_endian(&mut as_mut_i32_slice(buffer)[..read_i32s]) };
         Ok(read)
     }
     fn read_exact_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T]) -> Result<(), CallbackReadError> {
-        try!(unsafe { self.read_exact_raw(buffer) });
+        unsafe { self.read_exact_raw(buffer) }?;
         unsafe { from_little_endian(as_mut_i32_slice(buffer)); }
         Ok(())
     }
@@ -77,7 +77,7 @@ impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
         let mut result = Vec::with_capacity(count);
         // Safe because T: OnlyI32 is POD.
         unsafe { result.set_len(count); }
-        try!(self.read_exact_le_i32s(&mut result));
+        self.read_exact_le_i32s(&mut result)?;
         Ok(result)
     }
 }
@@ -89,7 +89,7 @@ pub trait CallbackReadDataExt {
 
 impl<'a> CallbackReadDataExt for &'a mut dyn CallbackReadData {
     fn seek_read_exact(&mut self, offset: u32, buffer: &mut [u8]) -> Result<(), CallbackReadError> {
-        let read = try!(self.seek_read(offset, buffer));
+        let read = self.seek_read(offset, buffer)?;
         if read != buffer.len() {
             return Err(CallbackReadError::EndOfFile);
         }
@@ -99,7 +99,7 @@ impl<'a> CallbackReadDataExt for &'a mut dyn CallbackReadData {
         let mut result = Vec::with_capacity(count);
         // Safe because `u8` is POD.
         unsafe { result.set_len(count); }
-        try!(self.seek_read_exact(offset, &mut result));
+        self.seek_read_exact(offset, &mut result)?;
         Ok(result)
     }
 }

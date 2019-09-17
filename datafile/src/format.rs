@@ -96,7 +96,7 @@ pub struct HeaderCheckResult {
 impl Header {
     pub fn read(mut cb: &mut dyn CallbackNew) -> Result<Header, raw::Error> {
         let mut result: Header = unsafe { mem::uninitialized() };
-        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
+        let read = cb.read_le_i32s(mut_ref_slice(&mut result))?;
         if read < mem::size_of_val(&result.hv) {
             return Err(raw::Error::Df(Error::TooShortHeaderVersion));
         }
@@ -105,16 +105,16 @@ impl Header {
             // Revert endian conversion for magic field.
             unsafe { to_little_endian(&mut slice[..1]); }
         }
-        try!(result.hv.check());
+        result.hv.check()?;
         if read < mem::size_of_val(&result) {
             return Err(raw::Error::Df(Error::TooShortHeader));
         }
-        try!(result.hr.check());
+        result.hr.check()?;
         debug!("read header={:?}", result);
         Ok(result)
     }
     pub fn check_size_and_swaplen(&self) -> Result<HeaderCheckResult,Error> {
-        let expected_total_size = try!(self.calculate_total_size());
+        let expected_total_size = self.calculate_total_size()?;
         let expected_size0 = self.calculate_size_field(expected_total_size, false);
         let expected_size1 = self.calculate_size_field(expected_total_size, true);
         let expected_swaplen0 = self.calculate_swaplen_field(expected_total_size, false);
