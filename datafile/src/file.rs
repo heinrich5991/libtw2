@@ -13,10 +13,9 @@ use std::path::Path;
 
 use format::ItemView;
 use format;
+use raw::CallbackError;
 use raw::CallbackNew;
 use raw::CallbackReadData;
-use raw::DataCallback;
-use raw::ResultExt;
 use raw;
 
 #[derive(Debug)]
@@ -37,32 +36,19 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<raw::Error<io::Error>> for Error {
-    fn from(err: raw::Error<io::Error>) -> Error {
-        match err {
-            raw::Error::Df(e) => Error::Df(e),
-            raw::Error::Cb(e) => Error::Io(e),
-        }
-    }
-}
-
-impl From<raw::WrapCallbackError<io::Error>> for Error {
-    fn from(err: raw::WrapCallbackError<io::Error>) -> Error {
-        let raw::WrapCallbackError(e) = err;
-        Error::Io(e)
-    }
-}
-
 struct CallbackDataNew {
     file: BufReader<File>,
     datafile_start: u64,
     cur_datafile_offset: u64,
     seek_base: Option<u64>,
+    error: Option<io::Error>,
 }
 
 struct CallbackData {
     file: File,
     seek_base: u64,
+    buffer: Option<Vec<u8>>,
+    error: Option<io::Error>,
 }
 
 pub struct Reader {
@@ -70,11 +56,26 @@ pub struct Reader {
     raw: raw::Reader,
 }
 
+trait ResultExt {
+    type T;
+    fn retrieve(self, error: &mut Option<io::Error>) -> Result<Self::T, Error>;
+}
+
+impl<T> ResultExt for Result<T, raw::Error> {
+    type T = T;
+    fn retrieve(self, error: &mut Option<io::Error>) -> Result<T, Error> {
+        self.map_err(|e| match e {
+            raw::Error::Df(e) => Error::Df(e),
+            raw::Error::Callback => Error::Io(error.take().unwrap()),
+        })
+    }
+}
+
 impl Reader {
-    fn new_impl(file: File, check_initial_offset: bool) -> Result<Reader,Error> {
+    fn new_impl(file: File, check_initial_offset: bool) -> Result<Reader, Error> {
         let mut file = file;
         let datafile_start = if check_initial_offset {
-            try!(file.seek(SeekFrom::Current(0)).wrap())
+            try!(file.seek(SeekFrom::Current(0)))
         } else {
             0
         };
@@ -83,34 +84,41 @@ impl Reader {
             datafile_start: datafile_start,
             cur_datafile_offset: 0,
             seek_base: None,
+            error: None,
         };
-        let raw = try!(raw::Reader::new(&mut callback_data_new));
+        let raw = try!(raw::Reader::new(&mut callback_data_new)
+            .retrieve(&mut callback_data_new.error));
         let callback_data = CallbackData {
             file: callback_data_new.file.into_inner(),
             seek_base: callback_data_new.seek_base.unwrap(),
+            buffer: None,
+            error: None,
         };
         Ok(Reader {
             callback_data: callback_data,
             raw: raw,
         })
     }
-    pub fn new(file: File) -> Result<Reader,Error> {
+    pub fn new(file: File) -> Result<Reader, Error> {
         Reader::new_impl(file, true)
     }
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Reader,Error> {
-        fn inner(path: &Path) -> Result<Reader,Error> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Reader, Error> {
+        fn inner(path: &Path) -> Result<Reader, Error> {
             Reader::new_impl(try!(File::open(path)), false)
         }
         inner(path.as_ref())
     }
-    pub fn debug_dump(&mut self) -> Result<(),Error> {
-        Ok(try!(self.raw.debug_dump(&mut self.callback_data)))
+    pub fn debug_dump(&mut self) -> Result<(), Error> {
+        Ok(try!(self.raw.debug_dump(&mut self.callback_data)
+            .retrieve(&mut self.callback_data.error)))
     }
     pub fn version(&self) -> raw::Version {
         self.raw.version()
     }
-    pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>,Error> {
-        Ok(try!(self.raw.read_data(&mut self.callback_data, index).map(|w| w.inner)))
+    pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>, Error> {
+        try!(self.raw.read_data(&mut self.callback_data, index)
+            .retrieve(&mut self.callback_data.error));
+        Ok(self.callback_data.buffer.take().unwrap())
     }
     pub fn item(&self, index: usize) -> ItemView {
         self.raw.item(index)
@@ -145,7 +153,7 @@ impl Reader {
         self.raw.item_type_items(type_id)
     }
     pub fn data_iter(&mut self) -> DataIter {
-        fn map_fn(i: usize, self_: &mut &mut Reader) -> Result<Vec<u8>,Error> {
+        fn map_fn(i: usize, self_: &mut &mut Reader) -> Result<Vec<u8>, Error> {
             self_.read_data(i)
         }
         let num_data = self.num_data();
@@ -153,17 +161,7 @@ impl Reader {
     }
 }
 
-pub type DataIter<'a> = MapIterator<Result<Vec<u8>,Error>,&'a mut Reader,ops::Range<usize>>;
-
-pub struct WrapVecU8 {
-    inner: Vec<u8>,
-}
-
-impl DataCallback for WrapVecU8 {
-    fn slice_mut(&mut self) -> &mut [u8] {
-        &mut self.inner
-    }
-}
+pub type DataIter<'a> = MapIterator<Result<Vec<u8>, Error>, &'a mut Reader, ops::Range<usize>>;
 
 // "SeekOverflow"
 fn so(o: Option<u64>) -> io::Result<u64> {
@@ -171,40 +169,48 @@ fn so(o: Option<u64>) -> io::Result<u64> {
 }
 
 impl CallbackNew for CallbackDataNew {
-    type Error = io::Error;
-    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        match self.file.read_retry(buffer) {
-            Ok(r) => {
-                self.cur_datafile_offset =
-                    try!(so(self.cur_datafile_offset.checked_add(r.u64())));
-                Ok(r)
-            },
-            Err(e) => Err(e),
+    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, CallbackError> {
+        fn inner(self_: &mut CallbackDataNew, buffer: &mut [u8]) -> io::Result<usize> {
+            let r = try!(self_.file.read_retry(buffer));
+            self_.cur_datafile_offset =
+                try!(so(self_.cur_datafile_offset.checked_add(r.u64())));
+            Ok(r)
         }
+        inner(self, buffer).map_err(|e| { self.error = Some(e); CallbackError })
     }
-    fn set_seek_base(&mut self) -> io::Result<()> {
+    fn set_seek_base(&mut self) -> Result<(), CallbackError> {
         self.seek_base = Some(self.cur_datafile_offset);
         Ok(())
     }
-    fn ensure_filesize(&mut self, filesize: u32) -> io::Result<Result<(),()>> {
-        let actual = try!(self.file.get_ref().metadata()).len();
-        Ok(if actual.checked_sub(self.datafile_start).unwrap() >= filesize.u64() {
-            Ok(())
-        } else {
-            Err(())
-        })
+    fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(), ()>, CallbackError> {
+        fn inner(self_: &mut CallbackDataNew, filesize: u32) -> io::Result<Result<(), ()>> {
+            let actual = try!(self_.file.get_ref().metadata()).len();
+            Ok(if actual.checked_sub(self_.datafile_start).unwrap() >= filesize.u64() {
+                Ok(())
+            } else {
+                Err(())
+            })
+        }
+        inner(self, filesize).map_err(|e| { self.error = Some(e); CallbackError })
     }
 }
 impl CallbackReadData for CallbackData {
-    type Error = io::Error;
-    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> io::Result<usize> {
-        let offset = try!(so(self.seek_base.checked_add(start.u64())));
-        self.file.read_offset_retry(buffer, offset)
+    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize, CallbackError> {
+        fn inner(self_: &mut CallbackData, start: u32, buffer: &mut [u8])
+            -> io::Result<usize>
+        {
+            let offset = try!(so(self_.seek_base.checked_add(start.u64())));
+            self_.file.read_offset_retry(buffer, offset)
+        }
+        inner(self, start, buffer).map_err(|e| { self.error = Some(e); CallbackError })
     }
-    type Data = WrapVecU8;
-    fn alloc_data(&mut self, length: usize) -> io::Result<WrapVecU8> {
+    fn alloc_data_buffer(&mut self, length: usize) -> Result<(), CallbackError> {
         let mut vec = Vec::with_capacity(length);
         unsafe { vec.set_len(length); }
-        Ok(WrapVecU8 { inner: vec })
+        self.buffer = Some(vec);
+        Ok(())
+    }
+    fn data_buffer(&mut self) -> &mut [u8] {
+        self.buffer.as_mut().unwrap()
     }
 }

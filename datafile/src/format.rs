@@ -6,7 +6,6 @@ use bitmagic::to_little_endian;
 use common::num::Cast;
 use common::slice::mut_ref_slice;
 use raw::CallbackNew;
-use raw::ResultExt;
 use raw;
 use zlib;
 
@@ -95,9 +94,9 @@ pub struct HeaderCheckResult {
 }
 
 impl Header {
-    pub fn read<CB:CallbackNew>(cb: &mut CB) -> Result<Header,raw::Error<CB::Error>> {
+    pub fn read(mut cb: &mut dyn CallbackNew) -> Result<Header, raw::Error> {
         let mut result: Header = unsafe { mem::uninitialized() };
-        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)).wrap());
+        let read = try!(cb.read_le_i32s(mut_ref_slice(&mut result)));
         if read < mem::size_of_val(&result.hv) {
             return Err(raw::Error::Df(Error::TooShortHeaderVersion));
         }

@@ -33,70 +33,53 @@ impl Version {
     }
 }
 
+pub struct CallbackError;
+
 pub trait CallbackNew {
-    type Error;
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize,Self::Error>;
-    fn set_seek_base(&mut self) -> Result<(),Self::Error>;
-    fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(),()>,Self::Error>;
+    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, CallbackError>;
+    fn set_seek_base(&mut self) -> Result<(), CallbackError>;
+    fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(), ()>, CallbackError>;
 }
 
 pub trait CallbackReadData {
-    type Error;
-    type Data: DataCallback;
-    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize,Self::Error>;
-    fn alloc_data(&mut self, length: usize) -> Result<Self::Data,Self::Error>;
-}
-
-pub trait DataCallback {
-    fn slice_mut(&mut self) -> &mut [u8];
+    fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize, CallbackError>;
+    fn alloc_data_buffer(&mut self, length: usize) -> Result<(), CallbackError>;
+    fn data_buffer(&mut self) -> &mut [u8];
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub enum CallbackReadError<CE> {
-    Cb(CE),
+pub enum CallbackReadError {
+    Callback,
     EndOfFile,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub enum Error<CE> {
+pub enum Error {
     Df(format::Error),
-    Cb(CE),
+    Callback,
 }
 
-impl<CE> From<format::Error> for Error<CE> {
-    fn from(err: format::Error) -> Error<CE> {
+impl From<format::Error> for Error {
+    fn from(err: format::Error) -> Error {
         Error::Df(err)
     }
 }
 
-pub struct WrapCallbackError<CE>(pub CE);
-impl<CE> From<WrapCallbackError<CE>> for Error<CE> {
-    fn from(err: WrapCallbackError<CE>) -> Error<CE> {
-        let WrapCallbackError(err) = err;
-        Error::Cb(err)
+impl From<CallbackError> for Error {
+    fn from(CallbackError: CallbackError) -> Error {
+        Error::Callback
     }
 }
-impl<CE> From<WrapCallbackError<CE>> for CallbackReadError<CE> {
-    fn from(err: WrapCallbackError<CE>) -> CallbackReadError<CE> {
-        let WrapCallbackError(err) = err;
-        CallbackReadError::Cb(err)
-    }
-}
-pub trait ResultExt {
-    type ResultWrapped;
-    fn wrap(self) -> Self::ResultWrapped;
-}
-impl<T,CE> ResultExt for Result<T,CE> {
-    type ResultWrapped = Result<T,WrapCallbackError<CE>>;
-    fn wrap(self) -> Result<T,WrapCallbackError<CE>> {
-        self.map_err(WrapCallbackError)
+impl From<CallbackError> for CallbackReadError {
+    fn from(CallbackError: CallbackError) -> CallbackReadError {
+        CallbackReadError::Callback
     }
 }
 
-impl<CE> CallbackReadError<CE> {
-    pub fn on_eof(self, df_err: format::Error) -> Error<CE> {
+impl CallbackReadError {
+    pub fn on_eof(self, df_err: format::Error) -> Error {
         match self {
-            CallbackReadError::Cb(err) => Error::Cb(err),
+            CallbackReadError::Callback => Error::Callback,
             CallbackReadError::EndOfFile => From::from(df_err),
         }
     }
@@ -113,8 +96,8 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn new<CB:CallbackNew>(cb: &mut CB) -> Result<Reader,Error<CB::Error>> {
-        fn read_i32s<CB:CallbackNew,T:OnlyI32>(cb: &mut CB, len: usize) -> Result<Vec<T>,Error<CB::Error>> {
+    pub fn new(cb: &mut dyn CallbackNew) -> Result<Reader, Error> {
+        fn read_i32s<T: OnlyI32>(mut cb: &mut dyn CallbackNew, len: usize) -> Result<Vec<T>,Error> {
             cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(format::Error::TooShort))
         }
 
@@ -137,9 +120,9 @@ impl Reader {
         // Possible failure of relative_size_of_mult should have been caught in Header::read().
         let items_raw = try!(read_i32s(cb, relative_size_of_mult::<u8,i32>(header.hr.size_items as usize)));
 
-        try!(cb.set_seek_base().wrap());
+        try!(cb.set_seek_base());
 
-        try!(try!(cb.ensure_filesize(header_check.expected_size).wrap()).map_err(|()| {
+        try!(try!(cb.ensure_filesize(header_check.expected_size)).map_err(|()| {
             error!("file is not long enough, wanted {}", header_check.expected_size);
             format::Error::TooShort
         }));
@@ -156,7 +139,7 @@ impl Reader {
         try!(result.check());
         Ok(result)
     }
-    pub fn check(&self) -> Result<(),format::Error> {
+    pub fn check(&self) -> Result<(), format::Error> {
         {
             let mut expected_start = 0;
             let mut previous = None;
@@ -283,17 +266,18 @@ impl Reader {
     pub fn version(&self) -> Version {
         self.version
     }
-    pub fn read_data<CB:CallbackReadData>(&self, cb: &mut CB, index: usize) -> Result<CB::Data,Error<CB::Error>> {
+    pub fn read_data<'a>(&self, mut cb: &'a mut dyn CallbackReadData, index: usize) -> Result<(), Error> {
         let raw_data_len = self.data_size_file(index);
         let raw_data = try!(cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort)));
 
         if let Some(ref uds) = self.uncomp_data_sizes {
             let data_len = uds[index] as usize;
-            let mut data = try!(cb.alloc_data(data_len).wrap());
+            try!(cb.alloc_data_buffer(data_len));
+            let mut data = cb.data_buffer();
 
-            match zlib::uncompress(data.slice_mut(), &raw_data) {
+            match zlib::uncompress(data, &raw_data) {
                 Ok(len) if len == data_len => {
-                    Ok(data)
+                    Ok(())
                 }
                 Ok(len) => {
                     error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
@@ -306,9 +290,10 @@ impl Reader {
             }
         } else {
             let data_len = raw_data_len;
-            let mut data = try!(cb.alloc_data(data_len).wrap());
-            data.slice_mut().iter_mut().set_from(raw_data.iter().cloned());
-            Ok(data)
+            try!(cb.alloc_data_buffer(data_len));
+            let mut data = cb.data_buffer();
+            data.iter_mut().set_from(raw_data.iter().cloned());
+            Ok(())
         }
     }
     pub fn item(&self, index: usize) -> ItemView {
@@ -356,7 +341,7 @@ impl Reader {
         None
     }
 
-    pub fn debug_dump<CB:CallbackReadData>(&self, cb: &mut CB) -> Result<(),Error<CB::Error>> {
+    pub fn debug_dump(&self, cb: &mut dyn CallbackReadData) -> Result<(), Error> {
         if !log_enabled!(log::LogLevel::Debug) {
             return Ok(())
         }
@@ -385,12 +370,13 @@ impl Reader {
                 }
             }
         }
-        for (i, data) in self.data_iter(cb).enumerate() {
-            let mut data = try!(data);
-            let len = data.slice_mut().len();
+        for i in 0..self.num_data() {
+            try!(self.read_data(cb, i));
+            let data = cb.data_buffer();
+            let len = data.len();
             debug!("data id={} size={}", i, len);
             if len < 256 {
-                for line in hexdump_iter(data.slice_mut()) {
+                for line in hexdump_iter(data) {
                     debug!("  {}", line);
                 }
             }
@@ -416,15 +402,8 @@ impl Reader {
         }
         MapIterator::new(self, self.item_type_indices(type_id), map_fn)
     }
-    pub fn data_iter<'a,CB:CallbackReadData>(&'a self, cb: &'a mut CB) -> DataIter<'a,CB,Result<CB::Data,Error<CB::Error>>> {
-        fn map_fn<CB:CallbackReadData>(i: usize, &mut (self_, ref mut cb): &mut (&Reader, &mut CB)) -> Result<CB::Data,Error<CB::Error>> {
-            self_.read_data(*cb, i)
-        }
-        MapIterator::new((self, cb), 0..self.num_data(), map_fn)
-    }
 }
 
-pub type DataIter<'a,CB,T> = MapIterator<T,(&'a Reader,&'a mut CB),ops::Range<usize>>;
-pub type Items<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
-pub type ItemTypes<'a> = MapIterator<u16,&'a Reader,ops::Range<usize>>;
+pub type Items<'a> = MapIterator<ItemView<'a>, &'a Reader, ops::Range<usize>>;
+pub type ItemTypes<'a> = MapIterator<u16, &'a Reader, ops::Range<usize>>;
 pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
