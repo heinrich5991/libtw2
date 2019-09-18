@@ -3,8 +3,52 @@ use logger;
 use map;
 use std::collections::HashMap;
 use std::env;
+use std::fmt;
 use std::io;
 use std::path::Path;
+
+fn entity_name(index: u8) -> Option<&'static str> {
+    Some(match index {
+        0x00 => "None",
+        0x01 => "Coll",
+        0x02 => "Deat",
+        0x03 => "Unho",
+        0x3c => "Stop",
+        0x3d => "StpS",
+        0x3e => "StpA",
+        0xc0 => "SpBr",
+        0xc1 => "SpRe",
+        0xc2 => "SpBl",
+        0xc3 => "FlRe",
+        0xc4 => "FlBl",
+        0xc5 => "Shie",
+        0xc6 => "Hear",
+        0xc7 => "Shot",
+        0xc8 => "Gren",
+        0xc9 => "Ninj",
+        0xca => "Lase",
+        _ => return None,
+    })
+}
+
+#[derive(Clone, Copy)]
+pub struct Entity(pub u8);
+
+impl fmt::Debug for Entity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Entity(inner) = *self;
+        match entity_name(inner) {
+            Some(name) => write!(f, "{}", name),
+            None => write!(f, "0x{:02x}", inner),
+        }
+    }
+}
+
+impl fmt::Display for Entity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
 
 #[derive(Default)]
 struct ErrorStats {
