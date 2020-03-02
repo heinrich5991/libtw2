@@ -20,7 +20,12 @@ Items
 
 An item consists of a 16-bit unsigned integer `type_id`, a 16-bit unsigned
 integer `id` and an array of 32-bit signed integers `data`. The combination of
-`type_id` and `id` is unique amongst all items.
+`type_id` and `id` is unique amongst all items. The length of `data` is usually
+the same for all items of a given `type_id`.
+
+Examples of types in actual Teeworlds maps include metadata for layers, layer
+groups, images (external or not), etc. Since only the metadata and not the
+actual contents are stored, the items can remain fixed-size.
 
 Data items
 ----------
@@ -29,6 +34,10 @@ A data item is an array of bytes (8-bit unsigned integers) `data`. `id` is
 unique amongst all data items, the only possible IDs are from 0 (incl.) to the
 number of data items (excl.). These data items are indexed via unsigned
 integers, counting sequentially in the order they are laid out in the file.
+
+In actual Teeworlds maps, data items are used e.g. for the tiles of a tile
+layer or the image data of an embedded image. They are referred to in the
+metadata items by their index.
 
 
 Format
