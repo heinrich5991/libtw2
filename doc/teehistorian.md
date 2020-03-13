@@ -62,11 +62,14 @@ The following extra messages are known right now:
 * AUTH_INIT(teehistorian-auth-init@ddnet.tw): cid(int) level(int) auth_name(str) records that a player with cid got rcon access with level under the account name auth_name since the start of the map (because they had it before the map change as well)
 * AUTH_LOGIN(teehistorian-auth-login@ddnet.tw): cid(int) level(int) auth_name(str) records that a player with cid just logged into rcon with level under the account name auth_name
 * AUTH_LOGOUT(teehistorian-auth-logout@ddnet.tw): cid(int) records that a player with cid just logged out of rcon
-int is a teeworlds variable-width integer
-str is a null-terminated string
-raw[size] is simply size bytes
-str[num_args] is num_args null-terminated strings
-uuid is 16 bytes of a UUID
+
+The following data types are used:
+* int is a [teeworlds variable-width integer](int.md)
+* str is a null-terminated string
+* raw[size] is simply size bytes
+* str[num_args] is num_args null-terminated strings
+* uuid is 16 bytes of a UUID
+
 the UUIDs are version 3 UUIDs, with the teeworlds namespace e05ddaaa-c4e6-4cfb-b642-5d48e80c0029
 a tick is implicit in these messages when a player with lower cid is recorded using any of PLAYER_DIFF, PLAYER_NEW, PLAYER_OLD
 e.g.
