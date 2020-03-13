@@ -31,7 +31,7 @@ Teeworlds namespace e05ddaaa-c4e6-4cfb-b642-5d48e80c0029 and the name
 "teehistorian@ddnet.tw"), encoded as a [big endian binary encoded
 UUID](https://en.wikipedia.org/w/index.php?title=Universally_unique_identifier&oldid=844235295#Encoding)
 (16 bytes). It is followed by a null-terminated string that contains a JSON
-object containing the following keys:
+object containing at least the following keys:
 
 * `version`: This is the version number of the teehistorian format. It must be
   `"1"` or `"2"` for this document.
