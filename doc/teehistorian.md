@@ -47,13 +47,12 @@ message ID.
 * TICK_SKIP(-2): dt(int) records that there were dt ticks in which nothing happened, i.e. the next tick is the last tick + dt + 1
 * PLAYER_NEW(-3): cid(int) x(int) y(int) records that a new player character with cid appeared at (x, y)
 * PLAYER_OLD(-4): cid(int) records that the player character with cid disappeared
-* correction
 * INPUT_DIFF(-5): cid(int) dinput(int[10]) records that a player with cid sent an input packet but has sent one before, add dinput to the previous input component-wise to obtain the new one
 * INPUT_NEW(-6): cid(int) input(int[10]) records that a player with cid sent an input packet for the first time, containing input
 * MESSAGE(-7): cid(int) msgsize(int) msg(raw[msgsize]) records that a player with cid sent a game-related packet msg
 * JOIN(-8): cid(int) records that a player with cid joined, on the engine level
 * DROP(-9): cid(int) records that a player with cid left/was kicked/was dropped, on the engine level
-* CONSOLE_COMMAND(-10): cid(int) flags(int) cmd(str) num_args(str) args(str[num_args]) records that a console command cmd was executed by client id cid (not necessarily a player, might be a vote as well), with flags (distinguishes chat commands, etc.) with parameters args
+* CONSOLE_COMMAND(-10): cid(int) flags(int) cmd(str) num_args(int) args(str[num_args]) records that a console command cmd was executed by client id cid (not necessarily a player, might be a vote as well), with flags (distinguishes chat commands, etc.) with parameters args
 * EX(-11): uuid(uuid) size(int) data(raw[size]) records an extension message, identified by uuid and containing data
 
 The following extra messages are known right now:
