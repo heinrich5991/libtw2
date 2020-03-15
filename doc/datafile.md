@@ -15,6 +15,9 @@ the data block is stored compressed in the file). In this document the versions
 Terminology
 ===========
 
+The following is an abstract description of the data contained in a Teeworlds
+datafile. It does not specify how they are laid out in the file.
+
 Items
 -----
 
