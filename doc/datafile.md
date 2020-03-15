@@ -202,7 +202,8 @@ This is an array of items. Each is of the following form:
 
 The `type_id__id` integer consists of 16 bit `type_id` of the type the item
 belongs to and 16 bit `id` that uniquely identifies the item among all others
-of the same type, in that order.
+of the same type, in that order, i.e. the upper 16 bit of `type_id__id` specify
+the `type_id` and the lower 16 bit specify `id`.
 
 The `size` signed 32-bit integer is the size of the `item_data` field, in
 bytes, which must be divisible by four.
