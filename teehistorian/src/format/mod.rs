@@ -34,6 +34,7 @@ pub struct Header<'a> {
     pub version: i32,
     pub game_uuid: Uuid,
     pub timestamp: DateTime<FixedOffset>,
+    pub server_port: u16,
     pub map_name: Cow<'a, str>,
     pub map_size: u32,
     pub map_crc: u32,
@@ -59,6 +60,7 @@ pub enum HeaderError {
     MalformedVersion,
     MalformedGameUuid,
     MalformedStartTime,
+    MalformedServerPort,
     MalformedMapSize,
     MalformedMapCrc,
 }
@@ -97,6 +99,7 @@ struct JsonHeader<'a> {
     version: Cow<'a, str>,
     game_uuid: Cow<'a, str>,
     start_time: Cow<'a, str>,
+    server_port: Cow<'a, str>,
     map_name: Cow<'a, str>,
     map_size: Cow<'a, str>,
     map_crc: Cow<'a, str>,
@@ -118,6 +121,7 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>)
         } else {
             json_header.start_time.parse()
         }).map_err(|_| MalformedStartTime)?,
+        server_port: json_header.server_port.parse().map_err(|_| MalformedServerPort)?,
         map_name: json_header.map_name,
         map_size: json_header.map_size.parse().map_err(|_| MalformedMapSize)?,
         map_crc: u32::from_str_radix(&json_header.map_crc, 16).map_err(|_| MalformedMapCrc)?,
