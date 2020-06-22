@@ -118,8 +118,9 @@ datafile without the `version_header` and both `size` and `swaplen`.
 NOTE: The reference implementation does not read this value.
 
 The `swaplen` is a little-endian integer and must specify the number of
-integers following little-endian integers. It can therefore be used to reverse
-the endian on big-endian machines.
+integers following the following the `size` and `swaplen` fields, up until the
+data of the data items. It can therefore be used to reverse the endian on
+big-endian machines.
 
 NOTE: The reference implementation does not read datafiles correctly on
 little-endian machines, because it interprets `swaplen` as starting after the
