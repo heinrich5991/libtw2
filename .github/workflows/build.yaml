@@ -1,0 +1,24 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - nightly
+          - stable
+          - 1.34.2
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - run: cargo test
+      - run: cargo bench
