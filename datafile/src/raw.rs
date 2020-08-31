@@ -273,7 +273,7 @@ impl Reader {
         if let Some(ref uds) = self.uncomp_data_sizes {
             let data_len = uds[index] as usize;
             cb.alloc_data_buffer(data_len)?;
-            let mut data = cb.data_buffer();
+            let data = cb.data_buffer();
 
             match zlib::uncompress(data, &raw_data) {
                 Ok(len) if len == data_len => {
@@ -291,7 +291,7 @@ impl Reader {
         } else {
             let data_len = raw_data_len;
             cb.alloc_data_buffer(data_len)?;
-            let mut data = cb.data_buffer();
+            let data = cb.data_buffer();
             data.iter_mut().set_from(raw_data.iter().cloned());
             Ok(())
         }

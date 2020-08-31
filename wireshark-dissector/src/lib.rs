@@ -305,7 +305,7 @@ unsafe extern "C" fn dissect_tw(
                 }
             }
         }
-        protocol::Packet::Connless(message) => {
+        protocol::Packet::Connless(_message) => {
         },
     }
 

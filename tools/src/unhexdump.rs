@@ -25,8 +25,8 @@ impl Default for State {
 
 fn unhex(byte: u8) -> Result<Option<u8>, Error> {
     match byte {
-        b'0'...b'9' => Ok(Some(byte - b'0')),
-        b'a'...b'f' => Ok(Some(byte - b'a' + 10)),
+        b'0'..=b'9' => Ok(Some(byte - b'0')),
+        b'a'..=b'f' => Ok(Some(byte - b'a' + 10)),
         b' ' => Ok(None),
         _ => Err(Error::UnknownCharacter),
     }

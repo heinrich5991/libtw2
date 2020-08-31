@@ -16,11 +16,10 @@ use net::protocol::ChunksIter;
 use net::protocol::ConnectedPacketType;
 use net::protocol::Packet;
 use packer::Unpacker;
-use std::fmt;
 use std::io;
 use tools::unhexdump::Unhexdump;
 use tools::warn_stdout::Stdout;
-use warn::Warn;
+
 
 fn main() {
     let mut un = Unhexdump::new();
