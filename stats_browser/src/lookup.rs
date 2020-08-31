@@ -9,7 +9,7 @@ use std::net::ToSocketAddrs;
 ///
 /// Note that this function might block.
 pub fn lookup_host(domain: &str, port: u16) -> io::Result<Option<Addr>> {
-    for socket_addr in try!((domain, port).to_socket_addrs()) {
+    for socket_addr in (domain, port).to_socket_addrs()? {
         return Ok(Some(Addr::from_socket_addr(socket_addr)));
     }
     Ok(None)

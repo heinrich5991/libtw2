@@ -256,8 +256,8 @@ pub fn write_chunk_impl<'d, 's>(bytes: &[u8],
         header2 = header_nonvital.pack();
         header2.as_bytes()
     };
-    try!(buffer.write(header));
-    try!(buffer.write(bytes));
+    buffer.write(header)?;
+    buffer.write(bytes)?;
     Ok(buffer.initialized())
 }
 
@@ -270,8 +270,8 @@ fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
         if bytes.len() > MAX_PAYLOAD {
             return Err(Error::TooLongData);
         }
-        try!(buffer.write(&[b'\xff'; HEADER_SIZE+PADDING_SIZE_CONNLESS]));
-        try!(buffer.write(bytes));
+        buffer.write(&[b'\xff'; HEADER_SIZE+PADDING_SIZE_CONNLESS])?;
+        buffer.write(bytes)?;
         Ok(buffer.initialized())
     }
 
@@ -426,16 +426,16 @@ impl<'a> ConnectedPacket<'a> {
                 } else {
                     0
                 };
-                try!(buffer.write(PacketHeader {
+                buffer.write(PacketHeader {
                     flags: request_resend | compression,
                     ack: self.ack,
                     num_chunks: num_chunks,
-                }.pack().as_bytes()));
-                try!(buffer.write(if compression != 0 {
+                }.pack().as_bytes())?;
+                buffer.write(if compression != 0 {
                     compression_buffer.initialized()
                 } else {
                     payload
-                }));
+                })?;
                 Ok(buffer.initialized())
             }
             ConnectedPacketType::Control(c) => {
@@ -449,11 +449,11 @@ impl<'a> ControlPacket<'a> {
     fn write<'d, 's>(&self, ack: u16, mut buffer: BufferRef<'d, 's>)
         -> Result<&'d [u8], Error>
     {
-        try!(buffer.write(PacketHeader {
+        buffer.write(PacketHeader {
             flags: PACKETFLAG_CONTROL,
             ack: ack,
             num_chunks: 0,
-        }.pack().as_bytes()));
+        }.pack().as_bytes())?;
         let magic = match *self {
             ControlPacket::KeepAlive => CTRLMSG_KEEPALIVE,
             ControlPacket::Connect => CTRLMSG_CONNECT,
@@ -461,12 +461,12 @@ impl<'a> ControlPacket<'a> {
             ControlPacket::Accept => CTRLMSG_ACCEPT,
             ControlPacket::Close(..) => CTRLMSG_CLOSE,
         };
-        try!(buffer.write(&[magic]));
+        buffer.write(&[magic])?;
         match *self {
             ControlPacket::Close(m) => {
                 assert!(m.iter().all(|&b| b != 0));
-                try!(buffer.write(m));
-                try!(buffer.write(&[0]));
+                buffer.write(m)?;
+                buffer.write(&[0])?;
             },
             _ => {},
         }

@@ -100,18 +100,18 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
     let mut found = false;
 
     for g in map.group_indices() {
-        let group = try!(map.group(g));
+        let group = map.group(g)?;
 
         for i in group.layer_indices {
-            let layer = try!(map.layer(i));
+            let layer = map.layer(i)?;
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue };
             let image_index = if let Some(i) = normal.image { i } else { continue };
             let process_this_layer = match images.entry(image_index) {
                 hash_map::Entry::Occupied(o) => *o.into_mut(),
                 hash_map::Entry::Vacant(v) => {
-                    let image = try!(map.image(image_index));
-                    let name = try!(map.image_name(image.name));
+                    let image = map.image(image_index)?;
+                    let name = map.image_name(image.name)?;
                     *v.insert(name == b"jungle_doodads")
                 },
             };
@@ -121,7 +121,7 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
             }
             found = true;
 
-            let tiles = try!(map.layer_tiles(tilemap.tiles(normal.data)));
+            let tiles = map.layer_tiles(tilemap.tiles(normal.data))?;
 
             for y in 0..tilemap.height+1 {
                 let above_y = cmp::max(y, 1) - 1;

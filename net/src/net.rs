@@ -191,7 +191,7 @@ impl ConnlessBuilder {
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
             Err(protocol::Error::TooLongData) => return Err(Error::TooLongData),
         };
-        try!(cb.send(addr, send_data));
+        cb.send(addr, send_data)?;
         Ok(())
     }
 }

@@ -126,12 +126,12 @@ impl<'a> SystemOrGame<System<'a>, Game<'a>> {
         -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
         where W: Warn<Warning>
     {
-        let msg_id = try!(p.read_int(warn));
+        let msg_id = p.read_int(warn)?;
         Ok(match SystemOrGame::decode_id(msg_id) {
             SystemOrGame::System(msg_id) =>
-                SystemOrGame::System(try!(System::decode_msg(warn, msg_id, p))),
+                SystemOrGame::System(System::decode_msg(warn, msg_id, p)?),
             SystemOrGame::Game(msg_id) =>
-                SystemOrGame::Game(try!(Game::decode_msg(warn, msg_id, p))),
+                SystemOrGame::Game(Game::decode_msg(warn, msg_id, p)?),
         })
     }
 }

@@ -410,7 +410,7 @@ impl PacketBuilder {
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
             Err(protocol::Error::TooLongData) => return Err(Error::TooLongData),
         };
-        try!(cb.send(data));
+        cb.send(data)?;
         Ok(())
     }
 }
@@ -461,7 +461,7 @@ impl Connection {
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         assert_matches!(self.state, State::Unconnected);
         self.state = State::Connecting;
-        try!(self.tick_action(cb));
+        self.tick_action(cb)?;
         Ok(())
     }
     pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8])
@@ -498,7 +498,7 @@ impl Connection {
             }
             if !can_fit {
                 self.send.set(cb, Duration::from_millis(500));
-                try!(online.flush(cb, &mut self.builder));
+                online.flush(cb, &mut self.builder)?;
             }
         }
         Ok(())

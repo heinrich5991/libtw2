@@ -130,7 +130,7 @@ impl MapItem for MapItemInfoV1ExtraRace { fn version() -> i32 { 1 } fn offset() 
 
 impl fmt::Debug for MapItemInfoV1ExtraRace {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "settings={:?}", self.settings));
+        write!(_f, "settings={:?}", self.settings)?;
         Ok(())
     }
 }
@@ -149,10 +149,10 @@ impl MapItem for MapItemEnvelopeV1Legacy { fn version() -> i32 { 1 } fn offset()
 
 impl fmt::Debug for MapItemEnvelopeV1Legacy {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "channels={:?}", self.channels));
-        try!(write!(_f, " start_points={:?}", self.start_points));
-        try!(write!(_f, " num_points={:?}", self.num_points));
-        try!(write!(_f, " _name={:?}", self._name));
+        write!(_f, "channels={:?}", self.channels)?;
+        write!(_f, " start_points={:?}", self.start_points)?;
+        write!(_f, " num_points={:?}", self.num_points)?;
+        write!(_f, " _name={:?}", self._name)?;
         Ok(())
     }
 }
@@ -194,19 +194,19 @@ unsafe impl OnlyI32 for MapItemEnvpointV1 { }
 unsafe impl OnlyI32 for MapItemEnvpointV2 { }
 impl fmt::Debug for MapItemEnvpointV1 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "time={:?}", self.time));
-        try!(write!(f, " curve_type={:?}", self.curve_type));
-        try!(write!(f, " values={:?}", self.values));
+        write!(f, "time={:?}", self.time)?;
+        write!(f, " curve_type={:?}", self.curve_type)?;
+        write!(f, " values={:?}", self.values)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemEnvpointV2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "{:?}", self.v1));
-        try!(write!(f, " in_tangent_dx={:?}", self.in_tangent_dx));
-        try!(write!(f, " in_tangent_dy={:?}", self.in_tangent_dy));
-        try!(write!(f, " out_tangent_dx={:?}", self.out_tangent_dx));
-        try!(write!(f, " out_tangent_dy={:?}", self.out_tangent_dy));
+        write!(f, "{:?}", self.v1)?;
+        write!(f, " in_tangent_dx={:?}", self.in_tangent_dx)?;
+        write!(f, " in_tangent_dy={:?}", self.in_tangent_dy)?;
+        write!(f, " out_tangent_dx={:?}", self.out_tangent_dx)?;
+        write!(f, " out_tangent_dy={:?}", self.out_tangent_dy)?;
         Ok(())
     }
 }
@@ -609,90 +609,90 @@ impl fmt::Debug for MapItemVersionV1 {
 }
 impl fmt::Debug for MapItemInfoV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "author={:?}", self.author));
-        try!(write!(_f, " version={:?}", self.version));
-        try!(write!(_f, " credits={:?}", self.credits));
-        try!(write!(_f, " license={:?}", self.license));
+        write!(_f, "author={:?}", self.author)?;
+        write!(_f, " version={:?}", self.version)?;
+        write!(_f, " credits={:?}", self.credits)?;
+        write!(_f, " license={:?}", self.license)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemInfoV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "settings={:?}", self.settings));
+        write!(_f, "settings={:?}", self.settings)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemImageV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "width={:?}", self.width));
-        try!(write!(_f, " height={:?}", self.height));
-        try!(write!(_f, " external={:?}", self.external));
-        try!(write!(_f, " name={:?}", self.name));
-        try!(write!(_f, " data={:?}", self.data));
+        write!(_f, "width={:?}", self.width)?;
+        write!(_f, " height={:?}", self.height)?;
+        write!(_f, " external={:?}", self.external)?;
+        write!(_f, " name={:?}", self.name)?;
+        write!(_f, " data={:?}", self.data)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemImageV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "format={:?}", self.format));
+        write!(_f, "format={:?}", self.format)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemEnvelopeV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "channels={:?}", self.channels));
-        try!(write!(_f, " start_points={:?}", self.start_points));
-        try!(write!(_f, " num_points={:?}", self.num_points));
-        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        write!(_f, "channels={:?}", self.channels)?;
+        write!(_f, " start_points={:?}", self.start_points)?;
+        write!(_f, " num_points={:?}", self.num_points)?;
+        write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get())))?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemEnvelopeV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "synchronized={:?}", self.synchronized));
+        write!(_f, "synchronized={:?}", self.synchronized)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemGroupV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "offset_x={:?}", self.offset_x));
-        try!(write!(_f, " offset_y={:?}", self.offset_y));
-        try!(write!(_f, " parallax_x={:?}", self.parallax_x));
-        try!(write!(_f, " parallax_y={:?}", self.parallax_y));
-        try!(write!(_f, " start_layer={:?}", self.start_layer));
-        try!(write!(_f, " num_layers={:?}", self.num_layers));
+        write!(_f, "offset_x={:?}", self.offset_x)?;
+        write!(_f, " offset_y={:?}", self.offset_y)?;
+        write!(_f, " parallax_x={:?}", self.parallax_x)?;
+        write!(_f, " parallax_y={:?}", self.parallax_y)?;
+        write!(_f, " start_layer={:?}", self.start_layer)?;
+        write!(_f, " num_layers={:?}", self.num_layers)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemGroupV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "use_clipping={:?}", self.use_clipping));
-        try!(write!(_f, " clip_x={:?}", self.clip_x));
-        try!(write!(_f, " clip_y={:?}", self.clip_y));
-        try!(write!(_f, " clip_w={:?}", self.clip_w));
-        try!(write!(_f, " clip_h={:?}", self.clip_h));
+        write!(_f, "use_clipping={:?}", self.use_clipping)?;
+        write!(_f, " clip_x={:?}", self.clip_x)?;
+        write!(_f, " clip_y={:?}", self.clip_y)?;
+        write!(_f, " clip_w={:?}", self.clip_w)?;
+        write!(_f, " clip_h={:?}", self.clip_h)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemGroupV3 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get())))?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "type_={:?}", self.type_));
-        try!(write!(_f, " flags={:?}", self.flags));
+        write!(_f, "type_={:?}", self.type_)?;
+        write!(_f, " flags={:?}", self.flags)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemDdraceSoundV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "external={:?}", self.external));
-        try!(write!(_f, " name={:?}", self.name));
-        try!(write!(_f, " data={:?}", self.data));
-        try!(write!(_f, " data_size={:?}", self.data_size));
+        write!(_f, "external={:?}", self.external)?;
+        write!(_f, " name={:?}", self.name)?;
+        write!(_f, " data={:?}", self.data)?;
+        write!(_f, " data_size={:?}", self.data_size)?;
         Ok(())
     }
 }
@@ -801,46 +801,46 @@ impl fmt::Debug for MapItemLayerV1TilemapV1 {
 }
 impl fmt::Debug for MapItemLayerV1TilemapV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "width={:?}", self.width));
-        try!(write!(_f, " height={:?}", self.height));
-        try!(write!(_f, " flags={:?}", self.flags));
-        try!(write!(_f, " color_red={:?}", self.color_red));
-        try!(write!(_f, " color_green={:?}", self.color_green));
-        try!(write!(_f, " color_blue={:?}", self.color_blue));
-        try!(write!(_f, " color_alpha={:?}", self.color_alpha));
-        try!(write!(_f, " color_env={:?}", self.color_env));
-        try!(write!(_f, " color_env_offset={:?}", self.color_env_offset));
-        try!(write!(_f, " image={:?}", self.image));
-        try!(write!(_f, " data={:?}", self.data));
+        write!(_f, "width={:?}", self.width)?;
+        write!(_f, " height={:?}", self.height)?;
+        write!(_f, " flags={:?}", self.flags)?;
+        write!(_f, " color_red={:?}", self.color_red)?;
+        write!(_f, " color_green={:?}", self.color_green)?;
+        write!(_f, " color_blue={:?}", self.color_blue)?;
+        write!(_f, " color_alpha={:?}", self.color_alpha)?;
+        write!(_f, " color_env={:?}", self.color_env)?;
+        write!(_f, " color_env_offset={:?}", self.color_env_offset)?;
+        write!(_f, " image={:?}", self.image)?;
+        write!(_f, " data={:?}", self.data)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1TilemapV3 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get())))?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1QuadsV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "num_quads={:?}", self.num_quads));
-        try!(write!(_f, " data={:?}", self.data));
-        try!(write!(_f, " image={:?}", self.image));
+        write!(_f, "num_quads={:?}", self.num_quads)?;
+        write!(_f, " data={:?}", self.data)?;
+        write!(_f, " image={:?}", self.image)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1QuadsV2 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        write!(_f, "name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get())))?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemLayerV1DdraceSoundsV1 {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "num_sources={:?}", self.num_sources));
-        try!(write!(_f, " data={:?}", self.data));
-        try!(write!(_f, " sound={:?}", self.sound));
-        try!(write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get()))));
+        write!(_f, "num_sources={:?}", self.num_sources)?;
+        write!(_f, " data={:?}", self.data)?;
+        write!(_f, " sound={:?}", self.sound)?;
+        write!(_f, " name={:?}", String::from_utf8_lossy(bytes_to_string(&self.name_get())))?;
         Ok(())
     }
 }
