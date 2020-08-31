@@ -88,7 +88,7 @@ fn print_error_stats(error_stats: &ErrorStats) {
 fn process<D, P>(path: &Path, process_inner: P, stats: &mut D) -> Result<(), map::Error>
     where P: FnOnce(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
 {
-    let reader = try!(df::Reader::open(path));
+    let reader = df::Reader::open(path)?;
     process_inner(path, reader, stats)
 }
 

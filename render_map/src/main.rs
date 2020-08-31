@@ -212,7 +212,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     -> Result<(), Error>
     where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
 {
-    let dfr = try!(df::Reader::open(path));
+    let dfr = df::Reader::open(path)?;
     let mut map = map::Reader::from_datafile(dfr);
 
     let mut layers = vec![];
@@ -224,7 +224,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     let mut max_y = 0;
 
     for g in map.group_indices() {
-        let group = try!(map.group(g));
+        let group = map.group(g)?;
         if group.parallax_x != 100 || group.parallax_y != 100
             || group.offset_x != 0 || group.offset_y != 0
             || group.clipping.is_some()
@@ -233,11 +233,11 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         }
 
         for i in group.layer_indices {
-            let layer = try!(map.layer(i));
+            let layer = map.layer(i)?;
             if layer.detail && !config.render_detail { continue; }
             let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
             let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
-            let tiles = try!(map.layer_tiles(tilemap.tiles(normal.data)));
+            let tiles = map.layer_tiles(tilemap.tiles(normal.data))?;
 
             match images.entry(normal.image) {
                 hash_map::Entry::Occupied(_) => {},
@@ -245,26 +245,26 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
                     let data = match normal.image {
                         None => Array2::from_elem((1, 1), Color::white()),
                         Some(image_index) => {
-                            let image = try!(map.image(image_index));
+                            let image = map.image(image_index)?;
                             let height = image.height.usize();
                             let width = image.width.usize();
                             match image.data {
                                 Some(d) => {
-                                    let data = try!(map.image_data(d));
+                                    let data = map.image_data(d)?;
                                     if data.len() % mem::size_of::<Color>() != 0 {
                                         return Err(OwnError::ImageShape.into());
                                     }
                                     let data: Vec<Color> = unsafe { vec::transmute(data) };
-                                    try!(Array2::from_shape_vec((height, width), data)
-                                         .map_err(|_| OwnError::ImageShape))
+                                    Array2::from_shape_vec((height, width), data)
+                                         .map_err(|_| OwnError::ImageShape)?
                                 }
                                 None => {
-                                    let image_name = try!(map.image_name(image.name));
+                                    let image_name = map.image_name(image.name)?;
                                     // WARN? Unknown external image
                                     // WARN! Wrong dimensions
-                                    try!(swap(str::from_utf8(&image_name).ok()
+                                    swap(str::from_utf8(&image_name).ok()
                                               .and_then(sanitize)
-                                              .map(&mut external)))
+                                              .map(&mut external))?
                                         .unwrap_or(None)
                                         .unwrap_or_else(|| Array2::from_elem((1, 1), Color::white()))
                                 }
@@ -373,7 +373,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     if new_height == 0 { new_height = 1; }
     let resized = imageops::resize(&image, new_width, new_height, imageops::CatmullRom);
     mem::drop(image);
-    try!(resized.save(out_path));
+    resized.save(out_path)?;
 
     Ok(())
 }
@@ -511,7 +511,7 @@ fn load_external_image(path: &Path) -> Result<Option<Array2<Color>>, Error> {
         },
         _ => {},
     }
-    let image = try!(image_result).to_rgba();
+    let image = image_result?.to_rgba();
     let (width, height) = image.dimensions();
     let raw: Vec<u8> = image.into_raw();
     let raw: Vec<Color> = unsafe { vec::transmute(raw) };
@@ -589,7 +589,7 @@ fn main() {
     let mut external = |name: &str| match external_images.entry(name.into()) {
         hash_map::Entry::Occupied(o) => Ok(o.get().clone()),
         hash_map::Entry::Vacant(v) => {
-            let image = try!(load_external_image(Path::new(&format!("mapres/{}.png", name))));
+            let image = load_external_image(Path::new(&format!("mapres/{}.png", name)))?;
             Ok(v.insert(image).clone())
         },
     };

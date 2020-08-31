@@ -27,12 +27,12 @@ pub struct Tick(pub i32);
 impl Projectile {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
         Ok(Projectile {
-            x: try!(_p.read_int(warn)),
-            y: try!(_p.read_int(warn)),
-            vel_x: try!(_p.read_int(warn)),
-            vel_y: try!(_p.read_int(warn)),
-            type_: try!(Weapon::from_i32(try!(_p.read_int(warn)))),
-            start_tick: Tick(try!(_p.read_int(warn))),
+            x: _p.read_int(warn)?,
+            y: _p.read_int(warn)?,
+            vel_x: _p.read_int(warn)?,
+            vel_y: _p.read_int(warn)?,
+            type_: Weapon::from_i32(_p.read_int(warn)?)?,
+            start_tick: Tick(_p.read_int(warn)?),
         })
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
@@ -41,12 +41,12 @@ impl Projectile {
         // For the assert!()s.
         self.encode();
 
-        try!(_p.write_int(self.x));
-        try!(_p.write_int(self.y));
-        try!(_p.write_int(self.vel_x));
-        try!(_p.write_int(self.vel_y));
-        try!(_p.write_int(self.type_.to_i32()));
-        try!(_p.write_int(self.start_tick.0));
+        _p.write_int(self.x)?;
+        _p.write_int(self.y)?;
+        _p.write_int(self.vel_x)?;
+        _p.write_int(self.vel_y)?;
+        _p.write_int(self.type_.to_i32())?;
+        _p.write_int(self.start_tick.0)?;
         Ok(_p.written())
     }
 }
@@ -54,16 +54,16 @@ impl Projectile {
 impl PlayerInput {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
         Ok(PlayerInput {
-            direction: try!(_p.read_int(warn)),
-            target_x: try!(_p.read_int(warn)),
-            target_y: try!(_p.read_int(warn)),
-            jump: try!(_p.read_int(warn)),
-            fire: try!(_p.read_int(warn)),
-            hook: try!(_p.read_int(warn)),
-            player_flags: try!(_p.read_int(warn)),
-            wanted_weapon: try!(_p.read_int(warn)),
-            next_weapon: try!(_p.read_int(warn)),
-            prev_weapon: try!(_p.read_int(warn)),
+            direction: _p.read_int(warn)?,
+            target_x: _p.read_int(warn)?,
+            target_y: _p.read_int(warn)?,
+            jump: _p.read_int(warn)?,
+            fire: _p.read_int(warn)?,
+            hook: _p.read_int(warn)?,
+            player_flags: _p.read_int(warn)?,
+            wanted_weapon: _p.read_int(warn)?,
+            next_weapon: _p.read_int(warn)?,
+            prev_weapon: _p.read_int(warn)?,
         })
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
@@ -72,16 +72,16 @@ impl PlayerInput {
         // For the assert!()s.
         self.encode();
 
-        try!(_p.write_int(self.direction));
-        try!(_p.write_int(self.target_x));
-        try!(_p.write_int(self.target_y));
-        try!(_p.write_int(self.jump));
-        try!(_p.write_int(self.fire));
-        try!(_p.write_int(self.hook));
-        try!(_p.write_int(self.player_flags));
-        try!(_p.write_int(self.wanted_weapon));
-        try!(_p.write_int(self.next_weapon));
-        try!(_p.write_int(self.prev_weapon));
+        _p.write_int(self.direction)?;
+        _p.write_int(self.target_x)?;
+        _p.write_int(self.target_y)?;
+        _p.write_int(self.jump)?;
+        _p.write_int(self.fire)?;
+        _p.write_int(self.hook)?;
+        _p.write_int(self.player_flags)?;
+        _p.write_int(self.wanted_weapon)?;
+        _p.write_int(self.next_weapon)?;
+        _p.write_int(self.prev_weapon)?;
         Ok(_p.written())
     }
 }
@@ -159,26 +159,26 @@ pub enum SnapObj {
 impl SnapObj {
     pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker) -> Result<SnapObj, Error> {
         Ok(match obj_type_id {
-            PLAYER_INPUT => SnapObj::PlayerInput(try!(PlayerInput::decode(warn, _p))),
-            PROJECTILE => SnapObj::Projectile(try!(Projectile::decode(warn, _p))),
-            LASER => SnapObj::Laser(try!(Laser::decode(warn, _p))),
-            PICKUP => SnapObj::Pickup(try!(Pickup::decode(warn, _p))),
-            FLAG => SnapObj::Flag(try!(Flag::decode(warn, _p))),
-            GAME_INFO => SnapObj::GameInfo(try!(GameInfo::decode(warn, _p))),
-            GAME_DATA => SnapObj::GameData(try!(GameData::decode(warn, _p))),
-            CHARACTER_CORE => SnapObj::CharacterCore(try!(CharacterCore::decode(warn, _p))),
-            CHARACTER => SnapObj::Character(try!(Character::decode(warn, _p))),
-            PLAYER_INFO => SnapObj::PlayerInfo(try!(PlayerInfo::decode(warn, _p))),
-            CLIENT_INFO => SnapObj::ClientInfo(try!(ClientInfo::decode(warn, _p))),
-            SPECTATOR_INFO => SnapObj::SpectatorInfo(try!(SpectatorInfo::decode(warn, _p))),
-            COMMON => SnapObj::Common(try!(Common::decode(warn, _p))),
-            EXPLOSION => SnapObj::Explosion(try!(Explosion::decode(warn, _p))),
-            SPAWN => SnapObj::Spawn(try!(Spawn::decode(warn, _p))),
-            HAMMER_HIT => SnapObj::HammerHit(try!(HammerHit::decode(warn, _p))),
-            DEATH => SnapObj::Death(try!(Death::decode(warn, _p))),
-            SOUND_GLOBAL => SnapObj::SoundGlobal(try!(SoundGlobal::decode(warn, _p))),
-            SOUND_WORLD => SnapObj::SoundWorld(try!(SoundWorld::decode(warn, _p))),
-            DAMAGE_IND => SnapObj::DamageInd(try!(DamageInd::decode(warn, _p))),
+            PLAYER_INPUT => SnapObj::PlayerInput(PlayerInput::decode(warn, _p)?),
+            PROJECTILE => SnapObj::Projectile(Projectile::decode(warn, _p)?),
+            LASER => SnapObj::Laser(Laser::decode(warn, _p)?),
+            PICKUP => SnapObj::Pickup(Pickup::decode(warn, _p)?),
+            FLAG => SnapObj::Flag(Flag::decode(warn, _p)?),
+            GAME_INFO => SnapObj::GameInfo(GameInfo::decode(warn, _p)?),
+            GAME_DATA => SnapObj::GameData(GameData::decode(warn, _p)?),
+            CHARACTER_CORE => SnapObj::CharacterCore(CharacterCore::decode(warn, _p)?),
+            CHARACTER => SnapObj::Character(Character::decode(warn, _p)?),
+            PLAYER_INFO => SnapObj::PlayerInfo(PlayerInfo::decode(warn, _p)?),
+            CLIENT_INFO => SnapObj::ClientInfo(ClientInfo::decode(warn, _p)?),
+            SPECTATOR_INFO => SnapObj::SpectatorInfo(SpectatorInfo::decode(warn, _p)?),
+            COMMON => SnapObj::Common(Common::decode(warn, _p)?),
+            EXPLOSION => SnapObj::Explosion(Explosion::decode(warn, _p)?),
+            SPAWN => SnapObj::Spawn(Spawn::decode(warn, _p)?),
+            HAMMER_HIT => SnapObj::HammerHit(HammerHit::decode(warn, _p)?),
+            DEATH => SnapObj::Death(Death::decode(warn, _p)?),
+            SOUND_GLOBAL => SnapObj::SoundGlobal(SoundGlobal::decode(warn, _p)?),
+            SOUND_WORLD => SnapObj::SoundWorld(SoundWorld::decode(warn, _p)?),
+            DAMAGE_IND => SnapObj::DamageInd(DamageInd::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -588,22 +588,22 @@ impl fmt::Debug for PlayerInput {
 }
 impl PlayerInput {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<PlayerInput, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<PlayerInput, Error> {
         Ok(PlayerInput {
-            direction: try!(_p.read_int()),
-            target_x: try!(_p.read_int()),
-            target_y: try!(_p.read_int()),
-            jump: try!(_p.read_int()),
-            fire: try!(_p.read_int()),
-            hook: try!(_p.read_int()),
-            player_flags: try!(_p.read_int()),
-            wanted_weapon: try!(_p.read_int()),
-            next_weapon: try!(_p.read_int()),
-            prev_weapon: try!(_p.read_int()),
+            direction: _p.read_int()?,
+            target_x: _p.read_int()?,
+            target_y: _p.read_int()?,
+            jump: _p.read_int()?,
+            fire: _p.read_int()?,
+            hook: _p.read_int()?,
+            player_flags: _p.read_int()?,
+            wanted_weapon: _p.read_int()?,
+            next_weapon: _p.read_int()?,
+            prev_weapon: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -625,18 +625,18 @@ impl fmt::Debug for Projectile {
 }
 impl Projectile {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Projectile, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Projectile, Error> {
         Ok(Projectile {
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
-            vel_x: try!(_p.read_int()),
-            vel_y: try!(_p.read_int()),
-            type_: try!(Weapon::from_i32(try!(_p.read_int()))),
-            start_tick: Tick(try!(_p.read_int())),
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            vel_x: _p.read_int()?,
+            vel_y: _p.read_int()?,
+            type_: Weapon::from_i32(_p.read_int()?)?,
+            start_tick: Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -657,17 +657,17 @@ impl fmt::Debug for Laser {
 }
 impl Laser {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Laser, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Laser, Error> {
         Ok(Laser {
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
-            from_x: try!(_p.read_int()),
-            from_y: try!(_p.read_int()),
-            start_tick: Tick(try!(_p.read_int())),
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            from_x: _p.read_int()?,
+            from_y: _p.read_int()?,
+            start_tick: Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -687,16 +687,16 @@ impl fmt::Debug for Pickup {
 }
 impl Pickup {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Pickup, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Pickup, Error> {
         Ok(Pickup {
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
-            type_: try!(positive(try!(_p.read_int()))),
-            subtype: try!(positive(try!(_p.read_int()))),
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            type_: positive(_p.read_int()?)?,
+            subtype: positive(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -717,15 +717,15 @@ impl fmt::Debug for Flag {
 }
 impl Flag {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Flag, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Flag, Error> {
         Ok(Flag {
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
-            team: try!(in_range(try!(_p.read_int()), TEAM_RED, TEAM_BLUE)),
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            team: in_range(_p.read_int()?, TEAM_RED, TEAM_BLUE)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -750,20 +750,20 @@ impl fmt::Debug for GameInfo {
 }
 impl GameInfo {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<GameInfo, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<GameInfo, Error> {
         Ok(GameInfo {
-            game_flags: try!(in_range(try!(_p.read_int()), 0, 256)),
-            game_state_flags: try!(in_range(try!(_p.read_int()), 0, 256)),
-            round_start_tick: Tick(try!(_p.read_int())),
-            warmup_timer: try!(positive(try!(_p.read_int()))),
-            score_limit: try!(positive(try!(_p.read_int()))),
-            time_limit: try!(positive(try!(_p.read_int()))),
-            round_num: try!(positive(try!(_p.read_int()))),
-            round_current: try!(positive(try!(_p.read_int()))),
+            game_flags: in_range(_p.read_int()?, 0, 256)?,
+            game_state_flags: in_range(_p.read_int()?, 0, 256)?,
+            round_start_tick: Tick(_p.read_int()?),
+            warmup_timer: positive(_p.read_int()?)?,
+            score_limit: positive(_p.read_int()?)?,
+            time_limit: positive(_p.read_int()?)?,
+            round_num: positive(_p.read_int()?)?,
+            round_current: positive(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -790,16 +790,16 @@ impl fmt::Debug for GameData {
 }
 impl GameData {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<GameData, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<GameData, Error> {
         Ok(GameData {
-            teamscore_red: try!(_p.read_int()),
-            teamscore_blue: try!(_p.read_int()),
-            flag_carrier_red: try!(in_range(try!(_p.read_int()), FLAG_MISSING, MAX_CLIENTS-1)),
-            flag_carrier_blue: try!(in_range(try!(_p.read_int()), FLAG_MISSING, MAX_CLIENTS-1)),
+            teamscore_red: _p.read_int()?,
+            teamscore_blue: _p.read_int()?,
+            flag_carrier_red: in_range(_p.read_int()?, FLAG_MISSING, MAX_CLIENTS-1)?,
+            flag_carrier_blue: in_range(_p.read_int()?, FLAG_MISSING, MAX_CLIENTS-1)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -832,27 +832,27 @@ impl fmt::Debug for CharacterCore {
 }
 impl CharacterCore {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<CharacterCore, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<CharacterCore, Error> {
         Ok(CharacterCore {
-            tick: try!(_p.read_int()),
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
-            vel_x: try!(_p.read_int()),
-            vel_y: try!(_p.read_int()),
-            angle: try!(_p.read_int()),
-            direction: try!(in_range(try!(_p.read_int()), -1, 1)),
-            jumped: try!(in_range(try!(_p.read_int()), 0, 3)),
-            hooked_player: try!(in_range(try!(_p.read_int()), -1, MAX_CLIENTS-1)),
-            hook_state: try!(in_range(try!(_p.read_int()), -1, 5)),
-            hook_tick: Tick(try!(_p.read_int())),
-            hook_x: try!(_p.read_int()),
-            hook_y: try!(_p.read_int()),
-            hook_dx: try!(_p.read_int()),
-            hook_dy: try!(_p.read_int()),
+            tick: _p.read_int()?,
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            vel_x: _p.read_int()?,
+            vel_y: _p.read_int()?,
+            angle: _p.read_int()?,
+            direction: in_range(_p.read_int()?, -1, 1)?,
+            jumped: in_range(_p.read_int()?, 0, 3)?,
+            hooked_player: in_range(_p.read_int()?, -1, MAX_CLIENTS-1)?,
+            hook_state: in_range(_p.read_int()?, -1, 5)?,
+            hook_tick: Tick(_p.read_int()?),
+            hook_x: _p.read_int()?,
+            hook_y: _p.read_int()?,
+            hook_dx: _p.read_int()?,
+            hook_dy: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -880,20 +880,20 @@ impl fmt::Debug for Character {
 }
 impl Character {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Character, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Character, Error> {
         Ok(Character {
-            character_core: try!(CharacterCore::decode_inner(_p)),
-            player_flags: try!(in_range(try!(_p.read_int()), 0, 256)),
-            health: try!(in_range(try!(_p.read_int()), 0, 10)),
-            armor: try!(in_range(try!(_p.read_int()), 0, 10)),
-            ammo_count: try!(in_range(try!(_p.read_int()), 0, 10)),
-            weapon: try!(Weapon::from_i32(try!(_p.read_int()))),
-            emote: try!(Emote::from_i32(try!(_p.read_int()))),
-            attack_tick: try!(positive(try!(_p.read_int()))),
+            character_core: CharacterCore::decode_inner(_p)?,
+            player_flags: in_range(_p.read_int()?, 0, 256)?,
+            health: in_range(_p.read_int()?, 0, 10)?,
+            armor: in_range(_p.read_int()?, 0, 10)?,
+            ammo_count: in_range(_p.read_int()?, 0, 10)?,
+            weapon: Weapon::from_i32(_p.read_int()?)?,
+            emote: Emote::from_i32(_p.read_int()?)?,
+            attack_tick: positive(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -920,17 +920,17 @@ impl fmt::Debug for PlayerInfo {
 }
 impl PlayerInfo {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<PlayerInfo, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<PlayerInfo, Error> {
         Ok(PlayerInfo {
-            local: try!(in_range(try!(_p.read_int()), 0, 1)),
-            client_id: try!(in_range(try!(_p.read_int()), 0, MAX_CLIENTS-1)),
-            team: try!(Team::from_i32(try!(_p.read_int()))),
-            score: try!(_p.read_int()),
-            latency: try!(_p.read_int()),
+            local: in_range(_p.read_int()?, 0, 1)?,
+            client_id: in_range(_p.read_int()?, 0, MAX_CLIENTS-1)?,
+            team: Team::from_i32(_p.read_int()?)?,
+            score: _p.read_int()?,
+            latency: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -955,35 +955,35 @@ impl fmt::Debug for ClientInfo {
 }
 impl ClientInfo {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<ClientInfo, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<ClientInfo, Error> {
         Ok(ClientInfo {
             name: [
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
             ],
             clan: [
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
             ],
-            country: try!(_p.read_int()),
+            country: _p.read_int()?,
             skin: [
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
-                try!(_p.read_int()),
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
             ],
-            use_custom_color: try!(in_range(try!(_p.read_int()), 0, 1)),
-            color_body: try!(_p.read_int()),
-            color_feet: try!(_p.read_int()),
+            use_custom_color: in_range(_p.read_int()?, 0, 1)?,
+            color_body: _p.read_int()?,
+            color_feet: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1003,15 +1003,15 @@ impl fmt::Debug for SpectatorInfo {
 }
 impl SpectatorInfo {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SpectatorInfo, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpectatorInfo, Error> {
         Ok(SpectatorInfo {
-            spectator_id: try!(in_range(try!(_p.read_int()), SPEC_FREEVIEW, MAX_CLIENTS-1)),
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
+            spectator_id: in_range(_p.read_int()?, SPEC_FREEVIEW, MAX_CLIENTS-1)?,
+            x: _p.read_int()?,
+            y: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1030,14 +1030,14 @@ impl fmt::Debug for Common {
 }
 impl Common {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Common, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Common, Error> {
         Ok(Common {
-            x: try!(_p.read_int()),
-            y: try!(_p.read_int()),
+            x: _p.read_int()?,
+            y: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1054,13 +1054,13 @@ impl fmt::Debug for Explosion {
 }
 impl Explosion {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Explosion, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Explosion, Error> {
         Ok(Explosion {
-            common: try!(Common::decode_inner(_p)),
+            common: Common::decode_inner(_p)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1078,13 +1078,13 @@ impl fmt::Debug for Spawn {
 }
 impl Spawn {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Spawn, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Spawn, Error> {
         Ok(Spawn {
-            common: try!(Common::decode_inner(_p)),
+            common: Common::decode_inner(_p)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1102,13 +1102,13 @@ impl fmt::Debug for HammerHit {
 }
 impl HammerHit {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<HammerHit, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<HammerHit, Error> {
         Ok(HammerHit {
-            common: try!(Common::decode_inner(_p)),
+            common: Common::decode_inner(_p)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1127,14 +1127,14 @@ impl fmt::Debug for Death {
 }
 impl Death {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Death, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Death, Error> {
         Ok(Death {
-            common: try!(Common::decode_inner(_p)),
-            client_id: try!(in_range(try!(_p.read_int()), 0, MAX_CLIENTS-1)),
+            common: Common::decode_inner(_p)?,
+            client_id: in_range(_p.read_int()?, 0, MAX_CLIENTS-1)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1154,14 +1154,14 @@ impl fmt::Debug for SoundGlobal {
 }
 impl SoundGlobal {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SoundGlobal, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SoundGlobal, Error> {
         Ok(SoundGlobal {
-            common: try!(Common::decode_inner(_p)),
-            sound_id: try!(Sound::from_i32(try!(_p.read_int()))),
+            common: Common::decode_inner(_p)?,
+            sound_id: Sound::from_i32(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1180,14 +1180,14 @@ impl fmt::Debug for SoundWorld {
 }
 impl SoundWorld {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SoundWorld, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SoundWorld, Error> {
         Ok(SoundWorld {
-            common: try!(Common::decode_inner(_p)),
-            sound_id: try!(Sound::from_i32(try!(_p.read_int()))),
+            common: Common::decode_inner(_p)?,
+            sound_id: Sound::from_i32(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1206,14 +1206,14 @@ impl fmt::Debug for DamageInd {
 }
 impl DamageInd {
     pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DamageInd, Error> {
-        let result = try!(Self::decode_inner(p));
+        let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DamageInd, Error> {
         Ok(DamageInd {
-            common: try!(Common::decode_inner(_p)),
-            angle: try!(_p.read_int()),
+            common: Common::decode_inner(_p)?,
+            angle: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {

@@ -92,7 +92,7 @@ pub fn compress_vec(source: &[u8]) -> Result<Vec<u8>, Error> {
     // u8 has no destructor, this is safe
     unsafe { dest.set_len(upper_bound); }
 
-    let output_length = try!(compress(&mut dest, source));
+    let output_length = compress(&mut dest, source)?;
     unsafe { dest.set_len(output_length); }
 
     Ok(dest)

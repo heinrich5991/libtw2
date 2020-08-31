@@ -234,8 +234,8 @@ impl Huffman {
         -> Result<&'d [u8], buffer::CapacityError>
     {
         unsafe {
-            let len = try!(self.compress_impl_unsafe(input, buffer.uninitialized_mut(), bug)
-                           .map_err(|()| buffer::CapacityError));
+            let len = self.compress_impl_unsafe(input, buffer.uninitialized_mut(), bug)
+                           .map_err(|()| buffer::CapacityError)?;
             buffer.advance(len);
             Ok(buffer.initialized())
         }
@@ -252,12 +252,12 @@ impl Huffman {
             let mut bits_written = 0;
             if symbol.num_bits >= 8 - num_output_bits {
                 output_byte |= (symbol.bits << num_output_bits) as u8;
-                *try!(output.next().ok_or(())) = output_byte;
+                *output.next().ok_or(())? = output_byte;
                 len += 1;
                 bits_written += 8 - num_output_bits;
                 while symbol.num_bits - bits_written >= 8 {
                     output_byte = (symbol.bits >> bits_written) as u8;
-                    *try!(output.next().ok_or(())) = output_byte;
+                    *output.next().ok_or(())? = output_byte;
                     len += 1;
                     bits_written += 8;
                 }
@@ -268,7 +268,7 @@ impl Huffman {
             num_output_bits += symbol.num_bits - bits_written;
         }
         if num_output_bits > 0 || bug {
-            *try!(output.next().ok_or(())) = output_byte;
+            *output.next().ok_or(())? = output_byte;
             len += 1;
         }
         Ok(len)
@@ -283,8 +283,8 @@ impl Huffman {
         -> Result<&'d [u8], DecompressionError>
     {
         unsafe {
-            let len = try!(self.decompress_unsafe(input, buffer.uninitialized_mut())
-                           .map_err(|()| DecompressionError::Capacity(buffer::CapacityError)));
+            let len = self.decompress_unsafe(input, buffer.uninitialized_mut())
+                           .map_err(|()| DecompressionError::Capacity(buffer::CapacityError))?;
             buffer.advance(len);
             Ok(buffer.initialized())
         }
@@ -308,7 +308,7 @@ impl Huffman {
                         if new_idx == EOF {
                             break 'outer;
                         }
-                        *try!(output.next().ok_or(())) = new_idx.assert_u8();
+                        *output.next().ok_or(())? = new_idx.assert_u8();
                         len += 1;
                         node = root;
                     }
@@ -375,7 +375,7 @@ impl SymbolRepr {
 impl fmt::Debug for SymbolRepr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..self.num_bits() {
-            try!(f.write_char(if self.bit(i) { '1' } else { '0' }));
+            f.write_char(if self.bit(i) { '1' } else { '0' })?;
         }
         Ok(())
     }

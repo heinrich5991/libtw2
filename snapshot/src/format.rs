@@ -66,10 +66,10 @@ impl DeltaHeader {
         -> Result<DeltaHeader, Error>
     {
         let result = DeltaHeader {
-            num_deleted_items: try!(packer::positive(try!(p.read_int(wrap(warn))))),
-            num_updated_items: try!(packer::positive(try!(p.read_int(wrap(warn))))),
+            num_deleted_items: packer::positive(p.read_int(wrap(warn))?)?,
+            num_updated_items: packer::positive(p.read_int(wrap(warn))?)?,
         };
-        if try!(p.read_int(wrap(warn))) != 0 {
+        if p.read_int(wrap(warn))? != 0 {
             warn.warn(Warning::NonZeroPadding);
         }
         Ok(result)
@@ -77,9 +77,9 @@ impl DeltaHeader {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(p.write_int(self.num_deleted_items));
-        try!(p.write_int(self.num_updated_items));
-        try!(p.write_int(0));
+        p.write_int(self.num_deleted_items)?;
+        p.write_int(self.num_updated_items)?;
+        p.write_int(0)?;
         Ok(p.written())
     }
 }

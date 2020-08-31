@@ -29,7 +29,7 @@ fn simple() {
 
     with_packer(&mut buf, |mut p| -> Result<_, CapacityError> {
         for &d in &FIRST_DATA[..FIRST_DATA.len()] {
-            try!(p.write_int(d));
+            p.write_int(d)?;
         }
         Ok(p.written())
     }).unwrap();
@@ -45,7 +45,7 @@ fn simple() {
     buf.clear();
     with_packer(&mut buf, |mut p| -> Result<_, CapacityError> {
         for &d in &SECOND_DATA[..SECOND_DATA.len()] {
-            try!(p.write_int(d));
+            p.write_int(d)?;
         }
         Ok(p.written())
     }).unwrap();

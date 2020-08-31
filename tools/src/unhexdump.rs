@@ -48,11 +48,11 @@ impl Unhexdump {
                 (Before, b'|') => self.state = InsideFirst,
                 (Before, _) => {},
                 (InsideFirst, b'|') => self.state = After,
-                (InsideFirst, b) => if let Some(n) = try!(unhex(b)) {
+                (InsideFirst, b) => if let Some(n) = unhex(b)? {
                     self.state = InsideSecond(n);
                 },
                 (InsideSecond(_), b'|') => return Err(Error::OddCharacterCount),
-                (InsideSecond(f), b) => if let Some(n) = try!(unhex(b)) {
+                (InsideSecond(f), b) => if let Some(n) = unhex(b)? {
                     self.buf.push((f << 4) | n);
                     self.state = InsideFirst;
                 },

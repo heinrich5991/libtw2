@@ -65,11 +65,11 @@ impl ops::Deref for Byte {
 
 impl fmt::Debug for Bytes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(f.write_str("b\""));
+        f.write_str("b\"")?;
         for &byte in &self.0 {
-            try!(f.write_str(&Byte::new(byte)));
+            f.write_str(&Byte::new(byte))?;
         }
-        try!(f.write_str("\""));
+        f.write_str("\"")?;
         Ok(())
     }
 }

@@ -119,8 +119,8 @@ impl ManagerInner {
         where W: Warn<Warning>,
               O: FnMut(u16) -> Option<u32>,
     {
-        Ok(match try!(res) {
-            Some(delta) => Some(try!(self.add_delta(warn, object_size, delta))),
+        Ok(match res? {
+            Some(delta) => Some(self.add_delta(warn, object_size, delta)?),
             None => None,
         })
     }
@@ -131,10 +131,10 @@ impl ManagerInner {
     {
         let crc = delta.data_and_crc.map(|d| d.1);
         if let Some((data, _)) = delta.data_and_crc {
-            try!(self.reader.read(wrap(warn), &mut self.temp_delta, object_size, &mut Unpacker::new(data)));
+            self.reader.read(wrap(warn), &mut self.temp_delta, object_size, &mut Unpacker::new(data))?;
         } else {
             self.temp_delta.clear();
         }
-        Ok(try!(self.storage.add_delta(wrap(warn), crc, delta.delta_tick, delta.tick, &self.temp_delta)))
+        Ok(self.storage.add_delta(wrap(warn), crc, delta.delta_tick, delta.tick, &self.temp_delta)?)
     }
 }
