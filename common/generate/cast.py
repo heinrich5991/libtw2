@@ -1,4 +1,4 @@
-from types import TYPES, formatt, printt
+from .types import TYPES, formatt, printt
 
 prologue = """\
 use num_traits::ToPrimitive;
@@ -30,11 +30,11 @@ def print_prologue():
 def print_cast_trait(types):
     print("pub trait Cast {")
     for t in types:
-        printt("    fn {type}(self) -> {type} where Self: {trait};", t)
+        printt("    fn {type}(self) -> {type} where Self: Sized + {trait};", t)
     for t in types:
-        printt("    fn try_{type}(self) -> Option<{type}> where Self: {ntrait};", t)
+        printt("    fn try_{type}(self) -> Option<{type}> where Self: Sized + {ntrait};", t)
     for t in types:
-        printt("    fn assert_{type}(self) -> {type} where Self: {ntrait};", t)
+        printt("    fn assert_{type}(self) -> {type} where Self: Sized + {ntrait};", t)
     print("}")
 
 def print_pos_traits(types):

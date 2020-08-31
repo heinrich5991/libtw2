@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+pushd common > /dev/null
+python3 -m generate.cast > src/num/cast.rs
+popd > /dev/null
+
+pushd gamenet > /dev/null
+./generate_all
+popd > /dev/null
+
+pushd map > /dev/null
+python3 src/generate_format.py > src/format.rs
+popd > /dev/null

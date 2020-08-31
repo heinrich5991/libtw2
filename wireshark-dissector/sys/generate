@@ -47,7 +47,7 @@ bindgen \
 	$(pkg-config wireshark --cflags)
 echo
 ) > src/lib.rs
-python fix.py src/lib.rs
+python3 fix.py src/lib.rs
 cargo fmt
 
 # These makes the resulting source contain errors.
