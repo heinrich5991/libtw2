@@ -89,7 +89,7 @@ impl From<SocketAddr> for Addr {
 impl FromStr for Addr {
     type Err = std::net::AddrParseError;
     fn from_str(s: &str) -> Result<Addr, std::net::AddrParseError> {
-        let sock_addr: SocketAddr = try!(s.parse());
+        let sock_addr: SocketAddr = s.parse()?;
         Ok(Addr::from(sock_addr))
     }
 }
@@ -146,12 +146,12 @@ fn udp_socket(bindaddr: &SocketAddr) -> io::Result<Option<UdpSocket>> {
     let builder = match builder {
         Err(ref e) if e.raw_os_error() == Some(libc::EAFNOSUPPORT) =>
             return Ok(None), // Address family not supported.
-        b => try!(b),
+        b => b?,
     };
     if let SocketAddr::V6(..) = *bindaddr {
-        try!(builder.only_v6(true));
+        builder.only_v6(true)?;
     }
-    Ok(Some(try!(UdpSocket::from_socket(try!(builder.bind(bindaddr))))))
+    Ok(Some(UdpSocket::from_socket(builder.bind(bindaddr)?)?))
 }
 
 fn non_block<T>(res: io::Result<T>) -> Option<io::Result<T>> {
@@ -187,17 +187,17 @@ impl Socket {
         let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
         let addr_v6 = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0));
 
-        let v4 = try!(udp_socket(&SocketAddr::new(addr_v4, port)));
-        let v6 = try!(udp_socket(&SocketAddr::new(addr_v6, port)));
+        let v4 = udp_socket(&SocketAddr::new(addr_v4, port))?;
+        let v6 = udp_socket(&SocketAddr::new(addr_v6, port))?;
 
         if v4.is_none() && v6.is_none() {
             return Err(io::Error::new(io::ErrorKind::Other,
                                       NoAddressFamiliesSupported(())));
         }
 
-        let mut poll = try!(mio::Poll::new());
-        try!(v4.as_ref().map(|v4| register(&mut poll, 4, &v4)).unwrap_or(Ok(())));
-        try!(v6.as_ref().map(|v6| register(&mut poll, 6, &v6)).unwrap_or(Ok(())));
+        let mut poll = mio::Poll::new()?;
+        v4.as_ref().map(|v4| register(&mut poll, 4, &v4)).unwrap_or(Ok(()))?;
+        v6.as_ref().map(|v6| register(&mut poll, 6, &v6)).unwrap_or(Ok(()))?;
         Ok(Socket {
             start: Instant::now(),
             time_cached: Timestamp::from_secs_since_epoch(0),
@@ -250,10 +250,10 @@ impl Socket {
         }))
     }
     pub fn sleep(&mut self, duration: Option<Duration>) -> io::Result<()> {
-        try!(self.poll.poll(&mut self.events, duration));
+        self.poll.poll(&mut self.events, duration)?;
         // TODO: Add a verification that this also works with
         // ```
-        // try!(self.poll.poll(None));
+        // self.poll.poll(None)?;
         // ```
         // on loss-free networks.
         for ev in &self.events {

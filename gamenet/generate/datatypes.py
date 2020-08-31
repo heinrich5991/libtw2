@@ -131,12 +131,12 @@ pub struct Tick(pub i32);
 impl Projectile {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
         Ok(Projectile {
-            x: try!(_p.read_int(warn)),
-            y: try!(_p.read_int(warn)),
-            vel_x: try!(_p.read_int(warn)),
-            vel_y: try!(_p.read_int(warn)),
-            type_: try!(Weapon::from_i32(try!(_p.read_int(warn)))),
-            start_tick: Tick(try!(_p.read_int(warn))),
+            x: _p.read_int(warn)?,
+            y: _p.read_int(warn)?,
+            vel_x: _p.read_int(warn)?,
+            vel_y: _p.read_int(warn)?,
+            type_: Weapon::from_i32(_p.read_int(warn)?)?,
+            start_tick: Tick(_p.read_int(warn)?),
         })
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
@@ -145,12 +145,12 @@ impl Projectile {
         // For the assert!()s.
         self.encode();
 
-        try!(_p.write_int(self.x));
-        try!(_p.write_int(self.y));
-        try!(_p.write_int(self.vel_x));
-        try!(_p.write_int(self.vel_y));
-        try!(_p.write_int(self.type_.to_i32()));
-        try!(_p.write_int(self.start_tick.0));
+        _p.write_int(self.x)?;
+        _p.write_int(self.y)?;
+        _p.write_int(self.vel_x)?;
+        _p.write_int(self.vel_y)?;
+        _p.write_int(self.type_.to_i32())?;
+        _p.write_int(self.start_tick.0)?;
         Ok(_p.written())
     }
 }
@@ -158,16 +158,16 @@ impl Projectile {
 impl PlayerInput {
     pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
         Ok(PlayerInput {
-            direction: try!(_p.read_int(warn)),
-            target_x: try!(_p.read_int(warn)),
-            target_y: try!(_p.read_int(warn)),
-            jump: try!(_p.read_int(warn)),
-            fire: try!(_p.read_int(warn)),
-            hook: try!(_p.read_int(warn)),
-            player_flags: try!(_p.read_int(warn)),
-            wanted_weapon: try!(_p.read_int(warn)),
-            next_weapon: try!(_p.read_int(warn)),
-            prev_weapon: try!(_p.read_int(warn)),
+            direction: _p.read_int(warn)?,
+            target_x: _p.read_int(warn)?,
+            target_y: _p.read_int(warn)?,
+            jump: _p.read_int(warn)?,
+            fire: _p.read_int(warn)?,
+            hook: _p.read_int(warn)?,
+            player_flags: _p.read_int(warn)?,
+            wanted_weapon: _p.read_int(warn)?,
+            next_weapon: _p.read_int(warn)?,
+            prev_weapon: _p.read_int(warn)?,
         })
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
@@ -176,16 +176,16 @@ impl PlayerInput {
         // For the assert!()s.
         self.encode();
 
-        try!(_p.write_int(self.direction));
-        try!(_p.write_int(self.target_x));
-        try!(_p.write_int(self.target_y));
-        try!(_p.write_int(self.jump));
-        try!(_p.write_int(self.fire));
-        try!(_p.write_int(self.hook));
-        try!(_p.write_int(self.player_flags));
-        try!(_p.write_int(self.wanted_weapon));
-        try!(_p.write_int(self.next_weapon));
-        try!(_p.write_int(self.prev_weapon));
+        _p.write_int(self.direction)?;
+        _p.write_int(self.target_x)?;
+        _p.write_int(self.target_y)?;
+        _p.write_int(self.jump)?;
+        _p.write_int(self.fire)?;
+        _p.write_int(self.hook)?;
+        _p.write_int(self.player_flags)?;
+        _p.write_int(self.wanted_weapon)?;
+        _p.write_int(self.next_weapon)?;
+        _p.write_int(self.prev_weapon)?;
         Ok(_p.written())
     }
 }
@@ -221,7 +221,7 @@ impl<'a> System<'a> {
         where W: Warn<Warning>
     {
         if let SystemOrGame::System(msg_id) =
-            SystemOrGame::decode_id(try!(p.read_int(warn)))
+            SystemOrGame::decode_id(p.read_int(warn)?)
         {
             System::decode_msg(warn, msg_id, p)
         } else {
@@ -231,8 +231,8 @@ impl<'a> System<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(p.write_int(SystemOrGame::System(self.msg_id()).encode_id()));
-        try!(with_packer(&mut p, |p| self.encode_msg(p)));
+        p.write_int(SystemOrGame::System(self.msg_id()).encode_id())?;
+        with_packer(&mut p, |p| self.encode_msg(p))?;
         Ok(p.written())
     }
 }
@@ -255,7 +255,7 @@ impl<'a> Game<'a> {
         where W: Warn<Warning>
     {
         if let SystemOrGame::Game(msg_id) =
-            SystemOrGame::decode_id(try!(p.read_int(warn)))
+            SystemOrGame::decode_id(p.read_int(warn)?)
         {
             Game::decode_msg(warn, msg_id, p)
         } else {
@@ -265,8 +265,8 @@ impl<'a> Game<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(p.write_int(SystemOrGame::Game(self.msg_id()).encode_id()));
-        try!(with_packer(&mut p, |p| self.encode_msg(p)));
+        p.write_int(SystemOrGame::Game(self.msg_id()).encode_id())?;
+        with_packer(&mut p, |p| self.encode_msg(p))?;
         Ok(p.written())
     }
 }
@@ -339,15 +339,15 @@ def emit_header_msg_connless():
     print("""\
 impl<'a> Connless<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
-        let id = try!(_p.read_raw(8));
+        let id = _p.read_raw(8)?;
         let connless_id = [id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]];
         Connless::decode_connless(warn, connless_id, _p)
     }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(p.write_raw(&self.connless_id()));
-        try!(with_packer(&mut p, |p| self.encode_connless(p)));
+        p.write_raw(&self.connless_id())?;
+        with_packer(&mut p, |p| self.encode_connless(p))?;
         Ok(p.written())
     }
 }
@@ -364,11 +364,11 @@ impl<'a> Client<'a> {
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(_p.write_string(self.name));
-        try!(_p.write_string(self.clan));
-        try!(_p.write_string(&string_from_int(self.country)));
-        try!(_p.write_string(&string_from_int(self.score)));
-        try!(_p.write_string(&string_from_int(self.is_player)));
+        _p.write_string(self.name)?;
+        _p.write_string(self.clan)?;
+        _p.write_string(&string_from_int(self.country))?;
+        _p.write_string(&string_from_int(self.score))?;
+        _p.write_string(&string_from_int(self.is_player))?;
         Ok(_p.written())
     }
 }
@@ -424,7 +424,7 @@ def emit_enum_msg(name, structs):
     print("    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: i32, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
     print("        Ok(match msg_id {")
     for s in structs:
-        print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
+        print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
     print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
@@ -481,7 +481,7 @@ def emit_enum_obj(name, structs):
     print("    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
     print("        Ok(match obj_type_id {")
     for s in structs:
-        print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
+        print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
     print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
@@ -543,7 +543,7 @@ def emit_enum_connless(name, structs):
     print("    pub fn decode_connless<W: Warn<Warning>>(warn: &mut W, connless_id: [u8; 8], _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
     print("        Ok(match &connless_id {")
     for s in structs:
-        print("            {} => {}::{s}(try!({s}::decode(warn, _p))),".format(caps(s.name), title(name), s=title(s.name)))
+        print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
     print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
@@ -782,7 +782,7 @@ class NetObject(Struct):
 
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
-        print("        let result = try!(Self::decode_inner(p));")
+        print("        let result = Self::decode_inner(p)?;")
         print("        p.finish(warn);")
         print("        Ok(result)")
         print("    }")
@@ -790,7 +790,7 @@ class NetObject(Struct):
         if self.values or super:
             print("        Ok({} {{".format(title(self.name)))
             if super:
-                print("            {}: try!({}::decode_inner(_p)),".format(snake(super.name), title(super.name), super.lifetime()))
+                print("            {}: {}::decode_inner(_p)?,".format(snake(super.name), title(super.name), super.lifetime()))
             with indent(3):
                 for m in self.values:
                     m.emit_decode_int()
@@ -844,7 +844,7 @@ class Member:
         if assertion is not None:
             print("{};".format(assertion))
     def emit_encode(self):
-        print("try!({});".format(self.encode_expr("self.{}".format(snake(self.name)))))
+        print("{}?;".format(self.encode_expr("self.{}".format(snake(self.name)))))
     def emit_debug(self):
         print(".field(\"{}\", &{})".format(snake(self.name), self.debug_expr("self.{}".format(snake(self.name)))))
     def validate_expr(self, self_expr):
@@ -872,7 +872,7 @@ class NetArray(Member):
             print("}")
     def emit_encode(self):
         print("for e in &self.{} {{".format(snake(self.name)))
-        print("    try!({});".format(self.inner.encode_expr("e")))
+        print("    {}?;".format(self.inner.encode_expr("e")))
         print("}")
     def decode_int_expr(self):
         return "[\n{}]".format("".join(
@@ -890,12 +890,11 @@ class NetOptional(Member):
         self.inner = inner
         self.type_ = "Option<{}>".format(inner.type_)
     def decode_expr(self):
-        START="try!("
-        END=")"
+        END="?"
         inner_decode = self.inner.decode_expr()
-        if not inner_decode.startswith(START) or not inner_decode.endswith(END):
+        if not inner_decode.endswith(END):
             raise ValueError("can't form an optional of this type")
-        return "{}.ok()".format(inner_decode[len(START):-len(END)])
+        return "{}.ok()".format(inner_decode[:-len(END)])
     def encode_expr(self, self_expr):
         return self.inner.encode_expr("{}.unwrap()").format(self_expr)
     def debug_expr(self, self_expr):
@@ -906,7 +905,7 @@ class NetOptional(Member):
 class NetString(Member):
     type_ = "&'a [u8]"
     def decode_expr(self):
-        return "try!(_p.read_string())"
+        return "_p.read_string()?"
     def encode_expr(self, self_expr):
         return "_p.write_string({})".format(self_expr)
     def debug_expr(self, self_expr):
@@ -916,7 +915,7 @@ class NetString(Member):
 class NetStringStrict(NetString):
     def decode_expr(self):
         import_("packer::sanitize")
-        return "try!(sanitize(warn, {}))".format(super().decode_expr())
+        return "sanitize(warn, {})?".format(super().decode_expr())
     def assert_expr(self, self_expr):
         import_(
             "packer::sanitize",
@@ -927,7 +926,7 @@ class NetStringStrict(NetString):
 class NetData(Member):
     type_ = "&'a [u8]"
     def decode_expr(self):
-        return "try!(_p.read_data(warn))"
+        return "_p.read_data(warn)?"
     def encode_expr(self, self_expr):
         return "_p.write_data({})".format(self_expr)
     def debug_expr(self, self_expr):
@@ -937,11 +936,11 @@ class NetData(Member):
 class NetIntAny(Member):
     type_ = "i32"
     def decode_expr(self):
-        return "try!(_p.read_int(warn))"
+        return "_p.read_int(warn)?"
     def encode_expr(self, self_expr):
         return "_p.write_int({})".format(self_expr)
     def decode_int_expr(self):
-        return "try!(_p.read_int())"
+        return "_p.read_int()?"
     def int_size(self):
         return 1
 
@@ -978,7 +977,7 @@ class NetIntRange(NetIntAny):
         import_("packer::in_range")
         import_consts(self.min)
         import_consts(self.max)
-        return "try!(in_range({}, {}, {}))".format(super().decode_expr(), self.min, self.max)
+        return "in_range({}, {}, {})?".format(super().decode_expr(), self.min, self.max)
     def assert_expr(self, self_expr):
         import_consts(self.min)
         import_consts(self.max)
@@ -987,19 +986,19 @@ class NetIntRange(NetIntAny):
         import_("packer::in_range")
         import_consts(self.min)
         import_consts(self.max)
-        return "try!(in_range({}, {}, {}))".format(super().decode_int_expr(), self.min, self.max)
+        return "in_range({}, {}, {})?".format(super().decode_int_expr(), self.min, self.max)
 
 class NetIntPositive(NetIntAny):
     def __init__(self, name):
         super().__init__(name)
     def decode_expr(self):
         import_("packer::positive")
-        return "try!(positive({}))".format(super().decode_expr())
+        return "positive({})?".format(super().decode_expr())
     def assert_expr(self, self_expr):
         return "assert!({} >= 0)".format(self_expr)
     def decode_int_expr(self):
         import_("packer::positive")
-        return "try!(positive({}))".format(super().decode_int_expr())
+        return "positive({})?".format(super().decode_int_expr())
 
 class NetEnum(NetIntAny):
     def __init__(self, name, enum_name):
@@ -1008,18 +1007,18 @@ class NetEnum(NetIntAny):
         self.type_ = title(self.enum_name)
     def decode_expr(self):
         import_("enums::{}".format(title(self.enum_name)))
-        return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_expr())
+        return "{}::from_i32({})?".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.to_i32()".format(self_expr))
     def decode_int_expr(self):
         import_("enums::{}".format(title(self.enum_name)))
-        return "try!({}::from_i32({}))".format(title(self.enum_name), super().decode_int_expr())
+        return "{}::from_i32({})?".format(title(self.enum_name), super().decode_int_expr())
 
 class NetBool(NetIntAny):
     type_ = "bool"
     def decode_expr(self):
         import_("packer::to_bool")
-        return "try!(to_bool({}))".format(super().decode_expr())
+        return "to_bool({})?".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
 
@@ -1040,7 +1039,7 @@ class NetStruct(Member):
         super().__init__(name)
         self.type_ = type_
     def decode_expr(self):
-        return "try!({}::decode_msg_inner(warn, _p))".format(self.type_)
+        return "{}::decode_msg_inner(warn, _p)?".format(self.type_)
     def encode_expr(self, self_expr):
         import_("packer::with_packer")
         return "with_packer(&mut _p, |p| {}.encode_msg(p))".format(self_expr)
@@ -1055,7 +1054,7 @@ class NetAddrs(Member):
             "super::AddrPackedSliceExt",
             "warn::wrap",
         )
-        return "AddrPackedSliceExt::from_bytes(wrap(warn), try!(_p.read_rest()))"
+        return "AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?)"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)
 
@@ -1063,7 +1062,7 @@ class NetBigEndianU16(Member):
     type_ = "u16"
     def decode_expr(self):
         import_("common::num::BeU16")
-        return "{ let s = try!(_p.read_raw(2)); BeU16::from_bytes(&[s[0], s[1]]).to_u16() }"
+        return "{ let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() }"
     def encode_expr(self, self_expr):
         import_("common::num::BeU16")
         return "_p.write_raw(BeU16::from_u16({}).as_bytes())".format(self_expr)
@@ -1071,7 +1070,7 @@ class NetBigEndianU16(Member):
 class NetU8(Member):
     type_ = "u8"
     def decode_expr(self):
-        return "try!(_p.read_raw(1))[0]"
+        return "_p.read_raw(1)?[0]"
     def encode_expr(self, self_expr):
         return "_p.write_raw(&[{}])".format(self_expr)
 
@@ -1079,7 +1078,7 @@ class NetIntString(NetString):
     type_ = "i32"
     def decode_expr(self):
         import_("super::int_from_string")
-        return "try!(int_from_string(try!(_p.read_string())))"
+        return "int_from_string(_p.read_string()?)?"
     def encode_expr(self, self_expr):
         import_("super::string_from_int")
         return "_p.write_string(&string_from_int({}))".format(self_expr)
@@ -1093,6 +1092,6 @@ class NetClients(Member):
         return super().definition()
     def decode_expr(self):
         import_("super::ClientsData")
-        return "ClientsData::from_bytes(try!(_p.read_rest()))"
+        return "ClientsData::from_bytes(_p.read_rest()?)"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)

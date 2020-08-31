@@ -124,8 +124,8 @@ fn read_string<'a>(iter: &mut slice::Iter<'a, u8>) -> Result<&'a [u8], Unexpecte
 fn write_string<E, F: FnMut(&[u8]) -> Result<(), E>>(string: &[u8], f: F) -> Result<(), E> {
     let mut f = f;
     assert!(string.iter().all(|&b| b != 0));
-    try!(f(string));
-    try!(f(&[0]));
+    f(string)?;
+    f(&[0])?;
     Ok(())
 }
 
@@ -153,8 +153,8 @@ impl<'d, 's> Packer<'d, 's> {
         write_int(int, |b| self.buf.write(b))
     }
     pub fn write_data(&mut self, data: &[u8]) -> Result<(), CapacityError> {
-        try!(self.write_int(try!(data.len().try_i32().ok_or(CapacityError))));
-        try!(self.buf.write(data));
+        self.write_int(data.len().try_i32().ok_or(CapacityError)?)?;
+        self.buf.write(data)?;
         Ok(())
     }
     pub fn write_raw(&mut self, data: &[u8]) -> Result<(), CapacityError> {
@@ -299,7 +299,7 @@ pub fn in_range(v: i32, min: i32, max: i32) -> Result<i32, IntOutOfRange> {
 }
 
 pub fn to_bool(v: i32) -> Result<bool, IntOutOfRange> {
-    Ok(try!(in_range(v, 0, 1)) != 0)
+    Ok(in_range(v, 0, 1)? != 0)
 }
 
 pub fn sanitize<'a, W: Warn<Warning>>(warn: &mut W, v: &'a [u8])

@@ -17,15 +17,15 @@ use warn::wrap;
 
 impl<'a> Connless<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
-        let id = try!(_p.read_raw(8));
+        let id = _p.read_raw(8)?;
         let connless_id = [id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]];
         Connless::decode_connless(warn, connless_id, _p)
     }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(p.write_raw(&self.connless_id()));
-        try!(with_packer(&mut p, |p| self.encode_connless(p)));
+        p.write_raw(&self.connless_id())?;
+        with_packer(&mut p, |p| self.encode_connless(p))?;
         Ok(p.written())
     }
 }
@@ -42,11 +42,11 @@ impl<'a> Client<'a> {
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        try!(_p.write_string(self.name));
-        try!(_p.write_string(self.clan));
-        try!(_p.write_string(&string_from_int(self.country)));
-        try!(_p.write_string(&string_from_int(self.score)));
-        try!(_p.write_string(&string_from_int(self.is_player)));
+        _p.write_string(self.name)?;
+        _p.write_string(self.clan)?;
+        _p.write_string(&string_from_int(self.country))?;
+        _p.write_string(&string_from_int(self.score))?;
+        _p.write_string(&string_from_int(self.is_player))?;
         Ok(_p.written())
     }
 }
@@ -95,17 +95,17 @@ pub enum Connless<'a> {
 impl<'a> Connless<'a> {
     pub fn decode_connless<W: Warn<Warning>>(warn: &mut W, connless_id: [u8; 8], _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
         Ok(match &connless_id {
-            REQUEST_LIST => Connless::RequestList(try!(RequestList::decode(warn, _p))),
-            LIST => Connless::List(try!(List::decode(warn, _p))),
-            REQUEST_COUNT => Connless::RequestCount(try!(RequestCount::decode(warn, _p))),
-            COUNT => Connless::Count(try!(Count::decode(warn, _p))),
-            REQUEST_INFO => Connless::RequestInfo(try!(RequestInfo::decode(warn, _p))),
-            INFO => Connless::Info(try!(Info::decode(warn, _p))),
-            HEARTBEAT => Connless::Heartbeat(try!(Heartbeat::decode(warn, _p))),
-            FORWARD_CHECK => Connless::ForwardCheck(try!(ForwardCheck::decode(warn, _p))),
-            FORWARD_RESPONSE => Connless::ForwardResponse(try!(ForwardResponse::decode(warn, _p))),
-            FORWARD_OK => Connless::ForwardOk(try!(ForwardOk::decode(warn, _p))),
-            FORWARD_ERROR => Connless::ForwardError(try!(ForwardError::decode(warn, _p))),
+            REQUEST_LIST => Connless::RequestList(RequestList::decode(warn, _p)?),
+            LIST => Connless::List(List::decode(warn, _p)?),
+            REQUEST_COUNT => Connless::RequestCount(RequestCount::decode(warn, _p)?),
+            COUNT => Connless::Count(Count::decode(warn, _p)?),
+            REQUEST_INFO => Connless::RequestInfo(RequestInfo::decode(warn, _p)?),
+            INFO => Connless::Info(Info::decode(warn, _p)?),
+            HEARTBEAT => Connless::Heartbeat(Heartbeat::decode(warn, _p)?),
+            FORWARD_CHECK => Connless::ForwardCheck(ForwardCheck::decode(warn, _p)?),
+            FORWARD_RESPONSE => Connless::ForwardResponse(ForwardResponse::decode(warn, _p)?),
+            FORWARD_OK => Connless::ForwardOk(ForwardOk::decode(warn, _p)?),
+            FORWARD_ERROR => Connless::ForwardError(ForwardError::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -297,13 +297,13 @@ impl fmt::Debug for RequestList {
 impl<'a> List<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<List<'a>, Error> {
         let result = Ok(List {
-            servers: AddrPackedSliceExt::from_bytes(wrap(warn), try!(_p.read_rest())),
+            servers: AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?),
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(_p.write_rest(self.servers.as_bytes()));
+        _p.write_rest(self.servers.as_bytes())?;
         Ok(_p.written())
     }
 }
@@ -335,13 +335,13 @@ impl fmt::Debug for RequestCount {
 impl Count {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Count, Error> {
         let result = Ok(Count {
-            count: { let s = try!(_p.read_raw(2)); BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
+            count: { let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(_p.write_raw(BeU16::from_u16(self.count).as_bytes()));
+        _p.write_raw(BeU16::from_u16(self.count).as_bytes())?;
         Ok(_p.written())
     }
 }
@@ -356,13 +356,13 @@ impl fmt::Debug for Count {
 impl RequestInfo {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RequestInfo, Error> {
         let result = Ok(RequestInfo {
-            token: try!(_p.read_raw(1))[0],
+            token: _p.read_raw(1)?[0],
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(_p.write_raw(&[self.token]));
+        _p.write_raw(&[self.token])?;
         Ok(_p.written())
     }
 }
@@ -377,33 +377,33 @@ impl fmt::Debug for RequestInfo {
 impl<'a> Info<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
         let result = Ok(Info {
-            token: try!(int_from_string(try!(_p.read_string()))),
-            version: try!(_p.read_string()),
-            name: try!(_p.read_string()),
-            map: try!(_p.read_string()),
-            game_type: try!(_p.read_string()),
-            flags: try!(int_from_string(try!(_p.read_string()))),
-            num_players: try!(int_from_string(try!(_p.read_string()))),
-            max_players: try!(int_from_string(try!(_p.read_string()))),
-            num_clients: try!(int_from_string(try!(_p.read_string()))),
-            max_clients: try!(int_from_string(try!(_p.read_string()))),
-            clients: ClientsData::from_bytes(try!(_p.read_rest())),
+            token: int_from_string(_p.read_string()?)?,
+            version: _p.read_string()?,
+            name: _p.read_string()?,
+            map: _p.read_string()?,
+            game_type: _p.read_string()?,
+            flags: int_from_string(_p.read_string()?)?,
+            num_players: int_from_string(_p.read_string()?)?,
+            max_players: int_from_string(_p.read_string()?)?,
+            num_clients: int_from_string(_p.read_string()?)?,
+            max_clients: int_from_string(_p.read_string()?)?,
+            clients: ClientsData::from_bytes(_p.read_rest()?),
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(_p.write_string(&string_from_int(self.token)));
-        try!(_p.write_string(self.version));
-        try!(_p.write_string(self.name));
-        try!(_p.write_string(self.map));
-        try!(_p.write_string(self.game_type));
-        try!(_p.write_string(&string_from_int(self.flags)));
-        try!(_p.write_string(&string_from_int(self.num_players)));
-        try!(_p.write_string(&string_from_int(self.max_players)));
-        try!(_p.write_string(&string_from_int(self.num_clients)));
-        try!(_p.write_string(&string_from_int(self.max_clients)));
-        try!(_p.write_rest(self.clients.as_bytes()));
+        _p.write_string(&string_from_int(self.token))?;
+        _p.write_string(self.version)?;
+        _p.write_string(self.name)?;
+        _p.write_string(self.map)?;
+        _p.write_string(self.game_type)?;
+        _p.write_string(&string_from_int(self.flags))?;
+        _p.write_string(&string_from_int(self.num_players))?;
+        _p.write_string(&string_from_int(self.max_players))?;
+        _p.write_string(&string_from_int(self.num_clients))?;
+        _p.write_string(&string_from_int(self.max_clients))?;
+        _p.write_rest(self.clients.as_bytes())?;
         Ok(_p.written())
     }
 }
@@ -428,13 +428,13 @@ impl<'a> fmt::Debug for Info<'a> {
 impl Heartbeat {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Heartbeat, Error> {
         let result = Ok(Heartbeat {
-            alt_port: { let s = try!(_p.read_raw(2)); BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
+            alt_port: { let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        try!(_p.write_raw(BeU16::from_u16(self.alt_port).as_bytes()));
+        _p.write_raw(BeU16::from_u16(self.alt_port).as_bytes())?;
         Ok(_p.written())
     }
 }

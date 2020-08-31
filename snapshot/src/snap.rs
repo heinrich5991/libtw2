@@ -149,7 +149,7 @@ impl Snap {
     {
         let offset = match self.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(o) => o.into_mut(),
-            hash_map::Entry::Vacant(v) => try!(Snap::prepare_item_vacant(v, &mut self.buf, size)),
+            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
         }.clone();
         Ok(&mut self.buf[to_usize(offset)])
     }
@@ -162,7 +162,7 @@ impl Snap {
         let mut num_deletions = 0;
         for item in from.items() {
             if !delta.deleted_items.contains(&item.key()) {
-                let out = try!(self.prepare_item(item.type_id, item.id, item.data.len()));
+                let out = self.prepare_item(item.type_id, item.id, item.data.len())?;
                 out.copy_from_slice(item.data);
             } else {
                 num_deletions += 1;
@@ -176,10 +176,10 @@ impl Snap {
             let type_id = key_to_type_id(key);
             let id = key_to_id(key);
             let diff = &delta.buf[to_usize(offset.clone())];
-            let out = try!(self.prepare_item(type_id, id, diff.len()));
+            let out = self.prepare_item(type_id, id, diff.len())?;
             let in_ = from.item(type_id, id);
 
-            try!(apply_delta(in_, diff, out));
+            apply_delta(in_, diff, out)?;
         }
         Ok(())
     }
@@ -302,25 +302,25 @@ impl Delta {
         where O: FnMut(u16) -> Option<u32>,
     {
         let mut object_size = object_size;
-        try!(with_packer(&mut p, |p| DeltaHeader {
+        with_packer(&mut p, |p| DeltaHeader {
             num_deleted_items: self.deleted_items.len().assert_i32(),
             num_updated_items: self.updated_items.len().assert_i32()
-        }.encode(p)));
+        }.encode(p))?;
         for &key in &self.deleted_items {
-            try!(p.write_int(key));
+            p.write_int(key)?;
         }
         for (&key, range) in &self.updated_items {
             let data = &self.buf[to_usize(range.clone())];
             let type_id = key_to_type_id(key);
             let id = key_to_id(key);
-            try!(p.write_int(type_id.i32()));
-            try!(p.write_int(id.i32()));
+            p.write_int(type_id.i32())?;
+            p.write_int(id.i32())?;
             match object_size(type_id) {
                 Some(size) => assert!(size.usize() == data.len()),
-                None => try!(p.write_int(data.len().assert_i32())),
+                None => p.write_int(data.len().assert_i32())?,
             }
             for &d in data {
-                try!(p.write_int(d));
+                p.write_int(d)?;
             }
         }
         Ok(p.written())
@@ -349,9 +349,9 @@ impl DeltaReader {
 
         let mut object_size = object_size;
 
-        let header = try!(DeltaHeader::decode(warn, p));
+        let header = DeltaHeader::decode(warn, p)?;
         while !p.as_slice().is_empty() {
-            self.buf.push(try!(p.read_int(wrap(warn))));
+            self.buf.push(p.read_int(wrap(warn))?);
         }
         let split = header.num_deleted_items.assert_usize();
         if split > self.buf.len() {
@@ -367,17 +367,17 @@ impl DeltaReader {
         let mut buf = buf.iter();
         // FIXME: Use `is_empty`.
         while buf.len() != 0 {
-            let type_id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
-            let id = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
+            let type_id = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
+            let id = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
 
-            let type_id = try!(type_id.try_u16().ok_or(Error::TypeIdRange));
-            let id = try!(id.try_u16().ok_or(Error::IdRange));
+            let type_id = type_id.try_u16().ok_or(Error::TypeIdRange)?;
+            let id = id.try_u16().ok_or(Error::IdRange)?;
 
             let size = match object_size(type_id) {
                 Some(s) => s.usize(),
                 None => {
-                    let s = try!(buf.next().ok_or(Error::ItemDiffsUnpacking));
-                    try!(s.try_usize().ok_or(Error::NegativeSize))
+                    let s = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
+                    s.try_usize().ok_or(Error::NegativeSize)?
                 }
             };
 
@@ -388,8 +388,8 @@ impl DeltaReader {
             buf = b.iter();
 
             let offset = delta.buf.len();
-            let start = try!(offset.try_u32().ok_or(Error::TooLongDiff));
-            let end = try!((offset + data.len()).try_u32().ok_or(Error::TooLongDiff));
+            let start = offset.try_u32().ok_or(Error::TooLongDiff)?;
+            let end = (offset + data.len()).try_u32().ok_or(Error::TooLongDiff)?;
             delta.buf.extend(data.iter());
 
             // In case of conflict, take later update (as the original code does).
@@ -426,7 +426,7 @@ impl Builder {
         let offset = match self.snap.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
             hash_map::Entry::Vacant(v) => {
-                try!(Snap::prepare_item_vacant(v, &mut self.snap.buf, data.len()))
+                Snap::prepare_item_vacant(v, &mut self.snap.buf, data.len())?
             }
         }.clone();
         self.snap.buf[to_usize(offset)].copy_from_slice(data);

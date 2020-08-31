@@ -230,11 +230,10 @@ impl Peer {
     }
     fn open_file(&mut self, crc: i32, name: String) -> Result<(), io::Error> {
         self.download = Some(Download {
-            file: try!(NamedTempFileOptions::new()
+            file: NamedTempFileOptions::new()
                 .prefix(&format!("{}_{:08x}_", name, crc))
                 .suffix(".map")
-                .create_in("downloading")
-            ),
+                .create_in("downloading")?,
             crc: crc,
             name: name,
         });

@@ -9,7 +9,7 @@ use std::path::Path;
 fn process(_: &Path, mut df: df::Reader, _: &mut ())
     -> Result<(), map::Error>
 {
-    try!(df.debug_dump());
+    df.debug_dump()?;
     Ok(())
 }
 

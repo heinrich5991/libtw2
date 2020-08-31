@@ -42,9 +42,9 @@ impl Default for Stats {
 
 fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
     let mut map = map::Reader::from_datafile(dfr);
-    let game_layers = try!(map.game_layers());
+    let game_layers = map.game_layers()?;
     let tune_layer = unwrap_or_return!(game_layers.tune(), Ok(()));
-    let tiles = try!(map.tune_layer_tiles(tune_layer));
+    let tiles = map.tune_layer_tiles(tune_layer)?;
 
     stats.tune_layers += 1;
     let mut tiles_count = [0u64; 256];

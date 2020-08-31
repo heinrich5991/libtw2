@@ -182,7 +182,7 @@ impl MapItem for MapItemInfoV1ExtraRace { fn version() -> i32 { 1 } fn offset() 
 
 impl fmt::Debug for MapItemInfoV1ExtraRace {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "settings={:?}", self.settings));
+        write!(_f, "settings={:?}", self.settings)?;
         Ok(())
     }
 }
@@ -201,10 +201,10 @@ impl MapItem for MapItemEnvelopeV1Legacy { fn version() -> i32 { 1 } fn offset()
 
 impl fmt::Debug for MapItemEnvelopeV1Legacy {
     fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(_f, "channels={:?}", self.channels));
-        try!(write!(_f, " start_points={:?}", self.start_points));
-        try!(write!(_f, " num_points={:?}", self.num_points));
-        try!(write!(_f, " _name={:?}", self._name));
+        write!(_f, "channels={:?}", self.channels)?;
+        write!(_f, " start_points={:?}", self.start_points)?;
+        write!(_f, " num_points={:?}", self.num_points)?;
+        write!(_f, " _name={:?}", self._name)?;
         Ok(())
     }
 }
@@ -246,19 +246,19 @@ unsafe impl OnlyI32 for MapItemEnvpointV1 { }
 unsafe impl OnlyI32 for MapItemEnvpointV2 { }
 impl fmt::Debug for MapItemEnvpointV1 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "time={:?}", self.time));
-        try!(write!(f, " curve_type={:?}", self.curve_type));
-        try!(write!(f, " values={:?}", self.values));
+        write!(f, "time={:?}", self.time)?;
+        write!(f, " curve_type={:?}", self.curve_type)?;
+        write!(f, " values={:?}", self.values)?;
         Ok(())
     }
 }
 impl fmt::Debug for MapItemEnvpointV2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "{:?}", self.v1));
-        try!(write!(f, " in_tangent_dx={:?}", self.in_tangent_dx));
-        try!(write!(f, " in_tangent_dy={:?}", self.in_tangent_dy));
-        try!(write!(f, " out_tangent_dx={:?}", self.out_tangent_dx));
-        try!(write!(f, " out_tangent_dy={:?}", self.out_tangent_dy));
+        write!(f, "{:?}", self.v1)?;
+        write!(f, " in_tangent_dx={:?}", self.in_tangent_dx)?;
+        write!(f, " in_tangent_dy={:?}", self.in_tangent_dy)?;
+        write!(f, " out_tangent_dx={:?}", self.out_tangent_dx)?;
+        write!(f, " out_tangent_dy={:?}", self.out_tangent_dy)?;
         Ok(())
     }
 }
@@ -641,11 +641,11 @@ def generate_impl_debug(items):
             first = ""
             for (member, size, type) in version:
                 if size is None or type is None:
-                    result.append("        try!(write!(_f, \"{first}{m}={{:?}}\", self.{m}));".format(m=member, first=first));
+                    result.append("        write!(_f, \"{first}{m}={{:?}}\", self.{m})?;".format(m=member, first=first));
                 else:
                     if type != 's':
                         raise ValueError("Invalid type: {}".format(type))
-                    result.append("        try!(write!(_f, \"{first}{m}={{:?}}\", String::from_utf8_lossy(bytes_to_string(&self.{m}_get()))));".format(m=member, first=first));
+                    result.append("        write!(_f, \"{first}{m}={{:?}}\", String::from_utf8_lossy(bytes_to_string(&self.{m}_get())))?;".format(m=member, first=first));
                 first = " "
             result.append("        Ok(())")
             result.append("    }")
