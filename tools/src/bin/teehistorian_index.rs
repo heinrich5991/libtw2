@@ -131,7 +131,7 @@ impl<'a> From<&'a ReadRecord> for Record<'a> {
 
 fn contains<'a>(
     base: &mut slice::Iter<'a, ReadRecord>,
-    writer: &mut csv::Writer<Box<Write>>,
+    writer: &mut csv::Writer<Box<dyn Write>>,
     path: &Path,
 ) -> Result<bool, Error>
 {
@@ -151,14 +151,14 @@ struct Config {
 
 fn handle_dir<'a>(
     base: &mut slice::Iter<'a, ReadRecord>,
-    writer: &mut csv::Writer<Box<Write>>,
+    writer: &mut csv::Writer<Box<dyn Write>>,
     dir: &Path,
     config: &Config,
 ) -> Result<(), ()>
 {
     fn helper<'a>(
         base: &mut slice::Iter<'a, ReadRecord>,
-        writer: &mut csv::Writer<Box<Write>>,
+        writer: &mut csv::Writer<Box<dyn Write>>,
         dir: &Path,
         config: &Config,
     ) -> Result<(), Error>
@@ -248,7 +248,7 @@ fn handle_args(
 
     let mut base_iter = base.iter();
 
-    let mut csv_out: csv::Writer<Box<Write>> = csv::Writer::from_writer(match output {
+    let mut csv_out: csv::Writer<Box<dyn Write>> = csv::Writer::from_writer(match output {
         Some(o) => Box::new(File::create(o).map_err(|e| {
             eprintln!("{}: {:?}", o.display(), e)
         })?),

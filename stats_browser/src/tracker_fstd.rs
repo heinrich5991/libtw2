@@ -163,7 +163,7 @@ impl StatsBrowserCb for Tracker {
     }
 }
 
-fn print_iter<'a,I:Iterator<Item=&'a (fmt::Display+'a)>>(command: &str, args: I) {
+fn print_iter<'a,I:Iterator<Item=&'a (dyn fmt::Display+'a)>>(command: &str, args: I) {
     print!("{}\t{}", rust_time::get_time().sec, command);
     for a in args {
         print!("\t{}", a);
@@ -172,12 +172,12 @@ fn print_iter<'a,I:Iterator<Item=&'a (fmt::Display+'a)>>(command: &str, args: I)
 }
 
 
-fn print(command: &str, args: &[&fmt::Display]) {
+fn print(command: &str, args: &[&dyn fmt::Display]) {
     print_iter(command, args.iter().cloned());
 }
 
-fn print_server(command: &str, addr: LogAddr, args: &[&fmt::Display]) {
-    let prefix: &[&fmt::Display] = &[&addr.version, &addr.addr];
+fn print_server(command: &str, addr: LogAddr, args: &[&dyn fmt::Display]) {
+    let prefix: &[&dyn fmt::Display] = &[&addr.version, &addr.addr];
     print_iter(command, prefix.iter().cloned().chain(args.iter().cloned()));
 }
 
