@@ -3,7 +3,7 @@
 #[cfg(test)] #[macro_use] extern crate quickcheck;
 
 extern crate arrayvec;
-#[macro_use] extern crate assert_matches;
+extern crate assert_matches;
 extern crate buffer;
 #[macro_use] extern crate common;
 extern crate huffman;

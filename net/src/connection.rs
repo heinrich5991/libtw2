@@ -15,7 +15,6 @@ use protocol;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
-use std::mem;
 use std::time::Duration;
 use warn::Warn;
 
@@ -331,7 +330,7 @@ impl PacketContents {
         self.data.len() + protocol::chunk_header_size(vital) + data.len() <= MAX_PAYLOAD
     }
     fn clear(&mut self) {
-        mem::replace(self, PacketContents::new());
+        *self = PacketContents::new();
     }
 }
 
