@@ -339,7 +339,7 @@ impl<'a> StatsBrowser<'a> {
         }
     }
     fn pump_network(&mut self) {
-        let mut buffer: [u8; 2048] = unsafe { mem::uninitialized() };
+        let mut buffer = [0u8; 2048];
 
         loop {
             match self.socket.recv_from(&mut buffer) {
