@@ -97,30 +97,24 @@ impl FromStr for Addr {
 #[derive(Debug)]
 pub struct NoAddressFamiliesSupported(());
 
-impl error::Error for NoAddressFamiliesSupported {
-    fn description(&self) -> &'static str {
-        "neither IPv4 nor IPv6 supported on this system"
-    }
-}
+impl error::Error for NoAddressFamiliesSupported {}
 
 impl fmt::Display for NoAddressFamiliesSupported {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(error::Error::description(self))
+        f.write_str("neither IPv4 nor IPv6 supported on this system")
     }
 }
 
 #[derive(Debug)]
 pub struct AddressFamilyNotSupported(());
 
-impl error::Error for AddressFamilyNotSupported {
-    fn description(&self) -> &'static str {
-        "destination address family (IPv4 or IPv6) not supported on this system"
-    }
-}
+impl error::Error for AddressFamilyNotSupported {}
 
 impl fmt::Display for AddressFamilyNotSupported {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(error::Error::description(self))
+        f.write_str(
+            "destination address family (IPv4 or IPv6) not supported on this system"
+        )
     }
 }
 
