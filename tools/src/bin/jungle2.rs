@@ -26,7 +26,7 @@ impl Default for Stats {
     }
 }
 
-const JUNGLE_DOODADS_5: &'static [(u8, u8)] = &[
+const _JUNGLE_DOODADS_5: &'static [(u8, u8)] = &[
     (0x01, 0x21),
     (0x02, 0x22),
     (0x04, 0x14),
