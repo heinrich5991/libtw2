@@ -19,15 +19,11 @@ impl fmt::Debug for SeekOverflow {
     }
 }
 
-impl error::Error for SeekOverflow {
-    fn description(&self) -> &str {
-        "overflow while calculating seek offset"
-    }
-}
+impl error::Error for SeekOverflow {}
 
 impl fmt::Display for SeekOverflow {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        error::Error::description(self).fmt(f)
+        f.write_str("overflow while calculating seek offset")
     }
 }
 
