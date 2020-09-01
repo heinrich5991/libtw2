@@ -587,7 +587,7 @@ impl MapItem for MapItemDdraceSoundV1 { fn version() -> i32 { 1 } fn offset() ->
 
 impl MapItemEnvelopeV1 {
     pub fn name_get(&self) -> [u8; 32] {
-        let mut result: [u8; 32] = unsafe { mem::uninitialized() };
+        let mut result = [0u8; 32];
         i32s_to_bytes(&mut result, &self.name);
         result[32-1] = 0;
         result
@@ -595,7 +595,7 @@ impl MapItemEnvelopeV1 {
 }
 impl MapItemGroupV3 {
     pub fn name_get(&self) -> [u8; 12] {
-        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        let mut result = [0u8; 12];
         i32s_to_bytes(&mut result, &self.name);
         result[12-1] = 0;
         result
@@ -771,7 +771,7 @@ impl MapItem for MapItemLayerV1DdraceSoundsV2 { fn version() -> i32 { 2 } fn off
 
 impl MapItemLayerV1TilemapV3 {
     pub fn name_get(&self) -> [u8; 12] {
-        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        let mut result = [0u8; 12];
         i32s_to_bytes(&mut result, &self.name);
         result[12-1] = 0;
         result
@@ -779,7 +779,7 @@ impl MapItemLayerV1TilemapV3 {
 }
 impl MapItemLayerV1QuadsV2 {
     pub fn name_get(&self) -> [u8; 12] {
-        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        let mut result = [0u8; 12];
         i32s_to_bytes(&mut result, &self.name);
         result[12-1] = 0;
         result
@@ -787,7 +787,7 @@ impl MapItemLayerV1QuadsV2 {
 }
 impl MapItemLayerV1DdraceSoundsV1 {
     pub fn name_get(&self) -> [u8; 12] {
-        let mut result: [u8; 12] = unsafe { mem::uninitialized() };
+        let mut result = [0u8; 12];
         i32s_to_bytes(&mut result, &self.name);
         result[12-1] = 0;
         result

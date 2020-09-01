@@ -622,7 +622,7 @@ def generate_impl_string(items):
                 result.append("""\
 impl {s} {{
     pub fn {m}_get(&self) -> [u8; {num_bytes}] {{
-        let mut result: [u8; {num_bytes}] = unsafe {{ mem::uninitialized() }};
+        let mut result = [0u8; {num_bytes}];
         i32s_to_bytes(&mut result, &self.{m});
         result[{num_bytes}-1] = 0;
         result

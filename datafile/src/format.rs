@@ -95,7 +95,7 @@ pub struct HeaderCheckResult {
 
 impl Header {
     pub fn read(mut cb: &mut dyn CallbackNew) -> Result<Header, raw::Error> {
-        let mut result: Header = unsafe { mem::uninitialized() };
+        let mut result: Header = unsafe { mem::zeroed() };
         let read = cb.read_le_i32s(mut_ref_slice(&mut result))?;
         if read < mem::size_of_val(&result.hv) {
             return Err(raw::Error::Df(Error::TooShortHeaderVersion));
