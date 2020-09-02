@@ -239,31 +239,33 @@ pub struct MapItemLayerV1TilemapExtraRace {
     pub data: i32,
 }
 impl MapItemLayerV1TilemapExtraRace {
-    pub fn offset(version: i32, flags: u32) -> Option<usize> {
-        let offset = match version {
-            2 => MapItemLayerV1TilemapV2::sum_len(),
-            3 => MapItemLayerV1TilemapV3::sum_len(),
-            _ => return None,
+    pub fn offset(version: i32, flags: i32)
+        -> Result<usize, LayerTilemapError>
+    {
+        let offset = if version < 2 {
+            return Err(LayerTilemapError::InvalidVersion(version))
+        } else if version == 2 {
+            MapItemLayerV1TilemapV2::sum_len()
+        } else {
+            MapItemLayerV1TilemapV3::sum_len()
         };
-        Some(offset + match flags {
+        Ok(offset + match flags as u32 {
             TILELAYERFLAG_TELEPORT => 0,
             TILELAYERFLAG_SPEEDUP => 1,
             TILELAYERFLAG_FRONT => 2,
             TILELAYERFLAG_SWITCH => 3,
             TILELAYERFLAG_TUNE => 4,
-            _ => return None,
+            _ => return Err(LayerTilemapError::InvalidFlags(flags)),
         })
     }
-    pub fn from_slice(slice: &[i32], version: i32, flags: u32)
-        -> Option<&MapItemLayerV1TilemapExtraRace>
+    pub fn from_slice(slice: &[i32], version: i32, flags: i32)
+        -> Result<&MapItemLayerV1TilemapExtraRace, LayerTilemapError>
     {
-        let offset = unwrap_or_return!(
-            MapItemLayerV1TilemapExtraRace::offset(version, flags), None
-        );
+        let offset = MapItemLayerV1TilemapExtraRace::offset(version, flags)?;
         if slice.len() <= offset {
-            return None;
+            return Err(LayerTilemapError::TooShort(slice.len()));
         }
-        Some(&(unsafe { common::slice::transmute(slice) })[offset])
+        Ok(&(unsafe { common::slice::transmute(slice) })[offset])
     }
 }
 

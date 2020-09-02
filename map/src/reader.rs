@@ -331,18 +331,20 @@ impl LayerTilemap {
         use format::ColorComponent::*;
         use format::LayerTilemapError::*;
 
-        fn extra<TS>(raw: &[i32], version: i32, flags: u32, too_short: TS)
+        fn extra<TS>(raw: &[i32], version: i32, flags: i32, too_short: TS)
             -> Result<&format::MapItemLayerV1TilemapExtraRace, format::LayerTilemapError>
             where TS: FnOnce(usize) -> format::LayerTilemapError
         {
             format::MapItemLayerV1TilemapExtraRace::from_slice(raw, version, flags)
-                .ok_or_else(|| too_short(raw.len()))
+                .map_err(|e| match e {
+                    TooShort(_) => too_short(raw.len()),
+                    other_err => other_err,
+                })
         }
 
         let v0 = format::MapItemLayerV1CommonV0::mandatory(raw, TooShort, InvalidVersion)?;
         let v2 = format::MapItemLayerV1TilemapV2::mandatory(raw, TooShortV2, InvalidVersion)?;
         let v3 = format::MapItemLayerV1TilemapV3::optional(raw, TooShortV3)?;
-        let flags = v2.flags as u32;
 
         // TODO: Standard settings for game group.
         let color = Color {
@@ -364,7 +366,7 @@ impl LayerTilemap {
         let image = get_index_opt(v2.image, image_indices, InvalidImageIndex)?;
         let data = get_index(v2.data, data_indices.clone(), InvalidDataIndex)?;
         let mut normal = false;
-        let type_ = match flags {
+        let type_ = match v2.flags as u32 {
             0 => {
                 normal = true;
                 LayerTilemapType::Normal(LayerTilemapNormal {
@@ -380,7 +382,7 @@ impl LayerTilemap {
             format::TILELAYERFLAG_TELEPORT => {
                 LayerTilemapType::RaceTeleport(
                     get_index(
-                        extra(raw, v0.version, flags, TooShortRaceTeleport)?.data,
+                        extra(raw, v0.version, v2.flags, TooShortRaceTeleport)?.data,
                         data_indices.clone(),
                         InvalidRaceTeleportDataIndex,
                     )?,
@@ -390,7 +392,7 @@ impl LayerTilemap {
             format::TILELAYERFLAG_SPEEDUP => {
                 LayerTilemapType::RaceSpeedup(
                     get_index(
-                        extra(raw, v0.version, flags, TooShortRaceSpeedup)?.data,
+                        extra(raw, v0.version, v2.flags, TooShortRaceSpeedup)?.data,
                         data_indices.clone(),
                         InvalidRaceSpeedupDataIndex,
                     )?,
@@ -400,7 +402,7 @@ impl LayerTilemap {
             format::TILELAYERFLAG_FRONT => {
                 LayerTilemapType::DdraceFront(
                     get_index(
-                        extra(raw, v0.version, flags, TooShortDdraceFront)?.data,
+                        extra(raw, v0.version, v2.flags, TooShortDdraceFront)?.data,
                         data_indices.clone(),
                         InvalidDdraceFrontDataIndex,
                     )?,
@@ -410,7 +412,7 @@ impl LayerTilemap {
             format::TILELAYERFLAG_SWITCH => {
                 LayerTilemapType::DdraceSwitch(
                     get_index(
-                        extra(raw, v0.version, flags, TooShortDdraceSwitch)?.data,
+                        extra(raw, v0.version, v2.flags, TooShortDdraceSwitch)?.data,
                         data_indices.clone(),
                         InvalidDdraceSwitchDataIndex,
                     )?,
@@ -420,7 +422,7 @@ impl LayerTilemap {
             format::TILELAYERFLAG_TUNE => {
                 LayerTilemapType::DdraceTune(
                     get_index(
-                        extra(raw, v0.version, flags, TooShortDdraceTune)?.data,
+                        extra(raw, v0.version, v2.flags, TooShortDdraceTune)?.data,
                         data_indices.clone(),
                         InvalidDdraceTuneDataIndex,
                     )?,
