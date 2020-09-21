@@ -342,6 +342,12 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
                 let hflip = tile.flags & format::TILEFLAG_HFLIP != 0;
                 let tile_x = tile.index.u32() % TILE_NUM;
                 let tile_y = tile.index.u32() / TILE_NUM;
+
+                // First tile is guaranteed to be empty (air)
+                if tile_x == 0 && tile_y == 0 {
+                    continue;
+                }
+
                 for iy in 0..tile_len {
                     for ix in 0..tile_len {
                         let p_target = &mut result[((y * tile_len + iy).usize(), (x * tile_len + ix).usize())];
