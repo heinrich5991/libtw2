@@ -328,14 +328,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         let image = &images[&l.image];
         let layer_max_y = cmp::min(l.tiles.dim().0.assert_u32(), max_y);
         let layer_max_x = cmp::min(l.tiles.dim().1.assert_u32(), max_x);
-        if layer_max_x <= min_x || layer_max_y <= min_y {
-            continue;
-        }
-        for y in 0..height {
-            for x in 0..width {
-                let layer_y = cmp::min(l.tiles.dim().0 - 1, (min_y + y).usize());
-                let layer_x = cmp::min(l.tiles.dim().1 - 1, (min_x + x).usize());
-                let tile = l.tiles[(layer_y, layer_x)];
+
+        for layer_y in min_y..layer_max_y {
+            for layer_x in min_x..layer_max_x {
+                let target_y = layer_y - min_y;
+                let target_x = layer_x - min_x;
+
+                let tile = l.tiles[(layer_y.usize(), layer_x.usize())];
 
                 let rotate = tile.flags & format::TILEFLAG_ROTATE != 0;
                 let vflip = tile.flags & format::TILEFLAG_VFLIP != 0;
@@ -350,7 +349,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
 
                 for iy in 0..tile_len {
                     for ix in 0..tile_len {
-                        let p_target = &mut result[((y * tile_len + iy).usize(), (x * tile_len + ix).usize())];
+                        let p_target = &mut result[((target_y * tile_len + iy).usize(), (target_x * tile_len + ix).usize())];
                         let (ty, tx) = transform_coordinates((iy, ix), rotate, vflip, hflip, tile_len);
                         let p_tile = image.data[((tile_y * tile_len + ty).usize(), (tile_x * tile_len + tx).usize())];
                         *p_target = p_target.overlay_with(p_tile.mask(l.color));
