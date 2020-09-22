@@ -36,6 +36,7 @@ use std::str;
 // TODO: Skip empty tiles (i.e. don't count tiles that have index != 0, but are
 //       graphically empty.
 
+#[derive(Clone, Copy)]
 struct Rect {
     min_x: u32,
     min_y: u32,
@@ -43,6 +44,21 @@ struct Rect {
     max_y: u32,
 }
 
+impl Rect {
+    fn width(&self) -> u32 {
+        self.max_x - self.min_x
+    }
+
+    fn height(&self) -> u32 {
+        self.max_y - self.min_y
+    }
+
+    fn is_empty(&self) -> bool {
+        return self.min_y >= self.max_y || self.min_x >= self.max_x
+    }
+}
+
+#[derive(Clone, Copy)]
 struct Config {
     size: u32,
     render_detail: bool,
@@ -117,10 +133,6 @@ struct Layer {
     color: Color,
     image: Option<usize>,
     tiles: Array2<format::Tile>,
-}
-
-struct Image {
-    data: Array2<Color>,
 }
 
 const TILE_NUM: u32 = 16;
@@ -209,23 +221,14 @@ fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool
     (iy, ix)
 }
 
-fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Config)
-    -> Result<(), Error>
-    where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
+fn select_layers(map: &mut map::Reader, config: &Config)
+    -> Result<Vec<Layer>, Error>
 {
-    let dfr = df::Reader::open(path)?;
-    let mut map = map::Reader::from_datafile(dfr);
-
     let mut layers = vec![];
-    let mut images = HashMap::new();
 
-    let mut min_x = u32::max_value();
-    let mut max_x = 0;
-    let mut min_y = u32::max_value();
-    let mut max_y = 0;
+    for group_idx in map.group_indices() {
+        let group = map.group(group_idx)?;
 
-    for g in map.group_indices() {
-        let group = map.group(g)?;
         if group.parallax_x != 100 || group.parallax_y != 100
             || group.offset_x != 0 || group.offset_y != 0
             || group.clipping.is_some()
@@ -233,61 +236,13 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
             continue;
         }
 
-        for i in group.layer_indices {
-            let layer = map.layer(i)?;
-            if layer.detail && !config.render_detail { continue; }
-            let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
-            let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue; };
+        for layer_idx in group.layer_indices {
+            let layer = map.layer(layer_idx)?;
+
+            if layer.detail && !config.render_detail { continue }
+            let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue };
+            let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue };
             let tiles = map.layer_tiles(tilemap.tiles(normal.data))?;
-
-            match images.entry(normal.image) {
-                hash_map::Entry::Occupied(_) => {},
-                hash_map::Entry::Vacant(v) => {
-                    let data = match normal.image {
-                        None => Array2::from_elem((1, 1), Color::white()),
-                        Some(image_index) => {
-                            let image = map.image(image_index)?;
-                            let height = image.height.usize();
-                            let width = image.width.usize();
-                            match image.data {
-                                Some(d) => {
-                                    let data = map.image_data(d)?;
-                                    if data.len() % mem::size_of::<Color>() != 0 {
-                                        return Err(OwnError::ImageShape.into());
-                                    }
-                                    let data: Vec<Color> = unsafe { vec::transmute(data) };
-                                    Array2::from_shape_vec((height, width), data)
-                                         .map_err(|_| OwnError::ImageShape)?
-                                }
-                                None => {
-                                    let image_name = map.image_name(image.name)?;
-                                    // WARN? Unknown external image
-                                    // WARN! Wrong dimensions
-                                    swap(str::from_utf8(&image_name).ok()
-                                              .and_then(sanitize)
-                                              .map(&mut external))?
-                                        .unwrap_or(None)
-                                        .unwrap_or_else(|| Array2::from_elem((1, 1), Color::white()))
-                                }
-                            }
-                        }
-                    };
-                    v.insert(Image {
-                        data: data,
-                    });
-                },
-            }
-
-            for y in 0..tilemap.height {
-                for x in 0..tilemap.width {
-                    if tiles[(y.usize(), x.usize())].index != 0 {
-                        min_x = cmp::min(min_x, x);
-                        min_y = cmp::min(min_y, y);
-                        max_x = cmp::max(max_x, x + 1);
-                        max_y = cmp::max(max_y, y + 1);
-                    }
-                }
-            }
 
             layers.push(Layer {
                 color: normal.color.into(),
@@ -297,43 +252,112 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
         }
     }
 
-    if let Some(ref c) = config.crop {
-        min_x = c.min_x;
-        min_y = c.min_y;
-        max_x = c.max_x;
-        max_y = c.max_y;
+    Ok(layers)
+}
+
+fn prepare_tilesets<E>(
+    layers: &[Layer],
+    map: &mut map::Reader,
+    mut external_tileset_loader: &mut E,
+    tile_len: u32,
+) -> Result<HashMap<Option<usize>, Array2<Color>>, Error>
+    where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>
+{
+    let mut tilesets = HashMap::new();
+
+    for layer in layers {
+        match tilesets.entry(layer.image) {
+            hash_map::Entry::Occupied(_) => {},
+            hash_map::Entry::Vacant(v) => {
+                let data = match layer.image {
+                    None => Array2::from_elem((1, 1), Color::white()),
+                    Some(image_idx) => {
+                        let image = map.image(image_idx)?;
+                        let height = image.height.usize();
+                        let width = image.width.usize();
+                        match image.data {
+                            Some(d) => {
+                                let data = map.image_data(d)?;
+                                if data.len() % mem::size_of::<Color>() != 0 {
+                                    return Err(OwnError::ImageShape.into());
+                                }
+                                let data: Vec<Color> = unsafe { vec::transmute(data) };
+                                Array2::from_shape_vec((height, width), data)
+                                     .map_err(|_| OwnError::ImageShape)?
+                            }
+                            None => {
+                                let image_name = map.image_name(image.name)?;
+                                // WARN? Unknown external image
+                                // WARN! Wrong dimensions
+                                swap(str::from_utf8(&image_name).ok()
+                                          .and_then(sanitize)
+                                          .map(&mut external_tileset_loader))?
+                                    .unwrap_or(None)
+                                    .unwrap_or_else(|| Array2::from_elem((1, 1), Color::white()))
+                            }
+                        }
+                    },
+                };
+                v.insert(normalize_tileset(data, tile_len));
+            },
+        }
     }
 
-    if min_x > max_x || min_y > max_y {
-        return Err(OwnError::EmptyMap.into());
+    Ok(tilesets)
+}
+
+fn crop_to_fit_nonair_tiles(layers: &[Layer]) -> Rect {
+    let mut crop = Rect {
+        min_x: u32::max_value(),
+        max_x: 0,
+        min_y: u32::max_value(),
+        max_y: 0,
+    };
+
+    for layer in layers {
+        for ((y, x), tile) in layer.tiles.indexed_iter() {
+            if tile.index != 0 {
+                crop.min_y = cmp::min(crop.min_y, y.assert_u32());
+                crop.min_x = cmp::min(crop.min_x, x.assert_u32());
+                crop.max_y = cmp::max(crop.max_y, (y + 1).assert_u32());
+                crop.max_x = cmp::max(crop.max_x, (x + 1).assert_u32());
+            }
+        }
     }
 
-    let width = max_x - min_x;
-    let height = max_y - min_y;
+    crop
+}
 
+fn scale_tile_len(crop: &Rect, config: &Config) -> u32 {
     let mut tile_len = 64;
-    while tile_len != 1 && tile_len * tile_len * width * height > 16 * config.size * config.size {
+    // TODO: Fix overflow on huge maps like Back in Time 2
+    while tile_len != 1 && tile_len * tile_len * crop.width() * crop.height() > 16 * config.size * config.size {
         tile_len /= 2;
     }
+    tile_len
+}
 
-    for image in images.values_mut() {
-        image.data = normalize_tileset(mem::replace(&mut image.data, Array2::default((0, 0))), tile_len);
-    }
+fn render_layers(
+    layers: &[Layer],
+    tilesets: &HashMap<Option<usize>, Array2<Color>>,
+    crop: &Rect,
+    tile_len: u32
+) -> Array2<Color> {
 
-    let result_width = width.checked_mul(tile_len).unwrap();
-    let result_height = height.checked_mul(tile_len).unwrap();
+    let result_width = crop.width().checked_mul(tile_len).unwrap();
+    let result_height = crop.height().checked_mul(tile_len).unwrap();
 
     let mut result: Array2<Color> = Array2::default((result_height.usize(), result_width.usize()));
 
-    for l in &layers {
-        let image = &images[&l.image];
-        let layer_max_y = cmp::min(l.tiles.dim().0.assert_u32(), max_y);
-        let layer_max_x = cmp::min(l.tiles.dim().1.assert_u32(), max_x);
+    for l in layers {
+        let tileset = &tilesets[&l.image];
+        let layer_max_y = cmp::min(l.tiles.dim().0.assert_u32(), crop.max_y);
+        let layer_max_x = cmp::min(l.tiles.dim().1.assert_u32(), crop.max_x);
 
-        for layer_y in min_y..layer_max_y {
-            for layer_x in min_x..layer_max_x {
-                let target_y = layer_y - min_y;
-                let target_x = layer_x - min_x;
+        for layer_y in crop.min_y..layer_max_y {
+            for layer_x in crop.min_x..layer_max_x {
+                let target_y = layer_y - crop.min_y;
+                let target_x = layer_x - crop.min_x;
 
                 let tile = l.tiles[(layer_y.usize(), layer_x.usize())];
 
@@ -352,13 +376,37 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
                     for ix in 0..tile_len {
                         let p_target = &mut result[((target_y * tile_len + iy).usize(), (target_x * tile_len + ix).usize())];
                         let (ty, tx) = transform_coordinates((iy, ix), rotate, vflip, hflip, tile_len);
-                        let p_tile = image.data[((tile_y * tile_len + ty).usize(), (tile_x * tile_len + tx).usize())];
+                        let p_tile = tileset[((tile_y * tile_len + ty).usize(), (tile_x * tile_len + tx).usize())];
                         *p_target = p_target.overlay_with(p_tile.mask(l.color));
                     }
                 }
             }
         }
     }
+
+    result
+}
+
+fn process<E>(path: &Path, out_path: &Path, mut external_tileset_loader: &mut E, config: &Config)
+    -> Result<(), Error>
+    where E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
+{
+    let dfr = df::Reader::open(path)?;
+    let mut map = map::Reader::from_datafile(dfr);
+
+    let layers = select_layers(&mut map, &config)?;
+
+    let crop = match config.crop {
+        Some(crop) => crop,
+        None => crop_to_fit_nonair_tiles(&layers),
+    };
+    if crop.is_empty() {
+        return Err(OwnError::EmptyMap.into());
+    }
+
+    let tile_len = scale_tile_len(&crop, &config);
+    let tilesets = prepare_tilesets(&layers, &mut map, &mut external_tileset_loader, tile_len)?;
+    let result = render_layers(&layers, &tilesets, &crop, tile_len);
 
     let image = {
         let raw: &[Color] = result.as_slice().unwrap();
@@ -367,6 +415,8 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     };
     mem::drop(result);
 
+    let width = crop.width();
+    let height = crop.height();
     let (mut new_width, mut new_height) = if width / height < 6 && height / width < 6 {
         let sqrt = (height * width).to_f32().unwrap().sqrt().to_u32().unwrap();
         (width * config.size / sqrt, height * config.size / sqrt)
