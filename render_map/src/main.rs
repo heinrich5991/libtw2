@@ -125,7 +125,8 @@ struct Image {
 
 const TILE_NUM: u32 = 16;
 
-fn transform_image(tileset: Array2<Color>, tile_len: u32)
+/// Scales `tileset` to `tile_len` * TILE_NUM pixels, clears first (air) tile.
+fn normalize_tileset(tileset: Array2<Color>, tile_len: u32)
     -> Array2<Color>
 {
     let dim = tileset.dim();
@@ -316,7 +317,7 @@ fn process<E>(path: &Path, out_path: &Path, mut external: &mut E, config: &Confi
     }
 
     for image in images.values_mut() {
-        image.data = transform_image(mem::replace(&mut image.data, Array2::default((0, 0))), tile_len);
+        image.data = normalize_tileset(mem::replace(&mut image.data, Array2::default((0, 0))), tile_len);
     }
 
     let result_width = width.checked_mul(tile_len).unwrap();
