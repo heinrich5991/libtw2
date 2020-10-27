@@ -3,10 +3,6 @@ Introduction
 
 Teeworlds and DDNet maps get saved as datafiles.
 If you are not yet familiar with parsing datafiles, please go through the [datafile documentation](https://github.com/heinrich5991/libtw2/blob/ba09b18d4cbb5632765bb520ec9b84d6539f8870/doc/datafile.md) first.
-Here we will assume that you know the datafile terminology.
-
-
------------------------------------------------
 
 Terminology
 ===========
@@ -49,6 +45,16 @@ Examples for the `item_data` syntax:
 Item Type Overview
 ==================
 
+    General map structure:
+        > Info
+        > Images
+        > Envelopes
+            > Envelope Points
+        > Groups
+            > Layers
+                > Auto Mappers (DDNet only)
+        > Sounds (DDNet only)
+
 Maps consist of various elements that each have a `type_id` that identifies them.
 
     type_id mappings:
@@ -72,9 +78,6 @@ UUID item types
 ---------------
 
 In DDNet, some item types won't be assigned a type_id, but instead an uuid.
-
-    uuid mappings:
-        [0x3e,0x1b,0x27,0x16,0x17,0x8c,0x39,0x78,0x9b,0xd9,0xb1,0x1a,0xe0,0x41,0xd,0xd8] -> Auto mappers
 
 To find the correct item type (in `datafile.item_types` for uuid item types, you will need their `type_id`.
 You will need to figure out the `type_id` manually by looking into the **UUID Index items**.
@@ -107,7 +110,8 @@ Version
     item_data of the only version item:
         [1] version
 
-`version` should always be set to `1`.
+- `version` should always be set to `1`
+- no actual data is stored using the Version item type
 
 Info
 ------
@@ -511,3 +515,22 @@ Sounds
 However, since there are no sounds can currently be loaded externally, this feature was removed.
 This means that `external` should always be false and `data` should not be considered an option index
 - the data item index `data` points to opus sound data
+
+Auto Mappers
+------------
+
+- `uuid` = `[0x3e,0x1b,0x27,0x16,0x17,0x8c,0x39,0x78,0x9b,0xd9,0xb1,0x1a,0xe0,0x41,0xd,0xd8]`
+- DDNet only
+
+
+    item_data of auto mapper items:
+        [1] _version (not used, was uninitialized)
+        [1] *group
+        [1] *layer
+        [1] opt config
+        [1] seed
+        [1] flags
+
+- `group` points to a group, `layer` is the layer index within the group
+- `flags` currently only has the `automatic` flag at 2^0, which tells the client to auto map after any changes
+- while only Tiles layer use auto mappers, physics layers may also have one. When saving, only save auto mappers for Tiles layers
