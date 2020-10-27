@@ -13,8 +13,12 @@ Terminology
 
 **Data item indices**  point to a data item in the `datafile.data` section of the datafile.
 They will be prefixed with `&`.
-**Optional data item index** on the other hand might also equal `-1`, meaning no data item is used.
-They will be prefixed with `opt &`
+**Optional indices** are either an index or `-1`, meaning that this field is not used.
+They will be prefixed with `opt`
+
+**Indices that point to an item of another item type will be prefixed with `*`.**
+ For example `*image` means that the field points to an image item.
+ `*color_envelope` would mean that the field points to the envelope item with that index, which should be a color envelope.
 
 **CString** is a null terminated string.
 
@@ -28,6 +32,9 @@ To extract the string:
 **Point** is a struct with 2 i32, one for x, one for y.
 It is usually used to describe a position in the map.
 0, 0 is the top-left corner.
+
+**Color** is a struct with the 4 u8 values (in order): r, g, b, a.
+Its still usually parsed from 4 i32s, meaning each one should hold a value that fits into an u8.
 
 The `item_data` of an item will be considered as an array of i32.
 We will split the `item_data` up into its different elements, which differ for each item type.
@@ -201,7 +208,8 @@ The first 6 i32 of each envelope point, depending on the envelope type it belong
     position envelope point:
         [1] time
         [1] curve_type
-        [2] point: Point
+        [1] x
+        [1] y
         [1] rotation
         [1] -
     
@@ -219,7 +227,7 @@ The first 6 i32 of each envelope point, depending on the envelope type it belong
     - 4 -> Smooth (slow, faster, then once more slow value change)
     - 5 -> Bezier (very customizable curve)
 
-- `point` holds the x and y movement
+- `x` and `y` hold the movement
 - **I32Color** actually means that the color values for r, g, b, a are i32 values
 
 If bezier curves are used anywhere (envelope version 3), then there are 16 more i32 for each point.
@@ -230,3 +238,236 @@ These are only non-zero if the `curve_type` of the point is 5 (Bezier):
         [4] in_tangent_dy
         [4] out_tangent_dx
         [4] out_tangent_dy
+
+Groups
+------
+
+- `type_id` = 4
+
+
+    item_data of group items
+        [1] version
+        [1] x_offset
+        [1] y_offset
+        [1] x_parallax
+        [1] y_parallax
+        [1] start_layer
+        [1] num_layers
+        
+        version 2 extension:
+        [1] clipping: bool
+        [1] clip_x
+        [1] clip_y
+        [1] clip_width
+        [1] clip_height
+        
+        version 3 extension:
+        [3] name: I32String
+        
+- both Vanilla and DDNet are at `version` = 3
+- `start_layer` and `num_layers` tell you which layers belong to this group, obviously groups are not allowed to overlap
+- the "Game" group, which is the only one that is allowed to hold physics layers, should have every field zeroed, only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game".
+
+Layers
+------
+
+- `type_id` = 5
+
+Layer types:
+
+- Tilemap layers:
+    - Tiles layer
+    - Physics layers:
+        - Game layer
+        - Front layer (DDNet only)
+        - Tele layer (DDNet only)
+        - Speedup layer (DDNet only)
+        - Switch layer (DDNet only)
+        - Tune layer (DDNet only)
+- Quads layer
+- Sounds layer (DDNet only)
+
+Note that All physics layers *should* be unique, but this isn't properly enforced on all DDNet maps.
+Use the last physics layer of the type you seek.
+
+
+        item_data base for all layer items (different types have different extensions):
+            [1] _version (not used, was uninitialized)
+            [1] type
+            [1] flags
+
+- `flags` currently only has the detail flag (at 2^0), which is used in Quad-, Tile- and Sound layers.
+- `type` holds the type of layer:
+    - 2 -> Tilemap layer
+    - 3 -> Quads layer
+    - 10 -> Sounds layer
+
+
+    item_data extension for tilemap layers:
+        [1] version
+        [1] width
+        [1] height
+        [1] type
+        [4] color: Color
+        [1] opt *color_envelope
+        [1] color_envelope_offset
+        [1] opt *image
+        [1] &data: 2d-array of the the tile type 'Tile'
+        
+        version 3 extension:
+        [3] name: I32String
+        
+        DDNet extension (no version change):
+        [1] opt &data_tele
+        [1] opt &data_speedup
+        [1] opt &data_front
+        [1] opt &data_switch
+        [1] opt &data_tune
+
+- Vanilla is at `version` = 4, DDNet at `version` = 3
+- `width` and `height` specify the dimensions of the layer
+- `type` tells you what kind of tilemap layer this is:
+    - 0 -> Tiles
+    - 1 -> Game
+    - 2 -> Tele
+    - 4 -> Speedup
+    - 8 -> Front
+    - 16 -> Switch
+    - 32 -> Tune
+- `color`, `color_envelope`, `color_envelope_offset`, `image` are only used by the tiles layer
+
+Tile types:
+
+- all tile types consist of bytes (u8)
+- all tile types have the `id` byte, which identifies its use
+    - for example in the game layer, 0 is air, 1 is hookable, etc.
+- many have a `flags` byte, which is a bitflag with the following bits:
+    - 2^0 -> vertical flip
+    - 2^1 -> horizontal flip
+    - 2^2 -> opaque
+    - 2^3 -> rotate
+
+
+    'Tile' tile type (used by all vanilla layers and the front layer):
+        [1] id
+        [1] flags
+        [1] skip
+        [1] - unused
+
+- the `skip` byte is used for the 0.7 compression, which is used if `version` >= 4:
+    - the `data` field no longer points to an 2d-array of tiles, but instead to an array of 'Tile' tiles which must be expanded into the 2d-array
+    - the `skip` field of each tile in the array tells you how many time this tile is used in a row.
+    0 means that it appears only once there.
+    3 means that you need to add 3 more copies of that tile after this one
+    - note that the maximum value for `skip` is 255
+    - set the `skip` field to 0 while expanding, trust me on this one
+
+DDNet only content:
+- each physics layer uses a different data field pointer, keep in mind to use the correct one, when saving maps, set the unused pointers to -1
+- the DDNet extension came before the `version` = 3 extension, meaning you have subtract 3 (the length of the `name` field) from the data index
+- you might have noticed that the `data` field is not actually optional like all the other data fields.
+For vanilla compatibility, the `data` field always points to a 2d-array of tiles of the type 'Tile', with the same dimensions as the actual layer, but everything zeroed out
+
+Special tile types:
+    
+    'Tele' tile type:
+        [1] number
+        [1] id
+
+- `number` is the number of the teleporter exit/entry to group them together
+
+
+    'Speedup' tile type:
+        [1] force
+        [1] max_speed
+        [1] id
+        [2] angle: i16
+
+- angle is LE
+
+
+    'Switch' tile type:
+        [1] number
+        [1] id
+        [1] flags
+        [1] delay
+
+- `number` once again tells you which tiles interact with each other
+
+
+    'Tune' tile type:
+        [1] number
+        [1] id
+
+- `number` stores which zone this is, zones are defined in the map info -> settings
+
+**Quads layer**
+
+    item_data extension for quads layers:
+        [1] version
+        [1] num_quads
+        [1] &data: [Quads]
+        [1] opt *image
+        
+        version 2 extension:
+        [3] name: I32String
+
+- both Vanilla and DDNet are at `version` = 2
+- `num_quads` is the amount of quads found behind the data item pointer `data`
+- the size of a quad in bytes is 152, however we will pretend that the data consists of i32 when looking at the Quad structure:
+
+
+    Quad:
+        [2] position: Point
+        [8] corner_positions: [Point; 4]
+        [16] corner_colors: [Color; 4]
+        [8] texture_coordinates: [Point; 4]
+        [1] opt *position_envelope
+        [1] position_envelope_offset
+        [1] opt *color_envelope
+        [1] color_envelope_offset
+
+- corners are in the order top-left -> top-right -> bottom-left -> bottom-right
+
+**Sounds layer**
+
+    item_data extension for sounds layers:
+        [1] version
+        [1] num_sources
+        [1] &data: [SoundSource]
+        [1] opt *sound
+        [3] name: I32String
+
+- num_sources is the amount of sources behind the data item pointer `data`
+- the size of a sound source in bytes is 52, however we will pretend that the data consists of i32 when looking at the SoundSource structure:
+
+
+    SoundSource:
+        [2] position: Point
+        [1] looping: bool
+        [1] panning: bool
+        [1] delay (in seconds)
+        [1] falloff: u8
+        [1] *position_envelope
+        [1] position_envelope_offset
+        [1] *sound_envelope
+        [1] sound_envelope_offset
+
+Sounds
+======
+
+- `type_id` = 7
+- DDNet only
+
+
+    item_data of sound items:
+        [1] version
+        [1] external: bool
+        [1] &name: CString
+        [1] &data
+        [1] data_size
+
+- in theory, sounds can be external like images.
+However, since there are no sounds can currently be loaded externally, this feature was removed.
+This means that `external` should always be false and `data` should not be considered an option index
+- the data item index `data` points to opus sound data
