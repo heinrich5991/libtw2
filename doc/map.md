@@ -14,7 +14,7 @@ Terminology
 **Data item indices**  point to a data item in the `datafile.data` section of the datafile.
 They will be prefixed with `&`.
 **Optional indices** are either an index or `-1`, meaning that this field is not used.
-They will be prefixed with `opt`
+They will be prefixed with `opt`.
 
 **Indices that point to an item of another item type will be prefixed with `*`.**
  For example `*image` means that the field points to an image item.
@@ -287,6 +287,7 @@ Layer types:
         - Tune layer (DDNet only)
 - Quads layer
 - Sounds layer (DDNet only)
+- Deprecated Sounds layer (DDNet only, replaced by Sounds layer)
 
 Note that:
 1. All physics layers *should* be unique, but this isn't properly enforced on all DDNet maps.
@@ -303,6 +304,7 @@ Use the last physics layer of the type you seek.
 - `type` holds the type of layer:
     - 2 -> Tilemap layer
     - 3 -> Quads layer
+    - 9 -> Deprecated Sounds layer
     - 10 -> Sounds layer
 
 
@@ -456,6 +458,37 @@ Special tile types:
         [1] position_envelope_offset
         [1] *sound_envelope
         [1] sound_envelope_offset
+        [3] shape: SoundShape
+    
+    SoundShape:
+        [1] kind
+        [1] width  / radius
+        [1] height / - unused
+
+- `kind`:
+    - 0 -> rectangle (use `width` and `height`)
+    - 1 -> circle (use `radius`)
+
+**Deprecated Sounds layer**
+
+- the `item_data` is the same as in the Sounds layer
+- difference is the SoundSource struct, which here only uses 36 bytes:
+
+
+    deprecated SoundSource:
+        [2] position: Point
+        [1] looping: bool
+        [1] delay
+        [1] radius
+        [1] *position_envelope
+        [1] position_envelope_offset
+        [1] *sound_envelope
+        [1] sound_envelope_offset
+
+Use the following values to convert a deprecated SoundSource:
+- `panning` = true
+- `falloff` = 0
+- `shape`: kind = circle, with shared `radius`
 
 Sounds
 ------
