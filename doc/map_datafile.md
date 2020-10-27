@@ -2,7 +2,7 @@ Introduction
 ============
 
 Teeworlds and DDNet maps get saved as datafiles.
-If you are not yet familiar with parsing datafiles, please go through the datafile documentation first.
+If you are not yet familiar with parsing datafiles, please go through the [datafile documentation](https://github.com/heinrich5991/libtw2/blob/ba09b18d4cbb5632765bb520ec9b84d6539f8870/doc/datafile.md) first.
 Here we will assume that you know the datafile terminology.
 
 
@@ -266,7 +266,8 @@ Groups
         
 - both Vanilla and DDNet are at `version` = 3
 - `start_layer` and `num_layers` tell you which layers belong to this group, obviously groups are not allowed to overlap
-- the "Game" group, which is the only one that is allowed to hold physics layers, should have every field zeroed, only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game".
+- the 'Game' group, which is the only one that is allowed to hold physics layers, should have every field zeroed, only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game"
+- all maps must have a 'Game' group, since every map must have a 'Game' layer which can only be in the 'Game' group
 
 Layers
 ------
@@ -287,8 +288,10 @@ Layer types:
 - Quads layer
 - Sounds layer (DDNet only)
 
-Note that All physics layers *should* be unique, but this isn't properly enforced on all DDNet maps.
+Note that:
+1. All physics layers *should* be unique, but this isn't properly enforced on all DDNet maps.
 Use the last physics layer of the type you seek.
+2. All maps must have a Game layer
 
 
         item_data base for all layer items (different types have different extensions):
@@ -364,7 +367,7 @@ Tile types:
 
 DDNet only content:
 - each physics layer uses a different data field pointer, keep in mind to use the correct one, when saving maps, set the unused pointers to -1
-- the DDNet extension came before the `version` = 3 extension, meaning you have subtract 3 (the length of the `name` field) from the data index
+- the DDNet extension came before the `version` = 3 extension, meaning you have to subtract 3 (the length of the `name` field) from the data index
 - you might have noticed that the `data` field is not actually optional like all the other data fields.
 For vanilla compatibility, the `data` field always points to a 2d-array of tiles of the type 'Tile', with the same dimensions as the actual layer, but everything zeroed out
 
@@ -381,6 +384,7 @@ Special tile types:
         [1] force
         [1] max_speed
         [1] id
+        [1] - unused padding byte
         [2] angle: i16
 
 - angle is LE
@@ -454,7 +458,7 @@ Special tile types:
         [1] sound_envelope_offset
 
 Sounds
-======
+------
 
 - `type_id` = 7
 - DDNet only
@@ -467,6 +471,7 @@ Sounds
         [1] &data
         [1] data_size
 
+- DDNet is at `version` = 1
 - in theory, sounds can be external like images.
 However, since there are no sounds can currently be loaded externally, this feature was removed.
 This means that `external` should always be false and `data` should not be considered an option index
