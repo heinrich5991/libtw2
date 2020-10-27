@@ -11,38 +11,40 @@ Here we will assume that you know the datafile terminology.
 Terminology
 ===========
 
-**Data item indices**  point to a data item in the `datafile.data` section of the datafile.
-They will be prefixed with `&`.
-**Optional indices** are either an index or `-1`, meaning that this field is not used.
-They will be prefixed with `opt`.
+- integer types are usually declared in the same notation as in rust. Examples:
+    - `i32` is a signed 32 bit integer
+    - `u8` is a unsigned 8 bit integer, `byte` is used synonymously
+    
+- `&` is the prefix for data item indices.
+Those point to a data item in the `datafile.data` section of the datafile.
 
-**Indices that point to an item of another item type will be prefixed with `*`.**
- For example `*image` means that the field points to an image item.
+- `opt` is the prefix for optional indices. They are either a normal index or `-1`, marking it as unused.
+
+- `*` is the prefix for indices that point to another item in the datafile.
+    - For example `*image` means that the field points to an image item.
  `*color_envelope` would mean that the field points to the envelope item with that index, which should be a color envelope.
+ 
+- **CString** is a null terminated string.
 
-**CString** is a null terminated string.
-
-**I32String** is a CString stored in consecutive i32 values.
+- **I32String** is a CString stored in consecutive i32 values.
 To extract the string:
-1. convert the i32s to their be (big endian) byte representation, join the bytes so that we have a single array of bytes
-2. the last byte is a null byte, ignore that one for now
-3. wrapping-subtract 128 from the remaining bytes
-4. now you got a CString padded with zeroes.
-
-**Point** is a struct with 2 i32, one for x, one for y.
+    1. convert the i32s to their be (big endian) byte representation, join the bytes so that we have a single array of bytes
+    2. the last byte is a null byte, ignore that one for now
+    3. wrapping-subtract 128 from the remaining bytes
+    4. now you got a CString padded with zeroes
+    
+- **Point** is a struct with two i32s, one for x, one for y.
 It is usually used to describe a position in the map.
 0, 0 is the top-left corner.
 
-**Color** is a struct with the 4 u8 values (in order): r, g, b, a.
+- **Color** is a struct with the 4 u8 values (in order): r, g, b, a.
 Its still usually parsed from 4 i32s, meaning each one should hold a value that fits into an u8.
 
-The `item_data` of an item will be considered as an array of i32.
+- the `item_data` of an item is an array of i32s.
 We will split the `item_data` up into its different elements, which differ for each item type.
-
 Examples for the `item_data` syntax:
- 
-1. `[2] point: Point` => The next two i32 values represent the variable `point` (which will be explained afterwards) which is of the type `Point`.
-2. `[1] opt &name: CString` => `name` is an optional data item index on a CString.
+    1. `[2] point: Point` => The next two i32 values represent the variable `point` (which will be explained afterwards) which is of the type `Point`.
+    2. `[1] opt &name: CString` => The next i32 represents `name` and is an optional data item index to a CString.
 
 Item Type Overview
 ==================
