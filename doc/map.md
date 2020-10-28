@@ -88,14 +88,12 @@ You will need to figure out the `type_id` manually by looking into the **UUID In
         item_data:
             [3] UUID of the uuid item type that this item represents
 
-The twelve bytes of the uuid are laid out in order in the `item_data`.
-
-Let's suppose we are looking for the auto mapper items. What we will do is:
-
-1. get the UUID item type
-2. scan through its items
-3. when an item has the correct uuid, copy the `type_id` from the `id` field
-4. find the item type with the `type_id` that we just found out
+- the twelve bytes of the uuid are laid out in order in the `item_data`.
+- steps to find an uuid item type:
+    1. get the UUID item type
+    2. scan through its items
+    3. when an item has the correct uuid in its `item_data`, copy the `type_id` from the `id` field
+    4. find the item type with the `type_id` that we just found out
 
 Map Item Types
 ==============
@@ -110,7 +108,7 @@ Version
     item_data of the only version item:
         [1] version
 
-- `version` should always be set to `1`
+- `version` = 1
 - no actual data is stored using the Version item type
 
 Info
@@ -131,6 +129,11 @@ Info
 - both vanilla and DDNet are at `version` = 1
 - like indicated, all the other fields are optional data item indices
 - the data item behind `settings` is an array of CStrings, all consecutive, split by their null bytes (with a null byte at the very end)
+- maximum amount of bytes for each CString (including the null byte):
+    - author: 32
+    - version: 16
+    - credits: 128
+    - license: 32
 
 Images
 ------
@@ -161,6 +164,7 @@ Images
     - External images have `external` = true and the `data` field on `-1`.
     Those images can only be loaded by clients that have those in their `mapres` directory, meaning only a small set of images should be external.
     The client looks for those images by using the `name` field.
+- the CString behind `name` must fit into 128 bytes
 
 Envelopes
 ---------
@@ -179,7 +183,7 @@ Envelopes
         version 2 extension:
         [1] synchronized: bool
 
-- DDNet is at `version` = 2, Vanilla chooses 3 for all envelopes when one of them uses a bezier curve, but falls back to 2 when they is none.
+- DDNet is at `version` = 2, Vanilla chooses 3 for all envelopes when one of them uses a bezier curve, but falls back to 2 when there is none.
 - `channel` holds the type of the envelope
     - 1 -> Sound envelope
     - 3 -> Position envelope
@@ -231,7 +235,7 @@ The first 6 i32 of each envelope point, depending on the envelope type it belong
     - 2 -> Slow (first slow, later much faster value change)
     - 3 -> Fast (first fast, later much slower value change)
     - 4 -> Smooth (slow, faster, then once more slow value change)
-    - 5 -> Bezier (very customizable curve)
+    - 5 -> Bezier (Vanilla only, very customizable curve)
 
 - `x` and `y` hold the movement
 - **I32Color** actually means that the color values for r, g, b, a are i32 values
@@ -271,7 +275,7 @@ Groups
         [3] name: I32String
         
 - both Vanilla and DDNet are at `version` = 3
-- `start_layer` and `num_layers` tell you which layers belong to this group, obviously groups are not allowed to overlap
+- `start_layer` and `num_layers` tell you which layers belong to this group. Obviously groups are not allowed to overlap
 - the 'Game' group, which is the only one that is allowed to hold physics layers, should have every field zeroed, only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game"
 - all maps must have a 'Game' group, since every map must have a 'Game' layer which can only be in the 'Game' group
 
@@ -452,6 +456,7 @@ Special tile types:
 
 - num_sources is the amount of sources behind the data item pointer `data`
 - the size of a sound source in bytes is 52, however we will pretend that the data consists of i32 when looking at the SoundSource structure:
+- the CString behind `name` must fit into 128 bytes
 
 
     SoundSource:
@@ -512,7 +517,7 @@ Sounds
 
 - DDNet is at `version` = 1
 - in theory, sounds can be external like images.
-However, since there are no sounds can currently be loaded externally, this feature was removed.
+However, since there are no sounds that could currently be loaded externally, this feature has been removed.
 This means that `external` should always be false and `data` should not be considered an option index
 - the data item index `data` points to opus sound data
 
