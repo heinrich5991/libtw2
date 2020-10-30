@@ -174,7 +174,12 @@ item_data of image items:
     Those images can only be loaded by clients that have those in their `mapres` directory, meaning only a small set of images should be external.
     The client looks for those images by using the `name` field.
 - the CString behind `name` must fit into 128 bytes
-
+- External images for both 0.6 and 0.7 (note that they might differ between versions!): `bg_cloud1`, `bg_cloud2`,
+  `bg_cloud3`, `desert_doodads`, `desert_main`, `desert_mountains2`, `desert_mountains`, `desert_sun`,
+  `generic_deathtiles`,  `generic_unhookable`, `grass_doodads`, `grass_main`, `jungle_background`, `jungle_deathtiles`,
+  `jungle_doodads`, `jungle_main`, `jungle_midground`, `jungle_unhookables`, `moon`, `mountains`, `snow`, `stars`,
+  `sun`, `winter_doodads`, `winter_main`, `winter_mountains2`, `winter_mountains3`, `winter_mountains`
+- Further external images for 0.7 maps: `easter`, `generic_lamps`, `generic_shadows`, `light`
 Envelopes
 ---------
 
@@ -291,8 +296,11 @@ item_data of group items
 ```
         
 - both Vanilla and DDNet are at `version` = 3
-- `start_layer` and `num_layers` tell you which layers belong to this group. Groups are not allowed to overlap
-- the 'Game' group, which is the only one that is allowed to hold physics layers, should have every field zeroed, only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game"
+- `start_layer` and `num_layers` tell you which layers belong to this group.
+  Groups are not allowed to overlap, however, the reference implementation has no such checks while loading.
+- the 'Game' group, which is the only one that is allowed to hold physics layers, should have every field zeroed,
+  only `x_parallax` and `y_parallax` should each be 100 and the `name` should be "Game".
+  Note that the reference implementation does not verify this but instead just overwrites those values
 - all maps must have a 'Game' group, since every map must have a 'Game' layer which can only be in the 'Game' group
 
 Layers
