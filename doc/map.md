@@ -180,6 +180,7 @@ item_data of image items:
   `jungle_doodads`, `jungle_main`, `jungle_midground`, `jungle_unhookables`, `moon`, `mountains`, `snow`, `stars`,
   `sun`, `winter_doodads`, `winter_main`, `winter_mountains2`, `winter_mountains3`, `winter_mountains`
 - Further external images for 0.7 maps: `easter`, `generic_lamps`, `generic_shadows`, `light`
+
 Envelopes
 ---------
 
