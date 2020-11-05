@@ -2,7 +2,7 @@ Introduction
 ============
 
 Teeworlds and DDNet maps get saved as datafiles.
-If you are not yet familiar with parsing datafiles, please go through the [datafile documentation](https://github.com/heinrich5991/libtw2/blob/ba09b18d4cbb5632765bb520ec9b84d6539f8870/doc/datafile.md) first.
+If you are not yet familiar with parsing datafiles, please go through the [datafile documentation](datafile.md) first.
 
 Terminology
 ===========
@@ -12,33 +12,33 @@ Terminology
     - `u8` is a unsigned 8 bit integer, `byte` is used synonymously
     
 - `&` is the prefix for data item indices.
-Those point to a data item in the `datafile.data` section of the datafile.
+  Those point to a data item in the `datafile.data` section of the datafile.
 
 - `opt` is the prefix for optional indices. They are either a normal index or `-1`, marking it as unused.
 
 - `*` is the prefix for indices that point to another item in the datafile.
     - For example `*image` means that the field points to an image item.
- `*color_envelope` would mean that the field points to the envelope item with that index, which should be a color envelope.
+      `*color_envelope` would mean that the field points to the envelope item with that index, which should be a color envelope.
  
 - **CString** is a null terminated UTF-8 string.
 
 - **I32String** is a CString stored in consecutive i32 values.
-To extract the string:
+  To extract the string:
     1. convert the i32s to their be (big endian) byte representation, join the bytes so that we have a single array of bytes
     2. the last byte is a null byte, ignore that one for now
     3. wrapping-subtract 128 from the remaining bytes
     4. now you got a CString padded with zeroes
     
 - **Point** is a struct with two i32s, one for x, one for y.
-It is usually used to describe a position in the map.
-0, 0 is the top-left corner.
+  It is usually used to describe a position in the map.
+  0, 0 is the top-left corner.
 
 - **Color** is a struct with the 4 u8 values (in order): r, g, b, a.
-Its still usually parsed from 4 i32s, meaning each one should hold a value that fits into an u8.
+  Its still usually parsed from 4 i32s, meaning each one should hold a value that fits into an u8.
 
 - the `item_data` of an item is an array of i32s.
-We will split the `item_data` up into its different elements, which differ for each item type.
-Examples for the `item_data` syntax:
+  We will split the `item_data` up into its different elements, which differ for each item type.
+  Examples for the `item_data` syntax:
     1. `[2] point: Point` => The next two i32 values represent the variable `point` (which will be explained afterwards) which is of the type `Point`.
     2. `[1] opt &name: CString` => The next i32 represents `name` and is an optional data item index to a CString.
 
@@ -105,7 +105,7 @@ Map Item Types
 ==============
 
 Version
----------
+-------
 
 - `type_id` = 0
 - exactly one item
@@ -119,7 +119,7 @@ item_data of the only version item:
 - no actual data is stored using the Version item type
 
 Info
-------
+----
 
 - `type_id` = 1
 - exactly one item
@@ -168,11 +168,11 @@ item_data of image items:
     - 1 -> RGBA
 - Images can either be embedded or external.
     - Embedded images have `external` = false and have the image data stored in the data field.
-    The image data is simply a 2d-array of pixels in row-major ordering.
-    RGBA pixels are 4 bytes each, RGB pixels 3 bytes each.
+      The image data is simply a 2d-array of pixels in row-major ordering.
+      RGBA pixels are 4 bytes each, RGB pixels 3 bytes each.
     - External images have `external` = true and the `data` field on `-1`.
-    Those images can only be loaded by clients that have those in their `mapres` directory, meaning only a small set of images should be external.
-    The client looks for those images by using the `name` field.
+      Those images can only be loaded by clients that have those in their `mapres` directory, meaning only a small set of images should be external.
+      The client looks for those images by using the `name` field.
 - the CString behind `name` must fit into 128 bytes
 - External images for both 0.6 and 0.7 (note that they might differ between versions!): `bg_cloud1`, `bg_cloud2`,
   `bg_cloud3`, `desert_doodads`, `desert_main`, `desert_mountains2`, `desert_mountains`, `desert_sun`,
@@ -326,7 +326,7 @@ Layer types:
 
 Note that:
 1. All physics layers *should* be unique, but this isn't properly enforced on all DDNet maps.
-The reference implementation uses the last physics layer of each type.
+   The reference implementation uses the last physics layer of each type.
 2. All maps must have a Game layer
 
 ```
@@ -400,19 +400,21 @@ item_data extension for tilemap layers:
 - the `skip` byte is used for the 0.7 compression, which is used if `version` >= 4:
     - the `data` field no longer points to an 2d-array of tiles, but instead to an array of 'Tile' tiles which must be expanded into the 2d-array
     - the `skip` field of each tile in the array tells you how many times this tile is used in a row.
-    0 means that it appears only once there.
-    3 means that you need to add 3 more copies of that tile after this one
+      For example:
+        - 0 means that it appears only once there
+        - 3 means that you need to add 3 more copies of that tile after this one
     - note that the maximum value for `skip` is 255
     - set the `skip` field to 0 while expanding
-        - teeworlds rendering assumes that those values are set to 0
+        - Teeworlds rendering assumes that those values are set to 0
         - saving the tiles with 0.7 compression is less tedious, since you can check for equality of the entire tile struct
-        - saving the tiles again without the compression is less error prone. Since any saved map could be fed back into teeworlds rendering, so you need to set the `skip` values to 0 in this step
+        - saving the tiles again without the compression is less error prone.
+          Since any saved map could be fed back into Teeworlds rendering, you need to set the `skip` values to 0 in this step
 
 DDNet only content:
 - each physics layer uses a different data field pointer, keep in mind to use the correct one, when saving maps, set the unused pointers to -1
 - the DDNet extension came before the `version` = 3 extension, meaning you have to subtract 3 (the length of the `name` field) from the data index
 - you might have noticed that the `data` field is not actually optional like all the other data fields.
-For vanilla compatibility, the `data` field always points to a 2d-array of tiles of the type 'Tile', with the same dimensions as the actual layer, but everything zeroed out
+  For vanilla compatibility, the `data` field always points to a 2d-array of tiles of the type 'Tile', with the same dimensions as the actual layer, but everything zeroed out
 
 Special tile types:
 
@@ -561,14 +563,14 @@ item_data of sound items:
 
 - DDNet is at `version` = 1
 - in theory, sounds can be external like images.
-However, since there are no sounds that could currently be loaded externally, this feature has been removed.
-This means that `external` should always be false and `data` should not be considered an option index
+  However, since there are no sounds that could currently be loaded externally, this feature has been removed.
+  This means that `external` should always be false and `data` should not be considered an option index
 - the data item index `data` points to opus sound data
 
 Auto Mappers
 ------------
 
-- `uuid` = `16271B3E-8C17-7839-9BD9-B11AE041D0D8`
+- `uuid` = `16271b3e-8c17-7839-9bd9-b11ae041d0d8`
 - DDNet only
 
 ```
