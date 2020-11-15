@@ -54,45 +54,45 @@ message ID.
 * DROP(-9): cid(int) reason(str) records that a player with cid left/was kicked/was dropped, on the engine level
 * CONSOLE_COMMAND(-10): cid(int) flags(int) cmd(str) num_args(int) args(str[num_args]) records that a console command cmd was executed by client id cid (not necessarily a player, might be a vote as well), with flags (distinguishes chat commands, etc.) with parameters args
 * EX(-11): uuid(uuid) size(int) data(raw[size]) records an extension message, identified by uuid and containing data
-  * introduced in [11.0.3](https://github.com/ddnet/ddnet/commit/6c378b972b70b0556d3b434b26baa0b9ffe490f1)
+  * introduced in DDNet 11.0.3, [6c378b972b70b055](https://github.com/ddnet/ddnet/commit/6c378b972b70b0556d3b434b26baa0b9ffe490f1)
 
 The following extra messages are known right now:
 * TEST(teehistorian-test@ddnet.tw): is just a test message
-  * uuid: `6bb8ba88-0f0b-382e-8dae-dbf4052b8b7d`
-  * introduced in [11.0.3](https://github.com/ddnet/ddnet/commit/6c378b972b70b0556d3b434b26baa0b9ffe490f1)
+  * uuid: 6bb8ba88-0f0b-382e-8dae-dbf4052b8b7d
+  * introduced in DDNet 11.0.3, [6c378b972b70b055](https://github.com/ddnet/ddnet/commit/6c378b972b70b0556d3b434b26baa0b9ffe490f1)
 * DDNETVER_OLD(teehistorian-ddnetver-old@ddnet.tw): cid(int), version(int)
-  * uuid: `41b49541-f26f-325d-8715-9baf4b544ef9`
-  * introduced in [13.2](https://github.com/ddnet/ddnet/commit/0d7872c79eaeb19b3fd08c39c013a1043db1fd9b)
+  * uuid: 41b49541-f26f-325d-8715-9baf4b544ef9
+  * introduced in DDNet 13.2, [0d7872c79eaeb19b](https://github.com/ddnet/ddnet/commit/0d7872c79eaeb19b3fd08c39c013a1043db1fd9b)
 * DDNETVER(teehistorian-ddnetver@ddnet.tw): cid(int), connection_id(uuid), version(int), version_str(str)
-  * uuid: `1397b63e-ee4e-3919-b86a-b058887fcaf5`
-  * introduced in [13.2](https://github.com/ddnet/ddnet/commit/0d7872c79eaeb19b3fd08c39c013a1043db1fd9b)
+  * uuid: 1397b63e-ee4e-3919-b86a-b058887fcaf5
+  * introduced in DDNet 13.2, [0d7872c79eaeb19b](https://github.com/ddnet/ddnet/commit/0d7872c79eaeb19b3fd08c39c013a1043db1fd9b)
 * AUTH_INIT(teehistorian-auth-init@ddnet.tw): cid(int) level(int) auth_name(str) records that a player with cid got rcon access with level under the account name auth_name since the start of the map (because they had it before the map change as well)
-  * uuid: `60daba5c-52c4-3aeb-b8ba-b2953fb55a17`
-  * introduced in [11.0.3](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
+  * uuid: 60daba5c-52c4-3aeb-b8ba-b2953fb55a17
+  * introduced in DDNet 11.0.3, [1c3dc8c316c2bf37](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
 * AUTH_LOGIN(teehistorian-auth-login@ddnet.tw): cid(int) level(int) auth_name(str) records that a player with cid just logged into rcon with level under the account name auth_name
-  * uuid: `37ecd3b8-9218-3bb9-a71b-a935b86f6a81`
-  * introduced in [11.0.3](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
+  * uuid: 37ecd3b8-9218-3bb9-a71b-a935b86f6a81
+  * introduced in DDNet 11.0.3, [1c3dc8c316c2bf37](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
 * AUTH_LOGOUT(teehistorian-auth-logout@ddnet.tw): cid(int) records that a player with cid just logged out of rcon
-  * uuid: `d4f5abe8-edd2-3fb9-abd8-1c8bb84f4a63`
-  * introduced in [11.0.3](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
+  * uuid: d4f5abe8-edd2-3fb9-abd8-1c8bb84f4a63
+  * introduced in DDNet 11.0.3, [1c3dc8c316c2bf37](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
 * JOINVER6(teehistorian-joinver6@ddnet.tw): cid(int)
-  * uuid: `1899a382-71e3-36da-937d-c9de6bb95b1d`
-  * introduced in [14.0](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
+  * uuid: 1899a382-71e3-36da-937d-c9de6bb95b1d
+  * introduced in DDNet 14.0 [e294da41ba7142cb](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
 * JOINVER7(teehistorian-joinver7@ddnet.tw): cid(int)
-  * uuid: `59239b05-0540-318d-bea4-9aa1e80e7d2b`
-  * introduced in [14.0](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
+  * uuid: 59239b05-0540-318d-bea4-9aa1e80e7d2b
+  * introduced in DDNet 14.0 [e294da41ba7142cb](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
 * TEAM_SAVE_SUCCESS(teehistorian-save-success@ddnet.tw): team(int), save_id(uuid), save(str)
-  * uuid: `4560c756-da29-3036-81d4-90a50f0182cd`
-  * introduced in [14.0.2](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
+  * uuid: 4560c756-da29-3036-81d4-90a50f0182cd
+  * introduced in DDNet 14.0.2, [d8aab366fc8489c8](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
 * TEAM_SAVE_FAILURE(teehistorian-save-failure@ddnet.tw): team(int)
-  * uuid: `b29901d5-1244-3bd0-bbde-23d04b1f7ba9`
-  * introduced in [14.0.2](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
+  * uuid: b29901d5-1244-3bd0-bbde-23d04b1f7ba9
+  * introduced in DDNet 14.0.2, [d8aab366fc8489c8](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
 * TEAM_LOAD_SUCCESS(teehistorian-load-success@ddnet.tw): team(int), save_id(uuid), save(str)
-  * uuid: `e05408d3-a313-33df-9eb3-ddb990ab954a`
-  * introduced in [14.0.2](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
+  * uuid: e05408d3-a313-33df-9eb3-ddb990ab954a
+  * introduced in DDNet 14.0.2, [d8aab366fc8489c8](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
 * TEAM_LOAD_FAILURE(teehistorian-load-failure@ddnet.tw): team(int)
-  * uuid: `ef8905a2-c695-3591-a1cd-53d2015992dd`
-  * introduced in [14.0.2](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
+  * uuid: ef8905a2-c695-3591-a1cd-53d2015992dd
+  * introduced in DDNet 14.0.2, [d8aab366fc8489c8](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
 
 The following data types are used:
 * int is a [teeworlds variable-width integer](int.md)
