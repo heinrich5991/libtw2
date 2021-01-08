@@ -1,5 +1,5 @@
 extern crate buffer;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate packer;
 extern crate snapshot;
 extern crate warn;

@@ -160,6 +160,9 @@ impl<'d, 's> Packer<'d, 's> {
     pub fn write_raw(&mut self, data: &[u8]) -> Result<(), CapacityError> {
         self.buf.write(data)
     }
+    pub fn write_uuid(&mut self, uuid: Uuid) -> Result<(), CapacityError> {
+        self.write_raw(uuid.as_bytes())
+    }
     pub fn write_rest(&mut self, data: &[u8]) -> Result<(), CapacityError> {
         // TODO: Fail if other stuff happens afterwards.
         self.buf.write(data)
@@ -246,7 +249,7 @@ impl<'a> Unpacker<'a> {
     }
     #[cfg(feature = "uuid")]
     pub fn read_uuid(&mut self) -> Result<Uuid, UnexpectedEnd> {
-        Ok(Uuid::from_bytes(self.read_raw(mem::size_of::<Uuid>())?).unwrap())
+        Ok(Uuid::from_slice(self.read_raw(mem::size_of::<Uuid>())?).unwrap())
     }
     pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
         if !self.demo {
@@ -292,6 +295,14 @@ impl<'a> IntUnpacker<'a> {
 
 pub fn in_range(v: i32, min: i32, max: i32) -> Result<i32, IntOutOfRange> {
     if min <= v && v <= max {
+        Ok(v)
+    } else {
+        Err(IntOutOfRange)
+    }
+}
+
+pub fn at_least(v: i32, min: i32) -> Result<i32, IntOutOfRange> {
+    if min <= v {
         Ok(v)
     } else {
         Err(IntOutOfRange)

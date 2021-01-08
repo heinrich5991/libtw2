@@ -4,6 +4,7 @@ use packer::UnexpectedEnd;
 use packer::Unpacker;
 use serde_json;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub use self::item::Item;
@@ -38,6 +39,7 @@ pub struct Header<'a> {
     pub map_name: Cow<'a, str>,
     pub map_size: u32,
     pub map_crc: u32,
+    pub config: HashMap<Cow<'a, str>, Cow<'a, str>>,
 }
 
 #[derive(Debug)]
@@ -103,6 +105,7 @@ struct JsonHeader<'a> {
     map_name: Cow<'a, str>,
     map_size: Cow<'a, str>,
     map_crc: Cow<'a, str>,
+    config: HashMap<Cow<'a, str>, Cow<'a, str>>,
 }
 
 pub fn read_header<'a>(p: &mut Unpacker<'a>)
@@ -125,6 +128,7 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>)
         map_name: json_header.map_name,
         map_size: json_header.map_size.parse().map_err(|_| MalformedMapSize)?,
         map_crc: u32::from_str_radix(&json_header.map_crc, 16).map_err(|_| MalformedMapCrc)?,
+        config: json_header.config,
     };
     Ok(header)
 }
@@ -167,9 +171,9 @@ mod test {
             0xb6, 0x42, 0x5d, 0x48, 0xe8, 0x0c, 0x00, 0x29,
         ];
 
-        let ns = Uuid::from_bytes(&UUID_TEEWORLDS).unwrap();
-        let ours = Uuid::from_bytes(&uuid).unwrap();
-        let correct = Uuid::new_v3(&ns, identifier);
+        let ns = Uuid::from_bytes(UUID_TEEWORLDS);
+        let ours = Uuid::from_bytes(uuid);
+        let correct = Uuid::new_v3(&ns, identifier.as_bytes());
         assert_eq!(ours, correct);
     }
 

@@ -1,15 +1,6 @@
 use buffer::CapacityError;
 use common::slice;
-use debug::DebugSlice;
-use enums::Emote;
-use enums::FLAG_MISSING;
-use enums::MAX_CLIENTS;
-use enums::SPEC_FREEVIEW;
-use enums::Sound;
-use enums::TEAM_BLUE;
-use enums::TEAM_RED;
-use enums::Team;
-use enums::Weapon;
+use enums;
 use error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
@@ -19,90 +10,17 @@ use packer::Warning;
 use packer::in_range;
 use packer::positive;
 use std::fmt;
+use uuid::Uuid;
 use warn::Warn;
 
-#[derive(Clone, Copy, Debug)]
-pub struct Tick(pub i32);
-
-impl Projectile {
-    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
-        Ok(Projectile {
-            x: _p.read_int(warn)?,
-            y: _p.read_int(warn)?,
-            vel_x: _p.read_int(warn)?,
-            vel_y: _p.read_int(warn)?,
-            type_: Weapon::from_i32(_p.read_int(warn)?)?,
-            start_tick: Tick(_p.read_int(warn)?),
-        })
-    }
-    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
-        // For the assert!()s.
-        self.encode();
-
-        _p.write_int(self.x)?;
-        _p.write_int(self.y)?;
-        _p.write_int(self.vel_x)?;
-        _p.write_int(self.vel_y)?;
-        _p.write_int(self.type_.to_i32())?;
-        _p.write_int(self.start_tick.0)?;
-        Ok(_p.written())
-    }
-}
-
-impl PlayerInput {
-    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
-        Ok(PlayerInput {
-            direction: _p.read_int(warn)?,
-            target_x: _p.read_int(warn)?,
-            target_y: _p.read_int(warn)?,
-            jump: _p.read_int(warn)?,
-            fire: _p.read_int(warn)?,
-            hook: _p.read_int(warn)?,
-            player_flags: _p.read_int(warn)?,
-            wanted_weapon: _p.read_int(warn)?,
-            next_weapon: _p.read_int(warn)?,
-            prev_weapon: _p.read_int(warn)?,
-        })
-    }
-    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
-        // For the assert!()s.
-        self.encode();
-
-        _p.write_int(self.direction)?;
-        _p.write_int(self.target_x)?;
-        _p.write_int(self.target_y)?;
-        _p.write_int(self.jump)?;
-        _p.write_int(self.fire)?;
-        _p.write_int(self.hook)?;
-        _p.write_int(self.player_flags)?;
-        _p.write_int(self.wanted_weapon)?;
-        _p.write_int(self.next_weapon)?;
-        _p.write_int(self.prev_weapon)?;
-        Ok(_p.written())
-    }
-}
-
-pub const PLAYER_INPUT_EMPTY: PlayerInput = PlayerInput {
-    direction: 0,
-    target_x: 0,
-    target_y: 0,
-    jump: 0,
-    fire: 0,
-    hook: 0,
-    player_flags: 0,
-    wanted_weapon: 0,
-    next_weapon: 0,
-    prev_weapon: 0,
-};
+pub use gamenet_common::snap_obj::Tick;
+pub use gamenet_common::snap_obj::TypeId;
 
 pub const PLAYERFLAG_PLAYING: i32 = 1 << 0;
 pub const PLAYERFLAG_IN_MENU: i32 = 1 << 1;
 pub const PLAYERFLAG_CHATTING: i32 = 1 << 2;
 pub const PLAYERFLAG_SCOREBOARD: i32 = 1 << 3;
+pub const PLAYERFLAG_AIM: i32 = 1 << 4;
 
 pub const GAMEFLAG_TEAMS: i32 = 1 << 0;
 pub const GAMEFLAG_FLAGS: i32 = 1 << 1;
@@ -110,6 +28,68 @@ pub const GAMEFLAG_FLAGS: i32 = 1 << 1;
 pub const GAMESTATEFLAG_GAMEOVER: i32 = 1 << 0;
 pub const GAMESTATEFLAG_SUDDENDEATH: i32 = 1 << 1;
 pub const GAMESTATEFLAG_PAUSED: i32 = 1 << 2;
+pub const GAMESTATEFLAG_RACETIME: i32 = 1 << 3;
+
+pub const CHARACTERFLAG_SOLO: i32 = 1 << 0;
+pub const CHARACTERFLAG_JETPACK: i32 = 1 << 1;
+pub const CHARACTERFLAG_NO_COLLISION: i32 = 1 << 2;
+pub const CHARACTERFLAG_ENDLESS_HOOK: i32 = 1 << 3;
+pub const CHARACTERFLAG_ENDLESS_JUMP: i32 = 1 << 4;
+pub const CHARACTERFLAG_SUPER: i32 = 1 << 5;
+pub const CHARACTERFLAG_NO_HAMMER_HIT: i32 = 1 << 6;
+pub const CHARACTERFLAG_NO_SHOTGUN_HIT: i32 = 1 << 7;
+pub const CHARACTERFLAG_NO_GRENADE_HIT: i32 = 1 << 8;
+pub const CHARACTERFLAG_NO_LASER_HIT: i32 = 1 << 9;
+pub const CHARACTERFLAG_NO_HOOK: i32 = 1 << 10;
+pub const CHARACTERFLAG_TELEGUN_GUN: i32 = 1 << 11;
+pub const CHARACTERFLAG_TELEGUN_GRENADE: i32 = 1 << 12;
+pub const CHARACTERFLAG_TELEGUN_LASER: i32 = 1 << 13;
+pub const CHARACTERFLAG_WEAPON_HAMMER: i32 = 1 << 14;
+pub const CHARACTERFLAG_WEAPON_GUN: i32 = 1 << 15;
+pub const CHARACTERFLAG_WEAPON_SHOTGUN: i32 = 1 << 16;
+pub const CHARACTERFLAG_WEAPON_GRENADE: i32 = 1 << 17;
+pub const CHARACTERFLAG_WEAPON_LASER: i32 = 1 << 18;
+pub const CHARACTERFLAG_WEAPON_NINJA: i32 = 1 << 19;
+
+pub const GAMEINFOFLAG_TIMESCORE: i32 = 1 << 0;
+pub const GAMEINFOFLAG_GAMETYPE_RACE: i32 = 1 << 1;
+pub const GAMEINFOFLAG_GAMETYPE_FASTCAP: i32 = 1 << 2;
+pub const GAMEINFOFLAG_GAMETYPE_FNG: i32 = 1 << 3;
+pub const GAMEINFOFLAG_GAMETYPE_DDRACE: i32 = 1 << 4;
+pub const GAMEINFOFLAG_GAMETYPE_DDNET: i32 = 1 << 5;
+pub const GAMEINFOFLAG_GAMETYPE_BLOCK_WORLDS: i32 = 1 << 6;
+pub const GAMEINFOFLAG_GAMETYPE_VANILLA: i32 = 1 << 7;
+pub const GAMEINFOFLAG_GAMETYPE_PLUS: i32 = 1 << 8;
+pub const GAMEINFOFLAG_FLAG_STARTS_RACE: i32 = 1 << 9;
+pub const GAMEINFOFLAG_RACE: i32 = 1 << 10;
+pub const GAMEINFOFLAG_UNLIMITED_AMMO: i32 = 1 << 11;
+pub const GAMEINFOFLAG_DDRACE_RECORD_MESSAGE: i32 = 1 << 12;
+pub const GAMEINFOFLAG_RACE_RECORD_MESSAGE: i32 = 1 << 13;
+pub const GAMEINFOFLAG_ALLOW_EYE_WHEEL: i32 = 1 << 14;
+pub const GAMEINFOFLAG_ALLOW_HOOK_COLL: i32 = 1 << 15;
+pub const GAMEINFOFLAG_ALLOW_ZOOM: i32 = 1 << 16;
+pub const GAMEINFOFLAG_BUG_DDRACE_GHOST: i32 = 1 << 17;
+pub const GAMEINFOFLAG_BUG_DDRACE_INPUT: i32 = 1 << 18;
+pub const GAMEINFOFLAG_BUG_FNG_LASER_RANGE: i32 = 1 << 19;
+pub const GAMEINFOFLAG_BUG_VANILLA_BOUNCE: i32 = 1 << 20;
+pub const GAMEINFOFLAG_PREDICT_FNG: i32 = 1 << 21;
+pub const GAMEINFOFLAG_PREDICT_DDRACE: i32 = 1 << 22;
+pub const GAMEINFOFLAG_PREDICT_DDRACE_TILES: i32 = 1 << 23;
+pub const GAMEINFOFLAG_PREDICT_VANILLA: i32 = 1 << 24;
+pub const GAMEINFOFLAG_ENTITIES_DDNET: i32 = 1 << 25;
+pub const GAMEINFOFLAG_ENTITIES_DDRACE: i32 = 1 << 26;
+pub const GAMEINFOFLAG_ENTITIES_RACE: i32 = 1 << 27;
+pub const GAMEINFOFLAG_ENTITIES_FNG: i32 = 1 << 28;
+pub const GAMEINFOFLAG_ENTITIES_VANILLA: i32 = 1 << 29;
+pub const GAMEINFOFLAG_DONT_MASK_ENTITIES: i32 = 1 << 30;
+pub const GAMEINFOFLAG_ENTITIES_BW: i32 = 1 << 31;
+
+pub const GAMEINFOFLAG2_ALLOW_X_SKINS: i32 = 1 << 0;
+pub const GAMEINFOFLAG2_GAMETYPE_CITY: i32 = 1 << 1;
+
+pub const EXPLAYERFLAG_AFK: i32 = 1 << 0;
+pub const EXPLAYERFLAG_PAUSED: i32 = 1 << 1;
+pub const EXPLAYERFLAG_SPEC: i32 = 1 << 2;
 
 pub const PLAYER_INPUT: u16 = 1;
 pub const PROJECTILE: u16 = 2;
@@ -123,6 +103,10 @@ pub const CHARACTER: u16 = 9;
 pub const PLAYER_INFO: u16 = 10;
 pub const CLIENT_INFO: u16 = 11;
 pub const SPECTATOR_INFO: u16 = 12;
+pub const MY_OWN_OBJECT: Uuid = Uuid::from_u128(0x0dc77a02_bfee_3a53_ac8e_0bb0241bd722);
+pub const DDNET_CHARACTER: Uuid = Uuid::from_u128(0x76ce455b_f9eb_3a48_add7_e04b941d045c);
+pub const DDNET_PLAYER: Uuid = Uuid::from_u128(0x22ca938d_1380_3e2b_9e7b_d2558ea6be11);
+pub const GAME_INFO_EX: Uuid = Uuid::from_u128(0x933dea6a_da79_30ea_a98f_8af03689a945);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -131,6 +115,8 @@ pub const DEATH: u16 = 17;
 pub const SOUND_GLOBAL: u16 = 18;
 pub const SOUND_WORLD: u16 = 19;
 pub const DAMAGE_IND: u16 = 20;
+pub const MY_OWN_EVENT: Uuid = Uuid::from_u128(0x0c4fd27d_47e3_3871_a226_9f417486a311);
+pub const SPEC_CHAR: Uuid = Uuid::from_u128(0x4b801c74_e24c_3ce0_b92c_b754d02cfc8a);
 
 #[derive(Clone, Copy)]
 pub enum SnapObj {
@@ -146,6 +132,10 @@ pub enum SnapObj {
     PlayerInfo(PlayerInfo),
     ClientInfo(ClientInfo),
     SpectatorInfo(SpectatorInfo),
+    MyOwnObject(MyOwnObject),
+    DdnetCharacter(DdnetCharacter),
+    DdnetPlayer(DdnetPlayer),
+    GameInfoEx(GameInfoEx),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -154,56 +144,71 @@ pub enum SnapObj {
     SoundGlobal(SoundGlobal),
     SoundWorld(SoundWorld),
     DamageInd(DamageInd),
+    MyOwnEvent(MyOwnEvent),
+    SpecChar(SpecChar),
 }
 
 impl SnapObj {
-    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker) -> Result<SnapObj, Error> {
+    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: TypeId, _p: &mut IntUnpacker) -> Result<SnapObj, Error> {
+        use self::TypeId::*;
         Ok(match obj_type_id {
-            PLAYER_INPUT => SnapObj::PlayerInput(PlayerInput::decode(warn, _p)?),
-            PROJECTILE => SnapObj::Projectile(Projectile::decode(warn, _p)?),
-            LASER => SnapObj::Laser(Laser::decode(warn, _p)?),
-            PICKUP => SnapObj::Pickup(Pickup::decode(warn, _p)?),
-            FLAG => SnapObj::Flag(Flag::decode(warn, _p)?),
-            GAME_INFO => SnapObj::GameInfo(GameInfo::decode(warn, _p)?),
-            GAME_DATA => SnapObj::GameData(GameData::decode(warn, _p)?),
-            CHARACTER_CORE => SnapObj::CharacterCore(CharacterCore::decode(warn, _p)?),
-            CHARACTER => SnapObj::Character(Character::decode(warn, _p)?),
-            PLAYER_INFO => SnapObj::PlayerInfo(PlayerInfo::decode(warn, _p)?),
-            CLIENT_INFO => SnapObj::ClientInfo(ClientInfo::decode(warn, _p)?),
-            SPECTATOR_INFO => SnapObj::SpectatorInfo(SpectatorInfo::decode(warn, _p)?),
-            COMMON => SnapObj::Common(Common::decode(warn, _p)?),
-            EXPLOSION => SnapObj::Explosion(Explosion::decode(warn, _p)?),
-            SPAWN => SnapObj::Spawn(Spawn::decode(warn, _p)?),
-            HAMMER_HIT => SnapObj::HammerHit(HammerHit::decode(warn, _p)?),
-            DEATH => SnapObj::Death(Death::decode(warn, _p)?),
-            SOUND_GLOBAL => SnapObj::SoundGlobal(SoundGlobal::decode(warn, _p)?),
-            SOUND_WORLD => SnapObj::SoundWorld(SoundWorld::decode(warn, _p)?),
-            DAMAGE_IND => SnapObj::DamageInd(DamageInd::decode(warn, _p)?),
+            Ordinal(PLAYER_INPUT) => SnapObj::PlayerInput(PlayerInput::decode(warn, _p)?),
+            Ordinal(PROJECTILE) => SnapObj::Projectile(Projectile::decode(warn, _p)?),
+            Ordinal(LASER) => SnapObj::Laser(Laser::decode(warn, _p)?),
+            Ordinal(PICKUP) => SnapObj::Pickup(Pickup::decode(warn, _p)?),
+            Ordinal(FLAG) => SnapObj::Flag(Flag::decode(warn, _p)?),
+            Ordinal(GAME_INFO) => SnapObj::GameInfo(GameInfo::decode(warn, _p)?),
+            Ordinal(GAME_DATA) => SnapObj::GameData(GameData::decode(warn, _p)?),
+            Ordinal(CHARACTER_CORE) => SnapObj::CharacterCore(CharacterCore::decode(warn, _p)?),
+            Ordinal(CHARACTER) => SnapObj::Character(Character::decode(warn, _p)?),
+            Ordinal(PLAYER_INFO) => SnapObj::PlayerInfo(PlayerInfo::decode(warn, _p)?),
+            Ordinal(CLIENT_INFO) => SnapObj::ClientInfo(ClientInfo::decode(warn, _p)?),
+            Ordinal(SPECTATOR_INFO) => SnapObj::SpectatorInfo(SpectatorInfo::decode(warn, _p)?),
+            Uuid(MY_OWN_OBJECT) => SnapObj::MyOwnObject(MyOwnObject::decode(warn, _p)?),
+            Uuid(DDNET_CHARACTER) => SnapObj::DdnetCharacter(DdnetCharacter::decode(warn, _p)?),
+            Uuid(DDNET_PLAYER) => SnapObj::DdnetPlayer(DdnetPlayer::decode(warn, _p)?),
+            Uuid(GAME_INFO_EX) => SnapObj::GameInfoEx(GameInfoEx::decode(warn, _p)?),
+            Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
+            Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
+            Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
+            Ordinal(HAMMER_HIT) => SnapObj::HammerHit(HammerHit::decode(warn, _p)?),
+            Ordinal(DEATH) => SnapObj::Death(Death::decode(warn, _p)?),
+            Ordinal(SOUND_GLOBAL) => SnapObj::SoundGlobal(SoundGlobal::decode(warn, _p)?),
+            Ordinal(SOUND_WORLD) => SnapObj::SoundWorld(SoundWorld::decode(warn, _p)?),
+            Ordinal(DAMAGE_IND) => SnapObj::DamageInd(DamageInd::decode(warn, _p)?),
+            Uuid(MY_OWN_EVENT) => SnapObj::MyOwnEvent(MyOwnEvent::decode(warn, _p)?),
+            Uuid(SPEC_CHAR) => SnapObj::SpecChar(SpecChar::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
-    pub fn obj_type_id(&self) -> u16 {
+    pub fn obj_type_id(&self) -> TypeId {
         match *self {
-            SnapObj::PlayerInput(_) => PLAYER_INPUT,
-            SnapObj::Projectile(_) => PROJECTILE,
-            SnapObj::Laser(_) => LASER,
-            SnapObj::Pickup(_) => PICKUP,
-            SnapObj::Flag(_) => FLAG,
-            SnapObj::GameInfo(_) => GAME_INFO,
-            SnapObj::GameData(_) => GAME_DATA,
-            SnapObj::CharacterCore(_) => CHARACTER_CORE,
-            SnapObj::Character(_) => CHARACTER,
-            SnapObj::PlayerInfo(_) => PLAYER_INFO,
-            SnapObj::ClientInfo(_) => CLIENT_INFO,
-            SnapObj::SpectatorInfo(_) => SPECTATOR_INFO,
-            SnapObj::Common(_) => COMMON,
-            SnapObj::Explosion(_) => EXPLOSION,
-            SnapObj::Spawn(_) => SPAWN,
-            SnapObj::HammerHit(_) => HAMMER_HIT,
-            SnapObj::Death(_) => DEATH,
-            SnapObj::SoundGlobal(_) => SOUND_GLOBAL,
-            SnapObj::SoundWorld(_) => SOUND_WORLD,
-            SnapObj::DamageInd(_) => DAMAGE_IND,
+            SnapObj::PlayerInput(_) => TypeId::from(PLAYER_INPUT),
+            SnapObj::Projectile(_) => TypeId::from(PROJECTILE),
+            SnapObj::Laser(_) => TypeId::from(LASER),
+            SnapObj::Pickup(_) => TypeId::from(PICKUP),
+            SnapObj::Flag(_) => TypeId::from(FLAG),
+            SnapObj::GameInfo(_) => TypeId::from(GAME_INFO),
+            SnapObj::GameData(_) => TypeId::from(GAME_DATA),
+            SnapObj::CharacterCore(_) => TypeId::from(CHARACTER_CORE),
+            SnapObj::Character(_) => TypeId::from(CHARACTER),
+            SnapObj::PlayerInfo(_) => TypeId::from(PLAYER_INFO),
+            SnapObj::ClientInfo(_) => TypeId::from(CLIENT_INFO),
+            SnapObj::SpectatorInfo(_) => TypeId::from(SPECTATOR_INFO),
+            SnapObj::MyOwnObject(_) => TypeId::from(MY_OWN_OBJECT),
+            SnapObj::DdnetCharacter(_) => TypeId::from(DDNET_CHARACTER),
+            SnapObj::DdnetPlayer(_) => TypeId::from(DDNET_PLAYER),
+            SnapObj::GameInfoEx(_) => TypeId::from(GAME_INFO_EX),
+            SnapObj::Common(_) => TypeId::from(COMMON),
+            SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
+            SnapObj::Spawn(_) => TypeId::from(SPAWN),
+            SnapObj::HammerHit(_) => TypeId::from(HAMMER_HIT),
+            SnapObj::Death(_) => TypeId::from(DEATH),
+            SnapObj::SoundGlobal(_) => TypeId::from(SOUND_GLOBAL),
+            SnapObj::SoundWorld(_) => TypeId::from(SOUND_WORLD),
+            SnapObj::DamageInd(_) => TypeId::from(DAMAGE_IND),
+            SnapObj::MyOwnEvent(_) => TypeId::from(MY_OWN_EVENT),
+            SnapObj::SpecChar(_) => TypeId::from(SPEC_CHAR),
         }
     }
     pub fn encode(&self) -> &[i32] {
@@ -220,6 +225,10 @@ impl SnapObj {
             SnapObj::PlayerInfo(ref i) => i.encode(),
             SnapObj::ClientInfo(ref i) => i.encode(),
             SnapObj::SpectatorInfo(ref i) => i.encode(),
+            SnapObj::MyOwnObject(ref i) => i.encode(),
+            SnapObj::DdnetCharacter(ref i) => i.encode(),
+            SnapObj::DdnetPlayer(ref i) => i.encode(),
+            SnapObj::GameInfoEx(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -228,6 +237,8 @@ impl SnapObj {
             SnapObj::SoundGlobal(ref i) => i.encode(),
             SnapObj::SoundWorld(ref i) => i.encode(),
             SnapObj::DamageInd(ref i) => i.encode(),
+            SnapObj::MyOwnEvent(ref i) => i.encode(),
+            SnapObj::SpecChar(ref i) => i.encode(),
         }
     }
 }
@@ -247,6 +258,10 @@ impl fmt::Debug for SnapObj {
             SnapObj::PlayerInfo(ref i) => i.fmt(f),
             SnapObj::ClientInfo(ref i) => i.fmt(f),
             SnapObj::SpectatorInfo(ref i) => i.fmt(f),
+            SnapObj::MyOwnObject(ref i) => i.fmt(f),
+            SnapObj::DdnetCharacter(ref i) => i.fmt(f),
+            SnapObj::DdnetPlayer(ref i) => i.fmt(f),
+            SnapObj::GameInfoEx(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -255,6 +270,8 @@ impl fmt::Debug for SnapObj {
             SnapObj::SoundGlobal(ref i) => i.fmt(f),
             SnapObj::SoundWorld(ref i) => i.fmt(f),
             SnapObj::DamageInd(ref i) => i.fmt(f),
+            SnapObj::MyOwnEvent(ref i) => i.fmt(f),
+            SnapObj::SpecChar(ref i) => i.fmt(f),
         }
     }
 }
@@ -331,6 +348,30 @@ impl From<SpectatorInfo> for SnapObj {
     }
 }
 
+impl From<MyOwnObject> for SnapObj {
+    fn from(i: MyOwnObject) -> SnapObj {
+        SnapObj::MyOwnObject(i)
+    }
+}
+
+impl From<DdnetCharacter> for SnapObj {
+    fn from(i: DdnetCharacter) -> SnapObj {
+        SnapObj::DdnetCharacter(i)
+    }
+}
+
+impl From<DdnetPlayer> for SnapObj {
+    fn from(i: DdnetPlayer) -> SnapObj {
+        SnapObj::DdnetPlayer(i)
+    }
+}
+
+impl From<GameInfoEx> for SnapObj {
+    fn from(i: GameInfoEx) -> SnapObj {
+        SnapObj::GameInfoEx(i)
+    }
+}
+
 impl From<Common> for SnapObj {
     fn from(i: Common) -> SnapObj {
         SnapObj::Common(i)
@@ -379,6 +420,18 @@ impl From<DamageInd> for SnapObj {
     }
 }
 
+impl From<MyOwnEvent> for SnapObj {
+    fn from(i: MyOwnEvent) -> SnapObj {
+        SnapObj::MyOwnEvent(i)
+    }
+}
+
+impl From<SpecChar> for SnapObj {
+    fn from(i: SpecChar) -> SnapObj {
+        SnapObj::SpecChar(i)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct PlayerInput {
@@ -401,8 +454,8 @@ pub struct Projectile {
     pub y: i32,
     pub vel_x: i32,
     pub vel_y: i32,
-    pub type_: Weapon,
-    pub start_tick: Tick,
+    pub type_: enums::Weapon,
+    pub start_tick: ::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -412,7 +465,7 @@ pub struct Laser {
     pub y: i32,
     pub from_x: i32,
     pub from_y: i32,
-    pub start_tick: Tick,
+    pub start_tick: ::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -437,7 +490,7 @@ pub struct Flag {
 pub struct GameInfo {
     pub game_flags: i32,
     pub game_state_flags: i32,
-    pub round_start_tick: Tick,
+    pub round_start_tick: ::snap_obj::Tick,
     pub warmup_timer: i32,
     pub score_limit: i32,
     pub time_limit: i32,
@@ -467,7 +520,7 @@ pub struct CharacterCore {
     pub jumped: i32,
     pub hooked_player: i32,
     pub hook_state: i32,
-    pub hook_tick: Tick,
+    pub hook_tick: ::snap_obj::Tick,
     pub hook_x: i32,
     pub hook_y: i32,
     pub hook_dx: i32,
@@ -482,8 +535,8 @@ pub struct Character {
     pub health: i32,
     pub armor: i32,
     pub ammo_count: i32,
-    pub weapon: Weapon,
-    pub emote: Emote,
+    pub weapon: enums::Weapon,
+    pub emote: enums::Emote,
     pub attack_tick: i32,
 }
 
@@ -492,7 +545,7 @@ pub struct Character {
 pub struct PlayerInfo {
     pub local: i32,
     pub client_id: i32,
-    pub team: Team,
+    pub team: enums::Team,
     pub score: i32,
     pub latency: i32,
 }
@@ -515,6 +568,37 @@ pub struct SpectatorInfo {
     pub spectator_id: i32,
     pub x: i32,
     pub y: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct MyOwnObject {
+    pub test: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetCharacter {
+    pub flags: i32,
+    pub freeze_end: ::snap_obj::Tick,
+    pub jumps: i32,
+    pub tele_checkpoint: i32,
+    pub strong_weak_id: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetPlayer {
+    pub flags: i32,
+    pub auth_level: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GameInfoEx {
+    pub flags: i32,
+    pub version: i32,
+    pub flags2: i32,
 }
 
 #[repr(C)]
@@ -553,14 +637,14 @@ pub struct Death {
 #[derive(Clone, Copy)]
 pub struct SoundGlobal {
     pub common: Common,
-    pub sound_id: Sound,
+    pub sound_id: enums::Sound,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SoundWorld {
     pub common: Common,
-    pub sound_id: Sound,
+    pub sound_id: enums::Sound,
 }
 
 #[repr(C)]
@@ -568,6 +652,19 @@ pub struct SoundWorld {
 pub struct DamageInd {
     pub common: Common,
     pub angle: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct MyOwnEvent {
+    pub test: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SpecChar {
+    pub x: i32,
+    pub y: i32,
 }
 
 impl fmt::Debug for PlayerInput {
@@ -610,6 +707,37 @@ impl PlayerInput {
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
+impl PlayerInput {
+    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
+        let result = Ok(PlayerInput {
+            direction: _p.read_int(warn)?,
+            target_x: _p.read_int(warn)?,
+            target_y: _p.read_int(warn)?,
+            jump: _p.read_int(warn)?,
+            fire: _p.read_int(warn)?,
+            hook: _p.read_int(warn)?,
+            player_flags: _p.read_int(warn)?,
+            wanted_weapon: _p.read_int(warn)?,
+            next_weapon: _p.read_int(warn)?,
+            prev_weapon: _p.read_int(warn)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.direction)?;
+        _p.write_int(self.target_x)?;
+        _p.write_int(self.target_y)?;
+        _p.write_int(self.jump)?;
+        _p.write_int(self.fire)?;
+        _p.write_int(self.hook)?;
+        _p.write_int(self.player_flags)?;
+        _p.write_int(self.wanted_weapon)?;
+        _p.write_int(self.next_weapon)?;
+        _p.write_int(self.prev_weapon)?;
+        Ok(_p.written())
+    }
+}
 
 impl fmt::Debug for Projectile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -635,12 +763,35 @@ impl Projectile {
             y: _p.read_int()?,
             vel_x: _p.read_int()?,
             vel_y: _p.read_int()?,
-            type_: Weapon::from_i32(_p.read_int()?)?,
-            start_tick: Tick(_p.read_int()?),
+            type_: enums::Weapon::from_i32(_p.read_int()?)?,
+            start_tick: ::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
         unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+impl Projectile {
+    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
+        let result = Ok(Projectile {
+            x: _p.read_int(warn)?,
+            y: _p.read_int(warn)?,
+            vel_x: _p.read_int(warn)?,
+            vel_y: _p.read_int(warn)?,
+            type_: enums::Weapon::from_i32(_p.read_int(warn)?)?,
+            start_tick: ::snap_obj::Tick(_p.read_int(warn)?),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.x)?;
+        _p.write_int(self.y)?;
+        _p.write_int(self.vel_x)?;
+        _p.write_int(self.vel_y)?;
+        _p.write_int(self.type_.to_i32())?;
+        _p.write_int(self.start_tick.0)?;
+        Ok(_p.written())
     }
 }
 
@@ -667,7 +818,7 @@ impl Laser {
             y: _p.read_int()?,
             from_x: _p.read_int()?,
             from_y: _p.read_int()?,
-            start_tick: Tick(_p.read_int()?),
+            start_tick: ::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -725,11 +876,11 @@ impl Flag {
         Ok(Flag {
             x: _p.read_int()?,
             y: _p.read_int()?,
-            team: in_range(_p.read_int()?, TEAM_RED, TEAM_BLUE)?,
+            team: in_range(_p.read_int()?, 0, 1)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(TEAM_RED <= self.team && self.team <= TEAM_BLUE);
+        assert!(0 <= self.team && self.team <= 1);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -758,8 +909,8 @@ impl GameInfo {
         Ok(GameInfo {
             game_flags: in_range(_p.read_int()?, 0, 256)?,
             game_state_flags: in_range(_p.read_int()?, 0, 256)?,
-            round_start_tick: Tick(_p.read_int()?),
-            warmup_timer: positive(_p.read_int()?)?,
+            round_start_tick: ::snap_obj::Tick(_p.read_int()?),
+            warmup_timer: _p.read_int()?,
             score_limit: positive(_p.read_int()?)?,
             time_limit: positive(_p.read_int()?)?,
             round_num: positive(_p.read_int()?)?,
@@ -769,7 +920,6 @@ impl GameInfo {
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.game_flags && self.game_flags <= 256);
         assert!(0 <= self.game_state_flags && self.game_state_flags <= 256);
-        assert!(self.warmup_timer >= 0);
         assert!(self.score_limit >= 0);
         assert!(self.time_limit >= 0);
         assert!(self.round_num >= 0);
@@ -798,13 +948,13 @@ impl GameData {
         Ok(GameData {
             teamscore_red: _p.read_int()?,
             teamscore_blue: _p.read_int()?,
-            flag_carrier_red: in_range(_p.read_int()?, FLAG_MISSING, MAX_CLIENTS-1)?,
-            flag_carrier_blue: in_range(_p.read_int()?, FLAG_MISSING, MAX_CLIENTS-1)?,
+            flag_carrier_red: in_range(_p.read_int()?, -3, 63)?,
+            flag_carrier_blue: in_range(_p.read_int()?, -3, 63)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(FLAG_MISSING <= self.flag_carrier_red && self.flag_carrier_red <= MAX_CLIENTS-1);
-        assert!(FLAG_MISSING <= self.flag_carrier_blue && self.flag_carrier_blue <= MAX_CLIENTS-1);
+        assert!(-3 <= self.flag_carrier_red && self.flag_carrier_red <= 63);
+        assert!(-3 <= self.flag_carrier_blue && self.flag_carrier_blue <= 63);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -846,9 +996,9 @@ impl CharacterCore {
             angle: _p.read_int()?,
             direction: in_range(_p.read_int()?, -1, 1)?,
             jumped: in_range(_p.read_int()?, 0, 3)?,
-            hooked_player: in_range(_p.read_int()?, -1, MAX_CLIENTS-1)?,
+            hooked_player: in_range(_p.read_int()?, 0, 63)?,
             hook_state: in_range(_p.read_int()?, -1, 5)?,
-            hook_tick: Tick(_p.read_int()?),
+            hook_tick: ::snap_obj::Tick(_p.read_int()?),
             hook_x: _p.read_int()?,
             hook_y: _p.read_int()?,
             hook_dx: _p.read_int()?,
@@ -858,7 +1008,7 @@ impl CharacterCore {
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.direction && self.direction <= 1);
         assert!(0 <= self.jumped && self.jumped <= 3);
-        assert!(-1 <= self.hooked_player && self.hooked_player <= MAX_CLIENTS-1);
+        assert!(0 <= self.hooked_player && self.hooked_player <= 63);
         assert!(-1 <= self.hook_state && self.hook_state <= 5);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
@@ -891,8 +1041,8 @@ impl Character {
             health: in_range(_p.read_int()?, 0, 10)?,
             armor: in_range(_p.read_int()?, 0, 10)?,
             ammo_count: in_range(_p.read_int()?, 0, 10)?,
-            weapon: Weapon::from_i32(_p.read_int()?)?,
-            emote: Emote::from_i32(_p.read_int()?)?,
+            weapon: enums::Weapon::from_i32(_p.read_int()?)?,
+            emote: enums::Emote::from_i32(_p.read_int()?)?,
             attack_tick: positive(_p.read_int()?)?,
         })
     }
@@ -927,15 +1077,15 @@ impl PlayerInfo {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<PlayerInfo, Error> {
         Ok(PlayerInfo {
             local: in_range(_p.read_int()?, 0, 1)?,
-            client_id: in_range(_p.read_int()?, 0, MAX_CLIENTS-1)?,
-            team: Team::from_i32(_p.read_int()?)?,
+            client_id: in_range(_p.read_int()?, 0, 63)?,
+            team: enums::Team::from_i32(_p.read_int()?)?,
             score: _p.read_int()?,
             latency: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.local && self.local <= 1);
-        assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        assert!(0 <= self.client_id && self.client_id <= 63);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -943,10 +1093,10 @@ impl PlayerInfo {
 impl fmt::Debug for ClientInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClientInfo")
-            .field("name", &DebugSlice::new(&self.name, |e| e))
-            .field("clan", &DebugSlice::new(&self.clan, |e| e))
+            .field("name", &self.name)
+            .field("clan", &self.clan)
             .field("country", &self.country)
-            .field("skin", &DebugSlice::new(&self.skin, |e| e))
+            .field("skin", &self.skin)
             .field("use_custom_color", &self.use_custom_color)
             .field("color_body", &self.color_body)
             .field("color_feet", &self.color_feet)
@@ -1009,13 +1159,122 @@ impl SpectatorInfo {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpectatorInfo, Error> {
         Ok(SpectatorInfo {
-            spectator_id: in_range(_p.read_int()?, SPEC_FREEVIEW, MAX_CLIENTS-1)?,
+            spectator_id: in_range(_p.read_int()?, -1, 63)?,
             x: _p.read_int()?,
             y: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(SPEC_FREEVIEW <= self.spectator_id && self.spectator_id <= MAX_CLIENTS-1);
+        assert!(-1 <= self.spectator_id && self.spectator_id <= 63);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for MyOwnObject {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MyOwnObject")
+            .field("test", &self.test)
+            .finish()
+    }
+}
+impl MyOwnObject {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<MyOwnObject, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<MyOwnObject, Error> {
+        Ok(MyOwnObject {
+            test: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetCharacter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetCharacter")
+            .field("flags", &self.flags)
+            .field("freeze_end", &self.freeze_end)
+            .field("jumps", &self.jumps)
+            .field("tele_checkpoint", &self.tele_checkpoint)
+            .field("strong_weak_id", &self.strong_weak_id)
+            .finish()
+    }
+}
+impl DdnetCharacter {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetCharacter, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetCharacter, Error> {
+        Ok(DdnetCharacter {
+            flags: _p.read_int()?,
+            freeze_end: ::snap_obj::Tick(_p.read_int()?),
+            jumps: in_range(_p.read_int()?, 0, 255)?,
+            tele_checkpoint: _p.read_int()?,
+            strong_weak_id: in_range(_p.read_int()?, 0, 63)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.jumps && self.jumps <= 255);
+        assert!(0 <= self.strong_weak_id && self.strong_weak_id <= 63);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetPlayer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetPlayer")
+            .field("flags", &self.flags)
+            .field("auth_level", &self.auth_level)
+            .finish()
+    }
+}
+impl DdnetPlayer {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetPlayer, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetPlayer, Error> {
+        Ok(DdnetPlayer {
+            flags: _p.read_int()?,
+            auth_level: in_range(_p.read_int()?, 0, 3)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.auth_level && self.auth_level <= 3);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for GameInfoEx {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("GameInfoEx")
+            .field("flags", &self.flags)
+            .field("version", &self.version)
+            .field("flags2", &self.flags2)
+            .finish()
+    }
+}
+impl GameInfoEx {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<GameInfoEx, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<GameInfoEx, Error> {
+        Ok(GameInfoEx {
+            flags: _p.read_int()?,
+            version: _p.read_int()?,
+            flags2: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -1134,12 +1393,12 @@ impl Death {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Death, Error> {
         Ok(Death {
             common: Common::decode_inner(_p)?,
-            client_id: in_range(_p.read_int()?, 0, MAX_CLIENTS-1)?,
+            client_id: in_range(_p.read_int()?, 0, 63)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        assert!(0 <= self.client_id && self.client_id <= 63);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -1161,7 +1420,7 @@ impl SoundGlobal {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SoundGlobal, Error> {
         Ok(SoundGlobal {
             common: Common::decode_inner(_p)?,
-            sound_id: Sound::from_i32(_p.read_int()?)?,
+            sound_id: enums::Sound::from_i32(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1187,7 +1446,7 @@ impl SoundWorld {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SoundWorld, Error> {
         Ok(SoundWorld {
             common: Common::decode_inner(_p)?,
-            sound_id: Sound::from_i32(_p.read_int()?)?,
+            sound_id: enums::Sound::from_i32(_p.read_int()?)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1218,6 +1477,54 @@ impl DamageInd {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for MyOwnEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MyOwnEvent")
+            .field("test", &self.test)
+            .finish()
+    }
+}
+impl MyOwnEvent {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<MyOwnEvent, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<MyOwnEvent, Error> {
+        Ok(MyOwnEvent {
+            test: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for SpecChar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SpecChar")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .finish()
+    }
+}
+impl SpecChar {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SpecChar, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpecChar, Error> {
+        Ok(SpecChar {
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }

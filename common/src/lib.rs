@@ -16,6 +16,7 @@ pub use takeable::Takeable;
 #[macro_use]
 mod macros;
 
+pub mod digest;
 pub mod io;
 pub mod map_iter;
 pub mod num;

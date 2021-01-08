@@ -1,12 +1,37 @@
 use packer::IntOutOfRange;
 
-pub const MAX_CLIENTS: i32 = 16;
-pub const SPEC_FREEVIEW: i32 = -1;
-pub const MAX_SNAPSHOT_PACKSIZE: usize = 900;
-
+pub const MAX_CLIENTS: i32 = 64;
+pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
+pub const VERSION: &'static str = "0.7 802f1be60a05665f";
+pub const CLIENT_VERSION: i32 = 1797;
+pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
+pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
+pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
+
+pub const PICKUP_HEALTH: i32 = 0;
+pub const PICKUP_ARMOR: i32 = 1;
+pub const PICKUP_GRENADE: i32 = 2;
+pub const PICKUP_SHOTGUN: i32 = 3;
+pub const PICKUP_LASER: i32 = 4;
+pub const PICKUP_NINJA: i32 = 5;
+pub const PICKUP_GUN: i32 = 6;
+pub const PICKUP_HAMMER: i32 = 7;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Pickup {
+    Health,
+    Armor,
+    Grenade,
+    Shotgun,
+    Laser,
+    Ninja,
+    Gun,
+    Hammer,
+}
 
 pub const EMOTE_NORMAL: i32 = 0;
 pub const EMOTE_PAIN: i32 = 1;
@@ -24,20 +49,6 @@ pub enum Emote {
     Surprise,
     Angry,
     Blink,
-}
-
-pub const POWERUP_HEALTH: i32 = 0;
-pub const POWERUP_ARMOR: i32 = 1;
-pub const POWERUP_WEAPON: i32 = 2;
-pub const POWERUP_NINJA: i32 = 3;
-
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-pub enum Powerup {
-    Health,
-    Armor,
-    Weapon,
-    Ninja,
 }
 
 pub const EMOTICON_OOP: i32 = 0;
@@ -76,6 +87,68 @@ pub enum Emoticon {
     Wtf,
     Eyes,
     Question,
+}
+
+pub const VOTE_UNKNOWN: i32 = 0;
+pub const VOTE_START_OP: i32 = 1;
+pub const VOTE_START_KICK: i32 = 2;
+pub const VOTE_START_SPEC: i32 = 3;
+pub const VOTE_END_ABORT: i32 = 4;
+pub const VOTE_END_PASS: i32 = 5;
+pub const VOTE_END_FAIL: i32 = 6;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Vote {
+    Unknown,
+    StartOp,
+    StartKick,
+    StartSpec,
+    EndAbort,
+    EndPass,
+    EndFail,
+}
+
+pub const CHAT_NONE: i32 = 0;
+pub const CHAT_ALL: i32 = 1;
+pub const CHAT_TEAM: i32 = 2;
+pub const CHAT_WHISPER: i32 = 3;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Chat {
+    None,
+    All,
+    Team,
+    Whisper,
+}
+
+pub const GAMEMSG_TEAM_SWAP: i32 = 0;
+pub const GAMEMSG_SPEC_INVALIDID: i32 = 1;
+pub const GAMEMSG_TEAM_SHUFFLE: i32 = 2;
+pub const GAMEMSG_TEAM_BALANCE: i32 = 3;
+pub const GAMEMSG_CTF_DROP: i32 = 4;
+pub const GAMEMSG_CTF_RETURN: i32 = 5;
+pub const GAMEMSG_TEAM_ALL: i32 = 6;
+pub const GAMEMSG_TEAM_BALANCE_VICTIM: i32 = 7;
+pub const GAMEMSG_CTF_GRAB: i32 = 8;
+pub const GAMEMSG_CTF_CAPTURE: i32 = 9;
+pub const GAMEMSG_GAME_PAUSED: i32 = 10;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Gamemsg {
+    TeamSwap,
+    SpecInvalidid,
+    TeamShuffle,
+    TeamBalance,
+    CtfDrop,
+    CtfReturn,
+    TeamAll,
+    TeamBalanceVictim,
+    CtfGrab,
+    CtfCapture,
+    GamePaused,
 }
 
 pub const WEAPON_HAMMER: i32 = 0;
@@ -196,6 +269,68 @@ pub enum Sound {
     Menu,
 }
 
+pub const SPEC_FREEVIEW: i32 = 0;
+pub const SPEC_PLAYER: i32 = 1;
+pub const SPEC_FLAGRED: i32 = 2;
+pub const SPEC_FLAGBLUE: i32 = 3;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Spec {
+    Freeview,
+    Player,
+    Flagred,
+    Flagblue,
+}
+
+pub const SKINPART_BODY: i32 = 0;
+pub const SKINPART_MARKING: i32 = 1;
+pub const SKINPART_DECORATION: i32 = 2;
+pub const SKINPART_HANDS: i32 = 3;
+pub const SKINPART_FEET: i32 = 4;
+pub const SKINPART_EYES: i32 = 5;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Skinpart {
+    Body,
+    Marking,
+    Decoration,
+    Hands,
+    Feet,
+    Eyes,
+}
+
+impl Pickup {
+    pub fn from_i32(i: i32) -> Result<Pickup, IntOutOfRange> {
+        use self::Pickup::*;
+        Ok(match i {
+            PICKUP_HEALTH => Health,
+            PICKUP_ARMOR => Armor,
+            PICKUP_GRENADE => Grenade,
+            PICKUP_SHOTGUN => Shotgun,
+            PICKUP_LASER => Laser,
+            PICKUP_NINJA => Ninja,
+            PICKUP_GUN => Gun,
+            PICKUP_HAMMER => Hammer,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Pickup::*;
+        match self {
+            Health => PICKUP_HEALTH,
+            Armor => PICKUP_ARMOR,
+            Grenade => PICKUP_GRENADE,
+            Shotgun => PICKUP_SHOTGUN,
+            Laser => PICKUP_LASER,
+            Ninja => PICKUP_NINJA,
+            Gun => PICKUP_GUN,
+            Hammer => PICKUP_HAMMER,
+        }
+    }
+}
+
 impl Emote {
     pub fn from_i32(i: i32) -> Result<Emote, IntOutOfRange> {
         use self::Emote::*;
@@ -218,28 +353,6 @@ impl Emote {
             Surprise => EMOTE_SURPRISE,
             Angry => EMOTE_ANGRY,
             Blink => EMOTE_BLINK,
-        }
-    }
-}
-
-impl Powerup {
-    pub fn from_i32(i: i32) -> Result<Powerup, IntOutOfRange> {
-        use self::Powerup::*;
-        Ok(match i {
-            POWERUP_HEALTH => Health,
-            POWERUP_ARMOR => Armor,
-            POWERUP_WEAPON => Weapon,
-            POWERUP_NINJA => Ninja,
-            _ => return Err(IntOutOfRange),
-        })
-    }
-    pub fn to_i32(self) -> i32 {
-        use self::Powerup::*;
-        match self {
-            Health => POWERUP_HEALTH,
-            Armor => POWERUP_ARMOR,
-            Weapon => POWERUP_WEAPON,
-            Ninja => POWERUP_NINJA,
         }
     }
 }
@@ -286,6 +399,92 @@ impl Emoticon {
             Wtf => EMOTICON_WTF,
             Eyes => EMOTICON_EYES,
             Question => EMOTICON_QUESTION,
+        }
+    }
+}
+
+impl Vote {
+    pub fn from_i32(i: i32) -> Result<Vote, IntOutOfRange> {
+        use self::Vote::*;
+        Ok(match i {
+            VOTE_UNKNOWN => Unknown,
+            VOTE_START_OP => StartOp,
+            VOTE_START_KICK => StartKick,
+            VOTE_START_SPEC => StartSpec,
+            VOTE_END_ABORT => EndAbort,
+            VOTE_END_PASS => EndPass,
+            VOTE_END_FAIL => EndFail,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Vote::*;
+        match self {
+            Unknown => VOTE_UNKNOWN,
+            StartOp => VOTE_START_OP,
+            StartKick => VOTE_START_KICK,
+            StartSpec => VOTE_START_SPEC,
+            EndAbort => VOTE_END_ABORT,
+            EndPass => VOTE_END_PASS,
+            EndFail => VOTE_END_FAIL,
+        }
+    }
+}
+
+impl Chat {
+    pub fn from_i32(i: i32) -> Result<Chat, IntOutOfRange> {
+        use self::Chat::*;
+        Ok(match i {
+            CHAT_NONE => None,
+            CHAT_ALL => All,
+            CHAT_TEAM => Team,
+            CHAT_WHISPER => Whisper,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Chat::*;
+        match self {
+            None => CHAT_NONE,
+            All => CHAT_ALL,
+            Team => CHAT_TEAM,
+            Whisper => CHAT_WHISPER,
+        }
+    }
+}
+
+impl Gamemsg {
+    pub fn from_i32(i: i32) -> Result<Gamemsg, IntOutOfRange> {
+        use self::Gamemsg::*;
+        Ok(match i {
+            GAMEMSG_TEAM_SWAP => TeamSwap,
+            GAMEMSG_SPEC_INVALIDID => SpecInvalidid,
+            GAMEMSG_TEAM_SHUFFLE => TeamShuffle,
+            GAMEMSG_TEAM_BALANCE => TeamBalance,
+            GAMEMSG_CTF_DROP => CtfDrop,
+            GAMEMSG_CTF_RETURN => CtfReturn,
+            GAMEMSG_TEAM_ALL => TeamAll,
+            GAMEMSG_TEAM_BALANCE_VICTIM => TeamBalanceVictim,
+            GAMEMSG_CTF_GRAB => CtfGrab,
+            GAMEMSG_CTF_CAPTURE => CtfCapture,
+            GAMEMSG_GAME_PAUSED => GamePaused,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Gamemsg::*;
+        match self {
+            TeamSwap => GAMEMSG_TEAM_SWAP,
+            SpecInvalidid => GAMEMSG_SPEC_INVALIDID,
+            TeamShuffle => GAMEMSG_TEAM_SHUFFLE,
+            TeamBalance => GAMEMSG_TEAM_BALANCE,
+            CtfDrop => GAMEMSG_CTF_DROP,
+            CtfReturn => GAMEMSG_CTF_RETURN,
+            TeamAll => GAMEMSG_TEAM_ALL,
+            TeamBalanceVictim => GAMEMSG_TEAM_BALANCE_VICTIM,
+            CtfGrab => GAMEMSG_CTF_GRAB,
+            CtfCapture => GAMEMSG_CTF_CAPTURE,
+            GamePaused => GAMEMSG_GAME_PAUSED,
         }
     }
 }
@@ -428,6 +627,54 @@ impl Sound {
             CtfGrabEn => SOUND_CTF_GRAB_EN,
             CtfCapture => SOUND_CTF_CAPTURE,
             Menu => SOUND_MENU,
+        }
+    }
+}
+
+impl Spec {
+    pub fn from_i32(i: i32) -> Result<Spec, IntOutOfRange> {
+        use self::Spec::*;
+        Ok(match i {
+            SPEC_FREEVIEW => Freeview,
+            SPEC_PLAYER => Player,
+            SPEC_FLAGRED => Flagred,
+            SPEC_FLAGBLUE => Flagblue,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Spec::*;
+        match self {
+            Freeview => SPEC_FREEVIEW,
+            Player => SPEC_PLAYER,
+            Flagred => SPEC_FLAGRED,
+            Flagblue => SPEC_FLAGBLUE,
+        }
+    }
+}
+
+impl Skinpart {
+    pub fn from_i32(i: i32) -> Result<Skinpart, IntOutOfRange> {
+        use self::Skinpart::*;
+        Ok(match i {
+            SKINPART_BODY => Body,
+            SKINPART_MARKING => Marking,
+            SKINPART_DECORATION => Decoration,
+            SKINPART_HANDS => Hands,
+            SKINPART_FEET => Feet,
+            SKINPART_EYES => Eyes,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Skinpart::*;
+        match self {
+            Body => SKINPART_BODY,
+            Marking => SKINPART_MARKING,
+            Decoration => SKINPART_DECORATION,
+            Hands => SKINPART_HANDS,
+            Feet => SKINPART_FEET,
+            Eyes => SKINPART_EYES,
         }
     }
 }

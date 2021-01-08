@@ -2,7 +2,7 @@ extern crate arrayvec;
 extern crate buffer;
 extern crate clap;
 extern crate common;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate logger;
 extern crate packer;
 extern crate teehistorian;

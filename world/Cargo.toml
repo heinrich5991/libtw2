@@ -6,4 +6,4 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 common = { path = "../common/" }
-gamenet = { path = "../gamenet/" }
+gamenet_teeworlds_0_6 = { path = "../gamenet/teeworlds-0.6/" }

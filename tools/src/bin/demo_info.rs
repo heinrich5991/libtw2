@@ -1,5 +1,5 @@
 extern crate demo;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate logger;
 extern crate packer;

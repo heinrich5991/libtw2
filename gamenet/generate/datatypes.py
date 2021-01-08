@@ -1,31 +1,34 @@
 from collections import namedtuple
+import uuid
 import threading
 
 def title(c):
     return "".join(p.title() for p in c)
 
+SNAKE_REPLACEMENTS = {
+    ("self",): "self_",
+    ("type",): "type_",
+}
 def snake(c):
+    if isinstance(c, tuple) and c in SNAKE_REPLACEMENTS:
+        return SNAKE_REPLACEMENTS[c]
     return "_".join(c)
 
 def caps(c):
     return "_".join(p.upper() for p in c)
 
 def canonicalize(s):
-    result = canonicalize_impl(s)
-    if result == ("type",):
-        result = ("type_",)
-    return result
-
-def canonicalize_impl(s):
     if isinstance(s, tuple):
         return s
     if s.isupper() or s.islower():
         return tuple(p.lower() for p in s.split("_"))
-    PREFIXES=["m_p", "m_a", "m_"]
+    PREFIXES=sorted(["m_", "m_a", "m_aa", "m_ap", "m_p"], key=len, reverse=True)
     for prefix in PREFIXES:
         if s.startswith(prefix):
             s = s[len(prefix):]
     s = s.replace("ID", "Id")
+    s = s.replace("DDNet", "Ddnet")
+    s = s.replace("DDRace", "Ddrace")
     result = []
     first = True
     for c in s:
@@ -37,18 +40,106 @@ def canonicalize_impl(s):
         result.append(c.lower())
     return tuple("".join(result).split("_"))
 
+class ProtocolSpecError(ValueError):
+    pass
+
+PROTOCOL_PARTS=[
+    "constants",
+    "game_enumerations",
+    "game_flags",
+    "game_messages",
+    "snapshot_objects",
+    "system_messages",
+    "connless_messages",
+]
+class ProtocolSpec(namedtuple("ProtocolSpec", PROTOCOL_PARTS)):
+    pass
+
+def load_protocol_spec(json_obj):
+    constants = [Constant.deserialize(e) for e in json_obj["constants"]]
+    game_enumerations = [Enum.deserialize(e) for e in json_obj["game_enumerations"]]
+    game_flags = [Flags.deserialize(e) for e in json_obj["game_flags"]]
+    game_messages = [NetMessage.deserialize(e) for e in json_obj["game_messages"]]
+    snapshot_objects = [NetObject.deserialize(e) for e in json_obj["snapshot_objects"]]
+    system_messages = [NetMessage.deserialize(e) for e in json_obj["system_messages"]]
+    connless_messages = [NetConnless.deserialize(e) for e in json_obj["connless_messages"]]
+    structs = {o.name: o for o in snapshot_objects}
+    for o in snapshot_objects:
+        o.structs = structs
+    return ProtocolSpec(
+        constants,
+        game_enumerations,
+        game_flags,
+        game_messages,
+        snapshot_objects,
+        system_messages,
+        connless_messages,
+    )
+
+def deserialize_member(json_obj):
+    name = ()
+    if "name" in json_obj:
+        name = tuple(json_obj["name"])
+        json_obj = json_obj["type"]
+    kind = json_obj["kind"]
+    if kind not in MEMBER_TYPES_MAPPING:
+        raise ProtocolSpecError("unknown member kind {!r}".format(kind))
+    kwargs = {}
+    if "default" in json_obj:
+        kwargs["default"] = json_obj["default"]
+    return MEMBER_TYPES_MAPPING[kind].deserialize(name, json_obj, **kwargs)
+
+DDNET_EX_UUID="e05ddaaa-c4e6-4cfb-b642-5d48e80c0029"
+def uuid_v3(namespace, name):
+    return str(uuid.uuid3(uuid.UUID(namespace), name))
+
 class NameValues:
-    def __init__(self, name, values):
+    def __init__(self, name, values, ex=None, teehistorian=True):
         names = name.split(':')
         if not 1 <= len(names) <= 2:
             raise ValueError("invalid name format")
         self.name = canonicalize(names[0])
         self.super = canonicalize(names[1]) if len(names) == 2 else None
         self.values = values
-    def init(self, index, enums, structs):
-        self.index = index
+        self.ex = ex
+        self.attributes = set()
+        if not teehistorian:
+            self.attributes.add("nonteehistoric")
+    def init(self, index, consts, enums, structs):
+        if self.ex is None:
+            self.index = index
+        else:
+            self.index = uuid_v3(DDNET_EX_UUID, self.ex)
         self.enums = enums
         self.structs = structs
+    def serialize(self):
+        result = {}
+        result["id"] = self.index
+        if self.ex is not None:
+            result["id_from"] = {
+                "algorithm": "uuid_v3",
+                "namespace": DDNET_EX_UUID,
+                "name": self.ex,
+            }
+        result["name"] = self.name
+        if self.super is not None:
+            result["super"] = self.super
+        result["members"] = [v.serialize() for v in self.values]
+        result["attributes"] = sorted(self.attributes)
+        return result
+    @classmethod
+    def deserialize(cls, json_obj):
+        if "super" in json_obj:
+            name = "{}:{}".format(snake(json_obj["name"]), snake(json_obj["super"]))
+        else:
+            name = snake(json_obj["name"])
+        result = cls(name, [deserialize_member(m) for m in json_obj["members"]])
+        result.index = json_obj["id"]
+        if "id_from" in json_obj:
+            if json_obj["id_from"]["algorithm"] == "uuid_v3" and json_obj["id_from"]["namespace"] == DDNET_EX_UUID:
+                result.ex = json_obj["id_from"]["name"]
+        result.attributes = set(json_obj["attributes"])
+        return result
 
 class Emit:
     def __init__(self):
@@ -77,12 +168,15 @@ class Emit:
         self.lines += ["    " * self.cur_indent + l for l in (string + "\n").splitlines()]
     def import_(self, *args):
         self.imports.update(args)
-    def dump(self):
+    def get(self):
+        imports = []
         if self.imports:
             for i in sorted(self.imports):
-                _print("use {};".format(i))
-            _print()
-        _print("\n".join(self.lines))
+                imports.append("use {};".format(i))
+            imports.append("")
+        return "\n".join(imports + self.lines + [""])
+    def dump(self):
+        _print(self.get(), end="")
 
 thread_local = threading.local()
 thread_local.emit = object()
@@ -104,104 +198,12 @@ def indent(*args):
     return _emit_get().indent(*args)
 
 def emit_header_enums():
-    print("""\
-pub const MAX_CLIENTS: i32 = 16;
-pub const SPEC_FREEVIEW: i32 = -1;
-pub const MAX_SNAPSHOT_PACKSIZE: usize = 900;
-
-pub const FLAG_MISSING: i32 = -3;
-pub const FLAG_ATSTAND: i32 = -2;
-pub const FLAG_TAKEN: i32 = -1;
-""")
+    pass
 
 def emit_header_snap_obj():
-    import_(
-        "buffer::CapacityError",
-        "enums::Weapon",
-        "error::Error",
-        "packer::Packer",
-        "packer::Unpacker",
-        "packer::Warning",
-        "warn::Warn",
-    )
     print("""\
-#[derive(Clone, Copy, Debug)]
-pub struct Tick(pub i32);
-
-impl Projectile {
-    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
-        Ok(Projectile {
-            x: _p.read_int(warn)?,
-            y: _p.read_int(warn)?,
-            vel_x: _p.read_int(warn)?,
-            vel_y: _p.read_int(warn)?,
-            type_: Weapon::from_i32(_p.read_int(warn)?)?,
-            start_tick: Tick(_p.read_int(warn)?),
-        })
-    }
-    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
-        // For the assert!()s.
-        self.encode();
-
-        _p.write_int(self.x)?;
-        _p.write_int(self.y)?;
-        _p.write_int(self.vel_x)?;
-        _p.write_int(self.vel_y)?;
-        _p.write_int(self.type_.to_i32())?;
-        _p.write_int(self.start_tick.0)?;
-        Ok(_p.written())
-    }
-}
-
-impl PlayerInput {
-    pub fn decode_msg_inner<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PlayerInput, Error> {
-        Ok(PlayerInput {
-            direction: _p.read_int(warn)?,
-            target_x: _p.read_int(warn)?,
-            target_y: _p.read_int(warn)?,
-            jump: _p.read_int(warn)?,
-            fire: _p.read_int(warn)?,
-            hook: _p.read_int(warn)?,
-            player_flags: _p.read_int(warn)?,
-            wanted_weapon: _p.read_int(warn)?,
-            next_weapon: _p.read_int(warn)?,
-            prev_weapon: _p.read_int(warn)?,
-        })
-    }
-    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
-        // For the assert!()s.
-        self.encode();
-
-        _p.write_int(self.direction)?;
-        _p.write_int(self.target_x)?;
-        _p.write_int(self.target_y)?;
-        _p.write_int(self.jump)?;
-        _p.write_int(self.fire)?;
-        _p.write_int(self.hook)?;
-        _p.write_int(self.player_flags)?;
-        _p.write_int(self.wanted_weapon)?;
-        _p.write_int(self.next_weapon)?;
-        _p.write_int(self.prev_weapon)?;
-        Ok(_p.written())
-    }
-}
-
-pub const PLAYER_INPUT_EMPTY: PlayerInput = PlayerInput {
-    direction: 0,
-    target_x: 0,
-    target_y: 0,
-    jump: 0,
-    fire: 0,
-    hook: 0,
-    player_flags: 0,
-    wanted_weapon: 0,
-    next_weapon: 0,
-    prev_weapon: 0,
-};
+pub use gamenet_common::snap_obj::Tick;
+pub use gamenet_common::snap_obj::TypeId;
 """)
 
 def emit_header_msg_system():
@@ -220,9 +222,7 @@ impl<'a> System<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>
         where W: Warn<Warning>
     {
-        if let SystemOrGame::System(msg_id) =
-            SystemOrGame::decode_id(p.read_int(warn)?)
-        {
+        if let SystemOrGame::System(msg_id) = SystemOrGame::decode_id(warn, p)? {
             System::decode_msg(warn, msg_id, p)
         } else {
             Err(Error::UnknownId)
@@ -231,7 +231,7 @@ impl<'a> System<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        p.write_int(SystemOrGame::System(self.msg_id()).encode_id())?;
+        with_packer(&mut p, |p| SystemOrGame::System(self.msg_id()).encode_id(p))?;
         with_packer(&mut p, |p| self.encode_msg(p))?;
         Ok(p.written())
     }
@@ -250,13 +250,13 @@ def emit_header_msg_game():
         "warn::Warn",
     )
     print("""\
+pub use gamenet_common::msg::TuneParam;
+
 impl<'a> Game<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>
         where W: Warn<Warning>
     {
-        if let SystemOrGame::Game(msg_id) =
-            SystemOrGame::decode_id(p.read_int(warn)?)
-        {
+        if let SystemOrGame::Game(msg_id) = SystemOrGame::decode_id(warn, p)? {
             Game::decode_msg(warn, msg_id, p)
         } else {
             Err(Error::UnknownId)
@@ -265,61 +265,9 @@ impl<'a> Game<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        p.write_int(SystemOrGame::Game(self.msg_id()).encode_id())?;
+        with_packer(&mut p, |p| SystemOrGame::Game(self.msg_id()).encode_id(p))?;
         with_packer(&mut p, |p| self.encode_msg(p))?;
         Ok(p.written())
-    }
-}
-
-pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
-pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
-pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
-
-pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
-    ground_control_speed: TuneParam(1000),
-    ground_control_accel: TuneParam(200),
-    ground_friction: TuneParam(50),
-    ground_jump_impulse: TuneParam(1320),
-    air_jump_impulse: TuneParam(1200),
-    air_control_speed: TuneParam(500),
-    air_control_accel: TuneParam(150),
-    air_friction: TuneParam(95),
-    hook_length: TuneParam(38000),
-    hook_fire_speed: TuneParam(8000),
-    hook_drag_accel: TuneParam(300),
-    hook_drag_speed: TuneParam(1500),
-    gravity: TuneParam(50),
-    velramp_start: TuneParam(55000),
-    velramp_range: TuneParam(200000),
-    velramp_curvature: TuneParam(140),
-    gun_curvature: TuneParam(125),
-    gun_speed: TuneParam(220000),
-    gun_lifetime: TuneParam(200),
-    shotgun_curvature: TuneParam(125),
-    shotgun_speed: TuneParam(275000),
-    shotgun_speeddiff: TuneParam(80),
-    shotgun_lifetime: TuneParam(20),
-    grenade_curvature: TuneParam(700),
-    grenade_speed: TuneParam(100000),
-    grenade_lifetime: TuneParam(200),
-    laser_reach: TuneParam(80000),
-    laser_bounce_delay: TuneParam(15000),
-    laser_bounce_num: TuneParam(100),
-    laser_bounce_cost: TuneParam(0),
-    laser_damage: TuneParam(500),
-    player_collision: TuneParam(100),
-    player_hooking: TuneParam(100),
-};
-
-#[derive(Clone, Copy, Debug)]
-pub struct TuneParam(pub i32);
-
-impl TuneParam {
-    pub fn from_float(float: f32) -> TuneParam {
-        TuneParam((float * 100.0) as i32)
-    }
-    pub fn to_float(self) -> f32 {
-        (self.0 as f32) / 100.0
     }
 }
 """)
@@ -333,7 +281,7 @@ def emit_header_msg_connless():
         "packer::Warning",
         "packer::with_packer",
         "std::fmt",
-        "super::string_from_int",
+        "gamenet_common::msg::string_from_int",
         "warn::Warn",
     )
     print("""\
@@ -414,6 +362,7 @@ def emit_enum_msg(name, structs):
         "packer::Unpacker",
         "packer::Warning",
         "std::fmt",
+        "super::MessageId",
         "warn::Warn",
     )
     name = canonicalize(name)
@@ -421,17 +370,19 @@ def emit_enum_msg(name, structs):
     emit_enum_def(name, structs)
     print()
     print("impl{l} {}{l} {{".format(title(name), l=lifetime))
-    print("    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: i32, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: MessageId, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("        use self::MessageId::*;")
     print("        Ok(match msg_id {")
     for s in structs:
-        print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
+        constructor = "Ordinal" if isinstance(s.index, int) else "Uuid"
+        print("            {}({}) => {}::{s}({s}::decode(warn, _p)?),".format(constructor, caps(s.name), title(name), s=title(s.name)))
     print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
-    print("    pub fn msg_id(&self) -> i32 {")
+    print("    pub fn msg_id(&self) -> MessageId {")
     print("        match *self {")
     for s in structs:
-        print("            {}::{}(_) => {},".format(title(name), title(s.name), caps(s.name)))
+        print("            {}::{}(_) => MessageId::from({}),".format(title(name), title(s.name), caps(s.name)))
     print("        }")
     print("    }")
     print("    pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {")
@@ -462,6 +413,7 @@ def emit_enum_msg_module(name, structs):
         print()
     for s in structs:
         s.emit_impl_encode_decode()
+        s.emit_maybe_default()
         s.emit_impl_debug()
         print()
 
@@ -478,17 +430,19 @@ def emit_enum_obj(name, structs):
     emit_enum_def(name, structs)
     print()
     print("impl{l} {}{l} {{".format(title(name), l=lifetime))
-    print("    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: u16, _p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("    pub fn decode_obj<W: Warn<ExcessData>>(warn: &mut W, obj_type_id: TypeId, _p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(name), l=lifetime))
+    print("        use self::TypeId::*;")
     print("        Ok(match obj_type_id {")
     for s in structs:
-        print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
+        constructor = "Ordinal" if isinstance(s.index, int) else "Uuid"
+        print("            {}({}) => {}::{s}({s}::decode(warn, _p)?),".format(constructor, caps(s.name), title(name), s=title(s.name)))
     print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
     print("        })")
     print("    }")
-    print("    pub fn obj_type_id(&self) -> u16 {")
+    print("    pub fn obj_type_id(&self) -> TypeId {")
     print("        match *self {")
     for s in structs:
-        print("            {}::{}(_) => {},".format(title(name), title(s.name), caps(s.name)))
+        print("            {}::{}(_) => TypeId::from({}),".format(title(name), title(s.name), caps(s.name)))
     print("        }")
     print("    }")
     print("    pub fn encode(&self) -> &[i32] {")
@@ -524,6 +478,8 @@ def emit_enum_obj_module(name, structs, flags):
     for s in structs:
         s.emit_impl_debug()
         s.emit_impl_encode_decode_int()
+        if "msg_encoding" in s.attributes:
+            s.emit_impl_encode_decode(suffix=True)
         print()
     emit_snap_obj_sizes(structs)
 
@@ -588,18 +544,109 @@ def emit_snap_obj_sizes(objects):
     print("pub fn obj_size(type_: u16) -> Option<u32> {")
     print("    Some(match type_ {")
     for o in objects:
-        print("        {} => {},".format(caps(o.name), o.int_size()))
+        if isinstance(o.index, int):
+            print("        {} => {},".format(caps(o.name), o.int_size()))
     print("        _ => return None,")
     print("    })")
     print("}")
 
-def emit_enum_module(enums):
+def emit_enum_module(consts, enums):
+    for c in consts:
+        c.emit_definition()
+    print()
     for e in enums:
         e.emit_definition()
         print()
     for e in enums:
         e.emit_impl()
         print()
+
+def emit_cargo_toml(name):
+    print("""\
+[package]
+name = "{}"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+arrayvec = "0.3.12"
+buffer = "0.1.5"
+common = {{ path = "../../common/" }}
+gamenet_common = {{ path = "../common/" }}
+packer = {{ path = "../../packer/", features = ["uuid"] }}
+uuid = "0.8.1"
+warn = ">=0.1.1,<0.3.0"\
+""".format(name))
+
+def emit_main_lib():
+    print("""\
+extern crate arrayvec;
+extern crate buffer;
+extern crate common;
+extern crate gamenet_common;
+extern crate packer;
+extern crate uuid;
+extern crate warn;
+
+pub mod enums;
+pub mod msg;
+pub mod snap_obj;
+
+pub use gamenet_common::error;
+pub use gamenet_common::error::Error;
+pub use snap_obj::SnapObj;\
+""")
+
+def emit_msg_module():
+    import_(
+        "gamenet_common::error::Error",
+        "packer::Unpacker",
+        "packer::Warning",
+        "warn::Warn",
+    )
+    print("""\
+pub mod connless;
+pub mod game;
+pub mod system;
+
+pub use self::connless::Connless;
+pub use self::game::Game;
+pub use self::system::System;
+
+pub use gamenet_common::msg::AddrPacked;
+pub use gamenet_common::msg::CLIENTS_DATA_NONE;
+pub use gamenet_common::msg::ClientsData;
+pub use gamenet_common::msg::MessageId;
+pub use gamenet_common::msg::SystemOrGame;
+
+struct Protocol;
+
+impl<'a> gamenet_common::msg::Protocol<'a> for Protocol {
+    type System = System<'a>;
+    type Game = Game<'a>;
+
+    fn decode_system<W>(warn: &mut W, id: MessageId, p: &mut Unpacker<'a>)
+        -> Result<Self::System, Error>
+        where W: Warn<Warning>
+    {
+        System::decode_msg(warn, id, p)
+    }
+    fn decode_game<W>(warn: &mut W, id: MessageId, p: &mut Unpacker<'a>)
+        -> Result<Self::Game, Error>
+        where W: Warn<Warning>
+    {
+        Game::decode_msg(warn, id, p)
+    }
+}
+
+pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
+    -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
+    where W: Warn<Warning>
+{
+    gamenet_common::msg::decode(warn, Protocol, p)
+}
+""")
 
 class Enum(NameValues):
     def __init__(self, name, values, offset=0):
@@ -640,6 +687,25 @@ class Enum(NameValues):
         print("        }")
         print("    }")
         print("}")
+    def serialize(self):
+        return {
+            "name": self.name,
+            "values": [{"value": self.offset + i, "name": name} for i, name in enumerate(self.values)],
+        }
+    @staticmethod
+    def deserialize(json_obj):
+        values = sorted(json_obj["values"], key=lambda x: x["value"])
+        if any(v["value"] != values[0]["value"] + i for i, v in enumerate(values)):
+            raise ProtocolSpecError("Only supporting contiguous enums")
+        offset = 0
+        if values:
+            offset = values[0]["value"]
+        return Enum(
+            snake(json_obj["name"]),
+            [tuple(v["name"]) for v in values],
+            offset=offset,
+        )
+
 
 class Flags(NameValues):
     def __init__(self, name, values):
@@ -647,6 +713,20 @@ class Flags(NameValues):
     def emit_definition(self):
         for i, name in enumerate(self.values):
             print("pub const {}_{}: i32 = 1 << {};".format(caps(self.name), caps(name), i))
+    def serialize(self):
+        return {
+            "name": self.name,
+            "values": [{"value": 1 << i, "name": name} for i, name in enumerate(self.values)],
+        }
+    @staticmethod
+    def deserialize(json_obj):
+        values = sorted(json_obj["values"], key=lambda x: x["value"])
+        if any(v["value"] != 1 << i for i, v in enumerate(values)):
+            raise ProtocolSpecError("Only supporting contiguous flags")
+        return Flags(
+            snake(json_obj["name"]),
+            [tuple(v["name"]) for v in values],
+        )
 
 def lifetime(members):
     return "<'a>" if any(m.contains_lifetime() for m in members) else ""
@@ -657,8 +737,8 @@ class Struct(NameValues):
         if self.super:
             result = result or self.structs[self.super].lifetime()
         return result
-    def init(self, index, enums, structs):
-        super().init(index, enums, structs)
+    def init(self, index, consts, enums, structs):
+        super().init(index, consts, enums, structs)
 
         old_members = self.values
         self.values = []
@@ -692,10 +772,17 @@ class Struct(NameValues):
                         and self.values[i].min == "TEAM_SPECTATORS"
                         and self.values[i].max == "TEAM_BLUE"):
                     self.values[i] = NetBool(self.values[i].name)
-        self.values = [member.update(self, enums, structs) for member in self.values]
+        self.values = [member.update(self, consts, enums, structs) for member in self.values]
 
     def emit_consts(self):
-        print("pub const {}: {} = {};".format(caps(self.name), self.const_type, self.index))
+        if isinstance(self.index, int):
+            type_ = self.const_type
+            value = self.index
+        else:
+            import_("uuid::Uuid")
+            type_ = "Uuid"
+            value = "Uuid::from_u128(0x{})".format(self.index.replace("-", "_"))
+        print("pub const {}: {} = {};".format(caps(self.name), type_, value))
     def emit_definition(self):
         if self.super:
             super = self.structs[self.super]
@@ -715,7 +802,7 @@ class Struct(NameValues):
             print("}")
         else:
             print("pub struct {};".format(title(self.name)))
-    def emit_impl_encode_decode(self):
+    def emit_impl_encode_decode(self, suffix=False):
         import_(
             "buffer::CapacityError",
             "error::Error",
@@ -725,8 +812,12 @@ class Struct(NameValues):
             "std::fmt",
             "warn::Warn",
         )
+        if suffix:
+            suffix = "_msg"
+        else:
+            suffix = ""
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
-        print("    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
+        print("    pub fn decode{}<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<{}{l}, Error> {{".format(suffix, title(self.name), l=self.lifetime()))
         if self.values:
             print("        let result = Ok({} {{".format(title(self.name)))
             with indent(3):
@@ -738,7 +829,7 @@ class Struct(NameValues):
         print("        _p.finish(warn);")
         print("        result")
         print("    }")
-        print("    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {{".format(title(self.name), l=self.lifetime()))
+        print("    pub fn encode{}<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {{".format(suffix, title(self.name), l=self.lifetime()))
         with indent(2):
             for m in self.values:
                 m.emit_assert()
@@ -760,9 +851,54 @@ class Struct(NameValues):
         print("            .finish()")
         print("    }")
         print("}")
+    def emit_maybe_default(self):
+        if self.name != ("sv", "tune", "params"):
+            return
+        if len(self.values) == 33:
+            print("""\
+pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
+    ground_control_speed: TuneParam(1000),
+    ground_control_accel: TuneParam(200),
+    ground_friction: TuneParam(50),
+    ground_jump_impulse: TuneParam(1320),
+    air_jump_impulse: TuneParam(1200),
+    air_control_speed: TuneParam(500),
+    air_control_accel: TuneParam(150),
+    air_friction: TuneParam(95),
+    hook_length: TuneParam(38000),
+    hook_fire_speed: TuneParam(8000),
+    hook_drag_accel: TuneParam(300),
+    hook_drag_speed: TuneParam(1500),
+    gravity: TuneParam(50),
+    velramp_start: TuneParam(55000),
+    velramp_range: TuneParam(200000),
+    velramp_curvature: TuneParam(140),
+    gun_curvature: TuneParam(125),
+    gun_speed: TuneParam(220000),
+    gun_lifetime: TuneParam(200),
+    shotgun_curvature: TuneParam(125),
+    shotgun_speed: TuneParam(275000),
+    shotgun_speeddiff: TuneParam(80),
+    shotgun_lifetime: TuneParam(20),
+    grenade_curvature: TuneParam(700),
+    grenade_speed: TuneParam(100000),
+    grenade_lifetime: TuneParam(200),
+    laser_reach: TuneParam(80000),
+    laser_bounce_delay: TuneParam(15000),
+    laser_bounce_num: TuneParam(100),
+    laser_bounce_cost: TuneParam(0),
+    laser_damage: TuneParam(500),
+    player_collision: TuneParam(100),
+    player_hooking: TuneParam(100),
+};
+""")
 
 class NetObject(Struct):
     const_type = "u16"
+    def __init__(self, name, values, ex=None, validate_size=True):
+        super().__init__(name, values, ex)
+        if not validate_size:
+            self.attributes.add("dont_validate_size")
     def emit_definition(self):
         print("#[repr(C)]")
         super().emit_definition()
@@ -774,12 +910,10 @@ class NetObject(Struct):
             "packer::IntUnpacker",
             "warn::Warn",
         )
-
         if self.super:
             super = self.structs[self.super]
         else:
             super = None
-
         print("impl{l} {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker{l}) -> Result<{}{l}, Error> {{".format(title(self.name), l=self.lifetime()))
         print("        let result = Self::decode_inner(p)?;")
@@ -812,12 +946,18 @@ class NetObject(Struct):
         if self.super:
             size += self.structs[self.super].int_size()
         return size
+def NetObjectEx(name, ex, values, **kwargs):
+    return NetObject(name, values, ex=ex, **kwargs)
 
 class NetEvent(NetObject):
     pass
+def NetEventEx(name, ex, values, **kwargs):
+    return NetEvent(name, values, ex=ex, **kwargs)
 
 class NetMessage(Struct):
     const_type = "i32"
+def NetMessageEx(name, ex, values, **kwargs):
+    return NetMessage(name, values, ex=ex, **kwargs)
 
 class NetConnless(Struct):
     def __init__(self, name, id, values):
@@ -825,15 +965,31 @@ class NetConnless(Struct):
         self.id = id
     def emit_consts(self):
         print(r"""pub const {}: &'static [u8; 8] = b"\xff\xff\xff\xff{}";""".format(caps(self.name), self.id))
+    def serialize(self):
+        return {
+            "id": [255] * 4 + list(self.id.encode()),
+            "name": self.name,
+            "members": [v.serialize() for v in self.values],
+        }
+    @staticmethod
+    def deserialize(json_obj):
+        name = snake(json_obj["name"])
+        id = bytes(json_obj["id"])
+        if id[:4] != b"\xff\xff\xff\xff":
+            raise ProtocolSpecError("non-ffffffff header for connless ID not supported")
+        id = id[4:].decode()
+        return NetConnless(name, id, [deserialize_member(m) for m in json_obj["members"]])
+
 
 class Member:
-    def __init__(self, name):
+    def __init__(self, name, default=None):
         self.name = canonicalize(name)
+        self.default = default
     def definition(self):
         return "{}: {}".format(snake(self.name), self.type_)
     def contains_lifetime(self):
         return "'a" in self.type_
-    def update(self, parent, enums, structs):
+    def update(self, parent, consts, enums, structs):
         return self
     def emit_decode(self):
         print("{}: {},".format(snake(self.name), self.decode_expr()))
@@ -853,9 +1009,22 @@ class Member:
         pass
     def debug_expr(self, self_expr):
         return self_expr
+    def serialize(self):
+        result = {}
+        result["name"] = self.name
+        if self.default is not None:
+            result["default"] = self.default
+        result["type"] = self.serialize_type()
+        return result
 
 class NetArray(Member):
-    def __init__(self, name, inner, count):
+    kind = "array"
+    def __init__(self, *args):
+        if len(args) == 2:
+            inner, count = args
+            name = inner.name
+        else:
+            name, inner, count = args
         super().__init__(name)
         self.inner = inner
         self.count = count
@@ -867,11 +1036,11 @@ class NetArray(Member):
     def emit_assert(self):
         assert_expr = self.inner.assert_expr("e")
         if assert_expr:
-            print("for e in &self.{} {{".format(snake(self.name)))
+            print("for &e in &self.{} {{".format(snake(self.name)))
             print("    {};".format(assert_expr))
             print("}")
     def emit_encode(self):
-        print("for e in &self.{} {{".format(snake(self.name)))
+        print("for &e in &self.{} {{".format(snake(self.name)))
         print("    {}?;".format(self.inner.encode_expr("e")))
         print("}")
     def decode_int_expr(self):
@@ -879,12 +1048,28 @@ class NetArray(Member):
             "    {},\n".format(self.inner.decode_int_expr()) for _ in range(self.count)
         ))
     def debug_expr(self, self_expr):
-        import_("debug::DebugSlice")
+        if self.inner.debug_expr("x") == "x":
+            return self_expr
+        import_("gamenet_common::debug::DebugSlice")
         return "DebugSlice::new(&{}, |e| {})".format(self_expr, self.inner.debug_expr("e"))
     def int_size(self):
         return self.inner.int_size() * self.count
+    def serialize_type(self):
+        return {
+            "kind": self.kind,
+            "count": self.count,
+            "member_type": self.inner.serialize_type(),
+        }
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetArray(
+            name,
+            deserialize_member(json_obj["member_type"]),
+            json_obj["count"],
+        )
 
 class NetOptional(Member):
+    kind = "optional"
     def __init__(self, name, inner):
         super().__init__(name)
         self.inner = inner
@@ -901,8 +1086,14 @@ class NetOptional(Member):
         return "{}.as_ref().map(|v| {})".format(self_expr, self.inner.debug_expr("v"))
     def assert_expr(self, self_expr):
         return "assert!({}.is_some())".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind, "inner": self.inner.serialize_type()}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetOptional(name, deserialize_member(json_obj["inner"]))
 
 class NetString(Member):
+    kind = "string"
     type_ = "&'a [u8]"
     def decode_expr(self):
         return "_p.read_string()?"
@@ -911,6 +1102,14 @@ class NetString(Member):
     def debug_expr(self, self_expr):
         import_("common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind, "disallow_cc": False}
+    @staticmethod
+    def deserialize(name, json_obj):
+        if json_obj["disallow_cc"]:
+            return NetStringStrict(name)
+        else:
+            return NetString(name)
 
 class NetStringStrict(NetString):
     def decode_expr(self):
@@ -922,8 +1121,12 @@ class NetStringStrict(NetString):
             "warn::Panic",
         )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind, "disallow_cc": True}
+NetStringHalfStrict = NetStringStrict
 
 class NetData(Member):
+    kind = "data"
     type_ = "&'a [u8]"
     def decode_expr(self):
         return "_p.read_data(warn)?"
@@ -932,8 +1135,58 @@ class NetData(Member):
     def debug_expr(self, self_expr):
         import_("common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind, "size": "specified_before"}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetData(name)
+
+class NetDataRest(Member):
+    kind = "rest"
+    type_ = "&'a [u8]"
+    def decode_expr(self):
+        return "_p.read_rest()?"
+    def encode_expr(self, self_expr):
+        return "_p.write_rest({})".format(self_expr)
+    def debug_expr(self, self_expr):
+        import_("common::pretty")
+        return "pretty::Bytes::new(&{})".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetDataRest(name)
+
+class NetSha256(Member):
+    type_ = "Sha256"
+    kind = "sha256"
+    def decode_expr(self):
+        import_("common::digest::Sha256")
+        return "Sha256::from_slice(_p.read_raw(32)?).unwrap()"
+    def encode_expr(self, self_expr):
+        return "_p.write_raw(&{}.0)".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetSha256(name)
+
+class NetUuid(Member):
+    type_ = "Uuid"
+    kind = "uuid"
+    def decode_expr(self):
+        import_("uuid::Uuid")
+        return "Uuid::from_slice(_p.read_raw(16)?).unwrap()"
+    def encode_expr(self, self_expr):
+        return "_p.write_raw({}.as_bytes())".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetUuid(name)
 
 class NetIntAny(Member):
+    kind = "int32"
     type_ = "i32"
     def decode_expr(self):
         return "_p.read_int(warn)?"
@@ -943,6 +1196,19 @@ class NetIntAny(Member):
         return "_p.read_int()?"
     def int_size(self):
         return 1
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        if "min" in json_obj and "max" not in json_obj:
+            if json_obj["min"] == 0:
+                return NetIntPositive(name)
+            else:
+                return NetIntMin(name, json_obj["min"])
+        elif "min" in json_obj or "max" in json_obj:
+            return NetIntRange(name, json_obj["min"], json_obj["max"])
+        else:
+            return NetIntAny(name)
 
 def import_consts(value):
     value = str(value)
@@ -950,28 +1216,63 @@ def import_consts(value):
         if const in value:
             import_("enums::{}".format(const))
 
+def evaluate_constant(consts, enums, constant):
+    try:
+        return int(constant)
+    except ValueError:
+        pass
+    offset = 0
+    if constant.endswith("-1"):
+        constant = constant[:-2]
+        offset = -1
+    if constant.startswith("NUM_") and constant.endswith("S"):
+        return len(enums[canonicalize(constant[4:-1])].values) + offset
+    c = canonicalize(constant)
+    if c in consts:
+        return consts[c].value + offset
+    for i in range(1, len(c))[::-1]:
+        if c[:i] in enums:
+            try:
+                index = enums[c[:i]].values.index(c[i:])
+            except ValueError:
+                pass
+            else:
+                return index + enums[c[:i]].offset
+    raise ProtocolSpecError("unevaluatable constant {}".format(constant))
+
 class NetIntRange(NetIntAny):
     def __init__(self, name, min, max):
         super().__init__(name)
         self.min = min
         self.max = max
-    def update(self, parent, enums, structs):
+    def update(self, parent, consts, enums, structs):
         min = str(self.min)
         max = str(self.max)
-        if min == "0" and max == "max_int":
-            return NetIntPositive(self.name)
+        if max == "max_int":
+            if min == "0":
+                return NetIntPositive(self.name)
+            elif min == "min_int":
+                return NetIntAny(self.name)
+            else:
+                return NetIntMin(self.name, self.min)
         if min == "TEAM_SPECTATORS" and max == "TEAM_BLUE":
             return NetEnum(self.name, "team")
         if parent.name == ("player", "input") and self.name == ("player", "flags") and min == "0" and max == "256":
             return NetIntAny(self.name)
+        elif parent.name == ("player", "input") and self.name == ("wanted", "weapon") and min == "0" and max == "NUM_WEAPONS-1":
+            self.max = max = "NUM_WEAPONS"
         if self.name == ("hooked", "player") and min == "0":
             self.min = -1
         elif self.name == ("emote",) and max == str(len(enums[("emote",)].values)):
             max = "NUM_EMOTES-1"
+        elif self.max == "NUM_SPECMODES-1":
+            max = "NUM_SPECS-1"
         if str(self.min) == "0" and max.startswith("NUM_") and max.endswith("S-1"):
             return NetEnum(self.name, max[4:-3])
         if max == "NUM_WEAPONS-1":
             self.max = len(enums[("weapon",)].values) - 1
+        self.min = evaluate_constant(consts, enums, min)
+        self.max = evaluate_constant(consts, enums, max)
         return self
     def decode_expr(self):
         import_("packer::in_range")
@@ -987,6 +1288,8 @@ class NetIntRange(NetIntAny):
         import_consts(self.min)
         import_consts(self.max)
         return "in_range({}, {}, {})?".format(super().decode_int_expr(), self.min, self.max)
+    def serialize_type(self):
+        return {"kind": self.kind, "min": self.min, "max": self.max}
 
 class NetIntPositive(NetIntAny):
     def __init__(self, name):
@@ -999,66 +1302,143 @@ class NetIntPositive(NetIntAny):
     def decode_int_expr(self):
         import_("packer::positive")
         return "positive({})?".format(super().decode_int_expr())
+    def serialize_type(self):
+        return {"kind": self.kind, "min": 0}
+
+class NetIntMin(NetIntAny):
+    def __init__(self, name, min):
+        super().__init__(name)
+        self.min = min
+    def decode_expr(self):
+        import_("packer::at_least")
+        return "at_least({}, {})?".format(super().decode_expr(), self.min)
+    def assert_expr(self, self_expr):
+        return "assert!({} >= {})".format(self_expr, self.min)
+    def decode_int_expr(self):
+        import_("packer::at_least")
+        return "at_least({}, {})?".format(super().decode_int_expr(), self.min)
+    def serialize_type(self):
+        return {"kind": self.kind, "min": self.min}
 
 class NetEnum(NetIntAny):
+    kind = "enum"
     def __init__(self, name, enum_name):
         super().__init__(name)
+        if isinstance(enum_name, Enum):
+            enum_name = enum_name.name
         self.enum_name = canonicalize(enum_name)
-        self.type_ = title(self.enum_name)
+        self.type_ = "enums::{}".format(title(self.enum_name))
     def decode_expr(self):
-        import_("enums::{}".format(title(self.enum_name)))
-        return "{}::from_i32({})?".format(title(self.enum_name), super().decode_expr())
+        import_("enums")
+        return "enums::{}::from_i32({})?".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.to_i32()".format(self_expr))
     def decode_int_expr(self):
-        import_("enums::{}".format(title(self.enum_name)))
-        return "{}::from_i32({})?".format(title(self.enum_name), super().decode_int_expr())
+        import_("enums")
+        return "enums::{}::from_i32({})?".format(title(self.enum_name), super().decode_int_expr())
+    def serialize_type(self):
+        return {"kind": self.kind, "enum": self.enum_name}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetEnum(name, tuple(json_obj["enum"]))
+
+class NetFlag(NetIntAny):
+    kind = "flags"
+    def __init__(self, name, flags_name):
+        super().__init__(name)
+        if isinstance(flags_name, Flags):
+            flags_name = flags_name.name
+        self.flags_name = canonicalize(flags_name)
+    def serialize_type(self):
+        return {"kind": self.kind, "flags": self.flags_name}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetFlag(name, tuple(json_obj["flags"]))
 
 class NetBool(NetIntAny):
+    kind = "boolean"
     type_ = "bool"
     def decode_expr(self):
         import_("packer::to_bool")
         return "to_bool({})?".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
+    def decode_int_expr(self):
+        import_("packer::to_bool")
+        return "to_bool({})?".format(super().decode_int_expr())
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj, default=None):
+        return NetBool(name, default=default)
 
 class NetTuneParam(NetIntAny):
+    kind = "tune_param"
     type_ = "TuneParam"
     def decode_expr(self):
         return "TuneParam({})".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.0".format(self_expr))
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetTuneParam(name)
 
 class NetTick(NetIntAny):
-    type_ = "Tick"
+    kind = "tick"
+    type_ = "::snap_obj::Tick"
+    def decode_expr(self):
+        return "::snap_obj::Tick({})".format(super().decode_expr())
+    def encode_expr(self, self_expr):
+        return super().encode_expr("{}.0".format(self_expr))
     def decode_int_expr(self):
-        return "Tick({})".format(super().decode_int_expr())
+        return "::snap_obj::Tick({})".format(super().decode_int_expr())
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetTick(name)
 
-class NetStruct(Member):
+class NetObjectMember(Member):
+    kind = "snapshot_object"
     def __init__(self, name, type_):
         super().__init__(name)
-        self.type_ = type_
+        self.type_ = "::snap_obj::{}".format(title(type_))
+        self.type_name = type_
     def decode_expr(self):
-        return "{}::decode_msg_inner(warn, _p)?".format(self.type_)
+        return "{}::decode_msg(warn, _p)?".format(self.type_)
     def encode_expr(self, self_expr):
         import_("packer::with_packer")
         return "with_packer(&mut _p, |p| {}.encode_msg(p))".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind, "name": self.type_name}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetObjectMember(name, tuple(json_obj["name"]))
 
 class NetAddrs(Member):
+    kind = "packed_addresses"
     type_ = "&'a [AddrPacked]"
     def definition(self):
         import_("super::AddrPacked")
         return super().definition()
     def decode_expr(self):
         import_(
-            "super::AddrPackedSliceExt",
+            "gamenet_common::msg::AddrPackedSliceExt",
             "warn::wrap",
         )
         return "AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?)"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetAddrs(name)
 
 class NetBigEndianU16(Member):
+    kind = "be_uint16"
     type_ = "u16"
     def decode_expr(self):
         import_("common::num::BeU16")
@@ -1066,26 +1446,44 @@ class NetBigEndianU16(Member):
     def encode_expr(self, self_expr):
         import_("common::num::BeU16")
         return "_p.write_raw(BeU16::from_u16({}).as_bytes())".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetBigEndianU16(name)
 
 class NetU8(Member):
+    kind = "uint8"
     type_ = "u8"
     def decode_expr(self):
         return "_p.read_raw(1)?[0]"
     def encode_expr(self, self_expr):
         return "_p.write_raw(&[{}])".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetU8(name)
 
 class NetIntString(NetString):
+    kind = "int32_string"
     type_ = "i32"
     def decode_expr(self):
-        import_("super::int_from_string")
+        import_("gamenet_common::msg::int_from_string")
         return "int_from_string(_p.read_string()?)?"
     def encode_expr(self, self_expr):
-        import_("super::string_from_int")
+        import_("gamenet_common::msg::string_from_int")
         return "_p.write_string(&string_from_int({}))".format(self_expr)
     def debug_expr(self, self_expr):
         return self_expr
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetIntString(name)
 
 class NetClients(Member):
+    kind = "serverinfo_client"
     type_ = "ClientsData<'a>"
     def definition(self):
         import_("super::ClientsData")
@@ -1095,3 +1493,67 @@ class NetClients(Member):
         return "ClientsData::from_bytes(_p.read_rest()?)"
     def encode_expr(self, self_expr):
         return "_p.write_rest({}.as_bytes())".format(self_expr)
+    def serialize_type(self):
+        return {"kind": self.kind}
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetClients(name)
+
+class Constant:
+    def __init__(self, name, value):
+        if isinstance(value, int):
+            type = "int32"
+        elif isinstance(value, str):
+            type = "string"
+        else:
+            raise TypeError("value must be an int or a string")
+        self.name = canonicalize(name)
+        self.type = type
+        self.value = value
+    def emit_definition(self):
+        if self.type == "int32":
+            value = str(self.value)
+        else:
+            value = '"{}"'.format(self.value.replace('"', '\\"'))
+        type = "i32" if self.type == "int32" else "&'static str"
+        print("pub const {}: {} = {};".format(caps(self.name), type, value))
+    def serialize(self):
+        return {"name": self.name, "type": self.type, "value": self.value}
+    @staticmethod
+    def deserialize(json_obj):
+        type = json_obj["type"]
+        value = json_obj["value"]
+        if type == "string":
+            if not isinstance(value, str):
+                raise ProtocolSpecError("invalid string value {!r}".format(value))
+        elif type == "int32":
+            if not isinstance(value, int):
+                raise ProtocolSpecError("invalid int32 value {!r}".format(value))
+        else:
+            raise ProtocolSpecError("unknown constant type {!r}".format(type))
+        return Constant(tuple(json_obj["name"]), json_obj["value"])
+
+MEMBER_TYPES = [
+    NetArray,
+    NetOptional,
+    NetString,
+    NetData,
+    NetDataRest,
+    NetSha256,
+    NetUuid,
+    NetIntAny,
+    NetEnum,
+    NetFlag,
+    NetBool,
+    NetTuneParam,
+    NetTick,
+    NetObjectMember,
+    NetAddrs,
+    NetBigEndianU16,
+    NetU8,
+    NetIntString,
+    NetClients,
+]
+MEMBER_TYPES_MAPPING = {t.kind: t for t in MEMBER_TYPES}
+if len(MEMBER_TYPES) != len(MEMBER_TYPES_MAPPING):
+    raise RuntimeError("duplicate member type kind")

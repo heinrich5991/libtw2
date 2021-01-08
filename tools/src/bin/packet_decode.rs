@@ -1,6 +1,6 @@
 extern crate arrayvec;
 extern crate buffer;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate net;
 extern crate packer;
@@ -10,7 +10,7 @@ extern crate warn;
 use arrayvec::ArrayVec;
 use buffer::ReadBuffer;
 use gamenet::msg::Connless;
-use gamenet::msg::SystemOrGame;
+use gamenet::msg;
 use hexdump::hexdump;
 use net::protocol::ChunksIter;
 use net::protocol::ConnectedPacketType;
@@ -88,7 +88,7 @@ fn main() {
         }
         hexdump(chunk.data);
 
-        let msg = match SystemOrGame::decode(&mut Stdout, &mut Unpacker::new(chunk.data)) {
+        let msg = match msg::decode(&mut Stdout, &mut Unpacker::new(chunk.data)) {
             Err(e) => {
                 println!("ERROR: {:?}", e);
                 continue;

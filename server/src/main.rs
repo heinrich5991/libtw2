@@ -2,7 +2,7 @@ extern crate arrayvec;
 #[macro_use] extern crate common;
 extern crate datafile;
 extern crate event_loop;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
@@ -34,10 +34,10 @@ use event_loop::Timestamp;
 use event_loop::collections::PeerMap;
 use event_loop::collections::PeerSet;
 use gamenet::SnapObj;
-use gamenet::VERSION;
 use gamenet::enums::Emote;
 use gamenet::enums::MAX_CLIENTS;
 use gamenet::enums::Team;
+use gamenet::enums::VERSION;
 use gamenet::enums::Weapon;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
@@ -53,6 +53,7 @@ use gamenet::snap_obj::ClientInfo;
 use gamenet::snap_obj::GameInfo;
 use gamenet::snap_obj::PlayerInfo;
 use gamenet::snap_obj::Tick;
+use gamenet::snap_obj::TypeId;
 use gamenet::snap_obj::obj_size;
 use gamenet::snap_obj;
 use hexdump::hexdump_iter;
@@ -138,7 +139,12 @@ trait SnapBuilderExt {
 impl SnapBuilderExt for snap::Builder {
     fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O) {
         fn inner(builder: &mut snap::Builder, id: u16, obj: SnapObj) {
-            builder.add_item(obj.obj_type_id(), id, obj.encode()).unwrap();
+            use self::TypeId::*;
+            let obj_type_id = match obj.obj_type_id() {
+                Ordinal(i) => i,
+                Uuid(_) => panic!("server doesn't support extended IDs yet"),
+            };
+            builder.add_item(obj_type_id, id, obj.encode()).unwrap();
         }
         inner(self, id, obj.into())
     }
@@ -408,7 +414,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
     fn on_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
         use PeerState::*;
 
-        let msg = match SystemOrGame::decode(&mut Warn(pid, data), &mut Unpacker::new(data)) {
+        let msg = match msg::decode(&mut Warn(pid, data), &mut Unpacker::new(data)) {
             Ok(m) => m,
             Err(err) => {
                 warn!("decode error {:?}:", err);
@@ -424,7 +430,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         let peer = &mut self.server.peers[pid];
         match (&peer.state, msg) {
             (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
-                if info.version == VERSION {
+                if info.version == VERSION.as_bytes() {
                     if info.password == Some(b"foobar") {
                         self.loop_.sends(pid, system::MapChange {
                             name: b"dm1",
@@ -441,14 +447,14 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                     write!(
                         &mut buf,
                         "Wrong version. Server is running '{}' and client '{}'",
-                        AlmostString::new(VERSION),
+                        AlmostString::new(VERSION.as_bytes()),
                         AlmostString::new(info.version),
                     ).unwrap_or_else(|_| {
                         buf.clear();
                         write!(
                             &mut buf,
                             "Wrong version. Server is running '{}' and client version is too long",
-                            AlmostString::new(VERSION)
+                            AlmostString::new(VERSION.as_bytes())
                         )
                     }.unwrap());
                     self.loop_.disconnect(pid, buf.as_bytes());
@@ -570,7 +576,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 // TODO: Send clients. :)
                 self.loop_.sendc(addr, connless::Info {
                     token: request.token.i32(),
-                    version: VERSION,
+                    version: VERSION.as_bytes(),
                     name: b"Rust Teeworlds Server",
                     game_type: b"DM",
                     map: b"dm1",

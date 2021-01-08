@@ -2,7 +2,7 @@ extern crate arrayvec;
 #[macro_use] extern crate clap;
 extern crate common;
 extern crate event_loop;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate itertools;
 #[macro_use] extern crate log;
@@ -31,8 +31,9 @@ use event_loop::Timeout;
 use event_loop::Timestamp;
 use event_loop::collections::PeerMap;
 use gamenet::SnapObj;
-use gamenet::VERSION;
 use gamenet::enums::Team;
+use gamenet::enums::VERSION;
+use gamenet::enums;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
@@ -41,7 +42,6 @@ use gamenet::msg::game::ClSetTeam;
 use gamenet::msg::game::ClStartInfo;
 use gamenet::msg::game::SvVoteOptionAdd;
 use gamenet::msg::game::SvVoteOptionRemove;
-use gamenet::msg::game;
 use gamenet::msg::system::EnterGame;
 use gamenet::msg::system::Info;
 use gamenet::msg::system::Input;
@@ -49,8 +49,9 @@ use gamenet::msg::system::MapChange;
 use gamenet::msg::system::MapData;
 use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
+use gamenet::msg;
+use gamenet::snap_obj::PlayerInput;
 use gamenet::snap_obj::obj_size;
-use gamenet::snap_obj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
@@ -186,7 +187,7 @@ impl Peer {
     fn vote<L: Loop>(&mut self, pid: PeerId, config: &Config, loop_: &mut L) -> bool {
         fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, reason: &[u8], loop_: &mut L) {
             loop_.sendg(pid, ClCallVote {
-                type_: game::CL_CALL_VOTE_TYPE_OPTION,
+                type_: enums::CL_CALL_VOTE_TYPE_OPTION.as_bytes(),
                 value: vote,
                 reason: reason,
             });
@@ -312,7 +313,7 @@ impl<L: Loop> LoopExt for L { }
 fn num_players(snap: &Snap) -> u32 {
     let mut num_players = 0;
     for item in snap.items() {
-        match SnapObj::decode_obj(&mut WarnSnap(item), item.type_id, &mut IntUnpacker::new(item.data)) {
+        match SnapObj::decode_obj(&mut WarnSnap(item), item.type_id.into(), &mut IntUnpacker::new(item.data)) {
             Ok(SnapObj::PlayerInfo(..)) => num_players += 1,
             Ok(_) => {},
             Err(e) => warn!("item decode error {:?}: {:?}", e, item),
@@ -395,7 +396,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
     fn on_packet(&mut self, pid: PeerId, vital: bool, data: &[u8]) {
         let _ = vital;
         let msg;
-        match SystemOrGame::decode(&mut Warn(data), &mut Unpacker::new(data)) {
+        match msg::decode(&mut Warn(data), &mut Unpacker::new(data)) {
             Ok(m) => msg = m,
             Err(err) => {
                 warn!("decode error {:?}:", err);
@@ -514,8 +515,8 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             self.loop_.sends(pid, Input {
                                 ack_snapshot: tick,
                                 intended_tick: tick,
-                                input_size: mem::size_of_val(&snap_obj::PLAYER_INPUT_EMPTY).assert_i32(),
-                                input: snap_obj::PLAYER_INPUT_EMPTY,
+                                input_size: mem::size_of::<PlayerInput>().assert_i32(),
+                                input: PlayerInput::default(),
                             });
                         }
                         ignored = true;
@@ -666,7 +667,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
     fn on_ready(&mut self, pid: PeerId) {
         self.peers[pid].state = PeerState::MapChange;
         self.loop_.sends(pid, Info {
-            version: VERSION,
+            version: VERSION.as_bytes(),
             password: Some(b""),
         });
         self.loop_.flush(pid);

@@ -443,7 +443,7 @@ pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaC
         delta_tick: tick - delta_tick,
         crc: crc,
         cur_part: if !data.is_empty() { 0 } else { -1 },
-        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE - 1) / MAX_SNAPSHOT_PACKSIZE).assert_i32(),
+        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE as usize - 1) / MAX_SNAPSHOT_PACKSIZE as usize).assert_i32(),
         data: data,
     }
 }
@@ -494,8 +494,8 @@ impl<'a> Iterator for DeltaChunks<'a> {
             })
         } else {
             let index = self.cur_part.assert_usize();
-            let start = MAX_SNAPSHOT_PACKSIZE * index;
-            let end = cmp::min(MAX_SNAPSHOT_PACKSIZE * (index + 1), self.data.len());
+            let start = MAX_SNAPSHOT_PACKSIZE as usize * index;
+            let end = cmp::min(MAX_SNAPSHOT_PACKSIZE as usize * (index + 1), self.data.len());
             SnapMsg::Snap(system::Snap {
                 tick: self.tick,
                 delta_tick: self.delta_tick,

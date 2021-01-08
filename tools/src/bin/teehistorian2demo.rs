@@ -2,7 +2,7 @@ extern crate arrayvec;
 extern crate common;
 extern crate clap;
 extern crate demo;
-extern crate gamenet;
+extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate logger;
 extern crate packer;
 extern crate snapshot;
@@ -16,10 +16,10 @@ use common::num::Cast;
 use demo::Writer;
 use gamenet::enums::Emote;
 use gamenet::enums::Team;
+use gamenet::enums::VERSION;
 use gamenet::enums::Weapon;
 use gamenet::msg::Game;
 use gamenet::msg::game;
-use gamenet::snap_obj::PLAYER_INPUT_EMPTY;
 use gamenet::snap_obj::PlayerInput;
 use gamenet::snap_obj;
 use packer::IntUnpacker;
@@ -92,7 +92,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
         th = teehistorian;
         demo = Writer::create(
             out,
-            gamenet::VERSION,
+            VERSION.as_bytes(),
             header.map_name.as_bytes(),
             header.map_crc,
             demo::format::TYPE_SERVER,
@@ -143,7 +143,8 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                 let maybe_pos = th.player_pos(cid);
                 if let Some(pos) = maybe_pos {
                     let ppos = prev_pos.get(cid.assert_usize()).cloned().unwrap_or(pos);
-                    let input = inputs.get(cid.assert_usize()).unwrap_or(&PLAYER_INPUT_EMPTY);
+                    let default = PlayerInput::default();
+                    let input = inputs.get(cid.assert_usize()).unwrap_or(&default);
                     let info = &supplied_infos[cid.assert_usize()];
                     let name: &[u8] = if !info.name.is_empty() {
                         &info.name

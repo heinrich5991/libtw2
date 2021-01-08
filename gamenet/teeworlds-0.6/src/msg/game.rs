@@ -1,13 +1,8 @@
 use buffer::CapacityError;
 use common::pretty;
-use debug::DebugSlice;
-use enums::Emoticon;
-use enums::MAX_CLIENTS;
-use enums::SPEC_FREEVIEW;
-use enums::Sound;
-use enums::Team;
-use enums::Weapon;
+use enums;
 use error::Error;
+use gamenet_common::debug::DebugSlice;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
@@ -16,17 +11,18 @@ use packer::sanitize;
 use packer::to_bool;
 use packer::with_packer;
 use std::fmt;
+use super::MessageId;
 use super::SystemOrGame;
 use warn::Panic;
 use warn::Warn;
+
+pub use gamenet_common::msg::TuneParam;
 
 impl<'a> Game<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>
         where W: Warn<Warning>
     {
-        if let SystemOrGame::Game(msg_id) =
-            SystemOrGame::decode_id(p.read_int(warn)?)
-        {
+        if let SystemOrGame::Game(msg_id) = SystemOrGame::decode_id(warn, p)? {
             Game::decode_msg(warn, msg_id, p)
         } else {
             Err(Error::UnknownId)
@@ -35,61 +31,9 @@ impl<'a> Game<'a> {
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
     {
-        p.write_int(SystemOrGame::Game(self.msg_id()).encode_id())?;
+        with_packer(&mut p, |p| SystemOrGame::Game(self.msg_id()).encode_id(p))?;
         with_packer(&mut p, |p| self.encode_msg(p))?;
         Ok(p.written())
-    }
-}
-
-pub const CL_CALL_VOTE_TYPE_OPTION: &'static [u8] = b"option";
-pub const CL_CALL_VOTE_TYPE_KICK: &'static [u8] = b"kick";
-pub const CL_CALL_VOTE_TYPE_SPEC: &'static [u8] = b"spectate";
-
-pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
-    ground_control_speed: TuneParam(1000),
-    ground_control_accel: TuneParam(200),
-    ground_friction: TuneParam(50),
-    ground_jump_impulse: TuneParam(1320),
-    air_jump_impulse: TuneParam(1200),
-    air_control_speed: TuneParam(500),
-    air_control_accel: TuneParam(150),
-    air_friction: TuneParam(95),
-    hook_length: TuneParam(38000),
-    hook_fire_speed: TuneParam(8000),
-    hook_drag_accel: TuneParam(300),
-    hook_drag_speed: TuneParam(1500),
-    gravity: TuneParam(50),
-    velramp_start: TuneParam(55000),
-    velramp_range: TuneParam(200000),
-    velramp_curvature: TuneParam(140),
-    gun_curvature: TuneParam(125),
-    gun_speed: TuneParam(220000),
-    gun_lifetime: TuneParam(200),
-    shotgun_curvature: TuneParam(125),
-    shotgun_speed: TuneParam(275000),
-    shotgun_speeddiff: TuneParam(80),
-    shotgun_lifetime: TuneParam(20),
-    grenade_curvature: TuneParam(700),
-    grenade_speed: TuneParam(100000),
-    grenade_lifetime: TuneParam(200),
-    laser_reach: TuneParam(80000),
-    laser_bounce_delay: TuneParam(15000),
-    laser_bounce_num: TuneParam(100),
-    laser_bounce_cost: TuneParam(0),
-    laser_damage: TuneParam(500),
-    player_collision: TuneParam(100),
-    player_hooking: TuneParam(100),
-};
-
-#[derive(Clone, Copy, Debug)]
-pub struct TuneParam(pub i32);
-
-impl TuneParam {
-    pub fn from_float(float: f32) -> TuneParam {
-        TuneParam((float * 100.0) as i32)
-    }
-    pub fn to_float(self) -> f32 {
-        (self.0 as f32) / 100.0
     }
 }
 
@@ -149,63 +93,64 @@ pub enum Game<'a> {
 }
 
 impl<'a> Game<'a> {
-    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: i32, _p: &mut Unpacker<'a>) -> Result<Game<'a>, Error> {
+    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, msg_id: MessageId, _p: &mut Unpacker<'a>) -> Result<Game<'a>, Error> {
+        use self::MessageId::*;
         Ok(match msg_id {
-            SV_MOTD => Game::SvMotd(SvMotd::decode(warn, _p)?),
-            SV_BROADCAST => Game::SvBroadcast(SvBroadcast::decode(warn, _p)?),
-            SV_CHAT => Game::SvChat(SvChat::decode(warn, _p)?),
-            SV_KILL_MSG => Game::SvKillMsg(SvKillMsg::decode(warn, _p)?),
-            SV_SOUND_GLOBAL => Game::SvSoundGlobal(SvSoundGlobal::decode(warn, _p)?),
-            SV_TUNE_PARAMS => Game::SvTuneParams(SvTuneParams::decode(warn, _p)?),
-            SV_EXTRA_PROJECTILE => Game::SvExtraProjectile(SvExtraProjectile::decode(warn, _p)?),
-            SV_READY_TO_ENTER => Game::SvReadyToEnter(SvReadyToEnter::decode(warn, _p)?),
-            SV_WEAPON_PICKUP => Game::SvWeaponPickup(SvWeaponPickup::decode(warn, _p)?),
-            SV_EMOTICON => Game::SvEmoticon(SvEmoticon::decode(warn, _p)?),
-            SV_VOTE_CLEAR_OPTIONS => Game::SvVoteClearOptions(SvVoteClearOptions::decode(warn, _p)?),
-            SV_VOTE_OPTION_LIST_ADD => Game::SvVoteOptionListAdd(SvVoteOptionListAdd::decode(warn, _p)?),
-            SV_VOTE_OPTION_ADD => Game::SvVoteOptionAdd(SvVoteOptionAdd::decode(warn, _p)?),
-            SV_VOTE_OPTION_REMOVE => Game::SvVoteOptionRemove(SvVoteOptionRemove::decode(warn, _p)?),
-            SV_VOTE_SET => Game::SvVoteSet(SvVoteSet::decode(warn, _p)?),
-            SV_VOTE_STATUS => Game::SvVoteStatus(SvVoteStatus::decode(warn, _p)?),
-            CL_SAY => Game::ClSay(ClSay::decode(warn, _p)?),
-            CL_SET_TEAM => Game::ClSetTeam(ClSetTeam::decode(warn, _p)?),
-            CL_SET_SPECTATOR_MODE => Game::ClSetSpectatorMode(ClSetSpectatorMode::decode(warn, _p)?),
-            CL_START_INFO => Game::ClStartInfo(ClStartInfo::decode(warn, _p)?),
-            CL_CHANGE_INFO => Game::ClChangeInfo(ClChangeInfo::decode(warn, _p)?),
-            CL_KILL => Game::ClKill(ClKill::decode(warn, _p)?),
-            CL_EMOTICON => Game::ClEmoticon(ClEmoticon::decode(warn, _p)?),
-            CL_VOTE => Game::ClVote(ClVote::decode(warn, _p)?),
-            CL_CALL_VOTE => Game::ClCallVote(ClCallVote::decode(warn, _p)?),
+            Ordinal(SV_MOTD) => Game::SvMotd(SvMotd::decode(warn, _p)?),
+            Ordinal(SV_BROADCAST) => Game::SvBroadcast(SvBroadcast::decode(warn, _p)?),
+            Ordinal(SV_CHAT) => Game::SvChat(SvChat::decode(warn, _p)?),
+            Ordinal(SV_KILL_MSG) => Game::SvKillMsg(SvKillMsg::decode(warn, _p)?),
+            Ordinal(SV_SOUND_GLOBAL) => Game::SvSoundGlobal(SvSoundGlobal::decode(warn, _p)?),
+            Ordinal(SV_TUNE_PARAMS) => Game::SvTuneParams(SvTuneParams::decode(warn, _p)?),
+            Ordinal(SV_EXTRA_PROJECTILE) => Game::SvExtraProjectile(SvExtraProjectile::decode(warn, _p)?),
+            Ordinal(SV_READY_TO_ENTER) => Game::SvReadyToEnter(SvReadyToEnter::decode(warn, _p)?),
+            Ordinal(SV_WEAPON_PICKUP) => Game::SvWeaponPickup(SvWeaponPickup::decode(warn, _p)?),
+            Ordinal(SV_EMOTICON) => Game::SvEmoticon(SvEmoticon::decode(warn, _p)?),
+            Ordinal(SV_VOTE_CLEAR_OPTIONS) => Game::SvVoteClearOptions(SvVoteClearOptions::decode(warn, _p)?),
+            Ordinal(SV_VOTE_OPTION_LIST_ADD) => Game::SvVoteOptionListAdd(SvVoteOptionListAdd::decode(warn, _p)?),
+            Ordinal(SV_VOTE_OPTION_ADD) => Game::SvVoteOptionAdd(SvVoteOptionAdd::decode(warn, _p)?),
+            Ordinal(SV_VOTE_OPTION_REMOVE) => Game::SvVoteOptionRemove(SvVoteOptionRemove::decode(warn, _p)?),
+            Ordinal(SV_VOTE_SET) => Game::SvVoteSet(SvVoteSet::decode(warn, _p)?),
+            Ordinal(SV_VOTE_STATUS) => Game::SvVoteStatus(SvVoteStatus::decode(warn, _p)?),
+            Ordinal(CL_SAY) => Game::ClSay(ClSay::decode(warn, _p)?),
+            Ordinal(CL_SET_TEAM) => Game::ClSetTeam(ClSetTeam::decode(warn, _p)?),
+            Ordinal(CL_SET_SPECTATOR_MODE) => Game::ClSetSpectatorMode(ClSetSpectatorMode::decode(warn, _p)?),
+            Ordinal(CL_START_INFO) => Game::ClStartInfo(ClStartInfo::decode(warn, _p)?),
+            Ordinal(CL_CHANGE_INFO) => Game::ClChangeInfo(ClChangeInfo::decode(warn, _p)?),
+            Ordinal(CL_KILL) => Game::ClKill(ClKill::decode(warn, _p)?),
+            Ordinal(CL_EMOTICON) => Game::ClEmoticon(ClEmoticon::decode(warn, _p)?),
+            Ordinal(CL_VOTE) => Game::ClVote(ClVote::decode(warn, _p)?),
+            Ordinal(CL_CALL_VOTE) => Game::ClCallVote(ClCallVote::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
-    pub fn msg_id(&self) -> i32 {
+    pub fn msg_id(&self) -> MessageId {
         match *self {
-            Game::SvMotd(_) => SV_MOTD,
-            Game::SvBroadcast(_) => SV_BROADCAST,
-            Game::SvChat(_) => SV_CHAT,
-            Game::SvKillMsg(_) => SV_KILL_MSG,
-            Game::SvSoundGlobal(_) => SV_SOUND_GLOBAL,
-            Game::SvTuneParams(_) => SV_TUNE_PARAMS,
-            Game::SvExtraProjectile(_) => SV_EXTRA_PROJECTILE,
-            Game::SvReadyToEnter(_) => SV_READY_TO_ENTER,
-            Game::SvWeaponPickup(_) => SV_WEAPON_PICKUP,
-            Game::SvEmoticon(_) => SV_EMOTICON,
-            Game::SvVoteClearOptions(_) => SV_VOTE_CLEAR_OPTIONS,
-            Game::SvVoteOptionListAdd(_) => SV_VOTE_OPTION_LIST_ADD,
-            Game::SvVoteOptionAdd(_) => SV_VOTE_OPTION_ADD,
-            Game::SvVoteOptionRemove(_) => SV_VOTE_OPTION_REMOVE,
-            Game::SvVoteSet(_) => SV_VOTE_SET,
-            Game::SvVoteStatus(_) => SV_VOTE_STATUS,
-            Game::ClSay(_) => CL_SAY,
-            Game::ClSetTeam(_) => CL_SET_TEAM,
-            Game::ClSetSpectatorMode(_) => CL_SET_SPECTATOR_MODE,
-            Game::ClStartInfo(_) => CL_START_INFO,
-            Game::ClChangeInfo(_) => CL_CHANGE_INFO,
-            Game::ClKill(_) => CL_KILL,
-            Game::ClEmoticon(_) => CL_EMOTICON,
-            Game::ClVote(_) => CL_VOTE,
-            Game::ClCallVote(_) => CL_CALL_VOTE,
+            Game::SvMotd(_) => MessageId::from(SV_MOTD),
+            Game::SvBroadcast(_) => MessageId::from(SV_BROADCAST),
+            Game::SvChat(_) => MessageId::from(SV_CHAT),
+            Game::SvKillMsg(_) => MessageId::from(SV_KILL_MSG),
+            Game::SvSoundGlobal(_) => MessageId::from(SV_SOUND_GLOBAL),
+            Game::SvTuneParams(_) => MessageId::from(SV_TUNE_PARAMS),
+            Game::SvExtraProjectile(_) => MessageId::from(SV_EXTRA_PROJECTILE),
+            Game::SvReadyToEnter(_) => MessageId::from(SV_READY_TO_ENTER),
+            Game::SvWeaponPickup(_) => MessageId::from(SV_WEAPON_PICKUP),
+            Game::SvEmoticon(_) => MessageId::from(SV_EMOTICON),
+            Game::SvVoteClearOptions(_) => MessageId::from(SV_VOTE_CLEAR_OPTIONS),
+            Game::SvVoteOptionListAdd(_) => MessageId::from(SV_VOTE_OPTION_LIST_ADD),
+            Game::SvVoteOptionAdd(_) => MessageId::from(SV_VOTE_OPTION_ADD),
+            Game::SvVoteOptionRemove(_) => MessageId::from(SV_VOTE_OPTION_REMOVE),
+            Game::SvVoteSet(_) => MessageId::from(SV_VOTE_SET),
+            Game::SvVoteStatus(_) => MessageId::from(SV_VOTE_STATUS),
+            Game::ClSay(_) => MessageId::from(CL_SAY),
+            Game::ClSetTeam(_) => MessageId::from(CL_SET_TEAM),
+            Game::ClSetSpectatorMode(_) => MessageId::from(CL_SET_SPECTATOR_MODE),
+            Game::ClStartInfo(_) => MessageId::from(CL_START_INFO),
+            Game::ClChangeInfo(_) => MessageId::from(CL_CHANGE_INFO),
+            Game::ClKill(_) => MessageId::from(CL_KILL),
+            Game::ClEmoticon(_) => MessageId::from(CL_EMOTICON),
+            Game::ClVote(_) => MessageId::from(CL_VOTE),
+            Game::ClCallVote(_) => MessageId::from(CL_CALL_VOTE),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -447,7 +392,7 @@ pub struct SvKillMsg {
 
 #[derive(Clone, Copy)]
 pub struct SvSoundGlobal {
-    pub sound_id: Sound,
+    pub sound_id: enums::Sound,
 }
 
 #[derive(Clone, Copy)]
@@ -497,13 +442,13 @@ pub struct SvReadyToEnter;
 
 #[derive(Clone, Copy)]
 pub struct SvWeaponPickup {
-    pub weapon: Weapon,
+    pub weapon: enums::Weapon,
 }
 
 #[derive(Clone, Copy)]
 pub struct SvEmoticon {
     pub client_id: i32,
-    pub emoticon: Emoticon,
+    pub emoticon: enums::Emoticon,
 }
 
 #[derive(Clone, Copy)]
@@ -548,7 +493,7 @@ pub struct ClSay<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ClSetTeam {
-    pub team: Team,
+    pub team: enums::Team,
 }
 
 #[derive(Clone, Copy)]
@@ -583,7 +528,7 @@ pub struct ClKill;
 
 #[derive(Clone, Copy)]
 pub struct ClEmoticon {
-    pub emoticon: Emoticon,
+    pub emoticon: enums::Emoticon,
 }
 
 #[derive(Clone, Copy)]
@@ -644,14 +589,14 @@ impl<'a> SvChat<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvChat<'a>, Error> {
         let result = Ok(SvChat {
             team: to_bool(_p.read_int(warn)?)?,
-            client_id: in_range(_p.read_int(warn)?, -1, MAX_CLIENTS-1)?,
+            client_id: in_range(_p.read_int(warn)?, -1, 15)?,
             message: sanitize(warn, _p.read_string()?)?,
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(-1 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        assert!(-1 <= self.client_id && self.client_id <= 15);
         sanitize(&mut Panic, self.message).unwrap();
         _p.write_int(self.team as i32)?;
         _p.write_int(self.client_id)?;
@@ -672,8 +617,8 @@ impl<'a> fmt::Debug for SvChat<'a> {
 impl SvKillMsg {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvKillMsg, Error> {
         let result = Ok(SvKillMsg {
-            killer: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS-1)?,
-            victim: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS-1)?,
+            killer: in_range(_p.read_int(warn)?, 0, 15)?,
+            victim: in_range(_p.read_int(warn)?, 0, 15)?,
             weapon: in_range(_p.read_int(warn)?, -3, 5)?,
             mode_special: _p.read_int(warn)?,
         });
@@ -681,8 +626,8 @@ impl SvKillMsg {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.killer && self.killer <= MAX_CLIENTS-1);
-        assert!(0 <= self.victim && self.victim <= MAX_CLIENTS-1);
+        assert!(0 <= self.killer && self.killer <= 15);
+        assert!(0 <= self.victim && self.victim <= 15);
         assert!(-3 <= self.weapon && self.weapon <= 5);
         _p.write_int(self.killer)?;
         _p.write_int(self.victim)?;
@@ -705,7 +650,7 @@ impl fmt::Debug for SvKillMsg {
 impl SvSoundGlobal {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvSoundGlobal, Error> {
         let result = Ok(SvSoundGlobal {
-            sound_id: Sound::from_i32(_p.read_int(warn)?)?,
+            sound_id: enums::Sound::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(warn);
         result
@@ -800,6 +745,42 @@ impl SvTuneParams {
         Ok(_p.written())
     }
 }
+pub const SV_TUNE_PARAMS_DEFAULT: SvTuneParams = SvTuneParams {
+    ground_control_speed: TuneParam(1000),
+    ground_control_accel: TuneParam(200),
+    ground_friction: TuneParam(50),
+    ground_jump_impulse: TuneParam(1320),
+    air_jump_impulse: TuneParam(1200),
+    air_control_speed: TuneParam(500),
+    air_control_accel: TuneParam(150),
+    air_friction: TuneParam(95),
+    hook_length: TuneParam(38000),
+    hook_fire_speed: TuneParam(8000),
+    hook_drag_accel: TuneParam(300),
+    hook_drag_speed: TuneParam(1500),
+    gravity: TuneParam(50),
+    velramp_start: TuneParam(55000),
+    velramp_range: TuneParam(200000),
+    velramp_curvature: TuneParam(140),
+    gun_curvature: TuneParam(125),
+    gun_speed: TuneParam(220000),
+    gun_lifetime: TuneParam(200),
+    shotgun_curvature: TuneParam(125),
+    shotgun_speed: TuneParam(275000),
+    shotgun_speeddiff: TuneParam(80),
+    shotgun_lifetime: TuneParam(20),
+    grenade_curvature: TuneParam(700),
+    grenade_speed: TuneParam(100000),
+    grenade_lifetime: TuneParam(200),
+    laser_reach: TuneParam(80000),
+    laser_bounce_delay: TuneParam(15000),
+    laser_bounce_num: TuneParam(100),
+    laser_bounce_cost: TuneParam(0),
+    laser_damage: TuneParam(500),
+    player_collision: TuneParam(100),
+    player_hooking: TuneParam(100),
+};
+
 impl fmt::Debug for SvTuneParams {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvTuneParams")
@@ -843,7 +824,7 @@ impl fmt::Debug for SvTuneParams {
 impl SvExtraProjectile {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvExtraProjectile, Error> {
         let result = Ok(SvExtraProjectile {
-            projectile: ::snap_obj::Projectile::decode_msg_inner(warn, _p)?,
+            projectile: ::snap_obj::Projectile::decode_msg(warn, _p)?,
         });
         _p.finish(warn);
         result
@@ -881,7 +862,7 @@ impl fmt::Debug for SvReadyToEnter {
 impl SvWeaponPickup {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvWeaponPickup, Error> {
         let result = Ok(SvWeaponPickup {
-            weapon: Weapon::from_i32(_p.read_int(warn)?)?,
+            weapon: enums::Weapon::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(warn);
         result
@@ -902,14 +883,14 @@ impl fmt::Debug for SvWeaponPickup {
 impl SvEmoticon {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvEmoticon, Error> {
         let result = Ok(SvEmoticon {
-            client_id: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS-1)?,
-            emoticon: Emoticon::from_i32(_p.read_int(warn)?)?,
+            client_id: in_range(_p.read_int(warn)?, 0, 15)?,
+            emoticon: enums::Emoticon::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.client_id && self.client_id <= MAX_CLIENTS-1);
+        assert!(0 <= self.client_id && self.client_id <= 15);
         _p.write_int(self.client_id)?;
         _p.write_int(self.emoticon.to_i32())?;
         Ok(_p.written())
@@ -968,11 +949,11 @@ impl<'a> SvVoteOptionListAdd<'a> {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         assert!(1 <= self.num_options && self.num_options <= 15);
-        for e in &self.description {
+        for &e in &self.description {
             sanitize(&mut Panic, e).unwrap();
         }
         _p.write_int(self.num_options)?;
-        for e in &self.description {
+        for &e in &self.description {
             _p.write_string(e)?;
         }
         Ok(_p.written())
@@ -1064,19 +1045,19 @@ impl<'a> fmt::Debug for SvVoteSet<'a> {
 impl SvVoteStatus {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteStatus, Error> {
         let result = Ok(SvVoteStatus {
-            yes: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS)?,
-            no: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS)?,
-            pass: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS)?,
-            total: in_range(_p.read_int(warn)?, 0, MAX_CLIENTS)?,
+            yes: in_range(_p.read_int(warn)?, 0, 16)?,
+            no: in_range(_p.read_int(warn)?, 0, 16)?,
+            pass: in_range(_p.read_int(warn)?, 0, 16)?,
+            total: in_range(_p.read_int(warn)?, 0, 16)?,
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.yes && self.yes <= MAX_CLIENTS);
-        assert!(0 <= self.no && self.no <= MAX_CLIENTS);
-        assert!(0 <= self.pass && self.pass <= MAX_CLIENTS);
-        assert!(0 <= self.total && self.total <= MAX_CLIENTS);
+        assert!(0 <= self.yes && self.yes <= 16);
+        assert!(0 <= self.no && self.no <= 16);
+        assert!(0 <= self.pass && self.pass <= 16);
+        assert!(0 <= self.total && self.total <= 16);
         _p.write_int(self.yes)?;
         _p.write_int(self.no)?;
         _p.write_int(self.pass)?;
@@ -1123,7 +1104,7 @@ impl<'a> fmt::Debug for ClSay<'a> {
 impl ClSetTeam {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetTeam, Error> {
         let result = Ok(ClSetTeam {
-            team: Team::from_i32(_p.read_int(warn)?)?,
+            team: enums::Team::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(warn);
         result
@@ -1144,13 +1125,13 @@ impl fmt::Debug for ClSetTeam {
 impl ClSetSpectatorMode {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetSpectatorMode, Error> {
         let result = Ok(ClSetSpectatorMode {
-            spectator_id: in_range(_p.read_int(warn)?, SPEC_FREEVIEW, MAX_CLIENTS-1)?,
+            spectator_id: in_range(_p.read_int(warn)?, -1, 15)?,
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(SPEC_FREEVIEW <= self.spectator_id && self.spectator_id <= MAX_CLIENTS-1);
+        assert!(-1 <= self.spectator_id && self.spectator_id <= 15);
         _p.write_int(self.spectator_id)?;
         Ok(_p.written())
     }
@@ -1267,7 +1248,7 @@ impl fmt::Debug for ClKill {
 impl ClEmoticon {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClEmoticon, Error> {
         let result = Ok(ClEmoticon {
-            emoticon: Emoticon::from_i32(_p.read_int(warn)?)?,
+            emoticon: enums::Emoticon::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(warn);
         result
