@@ -1,0 +1,746 @@
+{
+	"constants": [
+		{"name": ["max", "clients"], "type": "int32", "value": 16},
+		{"name": ["max", "snapshot", "packsize"], "type": "int32", "value": 900},
+		{"name": ["version"], "type": "string", "value": "0.5 b67d1f1a1eea234e"},
+		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
+		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"}
+	],
+	"game_enumerations": [
+		{
+			"name": ["playerstate"],
+			"values": [
+				{"value": 0, "name": ["unknown"]},
+				{"value": 1, "name": ["playing"]},
+				{"value": 2, "name": ["in", "menu"]},
+				{"value": 3, "name": ["chatting"]}
+			]
+		},
+		{
+			"name": ["emote"],
+			"values": [
+				{"value": 0, "name": ["normal"]},
+				{"value": 1, "name": ["pain"]},
+				{"value": 2, "name": ["happy"]},
+				{"value": 3, "name": ["surprise"]},
+				{"value": 4, "name": ["angry"]},
+				{"value": 5, "name": ["blink"]}
+			]
+		},
+		{
+			"name": ["powerup"],
+			"values": [
+				{"value": 0, "name": ["health"]},
+				{"value": 1, "name": ["armor"]},
+				{"value": 2, "name": ["weapon"]},
+				{"value": 3, "name": ["ninja"]}
+			]
+		},
+		{
+			"name": ["emoticon"],
+			"values": [
+				{"value": 0, "name": ["v1"]},
+				{"value": 1, "name": ["v2"]},
+				{"value": 2, "name": ["v3"]},
+				{"value": 3, "name": ["v4"]},
+				{"value": 4, "name": ["v5"]},
+				{"value": 5, "name": ["v6"]},
+				{"value": 6, "name": ["v7"]},
+				{"value": 7, "name": ["v8"]},
+				{"value": 8, "name": ["v9"]},
+				{"value": 9, "name": ["v10"]},
+				{"value": 10, "name": ["v11"]},
+				{"value": 11, "name": ["v12"]},
+				{"value": 12, "name": ["v13"]},
+				{"value": 13, "name": ["v14"]},
+				{"value": 14, "name": ["v15"]}
+			]
+		},
+		{
+			"name": ["weapon"],
+			"values": [
+				{"value": 0, "name": ["hammer"]},
+				{"value": 1, "name": ["pistol"]},
+				{"value": 2, "name": ["shotgun"]},
+				{"value": 3, "name": ["grenade"]},
+				{"value": 4, "name": ["rifle"]},
+				{"value": 5, "name": ["ninja"]}
+			]
+		},
+		{
+			"name": ["team"],
+			"values": [
+				{"value": -1, "name": ["spectators"]},
+				{"value": 0, "name": ["red"]},
+				{"value": 1, "name": ["blue"]}
+			]
+		},
+		{
+			"name": ["sound"],
+			"values": [
+				{"value": 0, "name": ["gun", "fire"]},
+				{"value": 1, "name": ["shotgun", "fire"]},
+				{"value": 2, "name": ["grenade", "fire"]},
+				{"value": 3, "name": ["hammer", "fire"]},
+				{"value": 4, "name": ["hammer", "hit"]},
+				{"value": 5, "name": ["ninja", "fire"]},
+				{"value": 6, "name": ["grenade", "explode"]},
+				{"value": 7, "name": ["ninja", "hit"]},
+				{"value": 8, "name": ["rifle", "fire"]},
+				{"value": 9, "name": ["rifle", "bounce"]},
+				{"value": 10, "name": ["weapon", "switch"]},
+				{"value": 11, "name": ["player", "pain", "short"]},
+				{"value": 12, "name": ["player", "pain", "long"]},
+				{"value": 13, "name": ["body", "land"]},
+				{"value": 14, "name": ["player", "airjump"]},
+				{"value": 15, "name": ["player", "jump"]},
+				{"value": 16, "name": ["player", "die"]},
+				{"value": 17, "name": ["player", "spawn"]},
+				{"value": 18, "name": ["player", "skid"]},
+				{"value": 19, "name": ["tee", "cry"]},
+				{"value": 20, "name": ["hook", "loop"]},
+				{"value": 21, "name": ["hook", "attach", "ground"]},
+				{"value": 22, "name": ["hook", "attach", "player"]},
+				{"value": 23, "name": ["hook", "noattach"]},
+				{"value": 24, "name": ["pickup", "health"]},
+				{"value": 25, "name": ["pickup", "armor"]},
+				{"value": 26, "name": ["pickup", "grenade"]},
+				{"value": 27, "name": ["pickup", "shotgun"]},
+				{"value": 28, "name": ["pickup", "ninja"]},
+				{"value": 29, "name": ["weapon", "spawn"]},
+				{"value": 30, "name": ["weapon", "noammo"]},
+				{"value": 31, "name": ["hit"]},
+				{"value": 32, "name": ["chat", "server"]},
+				{"value": 33, "name": ["chat", "client"]},
+				{"value": 34, "name": ["ctf", "drop"]},
+				{"value": 35, "name": ["ctf", "return"]},
+				{"value": 36, "name": ["ctf", "grab", "pl"]},
+				{"value": 37, "name": ["ctf", "grab", "en"]},
+				{"value": 38, "name": ["ctf", "capture"]}
+			]
+		}
+	],
+	"game_flags": [
+		{
+			"name": ["gameflag"],
+			"values": [
+				{"value": 1, "name": ["teams"]},
+				{"value": 2, "name": ["flags"]}
+			]
+		}
+	],
+	"game_messages": [
+		{
+			"id": 1,
+			"name": ["sv", "motd"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 2,
+			"name": ["sv", "broadcast"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 3,
+			"name": ["sv", "chat"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "boolean"}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": -1, "max": 15}},
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["sv", "kill", "msg"],
+			"members": [
+				{"name": ["killer"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["victim"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["weapon"], "type": {"kind": "int32", "min": -3, "max": 5}},
+				{"name": ["mode", "special"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["sv", "sound", "global"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["sv", "tune", "params"],
+			"members": [
+				{"name": ["ground", "control", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "control", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "friction"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "jump", "impulse"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "jump", "impulse"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "control", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "control", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "friction"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "length"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "fire", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "drag", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "drag", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["gravity"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "start"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "range"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "speeddiff"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "reach"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "num"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "cost"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "damage"], "type": {"kind": "tune_param"}},
+				{"name": ["player", "collision"], "type": {"kind": "tune_param"}},
+				{"name": ["player", "hooking"], "type": {"kind": "tune_param"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 7,
+			"name": ["sv", "extra", "projectile"],
+			"members": [
+				{"name": ["projectile"], "type": {"kind": "snapshot_object", "name": ["projectile"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 8,
+			"name": ["sv", "ready", "to", "enter"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["sv", "weapon", "pickup"],
+			"members": [
+				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["sv", "emoticon"],
+			"members": [
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["emoticon"], "type": {"kind": "enum", "enum": ["emoticon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 11,
+			"name": ["sv", "vote", "clear", "options"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 12,
+			"name": ["sv", "vote", "option"],
+			"members": [
+				{"name": ["command"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 13,
+			"name": ["sv", "vote", "set"],
+			"members": [
+				{"name": ["timeout"], "type": {"kind": "int32", "min": 0, "max": 60}},
+				{"name": ["description"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["command"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["sv", "vote", "status"],
+			"members": [
+				{"name": ["yes"], "type": {"kind": "int32", "min": 0, "max": 16}},
+				{"name": ["no"], "type": {"kind": "int32", "min": 0, "max": 16}},
+				{"name": ["pass"], "type": {"kind": "int32", "min": 0, "max": 16}},
+				{"name": ["total"], "type": {"kind": "int32", "min": 0, "max": 16}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["cl", "say"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "boolean"}},
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["cl", "set", "team"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "enum", "enum": ["team"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["cl", "start", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["skin"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "boolean"}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 18,
+			"name": ["cl", "change", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["skin"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "boolean"}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 19,
+			"name": ["cl", "kill"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 20,
+			"name": ["cl", "emoticon"],
+			"members": [
+				{"name": ["emoticon"], "type": {"kind": "enum", "enum": ["emoticon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 21,
+			"name": ["cl", "vote"],
+			"members": [
+				{"name": ["vote"], "type": {"kind": "int32", "min": -1, "max": 1}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 22,
+			"name": ["cl", "call", "vote"],
+			"members": [
+				{"name": ["type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["value"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		}
+	],
+	"snapshot_objects": [
+		{
+			"id": 1,
+			"name": ["player", "input"],
+			"members": [
+				{"name": ["direction"], "type": {"kind": "int32"}},
+				{"name": ["target", "x"], "type": {"kind": "int32"}},
+				{"name": ["target", "y"], "type": {"kind": "int32"}},
+				{"name": ["jump"], "type": {"kind": "int32"}},
+				{"name": ["fire"], "type": {"kind": "int32"}},
+				{"name": ["hook"], "type": {"kind": "int32"}},
+				{"name": ["player", "state"], "type": {"kind": "int32", "min": 0, "max": 4}},
+				{"name": ["wanted", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["next", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["prev", "weapon"], "type": {"kind": "int32"}}
+			],
+			"attributes": [
+				"msg_encoding"
+			]
+		},
+		{
+			"id": 2,
+			"name": ["projectile"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["vel", "x"], "type": {"kind": "int32"}},
+				{"name": ["vel", "y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": [
+				"msg_encoding"
+			]
+		},
+		{
+			"id": 3,
+			"name": ["laser"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["from", "x"], "type": {"kind": "int32"}},
+				{"name": ["from", "y"], "type": {"kind": "int32"}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["pickup"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["subtype"], "type": {"kind": "int32", "min": 0}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["flag"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["team"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["carried", "by"], "type": {"kind": "int32", "min": -2, "max": 15}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["game"],
+			"members": [
+				{"name": ["flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
+				{"name": ["round", "start", "tick"], "type": {"kind": "tick"}},
+				{"name": ["game", "over"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["sudden", "death"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["paused"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["score", "limit"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["time", "limit"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["warmup"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["round", "num"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["round", "current"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["teamscore", "red"], "type": {"kind": "int32"}},
+				{"name": ["teamscore", "blue"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 7,
+			"name": ["character", "core"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["vel", "x"], "type": {"kind": "int32"}},
+				{"name": ["vel", "y"], "type": {"kind": "int32"}},
+				{"name": ["angle"], "type": {"kind": "int32"}},
+				{"name": ["direction"], "type": {"kind": "int32", "min": -1, "max": 1}},
+				{"name": ["jumped"], "type": {"kind": "int32", "min": 0, "max": 3}},
+				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["hook", "state"], "type": {"kind": "int32", "min": -1, "max": 5}},
+				{"name": ["hook", "tick"], "type": {"kind": "tick"}},
+				{"name": ["hook", "x"], "type": {"kind": "int32"}},
+				{"name": ["hook", "y"], "type": {"kind": "int32"}},
+				{"name": ["hook", "dx"], "type": {"kind": "int32"}},
+				{"name": ["hook", "dy"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 8,
+			"name": ["character"],
+			"super": ["character", "core"],
+			"members": [
+				{"name": ["player", "state"], "type": {"kind": "enum", "enum": ["playerstate"]}},
+				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
+				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["player", "info"],
+			"members": [
+				{"name": ["local"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["team"], "type": {"kind": "enum", "enum": ["team"]}},
+				{"name": ["score"], "type": {"kind": "int32"}},
+				{"name": ["latency"], "type": {"kind": "int32"}},
+				{"name": ["latency", "flux"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["client", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "array", "count": 6, "member_type": {"kind": "int32"}}},
+				{"name": ["skin"], "type": {"kind": "array", "count": 6, "member_type": {"kind": "int32"}}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 11,
+			"name": ["common"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 12,
+			"name": ["explosion"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 13,
+			"name": ["spawn"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["hammer", "hit"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["death"],
+			"super": ["common"],
+			"members": [
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 15}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["sound", "global"],
+			"super": ["common"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["sound", "world"],
+			"super": ["common"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 18,
+			"name": ["damage", "ind"],
+			"super": ["common"],
+			"members": [
+				{"name": ["angle"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		}
+	],
+	"system_messages": [
+		{
+			"id": 1,
+			"name": ["info"],
+			"members": [
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["clan"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["password"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 2,
+			"name": ["map", "change"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["crc"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 3,
+			"name": ["map", "data"],
+			"members": [
+				{"name": ["last"], "type": {"kind": "int32"}},
+				{"name": ["total", "size"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["snap"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}},
+				{"name": ["num", "parts"], "type": {"kind": "int32"}},
+				{"name": ["part"], "type": {"kind": "int32"}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["snap", "empty"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["snap", "single"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 8,
+			"name": ["input", "timing"],
+			"members": [
+				{"name": ["input", "pred", "tick"], "type": {"kind": "int32"}},
+				{"name": ["time", "left"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["rcon", "auth", "status"],
+			"members": [
+				{"name": ["authed"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["rcon", "line"],
+			"members": [
+				{"name": ["line"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 13,
+			"name": ["ready"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["enter", "game"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["input"],
+			"members": [
+				{"name": ["ack", "snapshot"], "type": {"kind": "int32"}},
+				{"name": ["intended", "tick"], "type": {"kind": "int32"}},
+				{"name": ["input", "size"], "type": {"kind": "int32"}},
+				{"name": ["input"], "type": {"kind": "snapshot_object", "name": ["player", "input"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["rcon", "cmd"],
+			"members": [
+				{"name": ["cmd"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["rcon", "auth"],
+			"members": [
+				{"name": ["", "unused"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["password"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 18,
+			"name": ["request", "map", "data"],
+			"members": [
+				{"name": ["chunk"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 21,
+			"name": ["ping"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 22,
+			"name": ["ping", "reply"],
+			"members": [],
+			"attributes": []
+		}
+	],
+	"connless_messages": [
+		{
+			"id": [255, 255, 255, 255, 102, 119, 63, 63],
+			"name": ["forward", "check"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 33, 33],
+			"name": ["forward", "response"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 111, 107],
+			"name": ["forward", "ok"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 101, 114],
+			"name": ["forward", "error"],
+			"members": []
+		}
+	]
+}

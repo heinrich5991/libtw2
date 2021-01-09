@@ -7,6 +7,7 @@ members = [
     "event_loop",
     "gamenet/common",
     "gamenet/ddnet-15.2.5",
+    "gamenet/teeworlds-0.5",
     "gamenet/teeworlds-0.6",
     "gamenet/teeworlds-0.7.5",
     "huffman",

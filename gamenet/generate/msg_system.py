@@ -1,5 +1,25 @@
 import datatypes
 
+SYSTEM_MSGS_0_5 = [
+    ( 1, "info", "vital", "s:version s:name s:clan s:password"),
+    ( 2, "map_change", "vital", "s:name i:crc"),
+    ( 3, "map_data", "vital", "i:last i:total_size d:data"),
+    ( 4, "snap", "", "i:tick i:delta_tick i:num_parts i:part i:crc d:data"),
+    ( 5, "snap_empty", "", "i:tick i:delta_tick"),
+    ( 6, "snap_single", "", "i:tick i:delta_tick i:crc d:data"),
+    ( 8, "input_timing", "", "i:input_pred_tick i:time_left"),
+    ( 9, "rcon_auth_status", "vital", "i:authed"),
+    (10, "rcon_line", "vital", "s:line"),
+    (13, "ready", "vital", ""),
+    (14, "enter_game", "vital", ""),
+    (15, "input", "", "i:ack_snapshot i:intended_tick i:input_size inp:input"),
+    (16, "rcon_cmd", "vital", "s:cmd"),
+    (17, "rcon_auth", "vital", "s:_unused s:password"),
+    (18, "request_map_data", "vital", "i:chunk"),
+    (21, "ping", "", ""),
+    (22, "ping_reply", "", ""),
+]
+
 SYSTEM_MSGS_0_6 = [
     ( 1, "info", "vital", "s:version s?:password"),
     ( 2, "map_change", "vital", "s:name i:crc i:size"),
@@ -108,6 +128,7 @@ def make_msgs(msgs):
     return result
 
 SYSTEM_MSGS = {
+    "0.5": make_msgs(SYSTEM_MSGS_0_5),
     "0.6": make_msgs(SYSTEM_MSGS_0_6),
     "ddnet": make_msgs(SYSTEM_MSGS_DDNET),
     "0.7": make_msgs(SYSTEM_MSGS_0_7),

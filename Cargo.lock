@@ -335,6 +335,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gamenet_teeworlds_0_5"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "buffer 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common 0.0.1",
+ "gamenet_common 0.0.1",
+ "packer 0.0.1",
+ "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "warn 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "gamenet_teeworlds_0_6"
 version = "0.0.1"
 dependencies = [

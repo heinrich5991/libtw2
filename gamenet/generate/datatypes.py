@@ -20,6 +20,8 @@ def caps(c):
 def canonicalize(s):
     if isinstance(s, tuple):
         return s
+    if s.isdigit():
+        s = "v{}".format(s)
     if s.isupper() or s.islower():
         return tuple(p.lower() for p in s.split("_"))
     PREFIXES=sorted(["m_", "m_a", "m_aa", "m_ap", "m_p"], key=len, reverse=True)
@@ -272,11 +274,12 @@ impl<'a> Game<'a> {
 }
 """)
 
-def emit_header_msg_connless():
+def emit_header_msg_connless(structs):
     import_(
         "buffer::CapacityError",
         "common::pretty",
         "error::Error",
+        "packer::Packer",
         "packer::Unpacker",
         "packer::Warning",
         "packer::with_packer",
@@ -284,45 +287,46 @@ def emit_header_msg_connless():
         "gamenet_common::msg::string_from_int",
         "warn::Warn",
     )
+    lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     print("""\
-impl<'a> Connless<'a> {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {
+impl{l} Connless{l} {{
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker{l}) -> Result<Connless{l}, Error> {{
         let id = _p.read_raw(8)?;
         let connless_id = [id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]];
         Connless::decode_connless(warn, connless_id, _p)
-    }
+    }}
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
-    {
+    {{
         p.write_raw(&self.connless_id())?;
         with_packer(&mut p, |p| self.encode_connless(p))?;
         Ok(p.written())
-    }
-}
+    }}
+}}
 
-pub struct Client<'a> {
+pub struct Client<'a> {{
     pub name: &'a [u8],
     pub clan: &'a [u8],
     pub country: i32,
     pub score: i32,
     pub is_player: i32,
-}
+}}
 
-impl<'a> Client<'a> {
+impl<'a> Client<'a> {{
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>)
         -> Result<&'d [u8], CapacityError>
-    {
+    {{
         _p.write_string(self.name)?;
         _p.write_string(self.clan)?;
         _p.write_string(&string_from_int(self.country))?;
         _p.write_string(&string_from_int(self.score))?;
         _p.write_string(&string_from_int(self.is_player))?;
         Ok(_p.written())
-    }
-}
+    }}
+}}
 
-impl<'a> fmt::Debug for Client<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> fmt::Debug for Client<'a> {{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {{
         f.debug_struct("Client")
             .field("name", &pretty::Bytes::new(&self.name))
             .field("clan", &pretty::Bytes::new(&self.clan))
@@ -330,11 +334,11 @@ impl<'a> fmt::Debug for Client<'a> {
             .field("score", &self.score)
             .field("is_player", &self.is_player)
             .finish()
-    }
-}
+    }}
+}}
 
 pub const INFO_FLAG_PASSWORD: i32 = 1;
-""")
+""".format(l=lifetime))
 
 def emit_enum_def(name, structs):
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -500,7 +504,7 @@ def emit_enum_connless(name, structs):
     print("        Ok(match &connless_id {")
     for s in structs:
         print("            {} => {}::{s}({s}::decode(warn, _p)?),".format(caps(s.name), title(name), s=title(s.name)))
-    print("            _ => return Err(Error::UnknownId),".format(caps(s.name), title(name), s=title(s.name)))
+    print("            _ => return Err(Error::UnknownId),")
     print("        })")
     print("    }")
     print("    pub fn connless_id(&self) -> [u8; 8] {")

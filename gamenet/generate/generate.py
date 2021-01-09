@@ -21,7 +21,7 @@ def generate(spec, out_dir, name):
 
     emit = datatypes.Emit()
     with emit:
-        datatypes.emit_header_msg_connless()
+        datatypes.emit_header_msg_connless(protocol.connless_messages)
         datatypes.emit_enum_connless_module("Connless", protocol.connless_messages)
     write_file(os.path.join(out_dir, "src/msg/connless.rs"), emit.get())
 
