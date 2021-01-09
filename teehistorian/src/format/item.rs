@@ -43,6 +43,16 @@ pub const UUID_AUTH_LOGOUT: [u8; 16] = [
     0xd4, 0xf5, 0xab, 0xe8, 0xed, 0xd2, 0x3f, 0xb9,
     0xab, 0xd8, 0x1c, 0x8b, 0xb8, 0x4f, 0x4a, 0x63,
 ];
+pub const UUID_JOINVER6: [u8; 16] = [
+    // "1899a382-71e3-36da-937d-c9de6bb95b1d"
+    0x18, 0x99, 0xa3, 0x82, 0x71, 0xe3, 0x36, 0xda,
+    0x93, 0x7d, 0xc9, 0xde, 0x6b, 0xb9, 0x5b, 0x1d,
+];
+pub const UUID_JOINVER7: [u8; 16] = [
+    // "59239b05-0540-318d-bea4-9aa1e80e7d2b"
+    0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d,
+    0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
+];
 
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Kind {
@@ -170,6 +180,8 @@ pub enum Item<'a> {
     AuthInit(AuthInit<'a>),
     AuthLogin(AuthLogin<'a>),
     AuthLogout(AuthLogout),
+    Joinver6(Joinver6),
+    Joinver7(Joinver7),
 
     UnknownEx(UnknownEx<'a>),
 }
@@ -262,6 +274,16 @@ pub struct AuthLogout {
     pub cid: i32,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct Joinver6 {
+    pub cid: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Joinver7 {
+    pub cid: i32,
+}
+
 #[derive(Clone, Serialize)]
 pub struct UnknownEx<'a> {
     pub uuid: Uuid,
@@ -295,6 +317,8 @@ impl<'a> Item<'a> {
             UUID_AUTH_INIT => AuthInit::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGIN => AuthLogin::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGOUT => AuthLogout::decode(&mut Unpacker::new(data))?.into(),
+            UUID_JOINVER6 => Joinver6::decode(&mut Unpacker::new(data))?.into(),
+            UUID_JOINVER7 => Joinver7::decode(&mut Unpacker::new(data))?.into(),
             _ => UnknownEx {
                 uuid: uuid,
                 data: data,
@@ -317,6 +341,8 @@ impl<'a> Item<'a> {
             Item::AuthInit(ref i) => i.cid,
             Item::AuthLogin(ref i) => i.cid,
             Item::AuthLogout(ref i) => i.cid,
+            Item::Joinver6(ref i) => i.cid,
+            Item::Joinver7(ref i) => i.cid,
             Item::UnknownEx(_) => return None,
         })
     }
@@ -480,6 +506,22 @@ impl AuthLogout {
     }
 }
 
+impl Joinver6 {
+    fn decode(_p: &mut Unpacker) -> Result<Joinver6, MaybeEnd<Error>> {
+        Ok(Joinver6 {
+            cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl Joinver7 {
+    fn decode(_p: &mut Unpacker) -> Result<Joinver7, MaybeEnd<Error>> {
+        Ok(Joinver7 {
+            cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
 impl<'a> fmt::Debug for Item<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -497,6 +539,8 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::AuthInit(ref i) => i.fmt(f),
             Item::AuthLogin(ref i) => i.fmt(f),
             Item::AuthLogout(ref i) => i.fmt(f),
+            Item::Joinver6(ref i) => i.fmt(f),
+            Item::Joinver7(ref i) => i.fmt(f),
             Item::UnknownEx(ref i) => i.fmt(f),
         }
     }
@@ -641,6 +685,18 @@ impl<'a> From<AuthLogin<'a>> for Item<'a> {
 impl<'a> From<AuthLogout> for Item<'a> {
     fn from(i: AuthLogout) -> Item<'a> {
         Item::AuthLogout(i)
+    }
+}
+
+impl<'a> From<Joinver6> for Item<'a> {
+    fn from(i: Joinver6) -> Item<'a> {
+        Item::Joinver6(i)
+    }
+}
+
+impl<'a> From<Joinver7> for Item<'a> {
+    fn from(i: Joinver7) -> Item<'a> {
+        Item::Joinver7(i)
     }
 }
 

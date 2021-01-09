@@ -2,7 +2,8 @@ extern crate arrayvec;
 extern crate common;
 extern crate clap;
 extern crate demo;
-extern crate gamenet_teeworlds_0_6 as gamenet;
+extern crate gamenet_ddnet;
+extern crate gamenet_teeworlds_0_7;
 extern crate logger;
 extern crate packer;
 extern crate snapshot;
@@ -14,14 +15,16 @@ extern crate world;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use demo::Writer;
-use gamenet::enums::Emote;
-use gamenet::enums::Team;
-use gamenet::enums::VERSION;
-use gamenet::enums::Weapon;
-use gamenet::msg::Game;
-use gamenet::msg::game;
-use gamenet::snap_obj::PlayerInput;
-use gamenet::snap_obj;
+use gamenet_ddnet::enums::Emote;
+use gamenet_ddnet::enums::Team;
+use gamenet_ddnet::enums::VERSION;
+use gamenet_ddnet::enums::Weapon;
+use gamenet_ddnet::msg::Game as GameDdnet;
+use gamenet_ddnet::msg::game as game_ddnet;
+use gamenet_ddnet::snap_obj::PlayerInput;
+use gamenet_ddnet::snap_obj;
+use gamenet_teeworlds_0_7::msg::Game as Game7;
+use gamenet_teeworlds_0_7::msg::game as game7;
 use packer::IntUnpacker;
 use packer::Unpacker;
 use packer::string_to_ints3;
@@ -54,8 +57,8 @@ struct Info {
     color_feet: i32,
 }
 
-impl<'a> From<game::ClChangeInfo<'a>> for Info {
-    fn from(m: game::ClChangeInfo) -> Info {
+impl<'a> From<game_ddnet::ClChangeInfo<'a>> for Info {
+    fn from(m: game_ddnet::ClChangeInfo) -> Info {
         Info {
             name: m.name.iter().cloned().collect(),
             clan: m.clan.iter().cloned().collect(),
@@ -68,8 +71,8 @@ impl<'a> From<game::ClChangeInfo<'a>> for Info {
     }
 }
 
-impl<'a> From<game::ClStartInfo<'a>> for Info {
-    fn from(m: game::ClStartInfo) -> Info {
+impl<'a> From<game_ddnet::ClStartInfo<'a>> for Info {
+    fn from(m: game_ddnet::ClStartInfo) -> Info {
         Info {
             name: m.name.iter().cloned().collect(),
             clan: m.clan.iter().cloned().collect(),
@@ -78,6 +81,20 @@ impl<'a> From<game::ClStartInfo<'a>> for Info {
             use_custom_color: m.use_custom_color,
             color_body: m.color_body,
             color_feet: m.color_feet,
+        }
+    }
+}
+
+impl<'a> From<game7::ClStartInfo<'a>> for Info {
+    fn from(m: game7::ClStartInfo) -> Info {
+        Info {
+            name: m.name.iter().cloned().collect(),
+            clan: m.clan.iter().cloned().collect(),
+            country: m.country,
+            skin: b"default".iter().cloned().collect(),
+            use_custom_color: false,
+            color_body: 0,
+            color_feet: 0,
         }
     }
 }
@@ -104,6 +121,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     let mut last_snap = None;
     let mut builder = snap::Builder::new();
     let mut last_tick = 0;
+    let mut ver7: VecMap<bool> = VecMap::new();
     let mut supplied_infos: VecMap<Info> = VecMap::new();
     let mut inputs: VecMap<PlayerInput> = VecMap::new();
     let mut prev_pos: VecMap<Pos> = VecMap::new();
@@ -122,17 +140,34 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                     inputs.insert(input.cid.assert_usize(), pi);
                 }
             },
+            Item::Joinver6(jv) => {
+                ver7.insert(jv.cid.assert_usize(), false);
+            },
+            Item::Joinver7(jv) => {
+                ver7.insert(jv.cid.assert_usize(), true);
+            },
             Item::Message(msg) => {
                 let mut p = Unpacker::new(msg.msg);
-                if let Ok(m) = Game::decode(&mut Ignore, &mut p) {
-                    match m {
-                        Game::ClStartInfo(i) => {
-                            supplied_infos.insert(msg.cid.assert_usize(), i.into());
-                        },
-                        Game::ClChangeInfo(i) => {
-                            supplied_infos.insert(msg.cid.assert_usize(), i.into());
-                        },
-                        _ => {},
+                if !ver7.get(msg.cid.assert_usize()).cloned().unwrap_or(false) {
+                    if let Ok(m) = GameDdnet::decode(&mut Ignore, &mut p) {
+                        match m {
+                            GameDdnet::ClStartInfo(i) => {
+                                supplied_infos.insert(msg.cid.assert_usize(), i.into());
+                            },
+                            GameDdnet::ClChangeInfo(i) => {
+                                supplied_infos.insert(msg.cid.assert_usize(), i.into());
+                            },
+                            _ => {},
+                        }
+                    }
+                } else {
+                    if let Ok(m) = Game7::decode(&mut Ignore, &mut p) {
+                        match m {
+                            Game7::ClStartInfo(i) => {
+                                supplied_infos.insert(msg.cid.assert_usize(), i.into());
+                            },
+                            _ => {},
+                        }
                     }
                 }
             }
