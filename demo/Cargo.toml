@@ -11,4 +11,5 @@ common = { path = "../common/" }
 huffman = { path = "../huffman/" }
 matches = "0.1.1"
 packer = { path = "../packer/" }
+uuid = "0.8.1"
 warn = "0.2.1"

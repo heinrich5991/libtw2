@@ -1,3 +1,4 @@
+use common::digest::Sha256;
 use common::io::ReadExt;
 use common::num::Cast;
 use std::fs::File;
@@ -137,24 +138,110 @@ pub struct Writer {
 }
 
 impl Writer {
-    fn new_impl(file: File, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
+    fn new_impl(
+        file: File,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_sha256: Option<Sha256>,
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> io::Result<Writer> {
         let mut callback_data = WriteCallbackData {
             file: BufWriter::new(file),
         };
-        let raw = writer::Writer::new(&mut callback_data, net_version, map_name, map_crc, type_, timestamp)?;
+        let raw = writer::Writer::new(
+            &mut callback_data,
+            net_version,
+            map_name,
+            map_sha256,
+            map_crc,
+            type_,
+            timestamp,
+        )?;
         Ok(Writer {
             callback_data: callback_data,
             raw: raw,
         })
     }
-    pub fn new(file: File, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
-        Self::new_impl(file, net_version, map_name, map_crc, type_, timestamp)
+    pub fn new(
+        file: File,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> io::Result<Writer> {
+        Self::new_impl(file, net_version, map_name, None, map_crc, type_, timestamp)
     }
-    pub fn create<P: AsRef<Path>>(path: P, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
-        fn inner(path: &Path, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8]) -> io::Result<Writer> {
-            Writer::new_impl(File::create(path)?, net_version, map_name, map_crc, type_, timestamp)
+    pub fn new_ddnet(
+        file: File,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_sha256: Sha256,
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> io::Result<Writer> {
+        Self::new_impl(file, net_version, map_name, Some(map_sha256), map_crc, type_, timestamp)
+    }
+    pub fn create<P: AsRef<Path>>(
+        path: P,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> io::Result<Writer> {
+        fn inner(
+            path: &Path,
+            net_version: &[u8],
+            map_name: &[u8],
+            map_crc: u32,
+            type_: &[u8],
+            timestamp: &[u8],
+        ) -> io::Result<Writer> {
+            Writer::new_impl(
+                File::create(path)?,
+                net_version,
+                map_name,
+                None,
+                map_crc,
+                type_,
+                timestamp,
+            )
         }
         inner(path.as_ref(), net_version, map_name, map_crc, type_, timestamp)
+    }
+    pub fn create_ddnet<P: AsRef<Path>>(
+        path: P,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_sha256: Sha256,
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> io::Result<Writer> {
+        fn inner(
+            path: &Path,
+            net_version: &[u8],
+            map_name: &[u8],
+            map_sha256: Sha256,
+            map_crc: u32,
+            type_: &[u8],
+            timestamp: &[u8],
+        ) -> io::Result<Writer> {
+            Writer::new_impl(
+                File::create(path)?,
+                net_version,
+                map_name,
+                Some(map_sha256),
+                map_crc,
+                type_,
+                timestamp,
+            )
+        }
+        inner(path.as_ref(), net_version, map_name, map_sha256, map_crc, type_, timestamp)
     }
     pub fn write_chunk(&mut self, chunk: format::Chunk) -> io::Result<()> {
         self.raw.write_chunk(&mut self.callback_data, chunk)

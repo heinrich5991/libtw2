@@ -107,14 +107,26 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     {
         let (header, teehistorian) = Reader::open(in_, &mut buffer)?;
         th = teehistorian;
-        demo = Writer::create(
-            out,
-            VERSION.as_bytes(),
-            header.map_name.as_bytes(),
-            header.map_crc,
-            demo::format::TYPE_SERVER,
-            b"", // Timestamp
-        )?;
+        if let Some(map_sha256) = header.map_sha256 {
+            demo = Writer::create_ddnet(
+                out,
+                VERSION.as_bytes(),
+                header.map_name.as_bytes(),
+                map_sha256,
+                header.map_crc,
+                demo::format::TYPE_SERVER,
+                b"", // Timestamp
+            )?;
+        } else {
+            demo = Writer::create(
+                out,
+                VERSION.as_bytes(),
+                header.map_name.as_bytes(),
+                header.map_crc,
+                demo::format::TYPE_SERVER,
+                b"", // Timestamp
+            )?;
+        }
     }
     let mut delta = snap::Delta::new();
     let mut last_full_snap_tick = None;

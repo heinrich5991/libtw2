@@ -143,6 +143,7 @@ dependencies = [
  "num-traits 0.1.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "quickcheck 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ref_slice 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
  "unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -216,6 +217,7 @@ dependencies = [
  "huffman 0.0.1",
  "matches 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "packer 0.0.1",
+ "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "warn 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

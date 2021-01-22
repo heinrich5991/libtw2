@@ -1,11 +1,13 @@
 use arrayvec::Array;
 use arrayvec::ArrayVec;
 use buffer;
+use common::digest::Sha256;
 use common::num::Cast;
 use common::num::LeI32;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer::with_packer;
 use std::mem;
+use uuid::Uuid;
 
 use bitmagic::WriteCallbackExt;
 use format::Chunk;
@@ -40,12 +42,21 @@ fn nullterminated_arrayvec_from_slice<A: Array>(data: &[A::Item]) -> ArrayVec<A>
 }
 
 const WRITER_VERSION: Version = Version::V5;
+const WRITER_VERSION_DDNET: Version = Version::V6Ddnet;
 
+const DDNET_SHA256_EXTENSION: Uuid =
+    Uuid::from_u128(0x6be6da4a_cebd_380c_9b5b_1289c842d780);
 
 impl Writer {
-    pub fn new<CB: Callback>(cb: &mut CB, net_version: &[u8], map_name: &[u8], map_crc: u32, type_: &[u8], timestamp: &[u8])
-        -> Result<Writer, CB::Error>
-    {
+    pub fn new<CB: Callback>(
+        cb: &mut CB,
+        net_version: &[u8],
+        map_name: &[u8],
+        map_sha256: Option<Sha256>,
+        map_crc: u32,
+        type_: &[u8],
+        timestamp: &[u8],
+    ) -> Result<Writer, CB::Error> {
         use self::nullterminated_arrayvec_from_slice as nafs;
 
         let mut writer = Writer {
@@ -62,12 +73,19 @@ impl Writer {
             buffer1: ArrayVec::new(),
             buffer2: ArrayVec::new(),
         };
-        writer.write_header(cb)?;
+        writer.write_header(cb, map_sha256.is_some())?;
         cb.write_raw(&TimelineMarkers { timeline_markers: ArrayVec::new() }.pack())?;
+        if let Some(sha256) = map_sha256 {
+            cb.write_raw(DDNET_SHA256_EXTENSION.as_bytes())?;
+            cb.write_raw(&sha256.0)?;
+        }
         Ok(writer)
     }
-    fn write_header<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        cb.write_raw(&HeaderVersion { version: WRITER_VERSION }.pack())?;
+    fn write_header<CB: Callback>(&mut self, cb: &mut CB, ddnet: bool)
+        -> Result<(), CB::Error>
+    {
+        let version = if ddnet { WRITER_VERSION_DDNET } else { WRITER_VERSION };
+        cb.write_raw(&HeaderVersion { version: version }.pack())?;
         cb.write_raw(&self.header.pack())?;
         Ok(())
     }

@@ -9,6 +9,7 @@ arrayvec = "0.3.12"
 file_offset = "0.1.0"
 num-traits = "0.1.32"
 ref_slice = ">=0.1.0,<2.0"
+serde = { version = "1.0.23", optional = true }
 unreachable = "1.0.0"
 
 [dev-dependencies]

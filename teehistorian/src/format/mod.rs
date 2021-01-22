@@ -1,5 +1,6 @@
 use chrono::DateTime;
 use chrono::FixedOffset;
+use common::digest::Sha256;
 use packer::UnexpectedEnd;
 use packer::Unpacker;
 use serde_json;
@@ -38,6 +39,7 @@ pub struct Header<'a> {
     pub server_port: u16,
     pub map_name: Cow<'a, str>,
     pub map_size: u32,
+    pub map_sha256: Option<Sha256>,
     pub map_crc: u32,
     pub config: HashMap<Cow<'a, str>, Cow<'a, str>>,
 }
@@ -104,6 +106,7 @@ struct JsonHeader<'a> {
     server_port: Cow<'a, str>,
     map_name: Cow<'a, str>,
     map_size: Cow<'a, str>,
+    map_sha256: Option<Sha256>,
     map_crc: Cow<'a, str>,
     config: HashMap<Cow<'a, str>, Cow<'a, str>>,
 }
@@ -127,6 +130,7 @@ pub fn read_header<'a>(p: &mut Unpacker<'a>)
         server_port: json_header.server_port.parse().map_err(|_| MalformedServerPort)?,
         map_name: json_header.map_name,
         map_size: json_header.map_size.parse().map_err(|_| MalformedMapSize)?,
+        map_sha256: json_header.map_sha256,
         map_crc: u32::from_str_radix(&json_header.map_crc, 16).map_err(|_| MalformedMapCrc)?,
         config: json_header.config,
     };

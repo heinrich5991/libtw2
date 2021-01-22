@@ -33,6 +33,7 @@ pub enum Version {
     V3,
     V4,
     V5,
+    V6Ddnet,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -77,6 +78,7 @@ impl Version {
             3 => Version::V3,
             4 => Version::V4,
             5 => Version::V5,
+            6 => Version::V6Ddnet,
             _ => return Err(Error::UnknownVersion(v)),
         })
     }
@@ -85,12 +87,13 @@ impl Version {
             Version::V3 => 3,
             Version::V4 => 4,
             Version::V5 => 5,
+            Version::V6Ddnet => 6,
         }
     }
     fn max_tick_delta(self) -> u8 {
         match self {
             Version::V3 | Version::V4 => CHUNKTICKMASK_TICK_V3,
-            Version::V5 => CHUNKTICKMASK_TICK_V5,
+            Version::V5 | Version::V6Ddnet => CHUNKTICKMASK_TICK_V5,
         }
     }
 }

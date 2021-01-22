@@ -17,6 +17,8 @@ unsafe impl Packed for common::num::BeI32 { }
 unsafe impl Packed for common::num::LeU16 { }
 unsafe impl Packed for common::num::BeU32 { }
 unsafe impl Packed for u8 { }
+unsafe impl Packed for [u8; 16] { }
+unsafe impl Packed for [u8; 32] { }
 
 pub fn as_mut_bytes<T: Packed>(x: &mut T) -> &mut [u8] {
     unsafe {

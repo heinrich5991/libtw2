@@ -160,6 +160,7 @@ impl<'d, 's> Packer<'d, 's> {
     pub fn write_raw(&mut self, data: &[u8]) -> Result<(), CapacityError> {
         self.buf.write(data)
     }
+    #[cfg(feature = "uuid")]
     pub fn write_uuid(&mut self, uuid: Uuid) -> Result<(), CapacityError> {
         self.write_raw(uuid.as_bytes())
     }
