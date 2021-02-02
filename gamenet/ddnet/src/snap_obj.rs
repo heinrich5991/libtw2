@@ -996,7 +996,7 @@ impl CharacterCore {
             angle: _p.read_int()?,
             direction: in_range(_p.read_int()?, -1, 1)?,
             jumped: in_range(_p.read_int()?, 0, 3)?,
-            hooked_player: in_range(_p.read_int()?, 0, 63)?,
+            hooked_player: in_range(_p.read_int()?, -1, 63)?,
             hook_state: in_range(_p.read_int()?, -1, 5)?,
             hook_tick: ::snap_obj::Tick(_p.read_int()?),
             hook_x: _p.read_int()?,
@@ -1008,7 +1008,7 @@ impl CharacterCore {
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.direction && self.direction <= 1);
         assert!(0 <= self.jumped && self.jumped <= 3);
-        assert!(0 <= self.hooked_player && self.hooked_player <= 63);
+        assert!(-1 <= self.hooked_player && self.hooked_player <= 63);
         assert!(-1 <= self.hook_state && self.hook_state <= 5);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }

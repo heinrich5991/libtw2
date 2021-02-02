@@ -1264,17 +1264,17 @@ class NetIntRange(NetIntAny):
         if parent.name == ("player", "input") and self.name == ("player", "flags") and min == "0" and max == "256":
             return NetIntAny(self.name)
         elif parent.name == ("player", "input") and self.name == ("wanted", "weapon") and min == "0" and max == "NUM_WEAPONS-1":
-            self.max = max = "NUM_WEAPONS"
+            max = "NUM_WEAPONS"
         if self.name == ("hooked", "player") and min == "0":
-            self.min = -1
+            min = "-1"
         elif self.name == ("emote",) and max == str(len(enums[("emote",)].values)):
             max = "NUM_EMOTES-1"
-        elif self.max == "NUM_SPECMODES-1":
+        elif max == "NUM_SPECMODES-1":
             max = "NUM_SPECS-1"
-        if str(self.min) == "0" and max.startswith("NUM_") and max.endswith("S-1"):
+        if min == "0" and max.startswith("NUM_") and max.endswith("S-1"):
             return NetEnum(self.name, max[4:-3])
         if max == "NUM_WEAPONS-1":
-            self.max = len(enums[("weapon",)].values) - 1
+            max = len(enums[("weapon",)].values) - 1
         self.min = evaluate_constant(consts, enums, min)
         self.max = evaluate_constant(consts, enums, max)
         return self

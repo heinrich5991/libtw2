@@ -506,7 +506,7 @@
 				{"name": ["angle"], "type": {"kind": "int32"}},
 				{"name": ["direction"], "type": {"kind": "int32", "min": -1, "max": 1}},
 				{"name": ["jumped"], "type": {"kind": "int32", "min": 0, "max": 3}},
-				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": 0, "max": 15}},
+				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": -1, "max": 15}},
 				{"name": ["hook", "state"], "type": {"kind": "int32", "min": -1, "max": 5}},
 				{"name": ["hook", "tick"], "type": {"kind": "tick"}},
 				{"name": ["hook", "x"], "type": {"kind": "int32"}},
