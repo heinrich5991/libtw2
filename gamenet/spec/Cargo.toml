@@ -1,0 +1,10 @@
+[package]
+name = "gamenet_spec"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+serde = "1.0.23"
+serde_derive = "1.0.7"
+uuid = { version = "0.8.1", features = ["serde"] }

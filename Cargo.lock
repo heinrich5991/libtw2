@@ -337,6 +337,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gamenet_spec"
+version = "0.0.1"
+dependencies = [
+ "serde 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.89 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "gamenet_teeworlds_0_5"
 version = "0.0.1"
 dependencies = [
@@ -1244,6 +1253,7 @@ dependencies = [
  "datafile 0.0.1",
  "demo 0.0.1",
  "gamenet_ddnet 0.0.1",
+ "gamenet_spec 0.0.1",
  "gamenet_teeworlds_0_6 0.0.1",
  "gamenet_teeworlds_0_7 0.0.1",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
