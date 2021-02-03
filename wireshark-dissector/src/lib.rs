@@ -50,7 +50,11 @@ static mut HF_CHUNK_SEQ: c_int = -1;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
-pub static plugin_release: [u8; 4] = *b"2.6\0";
+pub static plugin_want_major: c_int = 3;
+
+#[allow(non_upper_case_globals)]
+#[no_mangle]
+pub static plugin_want_minor: c_int = 4;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
@@ -85,7 +89,7 @@ unsafe extern "C" fn dissect_tw(
     let mut original_buffer = Vec::with_capacity(len);
     let mut decompress_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
     original_buffer.set_len(len);
-    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len);
+    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len.u64());
     let mut data: &[u8] = &original_buffer;
 
     macro_rules! field {
@@ -207,7 +211,7 @@ unsafe extern "C" fn dissect_tw(
         if let Err(_) = HUFFMAN.decompress(&data[3..], &mut decompress_buffer) {
             return sys::tvb_captured_length(original_tvb) as c_int;
         }
-        let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len()) as *mut u8;
+        let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len().u64()) as *mut u8;
         sys::memcpy(buffer as *mut c_void, decompress_buffer.as_ptr() as *const c_void, decompress_buffer.len().u64());
         tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
         sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds packet\0"));
@@ -288,7 +292,7 @@ unsafe extern "C" fn dissect_tw(
                 field_boolean!(flag_tree, HF_CHUNK_VITAL, 0, vital,
                     "{} = {}",
                     Bitfield::new(&data[offset..offset+1], protocol::CHUNKFLAG_VITAL.u64() << 6),
-                    if ctrl { "Will be transferred reliably" } else { "Will not be transferred reliably" },
+                    if vital { "Will be transferred reliably" } else { "Will not be transferred reliably" },
                 );
                 field_uint!(tree, HF_CHUNK_SIZE, offset.assert_i32(), 2, header.size,
                     "Size: {} {} ({})",
