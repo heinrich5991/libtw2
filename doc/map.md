@@ -76,7 +76,7 @@ Use them to figure out which purpose each of the item types in the `datafile.ite
 
 Things to keep in mind:
 1. When an item type appears in `datafile.item_types`, it means that there must be at least one item of that type
-2. With the exception fo the UUID Index, the first item of an item type will have `id` = 0 and from there it will count up
+2. With the exception of the UUID Index, the first item of an item type will have `id` = 0 and from there it will count up
 
 UUID item types
 ---------------
@@ -348,7 +348,7 @@ item_data extension for tilemap layers:
     [1] version
     [1] width
     [1] height
-    [1] type
+    [1] flags
     [4] color: Color
     [1] opt *color_envelope
     [1] color_envelope_offset
@@ -368,7 +368,7 @@ item_data extension for tilemap layers:
 
 - Vanilla is at `version` = 4, DDNet at `version` = 3
 - `width` and `height` specify the dimensions of the layer
-- `type` tells you what kind of tilemap layer this is:
+- `flags` tells you what kind of tilemap layer this is:
     - 0 -> Tiles
     - 1 -> Game
     - 2 -> Tele
@@ -390,7 +390,7 @@ item_data extension for tilemap layers:
     - order of flips and rotations: vertical flip -> horizontal flip -> rotation
 
 ```
-'Tile' tile type (consiting of bytes, used by all vanilla layers and the front layer):
+'Tile' tile type (consisting of bytes, used by all vanilla layers and the front layer):
     [1] id
     [1] flags
     [1] skip
@@ -419,7 +419,7 @@ DDNet only content:
 Special tile types:
 
 ```
-'Tele' tile type (consiting of bytes):
+'Tele' tile type (consisting of bytes):
     [1] number
     [1] id
 ```
@@ -427,7 +427,7 @@ Special tile types:
 - `number` is the number of the teleporter exit/entry to group them together
 
 ```
-'Speedup' tile type (consiting of bytes):
+'Speedup' tile type (consisting of bytes):
     [1] force
     [1] max_speed
     [1] id
@@ -438,7 +438,7 @@ Special tile types:
 - angle is LE
 
 ```
-'Switch' tile type (consiting of bytes):
+'Switch' tile type (consisting of bytes):
     [1] number
     [1] id
     [1] flags
@@ -448,7 +448,7 @@ Special tile types:
 - `number` once again tells you which tiles interact with each other
 
 ```
-'Tune' tile type (consiting of bytes):
+'Tune' tile type (consisting of bytes):
     [1] number
     [1] id
 ```
@@ -474,8 +474,7 @@ item_data extension for quads layers:
 
 ```
 Quad:
-    [2] position: Point
-    [8] corner_positions: [Point; 4]
+    [8] positions: [Point; 5]
     [16] corner_colors: [Color; 4]
     [8] texture_coordinates: [Point; 4]
     [1] opt *position_envelope
@@ -484,7 +483,10 @@ Quad:
     [1] color_envelope_offset
 ```
 
+- `positions` elements 1 - 4 are the corner positions and `positions` element 5 contains the pivot
+- to map the `positions` to world coordinates divide them by 512 
 - corners are in the order top-left -> top-right -> bottom-left -> bottom-right
+- the `texture_coordinates` are in range (0, 1024). To get the actual texture coordinates, divide by 1024 to normalize to (0, 1) range and multiply by the dimension of the quad image.
 
 **Sounds layer**
 
