@@ -483,9 +483,9 @@ Quad:
     [1] color_envelope_offset
 ```
 
-- corners are in the order top-left -> top-right -> bottom-left -> bottom-right
 - `positions` elements 1 - 4 are the corner positions and `positions` element 5 contains the pivot
 - to map the `positions` to world coordinates divide them by 512 
+- corners are in the order top-left -> top-right -> bottom-left -> bottom-right
 - the `texture_coordinates` are in range (0, 1024). To get the actual texture coordinates, divide by 1024 to normalize to (0, 1) range and multiply by the dimension of the quad image.
 
 **Sounds layer**
