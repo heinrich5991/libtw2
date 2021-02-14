@@ -8,10 +8,12 @@ use gamenet_common::msg::string_from_int;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use packer::sanitize;
 use packer::with_packer;
 use std::fmt;
 use super::AddrPacked;
 use super::ClientsData;
+use warn::Panic;
 use warn::Warn;
 use warn::wrap;
 
@@ -378,10 +380,10 @@ impl<'a> Info<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
         let result = Ok(Info {
             token: int_from_string(_p.read_string()?)?,
-            version: _p.read_string()?,
-            name: _p.read_string()?,
-            map: _p.read_string()?,
-            game_type: _p.read_string()?,
+            version: sanitize(warn, _p.read_string()?)?,
+            name: sanitize(warn, _p.read_string()?)?,
+            map: sanitize(warn, _p.read_string()?)?,
+            game_type: sanitize(warn, _p.read_string()?)?,
             flags: int_from_string(_p.read_string()?)?,
             num_players: int_from_string(_p.read_string()?)?,
             max_players: int_from_string(_p.read_string()?)?,
@@ -393,6 +395,10 @@ impl<'a> Info<'a> {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        sanitize(&mut Panic, self.version).unwrap();
+        sanitize(&mut Panic, self.name).unwrap();
+        sanitize(&mut Panic, self.map).unwrap();
+        sanitize(&mut Panic, self.game_type).unwrap();
         _p.write_string(&string_from_int(self.token))?;
         _p.write_string(self.version)?;
         _p.write_string(self.name)?;
