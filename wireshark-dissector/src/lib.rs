@@ -53,7 +53,6 @@ static mut ETT_PACKET_FLAGS: c_int = -1;
 static mut ETT_CHUNK: c_int = -1;
 static mut ETT_CHUNK_HEADER: c_int = -1;
 static mut ETT_CHUNK_HEADER_FLAGS: c_int = -1;
-static mut ETT_MSG_ID: c_int = -1;
 
 static mut HF_PACKET_FLAGS: c_int = -1;
 static mut HF_PACKET_CONTROL: c_int = -1;
@@ -89,11 +88,6 @@ pub static plugin_version: [u8; 6] = *b"0.0.1\0";
 #[inline]
 fn c(s: &'static str) -> *const c_char {
     intern::intern_static_with_nul(s).c()
-}
-
-#[inline]
-const fn cc(s: &'static str) -> *const c_char {
-    s.as_bytes().as_ptr() as *const _
 }
 
 pub const HFRI_DEFAULT: sys::_header_field_info = sys::_header_field_info {
@@ -143,7 +137,7 @@ unsafe extern "C" fn dissect_tw(
             let mut formatted: ArrayVec<[u8; 256]> = ArrayVec::new();
             write!(formatted, $fmt, $($args)*).unwrap();
             formatted.push(0);
-            $type($tree, $hf, tvb, $from, $to, $value, cc("%s\0"), CStr::from_bytes_with_nul(&formatted).unwrap().as_ptr())
+            $type($tree, $hf, tvb, $from, $to, $value, c("%s\0"), CStr::from_bytes_with_nul(&formatted).unwrap().as_ptr())
         }};
     }
     macro_rules! field_none {
@@ -151,7 +145,7 @@ unsafe extern "C" fn dissect_tw(
             let mut formatted: ArrayVec<[u8; 256]> = ArrayVec::new();
             write!(formatted, $fmt, $($args)*).unwrap();
             formatted.push(0);
-            sys::proto_tree_add_none_format($tree, $hf, tvb, $from, $to, cc("%s\0"), CStr::from_bytes_with_nul(&formatted).unwrap().as_ptr())
+            sys::proto_tree_add_none_format($tree, $hf, tvb, $from, $to, c("%s\0"), CStr::from_bytes_with_nul(&formatted).unwrap().as_ptr())
         }}
     }
     macro_rules! field_boolean {
@@ -284,7 +278,7 @@ unsafe extern "C" fn dissect_tw(
         let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len().u64()) as *mut u8;
         sys::memcpy(buffer as *mut c_void, decompress_buffer.as_ptr() as *const c_void, decompress_buffer.len().u64());
         tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
-        sys::add_new_data_source(pinfo, tvb, cc("Decompressed Teeworlds packet\0"));
+        sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds packet\0"));
         data = &decompress_buffer;
     }
     tvb = sys::tvb_new_subset_remaining(tvb, header_size);
@@ -418,12 +412,14 @@ unsafe extern "C" fn dissect_tw(
 unsafe extern "C" fn proto_register_teeworlds() {
     assert!(SPEC.replace(load_spec().unwrap()).is_none());
 
-    static mut PACKET_HF: [sys::hf_register_info; 10] = unsafe {[
+    let mut fields_info = Vec::new();
+    let mut etts = Vec::new();
+    fields_info.extend_from_slice(&[
         sys::hf_register_info {
             p_id: &HF_PACKET_FLAGS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Flags\0"),
-                abbrev: cc("tw.packet.flags\0"),
+                name: c("Flags\0"),
+                abbrev: c("tw.packet.flags\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_HEX as c_int,
                 ..HFRI_DEFAULT
@@ -432,8 +428,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_COMPRESSION as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Compressed\0"),
-                abbrev: cc("tw.packet.flags.compression\0"),
+                name: c("Compressed\0"),
+                abbrev: c("tw.packet.flags.compression\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -441,8 +437,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_REQUEST_RESEND as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Request resend\0"),
-                abbrev: cc("tw.packet.flags.request_resend\0"),
+                name: c("Request resend\0"),
+                abbrev: c("tw.packet.flags.request_resend\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -450,8 +446,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_CONNLESS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Connless\0"),
-                abbrev: cc("tw.packet.flags.connless\0"),
+                name: c("Connless\0"),
+                abbrev: c("tw.packet.flags.connless\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -459,8 +455,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_CONTROL as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Control\0"),
-                abbrev: cc("tw.packet.flags.control\0"),
+                name: c("Control\0"),
+                abbrev: c("tw.packet.flags.control\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -468,8 +464,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_ACK as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Acknowledged sequence number\0"),
-                abbrev: cc("tw.packet.ack\0"),
+                name: c("Acknowledged sequence number\0"),
+                abbrev: c("tw.packet.ack\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_DEC as c_int,
                 bitmask: 0,
@@ -479,8 +475,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_NUM_CHUNKS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Number of chunks\0"),
-                abbrev: cc("tw.packet.num_chunks\0"),
+                name: c("Number of chunks\0"),
+                abbrev: c("tw.packet.num_chunks\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -489,8 +485,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_CTRL as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Control message\0"),
-                abbrev: cc("tw.packet.ctrl\0"),
+                name: c("Control message\0"),
+                abbrev: c("tw.packet.ctrl\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -499,8 +495,8 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_CTRL_CLOSE_REASON as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Close reason\0"),
-                abbrev: cc("tw.packet.ctrl.close_reason\0"),
+                name: c("Close reason\0"),
+                abbrev: c("tw.packet.ctrl.close_reason\0"),
                 type_: sys::FT_STRING,
                 display: sys::STR_ASCII as c_int,
                 ..HFRI_DEFAULT
@@ -509,36 +505,35 @@ unsafe extern "C" fn proto_register_teeworlds() {
         sys::hf_register_info {
             p_id: &HF_PACKET_PAYLOAD as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
-                name: cc("Payload\0"),
-                abbrev: cc("tw.packet.payload\0"),
+                name: c("Payload\0"),
+                abbrev: c("tw.packet.payload\0"),
                 type_: sys::FT_BYTES,
                 ..HFRI_DEFAULT
             },
         },
-    ]};
-
-    static mut ETT: [*mut c_int; 6] = unsafe {[
+    ]);
+    etts.extend_from_slice(&[
         &ETT_PACKET as *const _ as *mut _,
         &ETT_PACKET_FLAGS as *const _ as *mut _,
-        &ETT_CHUNK as *const _ as *mut _,
-        &ETT_CHUNK_HEADER as *const _ as *mut _,
-        &ETT_CHUNK_HEADER_FLAGS as *const _ as *mut _,
-        &ETT_MSG_ID as *const _ as *mut _,
-    ]};
+    ]);
 
+    let fields_info = Box::leak(fields_info.into_boxed_slice());
+    let etts = Box::leak(etts.into_boxed_slice());
     PROTO_TW_PACKET = sys::proto_register_protocol(
-        cc("Teeworlds Protocol packet\0"),
-        cc("Teeworlds packet\0"),
-        cc("twp\0"),
+        c("Teeworlds Protocol packet\0"),
+        c("Teeworlds packet\0"),
+        c("twp\0"),
     );
-    sys::proto_register_field_array(PROTO_TW_PACKET, PACKET_HF.as_mut_ptr(), PACKET_HF.len().assert_i32());
+
+    sys::proto_register_field_array(PROTO_TW_PACKET, fields_info.as_mut_ptr(), fields_info.len().assert_i32());
+    sys::proto_register_subtree_array(etts.as_ptr(), etts.len().assert_i32());
+
     register_chunk_protocol(SPEC.as_ref().unwrap());
-    sys::proto_register_subtree_array(ETT.as_ptr(), ETT.len().assert_i32());
 }
 
 unsafe extern "C" fn proto_reg_handoff_teeworlds() {
     let tw_packet = sys::create_dissector_handle(Some(dissect_tw), PROTO_TW_PACKET);
-    sys::dissector_add_uint(cc("udp.port\0"), TW_PORT, tw_packet);
+    sys::dissector_add_uint(c("udp.port\0"), TW_PORT, tw_packet);
 }
 
 trait IdentifierEx {
@@ -573,9 +568,9 @@ fn to_guid(uuid: Uuid) -> sys::e_guid_t {
 fn register_chunk_protocol(spec: &Spec) {
     unsafe {
         PROTO_TW_CHUNK = sys::proto_register_protocol(
-            cc("Teeworlds Protocol chunk\0"),
-            cc("Teeworlds chunk\0"),
-            cc("tw\0"),
+            c("Teeworlds Protocol chunk\0"),
+            c("Teeworlds chunk\0"),
+            c("tw\0"),
         );
     }
     let mut fields_info = Vec::new();
@@ -638,6 +633,11 @@ fn register_chunk_protocol(spec: &Spec) {
                 ..HFRI_DEFAULT
             },
         },
+    ]});
+    etts.extend_from_slice(&unsafe {[
+        &ETT_CHUNK as *const _ as *mut _,
+        &ETT_CHUNK_HEADER as *const _ as *mut _,
+        &ETT_CHUNK_HEADER_FLAGS as *const _ as *mut _,
     ]});
     spec.field_register_info(
         &mut |hfri| fields_info.push(hfri),
