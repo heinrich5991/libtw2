@@ -154,6 +154,31 @@ def fix_network(network, version):
                     NetClients("clients"),
                 ]),
             ]
+        if version == VERSION_DDNET:
+            network.Connless += [
+                NetConnless("InfoExtended", "iext", [
+                    NetIntString("token"),
+                    NetString("version"),
+                    NetString("name"),
+                    NetString("map"),
+                    NetIntString("map_crc"),
+                    NetIntString("map_size"),
+                    NetString("game_type"),
+                    NetIntString("flags"),
+                    NetIntString("num_players"),
+                    NetIntString("max_players"),
+                    NetIntString("num_clients"),
+                    NetIntString("max_clients"),
+                    NetString("reserved"),
+                    NetClients("clients"),
+                ]),
+                NetConnless("InfoExtendedMore", "iex+", [
+                    NetIntString("token"),
+                    NetIntString("packet_no"),
+                    NetString("reserved"),
+                    NetClients("clients"),
+                ]),
+            ]
         network.Connless += [
             NetConnless("Heartbeat", "bea2", [
                 NetBigEndianU16("alt_port"),

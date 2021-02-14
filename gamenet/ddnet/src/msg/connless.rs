@@ -71,6 +71,8 @@ pub const REQUEST_COUNT: &'static [u8; 8] = b"\xff\xff\xff\xffcou2";
 pub const COUNT: &'static [u8; 8] = b"\xff\xff\xff\xffsiz2";
 pub const REQUEST_INFO: &'static [u8; 8] = b"\xff\xff\xff\xffgie3";
 pub const INFO: &'static [u8; 8] = b"\xff\xff\xff\xffinf3";
+pub const INFO_EXTENDED: &'static [u8; 8] = b"\xff\xff\xff\xffiext";
+pub const INFO_EXTENDED_MORE: &'static [u8; 8] = b"\xff\xff\xff\xffiex+";
 pub const HEARTBEAT: &'static [u8; 8] = b"\xff\xff\xff\xffbea2";
 pub const FORWARD_CHECK: &'static [u8; 8] = b"\xff\xff\xff\xfffw??";
 pub const FORWARD_RESPONSE: &'static [u8; 8] = b"\xff\xff\xff\xfffw!!";
@@ -85,6 +87,8 @@ pub enum Connless<'a> {
     Count(Count),
     RequestInfo(RequestInfo),
     Info(Info<'a>),
+    InfoExtended(InfoExtended<'a>),
+    InfoExtendedMore(InfoExtendedMore<'a>),
     Heartbeat(Heartbeat),
     ForwardCheck(ForwardCheck),
     ForwardResponse(ForwardResponse),
@@ -101,6 +105,8 @@ impl<'a> Connless<'a> {
             COUNT => Connless::Count(Count::decode(warn, _p)?),
             REQUEST_INFO => Connless::RequestInfo(RequestInfo::decode(warn, _p)?),
             INFO => Connless::Info(Info::decode(warn, _p)?),
+            INFO_EXTENDED => Connless::InfoExtended(InfoExtended::decode(warn, _p)?),
+            INFO_EXTENDED_MORE => Connless::InfoExtendedMore(InfoExtendedMore::decode(warn, _p)?),
             HEARTBEAT => Connless::Heartbeat(Heartbeat::decode(warn, _p)?),
             FORWARD_CHECK => Connless::ForwardCheck(ForwardCheck::decode(warn, _p)?),
             FORWARD_RESPONSE => Connless::ForwardResponse(ForwardResponse::decode(warn, _p)?),
@@ -117,6 +123,8 @@ impl<'a> Connless<'a> {
             Connless::Count(_) => *COUNT,
             Connless::RequestInfo(_) => *REQUEST_INFO,
             Connless::Info(_) => *INFO,
+            Connless::InfoExtended(_) => *INFO_EXTENDED,
+            Connless::InfoExtendedMore(_) => *INFO_EXTENDED_MORE,
             Connless::Heartbeat(_) => *HEARTBEAT,
             Connless::ForwardCheck(_) => *FORWARD_CHECK,
             Connless::ForwardResponse(_) => *FORWARD_RESPONSE,
@@ -132,6 +140,8 @@ impl<'a> Connless<'a> {
             Connless::Count(ref i) => i.encode(p),
             Connless::RequestInfo(ref i) => i.encode(p),
             Connless::Info(ref i) => i.encode(p),
+            Connless::InfoExtended(ref i) => i.encode(p),
+            Connless::InfoExtendedMore(ref i) => i.encode(p),
             Connless::Heartbeat(ref i) => i.encode(p),
             Connless::ForwardCheck(ref i) => i.encode(p),
             Connless::ForwardResponse(ref i) => i.encode(p),
@@ -150,6 +160,8 @@ impl<'a> fmt::Debug for Connless<'a> {
             Connless::Count(ref i) => i.fmt(f),
             Connless::RequestInfo(ref i) => i.fmt(f),
             Connless::Info(ref i) => i.fmt(f),
+            Connless::InfoExtended(ref i) => i.fmt(f),
+            Connless::InfoExtendedMore(ref i) => i.fmt(f),
             Connless::Heartbeat(ref i) => i.fmt(f),
             Connless::ForwardCheck(ref i) => i.fmt(f),
             Connless::ForwardResponse(ref i) => i.fmt(f),
@@ -192,6 +204,18 @@ impl<'a> From<RequestInfo> for Connless<'a> {
 impl<'a> From<Info<'a>> for Connless<'a> {
     fn from(i: Info<'a>) -> Connless<'a> {
         Connless::Info(i)
+    }
+}
+
+impl<'a> From<InfoExtended<'a>> for Connless<'a> {
+    fn from(i: InfoExtended<'a>) -> Connless<'a> {
+        Connless::InfoExtended(i)
+    }
+}
+
+impl<'a> From<InfoExtendedMore<'a>> for Connless<'a> {
+    fn from(i: InfoExtendedMore<'a>) -> Connless<'a> {
+        Connless::InfoExtendedMore(i)
     }
 }
 
@@ -257,6 +281,32 @@ pub struct Info<'a> {
     pub max_players: i32,
     pub num_clients: i32,
     pub max_clients: i32,
+    pub clients: ClientsData<'a>,
+}
+
+#[derive(Clone, Copy)]
+pub struct InfoExtended<'a> {
+    pub token: i32,
+    pub version: &'a [u8],
+    pub name: &'a [u8],
+    pub map: &'a [u8],
+    pub map_crc: i32,
+    pub map_size: i32,
+    pub game_type: &'a [u8],
+    pub flags: i32,
+    pub num_players: i32,
+    pub max_players: i32,
+    pub num_clients: i32,
+    pub max_clients: i32,
+    pub reserved: &'a [u8],
+    pub clients: ClientsData<'a>,
+}
+
+#[derive(Clone, Copy)]
+pub struct InfoExtendedMore<'a> {
+    pub token: i32,
+    pub packet_no: i32,
+    pub reserved: &'a [u8],
     pub clients: ClientsData<'a>,
 }
 
@@ -420,6 +470,96 @@ impl<'a> fmt::Debug for Info<'a> {
             .field("max_players", &self.max_players)
             .field("num_clients", &self.num_clients)
             .field("max_clients", &self.max_clients)
+            .field("clients", &self.clients)
+            .finish()
+    }
+}
+
+impl<'a> InfoExtended<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<InfoExtended<'a>, Error> {
+        let result = Ok(InfoExtended {
+            token: int_from_string(_p.read_string()?)?,
+            version: _p.read_string()?,
+            name: _p.read_string()?,
+            map: _p.read_string()?,
+            map_crc: int_from_string(_p.read_string()?)?,
+            map_size: int_from_string(_p.read_string()?)?,
+            game_type: _p.read_string()?,
+            flags: int_from_string(_p.read_string()?)?,
+            num_players: int_from_string(_p.read_string()?)?,
+            max_players: int_from_string(_p.read_string()?)?,
+            num_clients: int_from_string(_p.read_string()?)?,
+            max_clients: int_from_string(_p.read_string()?)?,
+            reserved: _p.read_string()?,
+            clients: ClientsData::from_bytes(_p.read_rest()?),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_string(&string_from_int(self.token))?;
+        _p.write_string(self.version)?;
+        _p.write_string(self.name)?;
+        _p.write_string(self.map)?;
+        _p.write_string(&string_from_int(self.map_crc))?;
+        _p.write_string(&string_from_int(self.map_size))?;
+        _p.write_string(self.game_type)?;
+        _p.write_string(&string_from_int(self.flags))?;
+        _p.write_string(&string_from_int(self.num_players))?;
+        _p.write_string(&string_from_int(self.max_players))?;
+        _p.write_string(&string_from_int(self.num_clients))?;
+        _p.write_string(&string_from_int(self.max_clients))?;
+        _p.write_string(self.reserved)?;
+        _p.write_rest(self.clients.as_bytes())?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for InfoExtended<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("InfoExtended")
+            .field("token", &self.token)
+            .field("version", &pretty::Bytes::new(&self.version))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("map", &pretty::Bytes::new(&self.map))
+            .field("map_crc", &self.map_crc)
+            .field("map_size", &self.map_size)
+            .field("game_type", &pretty::Bytes::new(&self.game_type))
+            .field("flags", &self.flags)
+            .field("num_players", &self.num_players)
+            .field("max_players", &self.max_players)
+            .field("num_clients", &self.num_clients)
+            .field("max_clients", &self.max_clients)
+            .field("reserved", &pretty::Bytes::new(&self.reserved))
+            .field("clients", &self.clients)
+            .finish()
+    }
+}
+
+impl<'a> InfoExtendedMore<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<InfoExtendedMore<'a>, Error> {
+        let result = Ok(InfoExtendedMore {
+            token: int_from_string(_p.read_string()?)?,
+            packet_no: int_from_string(_p.read_string()?)?,
+            reserved: _p.read_string()?,
+            clients: ClientsData::from_bytes(_p.read_rest()?),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_string(&string_from_int(self.token))?;
+        _p.write_string(&string_from_int(self.packet_no))?;
+        _p.write_string(self.reserved)?;
+        _p.write_rest(self.clients.as_bytes())?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for InfoExtendedMore<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("InfoExtendedMore")
+            .field("token", &self.token)
+            .field("packet_no", &self.packet_no)
+            .field("reserved", &pretty::Bytes::new(&self.reserved))
             .field("clients", &self.clients)
             .finish()
     }

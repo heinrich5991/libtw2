@@ -1236,6 +1236,36 @@
 			]
 		},
 		{
+			"id": [255, 255, 255, 255, 105, 101, 120, 116],
+			"name": ["info", "extended"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32_string"}},
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["map", "crc"], "type": {"kind": "int32_string"}},
+				{"name": ["map", "size"], "type": {"kind": "int32_string"}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["flags"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["reserved"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 101, 120, 43],
+			"name": ["info", "extended", "more"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32_string"}},
+				{"name": ["packet", "no"], "type": {"kind": "int32_string"}},
+				{"name": ["reserved"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
 			"id": [255, 255, 255, 255, 98, 101, 97, 50],
 			"name": ["heartbeat"],
 			"members": [
