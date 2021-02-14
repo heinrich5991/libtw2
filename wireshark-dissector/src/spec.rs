@@ -1,6 +1,8 @@
 use anyhow::Context;
 use anyhow::bail;
 use arrayvec::ArrayVec;
+use common::digest;
+use common::num::BeU16;
 use common::num::Cast;
 use common::pretty::AlmostString;
 use crate::HFRI_DEFAULT;
@@ -18,9 +20,11 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
 use std::io::Write;
+use std::mem;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::os::raw::c_uint;
+use std::str;
 use warn::Ignore;
 
 #[derive(Debug, Default)]
@@ -545,8 +549,33 @@ impl Type {
                     i.member_type.dissect(desc, tree, tvb, p)?;
                 }
             },
-            //BeUint16(i) => (sys::FT_UINT16, i.id.as_ptr()),
-            //Boolean(i) => (sys::FT_BOOLEAN, i.id.as_ptr()),
+            BeUint16(i) => {
+                let v = p.read_raw(2).map_err(|_| ())?;
+                let v = BeU16::from_bytes(&[v[0], v[1]]).to_u16();
+                sys::proto_tree_add_uint_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_uint,
+                    PS,
+                    bformat!("{}: {}", desc, v),
+                );
+            },
+            Boolean(i) => {
+                let v = p.read_int(&mut Ignore).map_err(|_| ())? != 0;
+                sys::proto_tree_add_boolean_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_uint,
+                    PS,
+                    bformat!("{}: {}", desc, v),
+                );
+            },
             Data(i) => {
                 let v = p.read_data(&mut Ignore).map_err(|_| ())?;
                 let ti = sys::proto_tree_add_bytes_with_length(
@@ -562,7 +591,7 @@ impl Type {
                     desc,
                     NumBytes::new(v.len()),
                 ));
-            }
+            },
             //Enum => return,
             Int32(i) => {
                 let v = p.read_int(&mut Ignore).map_err(|_| ())?;
@@ -577,14 +606,43 @@ impl Type {
                     bformat!("{}: {}", desc, v),
                 );
             },
-            //Int32String(i) => (sys::FT_INT32, i.id.as_ptr()),
+            Int32String(i) => {
+                let v = p.read_string().map_err(|_| ())?;
+                let v = str::from_utf8(v).map_err(|_| ())?;
+                let v: i32 = v.parse().map_err(|_| ())?;
+                sys::proto_tree_add_int_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_int,
+                    PS,
+                    bformat!("{}: {}", desc, v),
+                );
+            },
             Optional(i) => {
                 let _ = i.inner.dissect(desc, tree, tvb, p);
                 return Ok(());
             },
             //PackedAddresses => return,
             //ServerinfoClient => return,
-            //Sha256(i) => (sys::FT_STRING, i.id.as_ptr()),
+            Sha256(i) => {
+                let size = mem::size_of::<digest::Sha256>();
+                let v = p.read_raw(size).map_err(|_| ())?;
+                let v = digest::Sha256::from_slice(v).unwrap();
+                let cstring_v = CString::new(format!("{}", v)).unwrap();
+                sys::proto_tree_add_string_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    cstring_v.as_ptr(),
+                    PS,
+                    bformat!("{}: {}", desc, v),
+                );
+            }
             //SnapshotObject => return,
             String(i) => {
                 let v = p.read_string().map_err(|_| ())?;
@@ -627,7 +685,19 @@ impl Type {
                     bformat!("{}: {} (raw: {})", desc, v, raw_v),
                 );
             },
-            //Uint8(i) => (sys::FT_UINT8, i.id.as_ptr()),
+            Uint8(i) => {
+                let v = p.read_raw(1).map_err(|_| ())?[0];
+                sys::proto_tree_add_uint_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_uint,
+                    PS,
+                    bformat!("{}: {}", desc, v),
+                );
+            },
             Uuid(i) => {
                 let v = p.read_uuid().map_err(|_| ())?;
                 sys::proto_tree_add_guid_format(
@@ -640,7 +710,7 @@ impl Type {
                     PS,
                     bformat!("{}: {}", desc, v),
                 );
-            }
+            },
             _ => return Err(()),
         };
         Ok(())
