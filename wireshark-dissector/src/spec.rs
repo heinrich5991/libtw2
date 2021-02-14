@@ -2,7 +2,7 @@ use anyhow::Context;
 use anyhow::bail;
 use arrayvec::ArrayVec;
 use common::num::Cast;
-use common::pretty;
+use common::pretty::AlmostString;
 use crate::HFRI_DEFAULT;
 use crate::c;
 use crate::to_guid;
@@ -27,11 +27,13 @@ use warn::Ignore;
 pub struct Spec {
     pub game_messages: HashMap<MessageId, Message>,
     pub system_messages: HashMap<MessageId, Message>,
+    pub connless_messages: HashMap<[u8; 8], Message>,
     pub tree_msg: FieldId,
     pub id_msg: FieldId,
     pub id_msg_system: FieldId,
     pub id_msg_id_raw: FieldId,
     pub id_msg_id_ex: FieldId,
+    pub id_connless_id_raw: FieldId,
 }
 #[derive(Debug)]
 pub struct Message {
@@ -112,6 +114,9 @@ impl FieldId {
     }
 }
 
+const PERCENT_S: &'static [u8] = b"%s\0";
+const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
+
 fn load_gamenet_spec(s: &str) -> anyhow::Result<gamenet_spec::Spec> {
     Ok(serde_json::from_str(s).context("failed to parse gamenet spec")?)
 }
@@ -135,9 +140,18 @@ impl Spec {
                 bail!("duplicate system message id {}", msg_id);
             }
         }
+        let mut connless_messages = HashMap::new();
+        for msg in spec.connless_messages {
+            let msg_id = msg.id;
+            let converted = Message::from_gamenet_connless(msg);
+            if connless_messages.insert(msg_id, converted).is_some() {
+                bail!("duplicate system message id {:?}", AlmostString::new(&msg_id));
+            }
+        }
         Ok(Spec {
             game_messages,
             system_messages,
+            connless_messages,
             ..Default::default()
         })
     }
@@ -171,10 +185,14 @@ impl Spec {
         h(field(&self.id_msg, sys::FT_STRING, "Message\0", "tw.msg\0"));
         h(field(&self.id_msg_id_raw, sys::FT_INT32, "Raw message ID\0", "tw.msg.id_raw\0"));
         h(field(&self.id_msg_id_ex, sys::FT_GUID, "Extended message ID\0", "tw.msg.id_ex\0"));
+        h(field(&self.id_connless_id_raw, sys::FT_STRING, "Raw connless message ID\0", "tw.msg.id_raw\0"));
         for msg in self.game_messages.values() {
             msg.field_register_info(h, t);
         }
         for msg in self.system_messages.values() {
+            msg.field_register_info(h, t);
+        }
+        for msg in self.connless_messages.values() {
             msg.field_register_info(h, t);
         }
     }
@@ -185,8 +203,6 @@ impl Spec {
         p: &mut Unpacker<'a>,
         summary: &mut dyn FnMut(&str),
     ) {
-        const PERCENT_S: &'static [u8] = b"%s\0";
-        const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
@@ -285,11 +301,95 @@ impl Spec {
             let _ = d.dissect(tree, tvb, p);
         }
     }
+    pub unsafe fn dissect_connless<'a>(
+        &self,
+        tree: *mut sys::proto_tree,
+        tvb: *mut sys::tvbuff_t,
+        p: &mut Unpacker<'a>,
+        summary: &mut dyn FnMut(&str),
+    ) {
+        let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        macro_rules! bformat {
+            ($fmt:expr, $($args:tt)*) => {{
+                buffer.clear();
+                write!(buffer, $fmt, $($args)*).unwrap();
+                buffer.push(0);
+                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
+            }};
+        }
+
+        let msg_pos = p.num_bytes_read();
+        let msg = unwrap_or!(p.read_raw(8).ok(), return);
+        let msg_len = p.num_bytes_read() - msg_pos;
+
+        let msg = [
+            msg[0], msg[1], msg[2], msg[3],
+            msg[4], msg[5], msg[6], msg[7],
+        ];
+        let msg_desc = self.connless_messages.get(&msg);
+
+        let msg_str_buf;
+        let msg_str = match msg_desc {
+            Some(m) => m.name.as_str_with_nul(),
+            None => {
+                if &msg[0..4] != b"\xff\xff\xff\xff" {
+                    return;
+                }
+                msg_str_buf = format!("connless.{}\0",
+                    AlmostString::new(&msg[4..8]),
+                );
+                &msg_str_buf
+            }
+        };
+        summary(&msg_str[..msg_str.len() - 1]);
+        let id_field = sys::proto_tree_add_string_format(
+            tree,
+            self.id_msg.get(),
+            tvb,
+            msg_pos.assert_i32(),
+            msg_len.assert_i32(),
+            CStr::from_bytes_with_nul(msg_str.as_bytes()).unwrap().as_ptr(),
+            PS,
+            if let Some(d) = msg_desc {
+                bformat!("Message: {}", d.name)
+            } else {
+                bformat!("Message: [unknown] ({})",
+                    &msg_str[..msg_str.len() - 1],
+                )
+            },
+        );
+        let id_tree = sys::proto_item_add_subtree(id_field, self.tree_msg.get());
+        if let Ok(msg_raw) = CString::new(&msg[4..8]) {
+            sys::proto_tree_add_string_format(
+                id_tree,
+                self.id_connless_id_raw.get(),
+                tvb,
+                msg_pos.assert_i32() + 4,
+                msg_len.assert_i32() - 4,
+                msg_raw.as_ptr(),
+                PS,
+                bformat!("Raw message ID: {:?}", &AlmostString::new(&msg[4..8])),
+            );
+        }
+        if let Some(d) = msg_desc {
+            let _ = d.dissect(tree, tvb, p);
+        }
+    }
 }
 impl Message {
     fn from_gamenet(system: bool, m: gamenet_spec::Message) -> Message {
         let sys_prefix = if system { "sys" } else { "game" };
         let name = intern(&format!("{}.{}", sys_prefix, m.name.snake()));
+        let prefix = intern(&format!("tw.{}", name));
+        Message {
+            name,
+            members: m.members.into_iter().map(
+                |member| Member::from_gamenet(prefix, member)
+            ).collect(),
+        }
+    }
+    fn from_gamenet_connless(m: gamenet_spec::ConnlessMessage) -> Message {
+        let name = intern(&format!("connless.{}", m.name.snake()));
         let prefix = intern(&format!("tw.{}", name));
         Message {
             name,
@@ -427,8 +527,6 @@ impl Type {
         tvb: *mut sys::tvbuff_t,
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
-        const PERCENT_S: &'static [u8] = b"%s\0";
-        const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
@@ -499,7 +597,7 @@ impl Type {
                     (p.num_bytes_read() - pos).assert_i32(),
                     cstring_v.as_ptr(),
                     PS,
-                    bformat!("{}: {:?}", desc, pretty::AlmostString::new(v)),
+                    bformat!("{}: {:?}", desc, AlmostString::new(v)),
                 );
             },
             Tick(i) => {

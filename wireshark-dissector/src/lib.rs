@@ -402,7 +402,30 @@ unsafe extern "C" fn dissect_tw(
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         }
         protocol::Packet::Connless(_message) => {
-            sys::col_set_str((*pinfo).cinfo, sys::COL_INFO as c_int, c("connless\0"));
+            let ti = sys::proto_tree_add_item(ttree, PROTO_TW_CHUNK, tvb, 0, -1, sys::ENC_NA);
+            let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
+
+            let data = &data[6..];
+            let mut p = Unpacker::new(data);
+
+            let mut summaries = String::new();
+            let mut first_summary = true;
+            spec.dissect_connless(tree, tvb, &mut p,
+                &mut |summary| {
+                    if !summaries.is_empty() {
+                        summaries.push_str(", ");
+                    }
+                    let summary_c = CString::new(summary).unwrap();
+                    sys::proto_item_append_text(ti, c("%s%s\0"),
+                        if first_summary { c(": \0") } else { c(", \0") },
+                        summary_c.as_ptr(),
+                    );
+                    first_summary = false;
+                    summaries.push_str(summary);
+                }
+            );
+            let info = CString::new(summaries).unwrap();
+            sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         },
     }
 
