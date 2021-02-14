@@ -347,8 +347,16 @@ unsafe extern "C" fn dissect_tw(
                 let ti = sys::proto_tree_add_item(ttree, PROTO_TW_CHUNK, tvb, offset.assert_i32(), chunk_size.assert_i32(), sys::ENC_NA);
                 let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
-                let th = field_none!(tree, HF_CHUNK_HEADER, offset.assert_i32(), if vital { 3 } else { 2 },
-                    "Header ({})", flags_description.or("none"));
+                let header_desc_add = if resend { ", re-sent" } else { "" };
+                let th = if let Some(seq) = sequence {
+                    field_none!(tree, HF_CHUNK_HEADER, offset.assert_i32(), if vital { 3 } else { 2 },
+                        "Header (vital: {}{})", seq, header_desc_add,
+                    )
+                } else {
+                    field_none!(tree, HF_CHUNK_HEADER, offset.assert_i32(), if vital { 3 } else { 2 },
+                        "Header (non-vital{})", header_desc_add,
+                    )
+                };
                 let header_tree = sys::proto_item_add_subtree(th, ETT_CHUNK_HEADER);
 
                 let flags_field = field_uint!(header_tree, HF_CHUNK_HEADER_FLAGS, offset.assert_i32(), 1, header.flags,
