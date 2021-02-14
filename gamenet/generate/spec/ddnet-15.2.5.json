@@ -508,7 +508,9 @@
 		{
 			"id": 26,
 			"name": ["cl", "is", "ddnet"],
-			"members": [],
+			"members": [
+				{"name": ["ddnet", "version"], "type": {"kind": "int32"}}
+			],
 			"attributes": []
 		},
 		{
