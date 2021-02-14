@@ -9,6 +9,13 @@ macro_rules! unwrap_or_return {
 }
 
 #[macro_export]
+macro_rules! unwrap_or {
+    ($e:expr, $f:expr) => {
+        match $e { Some(e) => e, None => $f }
+    };
+}
+
+#[macro_export]
 macro_rules! unsafe_boilerplate_packed {
     ($t:ty, $size:expr, $ts:ident, $ta:ident) => {
         #[test] fn $ts() { assert_eq!(::std::mem::size_of::<$t>(), $size); }

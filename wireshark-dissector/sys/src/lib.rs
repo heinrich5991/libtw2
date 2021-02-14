@@ -87,7 +87,9 @@ pub const ENC_NA: u32 = 0;
 pub type size_t = ::std::os::raw::c_ulong;
 pub type guint8 = ::std::os::raw::c_uchar;
 pub type guint16 = ::std::os::raw::c_ushort;
+pub type gint32 = ::std::os::raw::c_int;
 pub type guint32 = ::std::os::raw::c_uint;
+pub type gint64 = ::std::os::raw::c_long;
 pub type guint64 = ::std::os::raw::c_ulong;
 pub type gsize = ::std::os::raw::c_ulong;
 pub type __time_t = ::std::os::raw::c_long;
@@ -97,6 +99,7 @@ pub type gint = ::std::os::raw::c_int;
 pub type gboolean = gint;
 pub type guint = ::std::os::raw::c_uint;
 pub type gpointer = *mut ::std::os::raw::c_void;
+pub type GByteArray = [u64; 2usize];
 pub type GPtrArray = _GPtrArray;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -200,6 +203,68 @@ fn bindgen_test_layout_nstime_t() {
         )
     );
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _e_guid_t {
+    pub data1: guint32,
+    pub data2: guint16,
+    pub data3: guint16,
+    pub data4: [guint8; 8usize],
+}
+#[test]
+fn bindgen_test_layout__e_guid_t() {
+    assert_eq!(
+        ::std::mem::size_of::<_e_guid_t>(),
+        16usize,
+        concat!("Size of: ", stringify!(_e_guid_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<_e_guid_t>(),
+        4usize,
+        concat!("Alignment of ", stringify!(_e_guid_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_e_guid_t>())).data1 as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_e_guid_t),
+            "::",
+            stringify!(data1)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_e_guid_t>())).data2 as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_e_guid_t),
+            "::",
+            stringify!(data2)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_e_guid_t>())).data3 as *const _ as usize },
+        6usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_e_guid_t),
+            "::",
+            stringify!(data3)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_e_guid_t>())).data4 as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_e_guid_t),
+            "::",
+            stringify!(data4)
+        )
+    );
+}
+pub type e_guid_t = _e_guid_t;
 pub type tvbuff_t = u8;
 extern "C" {
     pub fn tvb_new_child_real_data(
@@ -215,7 +280,7 @@ extern "C" {
     pub fn tvb_new_subset_remaining(backing: *mut tvbuff_t, backing_offset: gint) -> *mut tvbuff_t;
 }
 extern "C" {
-    pub fn tvb_captured_length(tvb: *const tvbuff_t) -> guint;
+    pub fn tvb_reported_length(tvb: *const tvbuff_t) -> guint;
 }
 extern "C" {
     #[doc = " Returns target for convenience. Does not suffer from possible"]
@@ -1876,6 +1941,20 @@ extern "C" {
     pub fn proto_item_add_subtree(pi: *mut proto_item, idx: gint) -> *mut proto_tree;
 }
 extern "C" {
+    #[doc = " Replace text of item after it already has been created."]
+    #[doc = "@param pi the item to set the text"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    pub fn proto_item_set_text(pi: *mut proto_item, format: *const ::std::os::raw::c_char, ...);
+}
+extern "C" {
+    #[doc = " Append to text of item after it has already been created."]
+    #[doc = "@param pi the item to append the text to"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    pub fn proto_item_append_text(pi: *mut proto_item, format: *const ::std::os::raw::c_char, ...);
+}
+extern "C" {
     pub fn proto_tree_add_item(
         tree: *mut proto_tree,
         hfindex: ::std::os::raw::c_int,
@@ -1883,6 +1962,265 @@ extern "C" {
         start: gint,
         length: gint,
         encoding: guint,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a FT_NONE field to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_none_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a FT_BYTES to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param start_ptr pointer to the data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_bytes(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        start_ptr: *const guint8,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a FT_BYTES to a proto_tree like proto_tree_add_bytes,"]
+    #[doc = "but used when the tvb data length does not match the bytes length."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param start_ptr pointer to the data to display"]
+    #[doc = "@param ptr_length length of data in start_ptr"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_bytes_with_length(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        start_ptr: *const guint8,
+        ptr_length: gint,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Get and add a byte-array-based FT_* to a proto_tree."]
+    #[doc = ""]
+    #[doc = "Supported: FT_BYTES, FT_UINT_BYTES, FT_OID, FT_REL_OID, and FT_SYSTEM_ID."]
+    #[doc = ""]
+    #[doc = "The item is extracted from the tvbuff handed to it, based on the ENC_* passed"]
+    #[doc = "in for the encoding, and the retrieved byte array is also set to *retval so the"]
+    #[doc = "caller gets it back for other uses."]
+    #[doc = ""]
+    #[doc = "This function retrieves the value even if the passed-in tree param is NULL,"]
+    #[doc = "so that it can be used by dissectors at all times to both get the value"]
+    #[doc = "and set the tree item to it."]
+    #[doc = ""]
+    #[doc = "Like other proto_tree_add functions, if there is a tree and the value cannot"]
+    #[doc = "be decoded from the tvbuff, then an expert info error is reported. For string"]
+    #[doc = "encoding, this means that a failure to decode the hex value from the string"]
+    #[doc = "results in an expert info error being added to the tree."]
+    #[doc = ""]
+    #[doc = "If encoding is string-based, it will convert using tvb_get_string_bytes(); see"]
+    #[doc = "that function's comments for details."]
+    #[doc = ""]
+    #[doc = "@note The GByteArray retval must be pre-constructed using g_byte_array_new()."]
+    #[doc = ""]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param encoding data encoding (e.g, ENC_LITTLE_ENDIAN, or ENC_UTF_8|ENC_STR_HEX)"]
+    #[doc = "@param[in,out] retval points to a GByteArray which will be set to the bytes from the Tvb."]
+    #[doc = "@param[in,out] endoff if not NULL, gets set to the character after those consumed."]
+    #[doc = "@param[in,out] err if not NULL, gets set to 0 if no failure, else the errno code (e.g., EDOM, ERANGE)."]
+    #[doc = "@return the newly created item, and retval is set to the decoded value"]
+    pub fn proto_tree_add_bytes_item(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        encoding: guint,
+        retval: *mut GByteArray,
+        endoff: *mut gint,
+        err: *mut gint,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_BYTES to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param start_ptr pointer to the data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_bytes_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        start_ptr: *const guint8,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_BYTES to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param start_ptr pointer to the data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_bytes_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        start_ptr: *const guint8,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a FT_GUID to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value_ptr data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_guid(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value_ptr: *const e_guid_t,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_GUID to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value_ptr data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_guid_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value_ptr: *const e_guid_t,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_GUID to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value_ptr data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_guid_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value_ptr: *const e_guid_t,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add an FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC to a"]
+    #[doc = "proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_string(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: *const ::std::os::raw::c_char,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC"]
+    #[doc = "to a proto_tree, with the format generating the string for the value"]
+    #[doc = "and with the field name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_string_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: *const ::std::os::raw::c_char,
+        format: *const ::std::os::raw::c_char,
+        ...
     ) -> *mut proto_item;
 }
 extern "C" {
@@ -1910,6 +2248,48 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
+    #[doc = " Add a FT_BOOLEAN to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_boolean(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint32,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_BOOLEAN to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_boolean_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
     #[doc = " Add a formatted FT_BOOLEAN to a proto_tree, with the format generating"]
     #[doc = "the entire string for the entry, including any field name."]
     #[doc = "@param tree the tree to append this item to"]
@@ -1922,6 +2302,113 @@ extern "C" {
     #[doc = "@param ... printf like parameters"]
     #[doc = "@return the newly created item"]
     pub fn proto_tree_add_boolean_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a FT_FLOAT to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_float(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: f32,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_FLOAT to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_float_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: f32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_FLOAT to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_float_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: f32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add one of FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint32,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree,"]
+    #[doc = "with the format generating the string for the value and with the field"]
+    #[doc = "name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint_format_value(
         tree: *mut proto_tree,
         hfindex: ::std::os::raw::c_int,
         tvb: *mut tvbuff_t,
@@ -1957,6 +2444,202 @@ extern "C" {
     ) -> *mut proto_item;
 }
 extern "C" {
+    #[doc = " Add an FT_UINT64 to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint64(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint64,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_UINT64 to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint64_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_UINT64 to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint64_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: guint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add one of FT_INT8, FT_INT16, FT_INT24 or FT_INT32 to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint32,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_INT8, FT_INT16, FT_INT24 or FT_INT32 to a proto_tree,"]
+    #[doc = "with the format generating the string for the value and with the field"]
+    #[doc = "name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_INT8, FT_INT16, FT_INT24 or FT_INT32 to a proto_tree,"]
+    #[doc = "with the format generating the entire string for the entry, including"]
+    #[doc = "any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add an FT_INT64 to a proto_tree."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int64(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint64,
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_INT64 to a proto_tree, with the format generating"]
+    #[doc = "the string for the value and with the field name being included"]
+    #[doc = "automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int64_format_value(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add a formatted FT_INT64 to a proto_tree, with the format generating"]
+    #[doc = "the entire string for the entry, including any field name."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hfindex field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param start start of data in tvb"]
+    #[doc = "@param length length of data in tvb"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int64_format(
+        tree: *mut proto_tree,
+        hfindex: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        start: gint,
+        length: gint,
+        value: gint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
     #[doc = " Register a new protocol."]
     #[doc = "@param name the full name of the new protocol"]
     #[doc = "@param short_name abbreviated name of the new protocol"]
@@ -1987,6 +2670,172 @@ extern "C" {
         indices: *const *mut gint,
         num_indices: ::std::os::raw::c_int,
     );
+}
+extern "C" {
+    #[doc = " Add bits for a FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32"]
+    #[doc = "header field to a proto_tree, with the format generating the"]
+    #[doc = "string for the value and with the field name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: guint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32"]
+    #[doc = "header field to a proto_tree, with the format generating the"]
+    #[doc = "string for the value and with the field name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_uint64_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: guint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_BOOLEAN header field to a proto_tree, with"]
+    #[doc = "the format generating the string for the value and with the field"]
+    #[doc = "name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_boolean_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: guint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_BOOLEAN header field to a proto_tree, with"]
+    #[doc = "the format generating the string for the value and with the field"]
+    #[doc = "name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_boolean_bits_format_value64(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: guint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_INT8, FT_INT16, FT_INT24 or FT_INT32"]
+    #[doc = "header field to a proto_tree, with the format generating the"]
+    #[doc = "string for the value and with the field name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: gint32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_INT8, FT_INT16, FT_INT24 or FT_INT32"]
+    #[doc = "header field to a proto_tree, with the format generating the"]
+    #[doc = "string for the value and with the field name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_int64_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: gint64,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
+}
+extern "C" {
+    #[doc = " Add bits for a FT_FLOAT header field to a proto_tree, with"]
+    #[doc = "the format generating the string for the value and with the field"]
+    #[doc = "name being included automatically."]
+    #[doc = "@param tree the tree to append this item to"]
+    #[doc = "@param hf_index field index"]
+    #[doc = "@param tvb the tv buffer of the current data"]
+    #[doc = "@param bit_offset start of data in tvb expressed in bits"]
+    #[doc = "@param no_of_bits length of data in tvb expressed in bit"]
+    #[doc = "@param value data to display"]
+    #[doc = "@param format printf like format string"]
+    #[doc = "@param ... printf like parameters"]
+    #[doc = "@return the newly created item"]
+    pub fn proto_tree_add_float_bits_format_value(
+        tree: *mut proto_tree,
+        hf_index: ::std::os::raw::c_int,
+        tvb: *mut tvbuff_t,
+        bit_offset: guint,
+        no_of_bits: gint,
+        value: f32,
+        format: *const ::std::os::raw::c_char,
+        ...
+    ) -> *mut proto_item;
 }
 #[doc = "  Helper routines for column utility structures and routines."]
 #[repr(C)]
@@ -2121,6 +2970,14 @@ extern "C" {
     #[doc = " @param col the column to use, e.g. COL_INFO"]
     #[doc = " @param str the string to set"]
     pub fn col_set_str(cinfo: *mut column_info, col: gint, str_: *const gchar);
+}
+extern "C" {
+    #[doc = " Add (replace) the text of a column element, the text will be copied."]
+    #[doc = ""]
+    #[doc = " @param cinfo the current packet row"]
+    #[doc = " @param col the column to use, e.g. COL_INFO"]
+    #[doc = " @param str the string to add"]
+    pub fn col_add_str(cinfo: *mut column_info, col: gint, str_: *const gchar);
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

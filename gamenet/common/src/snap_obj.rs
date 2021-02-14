@@ -1,7 +1,8 @@
 use std::fmt;
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Deserialize, Eq, Ord, Hash, PartialEq, PartialOrd, Serialize)]
+#[serde(untagged)]
 pub enum TypeId {
     Ordinal(u16),
     Uuid(Uuid),

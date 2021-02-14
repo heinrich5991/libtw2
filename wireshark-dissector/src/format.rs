@@ -71,6 +71,28 @@ impl<A: Array<Item = u8>> CommaSeparated<A> {
     }
 }
 
+pub struct NumBytes {
+    num: usize,
+}
+
+impl NumBytes {
+    pub fn new(num: usize) -> NumBytes {
+        NumBytes {
+            num,
+        }
+    }
+}
+
+impl fmt::Display for NumBytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.num != 1 {
+            write!(f, "{} bytes", self.num)
+        } else {
+            write!(f, "{} byte", self.num)
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod test {

@@ -23,7 +23,7 @@ log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
 net = { path = "../net/" }
-packer = { path = "../packer/" }
+packer = { path = "../packer/", features = ["uuid"] }
 rmp = "0.8.5"
 serverbrowse = { path = "../serverbrowse/" }
 serde = "1.0.23"

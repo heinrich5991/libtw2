@@ -9,8 +9,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 arrayvec = "0.3.22"
+anyhow = "1.0.38"
 common = { path = "../common/" }
+gamenet_common = { path = "../gamenet/common/" }
+gamenet_spec = { path = "../gamenet/spec/" }
 huffman = { path = "../huffman/" }
+matches = "0.1.2"
 net = { path = "../net/" }
+packer = { path = "../packer/", features = ["uuid"] }
+serde_json = "1.0.7"
+uuid = "0.8.1"
 warn = "0.2.2"
 wireshark-dissector-sys = { path = "sys" }

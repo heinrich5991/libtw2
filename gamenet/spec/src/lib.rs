@@ -1,9 +1,13 @@
+extern crate gamenet_common;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate uuid;
 
 use std::collections::HashSet;
+
+pub use gamenet_common::msg::MessageId;
+pub use gamenet_common::snap_obj::TypeId;
 
 #[derive(Clone, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct Spec {
@@ -45,7 +49,7 @@ pub struct Message {
 
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Object {
-    pub id: ObjectId,
+    pub id: TypeId,
     pub name: Identifier,
     pub members: Vec<Member>,
     pub attributes: HashSet<String>,
@@ -58,7 +62,7 @@ pub struct ConnlessMessage {
     pub members: Vec<Member>,
 }
 
-#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct Identifier {
     pub parts: Vec<String>,
@@ -81,20 +85,6 @@ pub struct EnumerationValue {
 pub struct FlagValue {
     pub value: u32,
     pub name: Identifier,
-}
-
-#[derive(Clone, Deserialize, Eq, Ord, Hash, PartialEq, PartialOrd, Serialize)]
-#[serde(untagged)]
-pub enum MessageId {
-    Numeric(i32),
-    Uuid(uuid::Uuid),
-}
-
-#[derive(Clone, Deserialize, Eq, Ord, Hash, PartialEq, PartialOrd, Serialize)]
-#[serde(untagged)]
-pub enum ObjectId {
-    Numeric(u16),
-    Uuid(uuid::Uuid),
 }
 
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
@@ -157,4 +147,25 @@ pub struct Member {
     pub name: Identifier,
     #[serde(rename = "type")]
     pub type_: Type,
+}
+
+fn capitalize_first(s: &str) -> String {
+    let mut result = String::new();
+    let mut iter = s.char_indices();
+    let first = if let Some((_, c)) = iter.next() { c } else { return result; };
+    for c in first.to_uppercase() {
+        result.push(c);
+    }
+    if let Some((idx, _)) = iter.next() {
+        result.push_str(&s[idx..]);
+    }
+    result
+}
+impl Identifier {
+    pub fn snake(&self) -> String {
+        self.parts.join("_")
+    }
+    pub fn desc(&self) -> String {
+        capitalize_first(&self.parts.join(" "))
+    }
 }

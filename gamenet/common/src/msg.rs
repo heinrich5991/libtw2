@@ -86,7 +86,8 @@ pub fn string_from_int(int: i32) -> ArrayVec<[u8; 16]> {
     result
 }
 
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Deserialize, Eq, Ord, Hash, PartialEq, PartialOrd, Serialize)]
+#[serde(untagged)]
 pub enum MessageId {
     Ordinal(i32),
     Uuid(Uuid),
