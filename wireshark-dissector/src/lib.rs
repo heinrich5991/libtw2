@@ -298,12 +298,12 @@ unsafe extern "C" fn dissect_tw(
             use protocol::ControlPacket::*;
 
             let ctrl_raw = data[3];
-            let ctrl_str = match ctrl {
-                KeepAlive => "Keep alive",
-                Connect => "Connect",
-                ConnectAccept => "Accept connection",
-                Accept => "Acknowledge connection acceptance",
-                Close(_) => "Disconnect",
+            let (ctrl_str, ctrl_id) = match ctrl {
+                KeepAlive => ("Keep alive", "ctrl.keep_alive\0"),
+                Connect => ("Connect", "ctrl.connect\0"),
+                ConnectAccept => ("Accept connection", "ctrl.accept_connection\0"),
+                Accept => ("Acknowledge connection acceptance", "ctrl.ack_accept_connection\0"),
+                Close(_) => ("Disconnect", "ctrl.disconnect\0"),
             };
             field_uint!(tree, HF_PACKET_CTRL, 3, 1, ctrl_raw,
                 "Control message: {} ({})",
@@ -318,6 +318,7 @@ unsafe extern "C" fn dissect_tw(
                     pretty::AlmostString::new(reason),
                 );
             }
+            sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, c(ctrl_id));
         },
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
