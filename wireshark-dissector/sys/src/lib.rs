@@ -163,6 +163,24 @@ extern "C" {
     ) -> *mut ::std::os::raw::c_void;
 }
 pub type wmem_list_t = u8;
+#[doc = " @addtogroup wmem"]
+#[doc = "  @{"]
+#[doc = "    @defgroup wmem-tree Red/Black Tree"]
+#[doc = ""]
+#[doc = "    Binary trees are a well-known and popular device in computer science to"]
+#[doc = "    handle storage of objects based on a search key or identity. The"]
+#[doc = "    particular binary tree style implemented here is the red/black tree, which"]
+#[doc = "    has the nice property of being self-balancing. This guarantees O(log(n))"]
+#[doc = "    time for lookups, compared to linked lists that are O(n). This means"]
+#[doc = "    red/black trees scale very well when many objects are being stored."]
+#[doc = ""]
+#[doc = "    @{"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _wmem_tree_t {
+    _unused: [u8; 0],
+}
+pub type wmem_tree_t = _wmem_tree_t;
 #[doc = " data structure to hold time values with nanosecond resolution"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2837,6 +2855,88 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct range_admin_tag {
+    pub low: guint32,
+    pub high: guint32,
+}
+#[test]
+fn bindgen_test_layout_range_admin_tag() {
+    assert_eq!(
+        ::std::mem::size_of::<range_admin_tag>(),
+        8usize,
+        concat!("Size of: ", stringify!(range_admin_tag))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<range_admin_tag>(),
+        4usize,
+        concat!("Alignment of ", stringify!(range_admin_tag))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<range_admin_tag>())).low as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(range_admin_tag),
+            "::",
+            stringify!(low)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<range_admin_tag>())).high as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(range_admin_tag),
+            "::",
+            stringify!(high)
+        )
+    );
+}
+pub type range_admin_t = range_admin_tag;
+#[doc = " user specified range(s)"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct epan_range {
+    #[doc = "< number of entries in ranges"]
+    pub nranges: guint,
+    #[doc = "< variable-length array"]
+    pub ranges: [range_admin_t; 1usize],
+}
+#[test]
+fn bindgen_test_layout_epan_range() {
+    assert_eq!(
+        ::std::mem::size_of::<epan_range>(),
+        12usize,
+        concat!("Size of: ", stringify!(epan_range))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<epan_range>(),
+        4usize,
+        concat!("Alignment of ", stringify!(epan_range))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<epan_range>())).nranges as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(epan_range),
+            "::",
+            stringify!(nranges)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<epan_range>())).ranges as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(epan_range),
+            "::",
+            stringify!(ranges)
+        )
+    );
+}
 #[doc = "  Helper routines for column utility structures and routines."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2993,11 +3093,141 @@ pub type dissector_t = ::std::option::Option<
         arg4: *mut ::std::os::raw::c_void,
     ) -> ::std::os::raw::c_int,
 >;
+#[doc = " Type of a heuristic dissector, used in heur_dissector_add()."]
+#[doc = ""]
+#[doc = " @param tvb the tvbuff with the (remaining) packet data"]
+#[doc = " @param pinfo the packet info of this packet (additional info)"]
+#[doc = " @param tree the protocol tree to be build or NULL"]
+#[doc = " @return TRUE if the packet was recognized by the sub-dissector (stop dissection here)"]
+pub type heur_dissector_t = ::std::option::Option<
+    unsafe extern "C" fn(
+        tvb: *mut tvbuff_t,
+        pinfo: *mut packet_info,
+        tree: *mut proto_tree,
+        arg1: *mut ::std::os::raw::c_void,
+    ) -> gboolean,
+>;
+pub const HEURISTIC_DISABLE: heuristic_enable_e = 0;
+pub const HEURISTIC_ENABLE: heuristic_enable_e = 1;
+pub type heuristic_enable_e = ::std::os::raw::c_uint;
 extern "C" {
     pub fn dissector_add_uint(
         name: *const ::std::os::raw::c_char,
         pattern: guint32,
         handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_uint_with_preference(
+        name: *const ::std::os::raw::c_char,
+        pattern: guint32,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_uint_range(
+        abbrev: *const ::std::os::raw::c_char,
+        range: *mut epan_range,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_uint_range_with_preference(
+        abbrev: *const ::std::os::raw::c_char,
+        range_str: *const ::std::os::raw::c_char,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_string(
+        name: *const ::std::os::raw::c_char,
+        pattern: *const gchar,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_custom_table_handle(
+        name: *const ::std::os::raw::c_char,
+        pattern: *mut ::std::os::raw::c_void,
+        handle: dissector_handle_t,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _guid_key {
+    pub guid: e_guid_t,
+    pub ver: guint16,
+}
+#[test]
+fn bindgen_test_layout__guid_key() {
+    assert_eq!(
+        ::std::mem::size_of::<_guid_key>(),
+        20usize,
+        concat!("Size of: ", stringify!(_guid_key))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<_guid_key>(),
+        4usize,
+        concat!("Alignment of ", stringify!(_guid_key))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_guid_key>())).guid as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_guid_key),
+            "::",
+            stringify!(guid)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_guid_key>())).ver as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_guid_key),
+            "::",
+            stringify!(ver)
+        )
+    );
+}
+pub type guid_key = _guid_key;
+extern "C" {
+    pub fn dissector_add_guid(
+        name: *const ::std::os::raw::c_char,
+        guid_val: *mut guid_key,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_for_decode_as(
+        name: *const ::std::os::raw::c_char,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    pub fn dissector_add_for_decode_as_with_preference(
+        name: *const ::std::os::raw::c_char,
+        handle: dissector_handle_t,
+    );
+}
+extern "C" {
+    #[doc = " Add a sub-dissector to a heuristic dissector list."]
+    #[doc = "  Call this in the proto_handoff function of the sub-dissector."]
+    #[doc = ""]
+    #[doc = " @param name the name of the heuristic dissector table into which to register the dissector, e.g. \"tcp\""]
+    #[doc = " @param dissector the sub-dissector to be registered"]
+    #[doc = " @param display_name the string used to present heuristic to user, e.g. \"HTTP over TCP\""]
+    #[doc = " @param internal_name the string used for \"internal\" use to identify heuristic, e.g. \"http_tcp\""]
+    #[doc = " @param proto the protocol id of the sub-dissector"]
+    #[doc = " @param enable initially enabled or not"]
+    pub fn heur_dissector_add(
+        name: *const ::std::os::raw::c_char,
+        dissector: heur_dissector_t,
+        display_name: *const ::std::os::raw::c_char,
+        internal_name: *const ::std::os::raw::c_char,
+        proto: ::std::os::raw::c_int,
+        enable: heuristic_enable_e,
     );
 }
 extern "C" {
@@ -3012,5 +3242,163 @@ extern "C" {
         pinfo: *mut packet_info,
         tvb: *mut tvbuff_t,
         name: *const ::std::os::raw::c_char,
+    );
+}
+#[doc = " Data structure representing a conversation."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct conversation_key {
+    _unused: [u8; 0],
+}
+pub type conversation_key_t = *mut conversation_key;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct conversation {
+    pub next: *mut conversation,
+    #[doc = " pointer to next conversation on hash chain"]
+    pub last: *mut conversation,
+    #[doc = " pointer to the last conversation on hash chain"]
+    pub latest_found: *mut conversation,
+    #[doc = " pointer to the last conversation on hash chain"]
+    pub conv_index: guint32,
+    #[doc = " unique ID for conversation"]
+    pub setup_frame: guint32,
+    #[doc = " frame number that setup this conversation"]
+    pub last_frame: guint32,
+    #[doc = " highest frame number in this conversation"]
+    pub data_list: *mut wmem_tree_t,
+    #[doc = " list of data associated with conversation"]
+    pub dissector_tree: *mut wmem_tree_t,
+    #[doc = " tree containing protocol dissector client associated with conversation"]
+    pub options: guint,
+    #[doc = " wildcard flags"]
+    pub key_ptr: conversation_key_t,
+}
+#[test]
+fn bindgen_test_layout_conversation() {
+    assert_eq!(
+        ::std::mem::size_of::<conversation>(),
+        72usize,
+        concat!("Size of: ", stringify!(conversation))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<conversation>(),
+        8usize,
+        concat!("Alignment of ", stringify!(conversation))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).next as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(next)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).last as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(last)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).latest_found as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(latest_found)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).conv_index as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(conv_index)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).setup_frame as *const _ as usize },
+        28usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(setup_frame)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).last_frame as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(last_frame)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).data_list as *const _ as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(data_list)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).dissector_tree as *const _ as usize },
+        48usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(dissector_tree)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).options as *const _ as usize },
+        56usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(options)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation>())).key_ptr as *const _ as usize },
+        64usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation),
+            "::",
+            stringify!(key_ptr)
+        )
+    );
+}
+pub type conversation_t = conversation;
+extern "C" {
+    #[doc = "  A helper function that calls find_conversation() and, if a conversation is"]
+    #[doc = "  not found, calls conversation_new()."]
+    #[doc = "  The frame number and addresses are taken from pinfo."]
+    #[doc = "  No options are used, though we could extend this API to include an options"]
+    #[doc = "  parameter."]
+    pub fn find_or_create_conversation(pinfo: *mut packet_info) -> *mut conversation_t;
+}
+extern "C" {
+    pub fn conversation_set_dissector(
+        conversation: *mut conversation_t,
+        handle: dissector_handle_t,
     );
 }

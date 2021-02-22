@@ -22,8 +22,11 @@ bindgen \
 	--whitelist-function '^col_add_str$' \
 	--whitelist-function '^col_clear$' \
 	--whitelist-function '^col_set_str$' \
+	--whitelist-function '^conversation_set_dissector$' \
 	--whitelist-function '^create_dissector_handle$' \
-	--whitelist-function '^dissector_add_uint$' \
+	--whitelist-function '^dissector_add_.*$' \
+	--whitelist-function '^find_or_create_conversation$' \
+	--whitelist-function '^heur_dissector_add$' \
 	--whitelist-function '^memcpy$' \
 	--whitelist-function '^proto_item_add_subtree$' \
 	--whitelist-function '^proto_item_append_text$' \

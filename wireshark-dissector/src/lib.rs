@@ -43,9 +43,9 @@ use warn::Ignore;
 
 const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-15.2.5.json");
 
-const TW_PORT: u32 = 8303;
 static mut PROTO_TW_PACKET: c_int = -1;
 static mut PROTO_TW_CHUNK: c_int = -1;
+static mut PROTO_TW_PACKET_HANDLE: sys::dissector_handle_t = 0 as _;
 
 static mut ETT_PACKET: c_int = -1;
 static mut ETT_PACKET_FLAGS: c_int = -1;
@@ -104,10 +104,73 @@ pub const HFRI_DEFAULT: sys::_header_field_info = sys::_header_field_info {
     same_name_next: 0 as _,
 };
 
+#[derive(Default)]
+struct Counter(u64);
+
+impl Counter {
+    fn new() -> Counter {
+        Default::default()
+    }
+    fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl<W> warn::Warn<W> for Counter {
+    fn warn(&mut self, _warning: W) {
+        self.0 += 1;
+    }
+}
+
 fn unpack_header(data: &[u8]) -> Option<protocol::PacketHeader> {
     let (raw_header, _) =
         protocol::PacketHeaderPacked::from_byte_slice(data)?;
     Some(raw_header.unpack_warn(&mut Ignore))
+}
+
+unsafe extern "C" fn dissect_tw_heur(
+    tvb: *mut sys::tvbuff_t,
+    pinfo: *mut sys::packet_info,
+    ttree: *mut sys::proto_tree,
+    _data: *mut c_void,
+) -> c_int {
+    if !dissect_tw_heur_impl(tvb).is_ok() {
+        return 0;
+    }
+    let conversation = sys::find_or_create_conversation(pinfo);
+    sys::conversation_set_dissector(conversation, PROTO_TW_PACKET_HANDLE);
+    dissect_tw_impl(tvb, pinfo, ttree).is_ok() as c_int
+}
+
+unsafe fn dissect_tw_heur_impl(
+    tvb: *mut sys::tvbuff_t,
+) -> Result<(), ()> {
+    let len = sys::tvb_reported_length(tvb).usize();
+    let mut original_buffer = Vec::with_capacity(len);
+    let mut decompress_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
+    original_buffer.set_len(len);
+    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len.u64());
+    let data: &[u8] = &original_buffer;
+
+    let mut warnings = Counter::new();
+    let packet = protocol::Packet::read(&mut warnings, data, &mut decompress_buffer).map_err(|_| ())?;
+    if !warnings.is_empty() {
+        return Err(());
+    }
+    match packet {
+        protocol::Packet::Connected(protocol::ConnectedPacket {
+            ack: _,
+            type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
+        }) => {
+            let mut iter = protocol::ChunksIter::new(chunks_data, num_chunks);
+            while let Some(_) = iter.next_warn(&mut warnings) { }
+        },
+        _ => {},
+    }
+    if !warnings.is_empty() {
+        return Err(());
+    }
+    Ok(())
 }
 
 unsafe extern "C" fn dissect_tw(
@@ -116,12 +179,20 @@ unsafe extern "C" fn dissect_tw(
     ttree: *mut sys::proto_tree,
     _data: *mut c_void,
 ) -> c_int {
+    let _ = dissect_tw_impl(tvb, pinfo, ttree);
+    sys::tvb_reported_length(tvb) as c_int
+}
+
+unsafe fn dissect_tw_impl(
+    tvb: *mut sys::tvbuff_t,
+    pinfo: *mut sys::packet_info,
+    ttree: *mut sys::proto_tree,
+) -> Result<(), ()> {
     let spec = SPEC.as_ref().unwrap();
 
     sys::col_set_str((*pinfo).cinfo, sys::COL_PROTOCOL as c_int, c("TW\0"));
     sys::col_clear((*pinfo).cinfo, sys::COL_INFO as c_int);
 
-    let original_tvb = tvb;
     let mut tvb = tvb;
     let len = sys::tvb_reported_length(tvb).usize();
     let mut original_buffer = Vec::with_capacity(len);
@@ -169,12 +240,7 @@ unsafe extern "C" fn dissect_tw(
         };
     }
 
-    let header = if let Some(h) = unpack_header(data) {
-        h
-    } else {
-        return sys::tvb_reported_length(original_tvb) as c_int;
-    };
-
+    let header = unpack_header(data).ok_or(())?;
     let compression = header.flags & protocol::PACKETFLAG_COMPRESSION != 0;
     let request_resend = header.flags & protocol::PACKETFLAG_REQUEST_RESEND != 0;
     let connless = header.flags & protocol::PACKETFLAG_CONNLESS != 0;
@@ -262,10 +328,8 @@ unsafe extern "C" fn dissect_tw(
         NumBytes::new(len - header_size.assert_usize()),
     );
 
-    let compression_protocol = unwrap_or_return!(
-        protocol::Packet::decompress_if_needed(data, &mut decompress_buffer).ok(),
-        sys::tvb_reported_length(original_tvb) as c_int
-    );
+    let compression_protocol = protocol::Packet::decompress_if_needed(data, &mut decompress_buffer)
+        .map_err(|_| ())?;
     if compression_protocol {
         let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len().u64()) as *mut u8;
         sys::memcpy(buffer as *mut c_void, decompress_buffer.as_ptr() as *const c_void, decompress_buffer.len().u64());
@@ -276,16 +340,12 @@ unsafe extern "C" fn dissect_tw(
     tvb = sys::tvb_new_subset_remaining(tvb, header_size);
 
     let mut buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
-    let packet = if let Ok(p) = protocol::Packet::read(&mut Ignore, data, &mut buffer) {
-        p
-    } else {
-        return sys::tvb_reported_length(original_tvb) as c_int;
-    };
+    let packet = protocol::Packet::read(&mut Ignore, data, &mut buffer).map_err(|_| ())?;
 
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
-            type_: protocol::ConnectedPacketType::Control(ctrl)
+            type_: protocol::ConnectedPacketType::Control(ctrl),
         }) => {
             use protocol::ControlPacket::*;
 
@@ -402,13 +462,11 @@ unsafe extern "C" fn dissect_tw(
             let info = CString::new(summaries).unwrap();
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         }
-        protocol::Packet::Connless(_message) => {
+        protocol::Packet::Connless(message) => {
             let ti = sys::proto_tree_add_item(ttree, PROTO_TW_CHUNK, tvb, 0, -1, sys::ENC_NA);
             let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
-            let data = &data[6..];
-            let mut p = Unpacker::new(data);
-
+            let mut p = Unpacker::new(message);
             let mut summaries = String::new();
             let mut first_summary = true;
             spec.dissect_connless(tree, tvb, &mut p,
@@ -429,8 +487,7 @@ unsafe extern "C" fn dissect_tw(
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         },
     }
-
-    sys::tvb_reported_length(original_tvb) as c_int
+    Ok(())
 }
 
 unsafe extern "C" fn proto_register_teeworlds() {
@@ -556,8 +613,9 @@ unsafe extern "C" fn proto_register_teeworlds() {
 }
 
 unsafe extern "C" fn proto_reg_handoff_teeworlds() {
-    let tw_packet = sys::create_dissector_handle(Some(dissect_tw), PROTO_TW_PACKET);
-    sys::dissector_add_uint(c("udp.port\0"), TW_PORT, tw_packet);
+    PROTO_TW_PACKET_HANDLE = sys::create_dissector_handle(Some(dissect_tw), PROTO_TW_PACKET);
+    sys::heur_dissector_add(c("udp\0"), Some(dissect_tw_heur), c("TW over UDP\0"), c("tw_udp\0"), PROTO_TW_PACKET, sys::HEURISTIC_ENABLE);
+    sys::dissector_add_for_decode_as(c("udp.port\0"), PROTO_TW_PACKET_HANDLE);
 }
 
 trait IdentifierEx {
