@@ -687,6 +687,6 @@ pub unsafe extern "C" fn plugin_register() {
 mod test {
     #[test]
     fn spec_valid() {
-        super::load_spec();
+        super::load_spec().expect("invalid spec");
     }
 }
