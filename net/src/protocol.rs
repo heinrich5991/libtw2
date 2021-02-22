@@ -174,6 +174,10 @@ impl<'a> ChunksIter<'a> {
             }
             return None;
         }
+        if self.data.len() == 4 && self.num_remaining_chunks == 0 {
+            // DDNet token.
+            return None;
+        }
         let (header, sequence, chunk_data_and_rest) = unwrap_or_return!(
             read_chunk_header(warn, self.data),
             self.excess_data(warn)
@@ -766,6 +770,8 @@ mod test {
     #[test] fn w_chs3() { assert_no_warn(b"\x00\x00\x01\x40\x70\xcf") }
     #[test] fn w_cud1() { assert_warn(b"\x00\x00\x00\xff", ChunksUnknownData) }
     #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00", ChunksUnknownData) }
+    #[test] fn w_cud3() { assert_no_warn(b"\x00\x00\x01\x00\x00") }
+    #[test] fn w_cud4_ddnet() { assert_no_warn(b"\x00\x00\x01\x00\x00\x12\x34\x45\x67") }
     #[test] fn w_cnc1() { assert_warn(b"\x00\x00\x01", ChunksNumChunks) }
     #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00", ChunksNumChunks) }
     #[test] fn w_cnc_() { assert_warn(b"\x00\x00\x00", ChunksNoChunks) }
