@@ -558,7 +558,7 @@ mod test {
         }
         let mut cb = Cb::new();
         let cb = &mut cb;
-        let mut buffer = [0; protocol::MAX_PAYLOAD];
+        let mut buffer = [0; protocol::MAX_PACKETSIZE];
 
         let mut net = Net::server();
 

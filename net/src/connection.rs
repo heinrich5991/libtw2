@@ -736,7 +736,7 @@ mod test {
                 Timestamp::from_secs_since_epoch(0)
             }
         }
-        let mut buffer = [0; protocol::MAX_PAYLOAD];
+        let mut buffer = [0; protocol::MAX_PACKETSIZE];
         let mut cb = Cb::new();
         let cb = &mut cb;
         println!("");

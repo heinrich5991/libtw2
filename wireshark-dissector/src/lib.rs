@@ -24,7 +24,6 @@ use common::pretty;
 use format::Bitfield;
 use format::CommaSeparated;
 use format::NumBytes;
-use huffman::instances::TEEWORLDS as HUFFMAN;
 use intern::Interned;
 use intern::intern;
 use net::protocol;
@@ -263,18 +262,11 @@ unsafe extern "C" fn dissect_tw(
         NumBytes::new(len - header_size.assert_usize()),
     );
 
-    // Decompress the packet on our own, give a fake packet header so the
-    // packet decoding code doesn't get confused.
-    let fake_header = protocol::PacketHeader {
-        flags: header.flags & !protocol::PACKETFLAG_COMPRESSION,
-        ack: header.ack,
-        num_chunks: header.num_chunks,
-    };
-    decompress_buffer.extend(fake_header.pack().as_bytes().iter().cloned());
-    if compression {
-        if let Err(_) = HUFFMAN.decompress(&data[3..], &mut decompress_buffer) {
-            return sys::tvb_reported_length(original_tvb) as c_int;
-        }
+    let compression_protocol = unwrap_or_return!(
+        protocol::Packet::decompress_if_needed(data, &mut decompress_buffer).ok(),
+        sys::tvb_reported_length(original_tvb) as c_int
+    );
+    if compression_protocol {
         let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len().u64()) as *mut u8;
         sys::memcpy(buffer as *mut c_void, decompress_buffer.as_ptr() as *const c_void, decompress_buffer.len().u64());
         tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
