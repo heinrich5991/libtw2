@@ -1,3 +1,6 @@
+This document describes packet headers and chunk headers in Teeworlds up to
+0.6.x and in DDNet.
+
 All sizes in bits.
 
     packet_header:
