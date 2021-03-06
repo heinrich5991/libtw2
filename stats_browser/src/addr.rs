@@ -14,9 +14,14 @@ pub enum ProtocolVersion {
     V6,
 }
 
+pub const ALL_PROTOCOL_VERSIONS: &'static [ProtocolVersion] = &[
+    ProtocolVersion::V5,
+    ProtocolVersion::V6,
+];
+
 /// Server address. Can currently store IPv4 and IPv6 addresses including a UDP
 /// port number. Use as an opaque struct.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Addr(protocol::Addr);
 
 impl Addr {

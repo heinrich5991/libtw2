@@ -42,6 +42,7 @@ pub const PONG:              Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
 
 pub const PACKETFLAG_CONNLESS: u8 = 1 << 6;
 pub const REQUEST_INFO_6_EX_FLAG_PONG: u16 = 1 << 0;
+pub const SERVERINFO_FLAG_PASSWORDED: i32 = 1 << 0;
 
 pub const IPV4_MAPPING: [u8; 12] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,

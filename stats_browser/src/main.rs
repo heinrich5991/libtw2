@@ -9,6 +9,7 @@ use clap::Arg;
 use stats_browser::StatsBrowser;
 use stats_browser::StatsBrowserCb;
 use stats_browser::tracker_fstd;
+use stats_browser::tracker_json;
 
 fn run_browser<T: StatsBrowserCb>(tracker: &mut T) {
     let mut browser = match StatsBrowser::new(tracker) {
@@ -31,15 +32,30 @@ fn main() {
             .short("f")
             .long("format")
             .takes_value(true)
-            .value_name("FILE")
+            .value_name("FORMAT")
             .default_value("fstd")
             .possible_value("fstd")
-            .help("Output format"))
+            .possible_value("json")
+            .help("Output format")
+        )
+        .arg(Arg::with_name("filename")
+            .long("filename")
+            .takes_value(true)
+            .value_name("FILENAME")
+            .default_value("servers.json")
+            .help("Output filename (only used for json tracker)")
+        )
         .get_matches();
 
     match matches.value_of("format").unwrap() {
         "fstd" => {
             let mut tracker = tracker_fstd::Tracker::new();
+            tracker.start();
+            run_browser(&mut tracker);
+        }
+        "json" => {
+            let filename = String::from(matches.value_of("filename").unwrap());
+            let mut tracker = tracker_json::Tracker::new(filename);
             tracker.start();
             run_browser(&mut tracker);
         }

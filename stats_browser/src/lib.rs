@@ -1,7 +1,10 @@
 #![cfg(not(test))]
 
+extern crate arrayvec;
 #[macro_use] extern crate log;
 extern crate rustc_serialize;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
 extern crate time as rust_time;
 
 #[macro_use] extern crate common;
@@ -20,5 +23,6 @@ pub mod socket;
 pub mod stats_browser;
 pub mod time;
 pub mod tracker_fstd;
+pub mod tracker_json;
 pub mod vec_map;
 pub mod work_queue;

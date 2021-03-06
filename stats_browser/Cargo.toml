@@ -9,11 +9,15 @@ name = "stats_browser"
 doc = false
 
 [dependencies]
+arrayvec = { version = "0.5.2", features = ["serde"] }
 clap = "2.23.1"
 common = { path = "../common/" }
 log = "0.3.1"
 logger = { path = "../logger/" }
 mio = "0.5.1"
 rustc-serialize = "0.3.20"
+serde = "1.0.23"
+serde_derive = "1.0.27"
+serde_json = "1.0.7"
 serverbrowse = { path = "../serverbrowse/" }
 time = "0.1.34"
