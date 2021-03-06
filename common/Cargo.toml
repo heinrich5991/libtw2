@@ -5,7 +5,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-arrayvec = "0.3.12"
+arrayvec = "0.5.2"
 file_offset = "0.1.0"
 num-traits = "0.1.32"
 ref_slice = ">=0.1.0,<2.0"

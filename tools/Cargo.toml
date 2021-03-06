@@ -5,8 +5,8 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-arrayvec = "0.3.12"
-buffer = "0.1.6"
+arrayvec = "0.5.2"
+buffer = "0.1.9"
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.23.1"
 common = { path = "../common/" }
@@ -17,7 +17,7 @@ gamenet_ddnet = { path = "../gamenet/ddnet/" }
 gamenet_spec = { path = "../gamenet/spec/" }
 gamenet_teeworlds_0_6 = { path = "../gamenet/teeworlds-0.6/" }
 gamenet_teeworlds_0_7 = { path = "../gamenet/teeworlds-0.7/" }
-hexdump = "0.1.0"
+hexdump = "0.1.1"
 itertools = "0.7.4"
 log = "0.3.1"
 logger = { path = "../logger/" }

@@ -5,7 +5,7 @@ authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-arrayvec = "0.3.12"
+arrayvec = "0.5.2"
 common = { path = "../common/" }
 log = "0.3.0"
 logger = { path = "../logger/" }

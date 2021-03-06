@@ -135,7 +135,7 @@ impl Huffman {
             .cloned().enumerate().map(|(i, f)| {
                 Frequency { frequency: f, node_idx: i.assert_u16() }
             }).collect();
-        assert!(frequencies.push(Frequency { frequency: 1, node_idx: EOF }).is_none());
+        frequencies.push(Frequency { frequency: 1, node_idx: EOF });
 
         let mut nodes: ArrayVec<[_; 1024]> =
             (0..NUM_SYMBOLS).map(|_| NODE_SENTINEL).collect();
@@ -156,8 +156,8 @@ impl Huffman {
                 node_idx: node_idx,
             };
 
-            assert!(nodes.push(node).is_none());
-            assert!(frequencies.push(node_freq).is_none());
+            nodes.push(node);
+            frequencies.push(node_freq);
         }
 
         // We use a `top` variable as virtual extension of `stack` in order to
@@ -184,13 +184,13 @@ impl Huffman {
                     continue;
                 }
                 bits |= b;
-                assert!(stack.push(top).is_none());
+                stack.push(top);
                 top = nodes[top.usize()].children[1];
             }
             first = false;
 
             while top >= NUM_SYMBOLS {
-                assert!(stack.push(top).is_none());
+                stack.push(top);
                 top = nodes[top.usize()].children[0];
             }
 

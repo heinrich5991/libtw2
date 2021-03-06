@@ -252,7 +252,7 @@ impl TimelineMarkersPacked {
                     }
                 }
                 previous = Some(tick);
-                assert!(result.push(tick).is_none());
+                result.push(tick);
             } else if !weird_padding && tm.to_i32() != 0 {
                 weird_padding = true;
                 warn.warn(Warning::WeirdTimelineMarkerPadding);

@@ -101,11 +101,11 @@ fn write_int<E, F: FnMut(&[u8]) -> Result<(), E>>(int: i32, f: F) -> Result<(), 
     let mut int = (int ^ -sign) as u32;
     let next = (int & 0b0011_1111) as u8;
     int >>= 6;
-    assert!(buf.push(to_bit(int != 0, 7) | to_bit(sign != 0, 6) | next).is_none());
+    buf.push(to_bit(int != 0, 7) | to_bit(sign != 0, 6) | next);
     while int != 0 {
         let next = (int & 0b0111_1111) as u8;
         int >>= 7;
-        assert!(buf.push(to_bit(int != 0, 7) | next).is_none());
+        buf.push(to_bit(int != 0, 7) | next);
     }
     f(&buf)
 }

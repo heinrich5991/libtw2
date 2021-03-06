@@ -37,7 +37,7 @@ fn nullterminated_arrayvec_from_slice<A: Array>(data: &[A::Item]) -> ArrayVec<A>
     where A::Item: Clone,
 {
     // `- 1` for null termination.
-    assert!(A::capacity() - 1 >= data.len());
+    assert!(A::CAPACITY - 1 >= data.len());
     data.iter().cloned().collect()
 }
 

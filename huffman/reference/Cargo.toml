@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 
 [dependencies]
-buffer = "0.1.2"
+buffer = "0.1.9"
 common = { path = "../../common" }
 huffman = { path = ".." }
 huffman-reference-sys = { path = "sys" }

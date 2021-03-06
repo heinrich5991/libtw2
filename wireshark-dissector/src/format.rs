@@ -23,7 +23,7 @@ impl<'a> fmt::Display for Bitfield<'a> {
         let mut result: ArrayString<[u8; 256]> = ArrayString::new();
         for (i, &b) in self.bytes.iter().enumerate() {
             if i != 0 {
-                result.push_str(" ").unwrap();
+                result.push_str(" ");
             }
             let mask_shift = (self.bytes.len() - i - 1) * 8;
             for j in (0..8).rev() {
@@ -33,9 +33,9 @@ impl<'a> fmt::Display for Bitfield<'a> {
                     (false, _) => ".",
                     (true, false) => "0",
                     (true, true) => "1",
-                }).unwrap();
+                });
                 if j == 4 {
-                    result.push_str(" ").unwrap();
+                    result.push_str(" ");
                 }
             }
         }
@@ -43,12 +43,12 @@ impl<'a> fmt::Display for Bitfield<'a> {
     }
 }
 
-pub struct CommaSeparated<A: Array<Item = u8>> {
+pub struct CommaSeparated<A: Array<Item = u8> + Copy> {
     empty: bool,
     string: ArrayString<A>,
 }
 
-impl<A: Array<Item = u8>> CommaSeparated<A> {
+impl<A: Array<Item = u8> + Copy> CommaSeparated<A> {
     pub fn new() -> CommaSeparated<A> {
         CommaSeparated {
             empty: true,
@@ -57,10 +57,10 @@ impl<A: Array<Item = u8>> CommaSeparated<A> {
     }
     pub fn add(&mut self, s: &str) {
         if !self.empty {
-            self.string.push_str(", ").unwrap();
+            self.string.push_str(", ");
         }
         self.empty = false;
-        self.string.push_str(s).unwrap();
+        self.string.push_str(s);
     }
     pub fn or<'a>(&'a self, default: &'a str) -> &'a str {
         if !self.empty {
