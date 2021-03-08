@@ -12,7 +12,6 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::str;
 use warn::Ignore;
-use warn;
 
 const PLAYER_MAX_NAME_LENGTH: usize = 16-1;
 const PLAYER_MAX_CLAN_LENGTH: usize = 12-1;
@@ -58,7 +57,7 @@ pub fn request_info_6(challenge: u8) -> [u8; 15] {
 pub fn request_info_6_64(challenge: u8) -> [u8; 15] {
     request_info(REQUEST_INFO_6_64, challenge)
 }
-pub fn request_info_ex(challenge: u32, request_pong: bool) -> [u8; 15] {
+pub fn request_info_ex(challenge: u32) -> [u8; 15] {
     assert!(challenge & 0x00ff_ffff == challenge,
         "only the lower 24 bits of challenge are used");
     let mut request = [0; HEADER_LEN+1];
@@ -588,13 +587,6 @@ fn parse_count(data: &[u8]) -> Option<u16> {
         warn!("parsing overlong count");
     }
     Some(((data[0] as u16) << 8) | (data[1] as u16))
-}
-
-fn parse_token(data: &[u8]) -> Option<i32> {
-    let mut unpacker = Unpacker::new(data);
-    let token = info_read_int_v5(&mut unpacker)?;
-    unpacker.finish(warn::closure(&mut |_| warn!("parsing overlong token")));
-    Some(token)
 }
 
 pub fn parse_response(data: &[u8]) -> Option<Response> {
