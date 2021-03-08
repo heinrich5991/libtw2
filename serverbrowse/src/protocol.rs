@@ -38,10 +38,8 @@ pub const INFO_6:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
 pub const INFO_6_64:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 pub const INFO_6_EX:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
 pub const INFO_6_EX_MORE:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
-pub const PONG:              Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffpong";
 
 pub const PACKETFLAG_CONNLESS: u8 = 1 << 6;
-pub const REQUEST_INFO_6_EX_FLAG_PONG: u16 = 1 << 0;
 pub const SERVERINFO_FLAG_PASSWORDED: i32 = 1 << 0;
 
 pub const IPV4_MAPPING: [u8; 12] = [
@@ -67,7 +65,6 @@ pub fn request_info_ex(challenge: u32, request_pong: bool) -> [u8; 15] {
     request[..HEADER_LEN].copy_from_slice(REQUEST_INFO_6_EX);
     request[2] = ((challenge & 0x00ff_0000) >> 16) as u8;
     request[3] = ((challenge & 0x0000_ff00) >> 8) as u8;
-    request[5] = if request_pong { REQUEST_INFO_6_EX_FLAG_PONG as u8 } else { 0 };
     request[HEADER_LEN] = ((challenge & 0x0000_00ff) >> 0) as u8;
     request
 }
@@ -621,7 +618,6 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
         INFO_6_EX => Some(Response::Info6Ex(Info6ExResponse(data))),
         INFO_6_EX_MORE => Some(Response::Info6ExMore(Info6ExMoreResponse(data))),
         COUNT => parse_count(data).map(|x| Response::Count(CountResponse(x))),
-        PONG => parse_token(data).map(|x| Response::Pong(PongResponse(x))),
         _ => None,
     }
 }
