@@ -546,7 +546,6 @@ impl<'a> Info6ExMoreResponse<'a> {
 #[derive(Copy, Clone)] pub struct CountResponse(pub u16);
 #[derive(Copy, Clone)] pub struct List5Response<'a>(pub &'a [Addr5Packed]);
 #[derive(Copy, Clone)] pub struct List6Response<'a>(pub &'a [Addr6Packed]);
-#[derive(Copy, Clone)] pub struct PongResponse(pub i32);
 
 #[derive(Copy, Clone)]
 pub enum Response<'a> {
@@ -558,7 +557,6 @@ pub enum Response<'a> {
     Info664(Info664Response<'a>),
     Info6Ex(Info6ExResponse<'a>),
     Info6ExMore(Info6ExMoreResponse<'a>),
-    Pong(PongResponse),
 }
 
 fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
