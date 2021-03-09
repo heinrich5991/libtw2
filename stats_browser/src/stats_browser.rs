@@ -1,3 +1,4 @@
+use common::num::Cast;
 use common::pretty::Bytes;
 use serverbrowse::protocol::CountResponse;
 use serverbrowse::protocol::Info5Response;
@@ -9,6 +10,9 @@ use serverbrowse::protocol::Response;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol;
 
+use rand::Rng;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::default::Default;
@@ -63,6 +67,7 @@ pub struct StatsBrowser<'a> {
 
     work_queue: TimedWorkQueue<Work>,
     socket: UdpSocket,
+    rng: StdRng,
     cb: &'a mut (dyn StatsBrowserCb+'a),
 }
 
@@ -100,6 +105,7 @@ impl<'a> StatsBrowser<'a> {
 
             work_queue: work_queue,
             socket: socket,
+            rng: StdRng::from_entropy(),
             cb: cb,
         })
     }
@@ -158,10 +164,10 @@ impl<'a> StatsBrowser<'a> {
     fn do_expect_info(&mut self, server_addr: ServerAddr) -> Result<(),()> {
         let server = self.servers.entry(server_addr).into_occupied().unwrap();
 
-        if server.get().num_missing_resp == 0 {
+        if server.get().missing_resp.is_empty() {
             self.work_queue.push(config::INFO_REPEAT_MS, Work::RequestInfo(server_addr));
         } else {
-            if server.get().num_missing_resp >= 10 {
+            if server.get().missing_resp.len() >= 10 {
                 info!("Missing responses from {}, removing", server_addr);
                 // Throw the server out after ten missing replies.
                 match server.remove().resp {
@@ -187,9 +193,14 @@ impl<'a> StatsBrowser<'a> {
 
         let mut send = |data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
 
+        let mut token = self.rng.gen();
+        while server.missing_resp.contains(&token) {
+            token = self.rng.gen();
+        }
+        let token = token;
         let would_block = match server_addr.version {
-            ProtocolVersion::V5 => send(&protocol::request_info_5(0)).would_block(),
-            ProtocolVersion::V6 => send(&protocol::request_info_6(0)).would_block(),
+            ProtocolVersion::V5 => send(&protocol::request_info_5(token)).would_block(),
+            ProtocolVersion::V6 => send(&protocol::request_info_6(token)).would_block(),
         };
 
         if would_block {
@@ -197,7 +208,7 @@ impl<'a> StatsBrowser<'a> {
             return Err(());
         }
 
-        server.num_missing_resp += 1;
+        server.missing_resp.push(token);
 
         self.work_queue.push(config::INFO_EXPECT_MS, Work::ExpectInfo(server_addr));
         Ok(())
@@ -270,14 +281,21 @@ impl<'a> StatsBrowser<'a> {
                 server.num_malformed_resp += 1;
             },
             Some(x) => {
-                if server.num_missing_resp == 0 {
+                if server.missing_resp.is_empty() {
                     if server.num_extra_resp < config::MAX_EXTRA_RESP {
                         warn!("Received info while not expecting it, from {}, {:?}", from, x);
                     }
                     server.num_extra_resp += 1;
                     return;
                 }
-                server.num_missing_resp = 0;
+                if !x.token.try_u8().map(|t| server.missing_resp.contains(&t)).unwrap_or(false) {
+                    if server.num_invalid_resp < config::MAX_INVALID_RESP {
+                        warn!("Received info with wrong token from {}, {:?}", from, x);
+                    }
+                    server.num_invalid_resp += 1;
+                    return;
+                }
+                server.missing_resp.clear();
                 debug!("Received server info from {}, {:?}", from, x);
                 match server.resp {
                     Some(ref y) => self.cb.on_server_change(from, &y.info, &x),

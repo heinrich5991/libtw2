@@ -4,6 +4,8 @@ use time::Duration;
 pub const MAX_MALFORMED_RESP: u32 = 10;
 /// Maximum number of excess responses to report per server.
 pub const MAX_EXTRA_RESP:     u32 = 10;
+/// Maximum number of responses with invalid token to report per server.
+pub const MAX_INVALID_RESP:   u32 = 10;
 /// Maximum number of list requests per time span.
 pub const MAX_LISTS:          u32 =  1;
 /// Maximum number of info requests per time span.

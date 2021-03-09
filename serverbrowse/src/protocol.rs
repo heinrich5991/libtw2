@@ -57,7 +57,7 @@ pub fn request_info_6(challenge: u8) -> [u8; 15] {
 pub fn request_info_6_64(challenge: u8) -> [u8; 15] {
     request_info(REQUEST_INFO_6_64, challenge)
 }
-pub fn request_info_ex(challenge: u32) -> [u8; 15] {
+pub fn request_info_6_ex(challenge: u32) -> [u8; 15] {
     assert!(challenge & 0x00ff_ffff == challenge,
         "only the lower 24 bits of challenge are used");
     let mut request = [0; HEADER_LEN+1];

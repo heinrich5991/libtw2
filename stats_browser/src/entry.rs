@@ -2,6 +2,7 @@ use serverbrowse::protocol::ServerInfo;
 
 use std::collections::HashSet;
 
+use arrayvec::ArrayVec;
 use addr::Addr;
 use addr::ServerAddr;
 
@@ -41,10 +42,12 @@ impl MasterServerEntry {
 /// Describes a server.
 #[derive(Clone)]
 pub struct ServerEntry {
-    /// Number of missing responses since the last successful info request.
-    pub num_missing_resp: u32,
+    /// Tokens with missing responses since the last successful info request.
+    pub missing_resp: ArrayVec<[u8; 16]>,
     /// Total number of malformed responses from this server.
     pub num_malformed_resp: u32,
+    /// Total number of responses with invalid token from this server.
+    pub num_invalid_resp: u32,
     /// Total number of excess responses from this server.
     pub num_extra_resp: u32,
     /// The last response from a server if received, `None` otherwise.
@@ -58,8 +61,9 @@ impl ServerEntry {
     /// Creates a new server entry with empty responses.
     pub fn new() -> ServerEntry {
         ServerEntry {
-            num_missing_resp: 0,
+            missing_resp: ArrayVec::new(),
             num_malformed_resp: 0,
+            num_invalid_resp: 0,
             num_extra_resp: 0,
             resp: None,
             server_664_support: None,
