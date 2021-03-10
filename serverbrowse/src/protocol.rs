@@ -280,12 +280,22 @@ impl PartialServerInfo {
 
         Ok(())
     }
+    pub fn token(&self) -> i32 {
+        self.info.token
+    }
     pub fn get_info(&mut self) -> Option<&ServerInfo> {
         if self.info.clients.len().assert_i32() != self.info.num_clients {
             return None;
         }
         self.info.clients.sort();
         Some(&self.info)
+    }
+    pub fn take_info(&mut self) -> Option<ServerInfo> {
+        if self.get_info().is_none() {
+            return None;
+        }
+        self.received = !0;
+        Some(mem::replace(&mut self.info, Default::default()))
     }
 }
 

@@ -1,10 +1,14 @@
+use serverbrowse::protocol::PartialServerInfo;
 use serverbrowse::protocol::ServerInfo;
 
 use std::collections::HashSet;
 
-use arrayvec::ArrayVec;
 use addr::Addr;
 use addr::ServerAddr;
+use arrayvec::ArrayVec;
+use rand::distributions::Distribution;
+use rand::distributions;
+use rand;
 
 /// Describes a master server.
 #[derive(Clone)]
@@ -43,7 +47,7 @@ impl MasterServerEntry {
 #[derive(Clone)]
 pub struct ServerEntry {
     /// Tokens with missing responses since the last successful info request.
-    pub missing_resp: ArrayVec<[u8; 16]>,
+    pub missing_resp: ArrayVec<[Token; 16]>,
     /// Total number of malformed responses from this server.
     pub num_malformed_resp: u32,
     /// Total number of responses with invalid token from this server.
@@ -52,6 +56,9 @@ pub struct ServerEntry {
     pub num_extra_resp: u32,
     /// The last response from a server if received, `None` otherwise.
     pub resp: Option<ServerResponse>,
+    /// Incomplete info responses (from the extended protocol responses that
+    /// might span multiple packets).
+    pub partial_resp: Vec<PartialServerInfo>,
     /// Whether the server supports the 0.6_64 protocol, only interesting if
     /// the server is from a 0.6 master server.
     pub server_664_support: Option<bool>,
@@ -66,8 +73,44 @@ impl ServerEntry {
             num_invalid_resp: 0,
             num_extra_resp: 0,
             resp: None,
+            partial_resp: Vec::new(),
             server_664_support: None,
         }
+    }
+}
+
+/// Represents an integer token in the Teeworlds server info protocol.
+/// Non-DDNet tokens are 8 bits long (the lower 8 bits of the integer), DDNet
+/// tokens can use 24 bit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Token(u32);
+
+impl Token {
+    /// Creates a new token from a 24 bit integer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the passed integer doesn't fit into 24 bit.
+    pub fn from_u24(v: u32) -> Token {
+        assert!(v & 0x00ff_ffff == v);
+        Token(v)
+    }
+    /// Retrieves the 24 bit token.
+    pub fn u24(self) -> u32 {
+        self.0
+    }
+    /// Retrieves the 8 bit token.
+    pub fn u8(self) -> u8 {
+        self.0 as u8
+    }
+}
+
+
+/// Draws a token from a uniform distribution.
+impl Distribution<Token> for distributions::Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Token {
+        let v: u32 = rng.gen();
+        Token::from_u24(v & 0x00ff_ffff)
     }
 }
 

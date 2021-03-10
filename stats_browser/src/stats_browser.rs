@@ -2,10 +2,13 @@ use common::num::Cast;
 use common::pretty::Bytes;
 use serverbrowse::protocol::CountResponse;
 use serverbrowse::protocol::Info5Response;
+use serverbrowse::protocol::Info6ExMoreResponse;
+use serverbrowse::protocol::Info6ExResponse;
 use serverbrowse::protocol::Info6Response;
 use serverbrowse::protocol::List5Response;
 use serverbrowse::protocol::List6Response;
 use serverbrowse::protocol::MASTERSERVER_PORT;
+use serverbrowse::protocol::PartialServerInfo;
 use serverbrowse::protocol::Response;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol;
@@ -26,6 +29,7 @@ use config;
 use entry::MasterServerEntry;
 use entry::ServerEntry;
 use entry::ServerResponse;
+use entry::Token;
 use hashmap_ext::HashMapEntryIntoInner;
 use lookup::lookup_host;
 use socket::NonBlockExt;
@@ -193,14 +197,14 @@ impl<'a> StatsBrowser<'a> {
 
         let mut send = |data: &[u8]| socket.send_to(data, server_addr.addr).unwrap();
 
-        let mut token = self.rng.gen();
-        while server.missing_resp.contains(&token) {
+        let mut token: Token = self.rng.gen();
+        while server.missing_resp.iter().any(|&t| t.u8() == token.u8()) {
             token = self.rng.gen();
         }
         let token = token;
         let would_block = match server_addr.version {
-            ProtocolVersion::V5 => send(&protocol::request_info_5(token)).would_block(),
-            ProtocolVersion::V6 => send(&protocol::request_info_6(token)).would_block(),
+            ProtocolVersion::V5 => send(&protocol::request_info_5(token.u8())).would_block(),
+            ProtocolVersion::V6 => send(&protocol::request_info_6_ex(token.u24())).would_block(),
         };
 
         if would_block {
@@ -288,7 +292,7 @@ impl<'a> StatsBrowser<'a> {
                     server.num_extra_resp += 1;
                     return;
                 }
-                if !x.token.try_u8().map(|t| server.missing_resp.contains(&t)).unwrap_or(false) {
+                if !server.missing_resp.iter().any(|&t| t.u8().i32() == x.token) {
                     if server.num_invalid_resp < config::MAX_INVALID_RESP {
                         warn!("Received info with wrong token from {}, {:?}", from, x);
                     }
@@ -296,12 +300,75 @@ impl<'a> StatsBrowser<'a> {
                     return;
                 }
                 server.missing_resp.clear();
+                server.partial_resp.clear();
                 debug!("Received server info from {}, {:?}", from, x);
                 match server.resp {
                     Some(ref y) => self.cb.on_server_change(from, &y.info, &x),
                     None => self.cb.on_server_new(from, &x)
                 }
                 server.resp = Some(ServerResponse::new(x));
+            },
+        }
+    }
+    fn process_partial_info(
+        &mut self,
+        from: ServerAddr,
+        info: Option<PartialServerInfo>,
+        raw: &[u8],
+    ) {
+        let server = match self.servers.get_mut(&from) {
+            Some(x) => x,
+            None => {
+                warn!("Received partial info from unknown server {}, {:?}", from, raw);
+                return;
+            }
+        };
+        match info {
+            None => {
+                if server.num_malformed_resp < config::MAX_MALFORMED_RESP {
+                    warn!("Received unparsable partial info from {}, {:?}", from, Bytes::new(raw));
+                }
+                server.num_malformed_resp += 1;
+            },
+            Some(x) => {
+                if server.missing_resp.is_empty() {
+                    if server.num_extra_resp < config::MAX_EXTRA_RESP {
+                        warn!("Received partial info while not expecting it, from {}, {:?}", from, x);
+                    }
+                    server.num_extra_resp += 1;
+                    return;
+                }
+                if !server.missing_resp.iter().any(|&t| t.u24().assert_i32() == x.token()) {
+                    if server.num_invalid_resp < config::MAX_INVALID_RESP {
+                        warn!("Received partial info with wrong token from {}, {:?}", from, x);
+                    }
+                    server.num_invalid_resp += 1;
+                    return;
+                }
+                debug!("Received partial server info from {}, {:?}", from, x);
+                let index;
+                if let Some(i) = server.partial_resp.iter().position(|r| r.token() == x.token()) {
+                    index = i;
+                    if let Err(e) = server.partial_resp[i].merge(x) {
+                        warn!("Received partial server info {:?} incompatible with {:?}: {:?}", raw, server.partial_resp[i], e);
+                        return;
+                    }
+                } else {
+                    index = server.partial_resp.len();
+                    server.partial_resp.push(x);
+                }
+                let info = match server.partial_resp[index].take_info() {
+                    None => return,
+                    Some(i) => i,
+                };
+                server.missing_resp.clear();
+                server.partial_resp.clear();
+                debug!("Partial server info from {} complete, {:?}", from, info);
+                match server.resp {
+                    Some(ref y) => self.cb.on_server_change(from, &y.info, &info),
+                    None => self.cb.on_server_new(from, &info)
+                }
+                server.resp = Some(ServerResponse::new(info));
             },
         }
     }
@@ -350,6 +417,14 @@ impl<'a> StatsBrowser<'a> {
             Some(Response::Info6(info)) => {
                 let Info6Response(raw_data) = info;
                 self.process_info(ServerAddr::new(ProtocolVersion::V6, from), info.parse(), raw_data);
+            },
+            Some(Response::Info6Ex(partial)) => {
+                let Info6ExResponse(raw_data) = partial;
+                self.process_partial_info(ServerAddr::new(ProtocolVersion::V6, from), partial.parse(), raw_data);
+            },
+            Some(Response::Info6ExMore(partial)) => {
+                let Info6ExMoreResponse(raw_data) = partial;
+                self.process_partial_info(ServerAddr::new(ProtocolVersion::V6, from), partial.parse(), raw_data);
             },
             _ => {
                 warn!("Received unknown message from {}, {:?}", from, data);
