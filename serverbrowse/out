@@ -1,3 +1,0 @@
-  left: `Some(V6Ex 86536 "version" "name" None "map" "gametype" 35247 None None 3/6 9/12: ["player1" "clan1" 1 11 0, "player2" "clan2" 2 22 0, "player3" "clan3" 3 33 1, "player4" "clan4" 4 44 0, "player5" "clan5" 5 55 0, "player6" "clan6" 6 66 0, "player7" "clan7" 7 77 1, "player8" "clan8" 8 88 1, "player9" "clan9" 9 99 0])`,
- right: `Some(V6Ex 86536 "version" "name" None "map" "gametype" 35247 None None 3/6 9/12: ["player1" "clan1" 1 11 0, "player2" "clan2" 2 22 0, "player3" "clan3" 3 33 0, "player4" "clan4" 4 44 1, "player5" "clan5" 5 55 0, "player6" "clan6" 6 66 0, "player7" "clan7" 7 77 1, "player8" "clan8" 8 88 1, "player9" "clan9" 9 99 0])`', src/protocol.rs:859:9
-note: Run with `RUST_BACKTRACE=1` for a backtrace.
