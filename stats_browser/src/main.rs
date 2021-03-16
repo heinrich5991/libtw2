@@ -45,6 +45,12 @@ fn main() {
             .default_value("servers.json")
             .help("Output filename (only used for json tracker)")
         )
+        .arg(Arg::with_name("locations")
+            .long("locations")
+            .takes_value(true)
+            .value_name("LOCATIONS")
+            .help("IP to continent locations database filename (only used for json tracker, CSV file with network,continent_code header))")
+        )
         .get_matches();
 
     match matches.value_of("format").unwrap() {
@@ -55,7 +61,8 @@ fn main() {
         }
         "json" => {
             let filename = String::from(matches.value_of("filename").unwrap());
-            let mut tracker = tracker_json::Tracker::new(filename);
+            let locations = matches.value_of("locations").map(String::from);
+            let mut tracker = tracker_json::Tracker::new(filename, locations);
             tracker.start();
             run_browser(&mut tracker);
         }

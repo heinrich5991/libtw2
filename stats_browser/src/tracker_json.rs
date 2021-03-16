@@ -1,7 +1,10 @@
 use StatsBrowserCb;
 use addr::ALL_PROTOCOL_VERSIONS;
 use addr::ServerAddr;
+use csv;
+use ipnet::Ipv4Net;
 use serverbrowse::protocol::ClientInfo;
+use serverbrowse::protocol::IpAddr;
 use serverbrowse::protocol::ServerInfo;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -29,6 +32,24 @@ mod json {
 
     pub struct Addr(pub addr::ServerAddr);
 
+    #[derive(Clone, Copy, Deserialize, Serialize)]
+    pub enum Location {
+        #[serde(rename = "af")]
+        Africa,
+        #[serde(rename = "an")]
+        Antarctica,
+        #[serde(rename = "as")]
+        Asia,
+        #[serde(rename = "eu")]
+        Europe,
+        #[serde(rename = "na")]
+        NorthAmerica,
+        #[serde(rename = "oc")]
+        Oceania,
+        #[serde(rename = "sa")]
+        SouthAmerica,
+    }
+
     #[derive(Serialize)]
     pub struct MasterInfo<'a> {
         pub servers: &'a [Server<'a>],
@@ -36,6 +57,8 @@ mod json {
     #[derive(Serialize)]
     pub struct Server<'a> {
         pub addresses: Vec<Addr>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub location: Option<Location>,
         pub info: &'a ServerInfo,
     }
     #[derive(Serialize)]
@@ -120,24 +143,57 @@ mod json {
     }
 }
 
+#[derive(Deserialize)]
+struct LocationRecord {
+    network: Ipv4Net,
+    continent_code: json::Location,
+}
+
+pub struct ServerEntry {
+    location: Option<json::Location>,
+    info: Option<json::ServerInfo>,
+}
+
 pub struct Tracker {
     filename: String,
-    servers: Arc<Mutex<HashMap<ServerAddr, Option<json::ServerInfo>>>>,
+    locations: Vec<LocationRecord>,
+    servers: Arc<Mutex<HashMap<ServerAddr, ServerEntry>>>,
 }
 
 impl Tracker {
-    pub fn new(filename: String) -> Tracker {
+    pub fn new(filename: String, locations_filename: Option<String>) -> Tracker {
+        let locations: Result<Vec<_>, _>;
+        if let Some(l) = locations_filename {
+            let mut locations_reader = csv::Reader::from_path(l).unwrap();
+            locations = locations_reader.deserialize().collect();
+        } else {
+            locations = Ok(Vec::new());
+        }
         Tracker {
             filename,
+            locations: locations.unwrap(),
             servers: Default::default(),
         }
     }
     pub fn start(&mut self) {
         let mut tracker_thread = Tracker {
             filename: mem::replace(&mut self.filename, String::new()),
+            locations: Vec::new(),
             servers: self.servers.clone(),
         };
         thread::spawn(move || tracker_thread.handle_writeout());
+    }
+    fn lookup_location(&self, addr: ServerAddr) -> Option<json::Location> {
+        let ip_addr = match addr.addr.to_srvbrowse_addr().ip_address {
+            IpAddr::V4(a) => a,
+            IpAddr::V6(_) => return None, // sad smiley
+        };
+        for LocationRecord { network, continent_code } in &self.locations {
+            if network.contains(&ip_addr) {
+                return Some(*continent_code);
+            }
+        }
+        None
     }
     fn handle_writeout(&mut self) {
         let temp_filename = format!("{}.tmp.{}", self.filename, process::id());
@@ -154,18 +210,20 @@ impl Tracker {
 
                 let mut result = Vec::new();
                 for &addr in &addresses {
-                    let mut info = None;
+                    let mut entry = None;
                     let mut addresses = Vec::new();
                     for &version in ALL_PROTOCOL_VERSIONS {
                         let server_addr = ServerAddr::new(version, addr);
                         if let Some(i) = servers.get(&server_addr) {
                             addresses.push(json::Addr(server_addr));
-                            info = Some(i);
+                            entry = Some(i);
                         }
                     }
-                    if let Some(i) = info.unwrap() {
+                    let entry = entry.unwrap();
+                    if let Some(i) = &entry.info {
                         result.push(json::Server {
                             addresses,
+                            location: entry.location,
                             info: i,
                         });
                     }
@@ -201,7 +259,11 @@ impl Tracker {
 impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
-        assert!(servers.insert(addr, json::ServerInfo::try_from(info).ok()).is_none());
+        let info = json::ServerInfo::try_from(info).ok();
+        assert!(servers.insert(addr, ServerEntry {
+            location: self.lookup_location(addr),
+            info,
+        }).is_none());
     }
     fn on_server_change(
         &mut self,
@@ -210,7 +272,7 @@ impl StatsBrowserCb for Tracker {
         new: &ServerInfo,
     ) {
         let mut servers = self.servers.lock().unwrap();
-        *servers.get_mut(&addr).unwrap() = json::ServerInfo::try_from(new).ok();
+        servers.get_mut(&addr).unwrap().info = json::ServerInfo::try_from(new).ok();
     }
     fn on_server_remove(&mut self, addr: ServerAddr, _last: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();

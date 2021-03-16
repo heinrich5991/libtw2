@@ -10,7 +10,7 @@ buffer = "0.1.9"
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.23.1"
 common = { path = "../common/" }
-csv = "1.0.0-beta.5"
+csv = "1.1.6"
 datafile = { path = "../datafile/" }
 demo = { path = "../demo/" }
 gamenet_ddnet = { path = "../gamenet/ddnet/" }

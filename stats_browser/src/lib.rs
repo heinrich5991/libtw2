@@ -1,6 +1,8 @@
 #![cfg(not(test))]
 
 extern crate arrayvec;
+extern crate csv;
+extern crate ipnet;
 #[macro_use] extern crate log;
 extern crate rand;
 extern crate rustc_serialize;
