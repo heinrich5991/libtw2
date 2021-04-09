@@ -5,6 +5,7 @@ def rindex(l, element):
 
 DERIVE_RE=re.compile(r'^#\[derive\((?P<derives>[A-Za-z ,]*)\)\]')
 
+# 17 is the unique prefix :)
 TYPE_REPLACEMENTS = {line[:17]: line for line in """\
 pub type size_t = usize;
 pub type guint8 = u8;
