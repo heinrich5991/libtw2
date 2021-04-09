@@ -38,6 +38,7 @@ use std::os::raw::c_int;
 use std::os::raw::c_uint;
 use std::os::raw::c_void;
 use std::ptr;
+use std::slice;
 use uuid::Uuid;
 use warn::Ignore;
 
@@ -149,7 +150,7 @@ unsafe fn dissect_tw_heur_impl(
     let mut original_buffer = Vec::with_capacity(len);
     let mut decompress_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
     original_buffer.set_len(len);
-    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len.u64());
+    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len);
     let data: &[u8] = &original_buffer;
 
     let mut warnings = Counter::new();
@@ -198,7 +199,7 @@ unsafe fn dissect_tw_impl(
     let mut original_buffer = Vec::with_capacity(len);
     let mut decompress_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
     original_buffer.set_len(len);
-    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len.u64());
+    sys::tvb_memcpy(tvb, original_buffer.as_mut_ptr() as *mut c_void, 0, len);
     let mut data: &[u8] = &original_buffer;
 
     // Must be below `let mut tvb = tvb;`
@@ -331,8 +332,9 @@ unsafe fn dissect_tw_impl(
     let compression_protocol = protocol::Packet::decompress_if_needed(data, &mut decompress_buffer)
         .map_err(|_| ())?;
     if compression_protocol {
-        let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len().u64()) as *mut u8;
-        sys::memcpy(buffer as *mut c_void, decompress_buffer.as_ptr() as *const c_void, decompress_buffer.len().u64());
+        let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len()) as *mut u8;
+        slice::from_raw_parts_mut(buffer, decompress_buffer.len())
+            .copy_from_slice(&decompress_buffer);
         tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
         sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds packet\0"));
         data = &decompress_buffer;

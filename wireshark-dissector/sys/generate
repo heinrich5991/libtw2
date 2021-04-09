@@ -27,7 +27,6 @@ bindgen \
 	--whitelist-function '^dissector_add_.*$' \
 	--whitelist-function '^find_or_create_conversation$' \
 	--whitelist-function '^heur_dissector_add$' \
-	--whitelist-function '^memcpy$' \
 	--whitelist-function '^proto_item_add_subtree$' \
 	--whitelist-function '^proto_item_append_text$' \
 	--whitelist-function '^proto_item_set_text$' \
