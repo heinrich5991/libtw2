@@ -11,5 +11,5 @@ common = { path = "../../common" }
 packer = { path = "../../packer/", features = ["uuid"] }
 serde = "1.0.23"
 serde_derive = "1.0.7"
-uuid = "0.8.1"
+uuid = { version = "0.8.1", features = ["serde"] }
 warn = ">=0.1.1,<0.3.0"
