@@ -22,6 +22,14 @@ jobs:
             rust: nightly
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        if: ${{ matrix.rust == 'stable' }}
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -31,8 +39,19 @@ jobs:
       - run: cargo test
       - run: cargo bench
       - uses: actions/upload-artifact@v2
+        if: ${{ matrix.rust == 'stable' }}
         with:
-          path: target
+          path: |
+            target
+            !target/**/*.d
+            !target/**/*.rlib
+            !target/**/.cargo-lock
+            !target/**/.fingerprint
+            !target/**/CACHEDIR.TAG
+            !target/**/build
+            !target/**/deps
+            !target/**/incremental
+          name: libtw2-${{ matrix.os }}
 
   check-generated:
     name: Check that generated files match
