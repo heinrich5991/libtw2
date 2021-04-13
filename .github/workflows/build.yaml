@@ -30,6 +30,9 @@ jobs:
       - run: cargo build
       - run: cargo test
       - run: cargo bench
+      - uses: actions/upload-artifact@v2
+        with:
+          path: target
 
   check-generated:
     name: Check that generated files match
