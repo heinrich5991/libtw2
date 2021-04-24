@@ -129,7 +129,7 @@ mod json {
 #[derive(Deserialize)]
 struct LocationRecord {
     network: Ipv4Net,
-    continent_code: ArrayString<[u8; 15]>,
+    location: ArrayString<[u8; 15]>,
 }
 
 pub struct ServerEntry {
@@ -171,9 +171,9 @@ impl Tracker {
             IpAddr::V4(a) => a,
             IpAddr::V6(_) => return None, // sad smiley
         };
-        for LocationRecord { network, continent_code } in &self.locations {
+        for LocationRecord { network, location } in &self.locations {
             if network.contains(&ip_addr) {
-                return Some(*continent_code);
+                return Some(*location);
             }
         }
         None
