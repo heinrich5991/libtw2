@@ -1,4 +1,5 @@
 use StatsBrowserCb;
+use arrayvec::ArrayString;
 use addr::ALL_PROTOCOL_VERSIONS;
 use addr::ServerAddr;
 use csv;
@@ -32,24 +33,6 @@ mod json {
 
     pub struct Addr(pub addr::ServerAddr);
 
-    #[derive(Clone, Copy, Deserialize, Serialize)]
-    pub enum Location {
-        #[serde(rename = "af")]
-        Africa,
-        #[serde(rename = "an")]
-        Antarctica,
-        #[serde(rename = "as")]
-        Asia,
-        #[serde(rename = "eu")]
-        Europe,
-        #[serde(rename = "na")]
-        NorthAmerica,
-        #[serde(rename = "oc")]
-        Oceania,
-        #[serde(rename = "sa")]
-        SouthAmerica,
-    }
-
     #[derive(Serialize)]
     pub struct MasterInfo<'a> {
         pub servers: &'a [Server<'a>],
@@ -58,7 +41,7 @@ mod json {
     pub struct Server<'a> {
         pub addresses: Vec<Addr>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub location: Option<Location>,
+        pub location: Option<ArrayString<[u8; 15]>>,
         pub info: &'a ServerInfo,
     }
     #[derive(Serialize)]
@@ -146,11 +129,11 @@ mod json {
 #[derive(Deserialize)]
 struct LocationRecord {
     network: Ipv4Net,
-    continent_code: json::Location,
+    continent_code: ArrayString<[u8; 15]>,
 }
 
 pub struct ServerEntry {
-    location: Option<json::Location>,
+    location: Option<ArrayString<[u8; 15]>>,
     info: Option<json::ServerInfo>,
 }
 
@@ -183,7 +166,7 @@ impl Tracker {
         };
         thread::spawn(move || tracker_thread.handle_writeout());
     }
-    fn lookup_location(&self, addr: ServerAddr) -> Option<json::Location> {
+    fn lookup_location(&self, addr: ServerAddr) -> Option<ArrayString<[u8; 15]>> {
         let ip_addr = match addr.addr.to_srvbrowse_addr().ip_address {
             IpAddr::V4(a) => a,
             IpAddr::V6(_) => return None, // sad smiley
