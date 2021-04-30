@@ -137,6 +137,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     let mut supplied_infos: VecMap<Info> = VecMap::new();
     let mut inputs: VecMap<PlayerInput> = VecMap::new();
     let mut prev_pos: VecMap<Pos> = VecMap::new();
+    let mut encoded: Vec<u8> = Vec::with_capacity(MAX_SNAPSHOT_SIZE);
     while let Some(item) = th.read(&mut buffer)? {
         let mut do_ticks = 0..0;
         match item {
@@ -266,7 +267,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             builder.add_item(snap_obj::GAME_INFO, 0, game_info.encode()).unwrap();
             let snap = builder.finish();
 
-            let mut encoded: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]> = ArrayVec::new();
+            encoded.clear();
             match (&last_snap, last_full_snap_tick) {
                 (&Some(ref l), Some(t)) if tick - t <= 5 * TICKS_PER_SECOND => {
                     demo.write_tick(false, demo::Tick(tick))?;
