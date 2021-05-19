@@ -189,6 +189,8 @@ impl Tracker {
     fn handle_writeout(&mut self) {
         let temp_filename = format!("{}.tmp.{}", self.filename, process::id());
 
+        thread::sleep(Duration::from_secs(15));
+
         let start = Instant::now();
         let mut iteration = 0;
         loop {
