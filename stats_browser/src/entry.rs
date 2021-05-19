@@ -2,6 +2,7 @@ use serverbrowse::protocol::PartialServerInfo;
 use serverbrowse::protocol::ServerInfo;
 
 use std::collections::HashSet;
+use std::fmt;
 
 use addr::Addr;
 use addr::ServerAddr;
@@ -17,16 +18,28 @@ pub struct MasterServerEntry {
     pub domain: String,
     /// Address of the master server if resolved, `None` otherwise.
     pub addr: Option<Addr>,
+    /// Address of the master server version 0.7 if resolved, `None` otherwise.
+    pub addr_7: Option<Addr>,
+    /// Token to correlate master server responses with requests.
+    pub own_token: Option<Token>,
 
     /// Servers that the master server lists.
     pub list: HashSet<ServerAddr>,
+    /// Servers that the master server lists for the 0.7 protocol.
+    pub list_7: HashSet<ServerAddr>,
 
     /// Field that is used when requesting the number of servers from the
     /// master server.
     pub updated_count: Option<u16>,
+    /// Field that is used when requesting the number of servers from the
+    /// 0.7 master server.
+    pub updated_count_7: Option<u16>,
     /// Field that is used when requesting the list of servers from the master
     /// server.
     pub updated_list: HashSet<ServerAddr>,
+    /// Field that is used when requesting the list of servers from the 0.7
+    /// master server.
+    pub updated_list_7: HashSet<ServerAddr>,
 }
 
 impl MasterServerEntry {
@@ -35,10 +48,15 @@ impl MasterServerEntry {
         MasterServerEntry {
             domain: domain,
             addr: None,
+            addr_7: None,
+            own_token: None,
 
             list: HashSet::new(),
+            list_7: HashSet::new(),
             updated_count: None,
             updated_list: HashSet::new(),
+            updated_count_7: None,
+            updated_list_7: HashSet::new(),
         }
     }
 }
@@ -54,6 +72,10 @@ pub struct ServerEntry {
     pub num_invalid_resp: u32,
     /// Total number of excess responses from this server.
     pub num_extra_resp: u32,
+    /// Total number of token responses with invalid token from this server.
+    pub num_invalid_token: u32,
+    /// Total number of excess token responses from this server.
+    pub num_extra_token: u32,
     /// The last response from a server if received, `None` otherwise.
     pub resp: Option<ServerResponse>,
     /// Incomplete info responses (from the extended protocol responses that
@@ -72,6 +94,8 @@ impl ServerEntry {
             num_malformed_resp: 0,
             num_invalid_resp: 0,
             num_extra_resp: 0,
+            num_invalid_token: 0,
+            num_extra_token: 0,
             resp: None,
             partial_resp: Vec::new(),
             server_664_support: None,
@@ -79,25 +103,33 @@ impl ServerEntry {
     }
 }
 
-/// Represents an integer token in the Teeworlds server info protocol.
-/// Non-DDNet tokens are 8 bits long (the lower 8 bits of the integer), DDNet
-/// tokens can use 24 bit.
+/// Represents an integer token in the Teeworlds serverinfo and low-level 0.7
+/// protocol.
+///
+/// Non-DDNet tokens are 8 bits long (the lower 8 bits of the
+/// integer), DDNet tokens can use 24 bit, low-level 0.7 tokens can even use 32
+/// bit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token(u32);
 
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::LowerHex::fmt(&self.u32(), f)
+    }
+}
+
 impl Token {
-    /// Creates a new token from a 24 bit integer.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the passed integer doesn't fit into 24 bit.
-    pub fn from_u24(v: u32) -> Token {
-        assert!(v & 0x00ff_ffff == v);
+    /// Creates a new token from a 32-bit integer.
+    pub fn from_u32(v: u32) -> Token {
         Token(v)
+    }
+    /// Retrieves the 32 bit token.
+    pub fn u32(self) -> u32 {
+        self.0
     }
     /// Retrieves the 24 bit token.
     pub fn u24(self) -> u32 {
-        self.0
+        self.0 & 0x00ff_ffff
     }
     /// Retrieves the 8 bit token.
     pub fn u8(self) -> u8 {
@@ -110,7 +142,7 @@ impl Token {
 impl Distribution<Token> for distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Token {
         let v: u32 = rng.gen();
-        Token::from_u24(v & 0x00ff_ffff)
+        Token::from_u32(v)
     }
 }
 

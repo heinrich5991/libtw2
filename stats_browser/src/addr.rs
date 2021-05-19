@@ -12,11 +12,14 @@ pub enum ProtocolVersion {
     V5,
     /// `SERVERBROWSE_GETINFO_6`.
     V6,
+    /// `SERVERBROWSE_GETINFO_7`.
+    V7,
 }
 
 pub const ALL_PROTOCOL_VERSIONS: &'static [ProtocolVersion] = &[
     ProtocolVersion::V5,
     ProtocolVersion::V6,
+    ProtocolVersion::V7,
 ];
 
 /// Server address. Can currently store IPv4 and IPv6 addresses including a UDP
@@ -52,10 +55,14 @@ impl Addr {
         };
         Addr(protocol::Addr { ip_address: ip_addr, port: port })
     }
+    /// Returns the current address, replacing the port with the given one.
+    pub fn with_port(&self, port: u16) -> Addr {
+        Addr(protocol::Addr { ip_address: self.0.ip_address, port: port })
+    }
 }
 
 /// Server address including protocol version.
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ServerAddr {
     /// The protocol version of the listening server.
     pub version: ProtocolVersion,

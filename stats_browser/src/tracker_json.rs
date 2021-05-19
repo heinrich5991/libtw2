@@ -1,6 +1,6 @@
 use StatsBrowserCb;
 use arrayvec::ArrayString;
-use addr::ALL_PROTOCOL_VERSIONS;
+use addr::ProtocolVersion;
 use addr::ServerAddr;
 use csv;
 use ipnet::Ipv4Net;
@@ -31,6 +31,7 @@ mod json {
     use std::fmt::Write;
     use std::str;
 
+    #[derive(Eq, Ord, PartialEq, PartialOrd)]
     pub struct Addr(pub addr::ServerAddr);
 
     #[derive(Serialize)]
@@ -76,6 +77,7 @@ mod json {
             result.push_str(match self.0.version {
                 addr::ProtocolVersion::V5 => "tw-0.5+udp://",
                 addr::ProtocolVersion::V6 => "tw-0.6+udp://",
+                addr::ProtocolVersion::V7 => "tw-0.7+udp://",
             });
             write!(result, "{}", self.0.addr).unwrap();
             serializer.serialize_str(&result)
@@ -143,6 +145,12 @@ pub struct Tracker {
     servers: Arc<Mutex<HashMap<ServerAddr, ServerEntry>>>,
 }
 
+const PROTOCOL_VERSIONS_PRIORITY: &'static [ProtocolVersion] = &[
+    ProtocolVersion::V5,
+    ProtocolVersion::V7,
+    ProtocolVersion::V6,
+];
+
 impl Tracker {
     pub fn new(filename: String, locations_filename: Option<String>) -> Tracker {
         let locations: Result<Vec<_>, _>;
@@ -195,13 +203,14 @@ impl Tracker {
                 for &addr in &addresses {
                     let mut entry = None;
                     let mut addresses = Vec::new();
-                    for &version in ALL_PROTOCOL_VERSIONS {
+                    for &version in PROTOCOL_VERSIONS_PRIORITY {
                         let server_addr = ServerAddr::new(version, addr);
                         if let Some(i) = servers.get(&server_addr) {
                             addresses.push(json::Addr(server_addr));
                             entry = Some(i);
                         }
                     }
+                    addresses.sort();
                     let entry = entry.unwrap();
                     if let Some(i) = &entry.info {
                         result.push(json::Server {
