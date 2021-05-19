@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use common::num::BeU16;
+use common::num::BeU32;
 use common::num::Cast;
 use common::num::LeU16;
 use common::pretty;
@@ -17,8 +18,10 @@ const PLAYER_MAX_NAME_LENGTH: usize = 16-1;
 const PLAYER_MAX_CLAN_LENGTH: usize = 12-1;
 const MAX_CLIENTS_5:    u32 = 16;
 const MAX_CLIENTS_6_64: u32 = 64;
+const MAX_CLIENTS_7:    u32 = 64;
 
 pub const MASTERSERVER_PORT: u16 = 8300;
+pub const MASTERSERVER_7_PORT: u16 = 8283;
 
 const HEADER_LEN: usize = 14;
 pub type Header = &'static [u8; HEADER_LEN];
@@ -38,6 +41,14 @@ pub const INFO_6_64:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
 pub const INFO_6_EX:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
 pub const INFO_6_EX_MORE:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
 
+pub const TOKEN_7:         &'static [u8;  8] = b"\x04\0\0\xff\xff\xff\xff\x05";
+pub const REQUEST_LIST_7:  &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
+pub const LIST_7:          &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
+pub const REQUEST_COUNT_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
+pub const COUNT_7:         &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
+pub const REQUEST_INFO_7:  &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
+pub const INFO_7:          &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+
 pub const PACKETFLAG_CONNLESS: u8 = 1 << 6;
 pub const SERVERINFO_FLAG_PASSWORDED: i32 = 1 << 0;
 
@@ -47,6 +58,13 @@ pub const IPV4_MAPPING: [u8; 12] = [
 
 pub fn request_list_5() -> [u8; 14] { *REQUEST_LIST_5 }
 pub fn request_list_6() -> [u8; 14] { *REQUEST_LIST_6 }
+pub fn request_list_7(own_token: u32, their_token: u32) -> [u8; 17] {
+    let mut request = [0; 17];
+    request.copy_from_slice(REQUEST_LIST_7);
+    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
+    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request
+}
 
 pub fn request_info_5(challenge: u8) -> [u8; 15] {
     request_info(REQUEST_INFO_5, challenge)
@@ -67,8 +85,32 @@ pub fn request_info_6_ex(challenge: u32) -> [u8; 15] {
     request[HEADER_LEN] = ((challenge & 0x0000_00ff) >> 0) as u8;
     request
 }
+pub fn request_token_7(own_token: u32) -> [u8; 520] {
+    let mut request = [0; 520];
+    request[..8].copy_from_slice(TOKEN_7);
+    request[3..7].copy_from_slice(BeU32::from_u32(0xffff_ffff).as_bytes());
+    request[8..12].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request
+}
+pub fn request_info_7(own_token: u32, their_token: u32, challenge: u8) -> [u8; 18] {
+    assert!(challenge & 0x3f == challenge,
+        "only the lower 6 bits of challenge can be used with this implementation");
+    let mut request = [0; 18];
+    request[..17].copy_from_slice(REQUEST_INFO_7);
+    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
+    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request[17] = challenge;
+    request
+}
 
 pub fn request_count() -> [u8; 14] { *REQUEST_COUNT }
+pub fn request_count_7(own_token: u32, their_token: u32) -> [u8; 17] {
+    let mut request = [0; 17];
+    request.copy_from_slice(REQUEST_COUNT_7);
+    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
+    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request
+}
 
 fn request_info(header: Header, challenge: u8) -> [u8; 15] {
     let mut request = [0; HEADER_LEN+1];
@@ -142,7 +184,7 @@ impl ServerInfoVersion {
             ServerInfoVersion::V6       => MAX_CLIENTS_5,
             ServerInfoVersion::V664     => MAX_CLIENTS_6_64,
             ServerInfoVersion::V6Ex     => return None,
-            ServerInfoVersion::V7       => MAX_CLIENTS_5,
+            ServerInfoVersion::V7       => MAX_CLIENTS_7,
         })
     }
     pub fn clients_per_packet(self) -> Option<u32> {
@@ -484,28 +526,15 @@ impl<'a> Info5Response<'a> {
 }
 
 impl<'a> Info6Response<'a> {
-    fn parse_impl<RI,RS>(self,
-        read_int: RI,
-        read_str: RS,
-        version: ServerInfoVersion,
-    ) -> Option<ServerInfo>
-    where RI: FnMut(&mut Unpacker) -> Option<i32>,
-          RS: for<'b> FnMut(&mut Unpacker<'b>) -> Option<&'b [u8]>,
-    {
+    pub fn parse(self) -> Option<ServerInfo> {
         let Info6Response(slice) = self;
         let mut unpacker = Unpacker::new(slice);
-        let version = ReceivedServerInfoVersion::Normal(version);
-        parse_server_info(&mut unpacker, read_int, read_str, version)
-            .map(|mut raw| { raw.info.sort_clients(); raw.info })
-    }
-    pub fn parse_v6(self) -> Option<ServerInfo> {
-        self.parse_impl(info_read_int_v5, info_read_str, ServerInfoVersion::V6)
-    }
-    pub fn parse_v7(self) -> Option<ServerInfo> {
-        self.parse_impl(info_read_int_v7, info_read_str, ServerInfoVersion::V7)
-    }
-    pub fn parse(self) -> Option<ServerInfo> {
-        Info6Response::parse_v6(self).or_else(|| Info6Response::parse_v7(self))
+        parse_server_info(
+            &mut unpacker,
+            info_read_int_v5,
+            info_read_str,
+            ReceivedServerInfoVersion::Normal(ServerInfoVersion::V6),
+        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
     }
 }
 
@@ -548,25 +577,46 @@ impl<'a> Info6ExMoreResponse<'a> {
     }
 }
 
+impl<'a> Info7Response<'a> {
+    pub fn parse(self) -> Option<ServerInfo> {
+        let Info7Response(_, _, slice) = self;
+        let mut unpacker = Unpacker::new(slice);
+        parse_server_info(
+            &mut unpacker,
+            info_read_int_v7,
+            info_read_str,
+            ReceivedServerInfoVersion::Normal(ServerInfoVersion::V7),
+        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
+    }
+}
+
 #[derive(Copy, Clone)] pub struct Info5Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)] pub struct Info6Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)] pub struct Info664Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)] pub struct Info6ExResponse<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)] pub struct Info6ExMoreResponse<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)] pub struct Info7Response<'a>(pub u32, pub u32, pub &'a [u8]);
 #[derive(Copy, Clone)] pub struct CountResponse(pub u16);
+#[derive(Copy, Clone)] pub struct Count7Response(pub u32, pub u32, pub u16);
 #[derive(Copy, Clone)] pub struct List5Response<'a>(pub &'a [Addr5Packed]);
 #[derive(Copy, Clone)] pub struct List6Response<'a>(pub &'a [Addr6Packed]);
+#[derive(Copy, Clone)] pub struct List7Response<'a>(pub u32, pub u32, pub &'a [Addr6Packed]);
+#[derive(Copy, Clone)] pub struct Token7Response(pub u32, pub u32);
 
 #[derive(Copy, Clone)]
 pub enum Response<'a> {
     List5(List5Response<'a>),
     List6(List6Response<'a>),
+    List7(List7Response<'a>),
     Count(CountResponse),
+    Count7(Count7Response),
     Info5(Info5Response<'a>),
     Info6(Info6Response<'a>),
     Info664(Info664Response<'a>),
     Info6Ex(Info6ExResponse<'a>),
     Info6ExMore(Info6ExMoreResponse<'a>),
+    Info7(Info7Response<'a>),
+    Token7(Token7Response),
 }
 
 fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
@@ -587,6 +637,11 @@ fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
     unsafe { common::slice::transmute(data) }
 }
 
+fn parse_token(data: &[u8]) -> Option<u32> {
+    let (token, _) = BeU32::from_byte_slice(data)?;
+    Some(token.to_u32())
+}
+
 fn parse_count(data: &[u8]) -> Option<u16> {
     if data.len() < 2 {
         return None;
@@ -598,6 +653,50 @@ fn parse_count(data: &[u8]) -> Option<u16> {
 }
 
 pub fn parse_response(data: &[u8]) -> Option<Response> {
+    match data.first() {
+        Some(0x04) => {
+            if data.len() < TOKEN_7.len() {
+                return None;
+            }
+            let mut header = [0; 8];
+            let mut own_token = [0; 4];
+            let payload = &data[8..];
+            header.copy_from_slice(&data[..8]);
+            own_token.copy_from_slice(&header[3..7]);
+            let own_token = BeU32::from_bytes(&own_token).to_u32();
+            for b in &mut header[3..7] {
+                *b = 0xff;
+            }
+            return match &header {
+                TOKEN_7 => Some(Response::Token7(Token7Response(own_token, parse_token(payload)?))),
+                _ => None,
+            };
+        },
+        Some(0x21) => {
+            if data.len() < 17 {
+                return None;
+            }
+            let mut header = [0; 17];
+            let mut own_token = [0; 4];
+            let mut their_token = [0; 4];
+            let payload = &data[17..];
+            header.copy_from_slice(&data[..17]);
+            own_token.copy_from_slice(&header[1..5]);
+            their_token.copy_from_slice(&header[5..9]);
+            let own_token = BeU32::from_bytes(&own_token).to_u32();
+            let their_token = BeU32::from_bytes(&their_token).to_u32();
+            for b in &mut header[1..9] {
+                *b = 0xff;
+            }
+            return match &header {
+                LIST_7 => Some(Response::List7(List7Response(own_token, their_token, parse_list6(payload)))),
+                INFO_7 => Some(Response::Info7(Info7Response(own_token, their_token, payload))),
+                COUNT_7 => parse_count(payload).map(|x| Response::Count7(Count7Response(own_token, their_token, x))),
+                _ => None,
+            };
+        },
+        _ => {},
+    }
     if data.len() < HEADER_LEN {
         return None;
     }

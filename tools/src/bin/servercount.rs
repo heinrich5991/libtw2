@@ -28,7 +28,7 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
 
         match browse_protocol::parse_response(&buf[..len]) {
             Some(Response::Count(CountResponse(x))) => {
-	    	println!("{}", x);
+                println!("{}", x);
                 break;
             },
             _ => {
