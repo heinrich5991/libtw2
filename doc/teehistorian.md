@@ -77,7 +77,7 @@ The following extra messages are known right now:
   * introduced in DDNet 11.0.3, [1c3dc8c316c2bf37](https://github.com/ddnet/ddnet/commit/1c3dc8c316c2bf37b94814d390c1c214422d46a9)
 * JOINVER6(teehistorian-joinver6@ddnet.tw): cid(int)
   * uuid: 1899a382-71e3-36da-937d-c9de6bb95b1d
-  * introduced in DDNet 14.0 [e294da41ba7142cb](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
+  * introduced in DDNet 14.0, [e294da41ba7142cb](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
 * JOINVER7(teehistorian-joinver7@ddnet.tw): cid(int)
   * uuid: 59239b05-0540-318d-bea4-9aa1e80e7d2b
   * introduced in DDNet 14.0 [e294da41ba7142cb](https://github.com/ddnet/ddnet/commit/e294da41ba7142cb583a5dd2eab45af2ec9a8447)
@@ -93,6 +93,12 @@ The following extra messages are known right now:
 * TEAM_LOAD_FAILURE(teehistorian-load-failure@ddnet.tw): team(int)
   * uuid: ef8905a2-c695-3591-a1cd-53d2015992dd
   * introduced in DDNet 14.0.2, [d8aab366fc8489c8](https://github.com/ddnet/ddnet/commit/d8aab366fc8489c8cba4c77d73a6a7bfcce83bbc)
+* TEEHISTORIAN_PLAYER_TEAM(teehistorian-player-team@ddnet.tw): cid(int), team(int) records team changes
+  * uuid: a111c04e-1ea8-38e0-90b1-d7f993ca0da9
+  * introduced in DDNet 15.6, [e9dec007b22a071e](https://github.com/ddnet/ddnet/commit/e9dec007b22a071e9d104682955c952633455c27)
+* TEEHISTORIAN_TEAM_PRACTICE(teehistorian-team-practice@ddnet.tw): team(int), practice(int) records when a team enters practice mode, resulting ranks don't get sumbitted to the database
+  * uuid: 5792834e-81d1-34c9-a29b-b5ff25dac3bc
+  * introduced in DDNet 15.6, [81f4263428069526](https://github.com/ddnet/ddnet/commit/81f426342806952603a2d28290279e0a7107db5b)
 
 The following data types are used:
 * int is a [teeworlds variable-width integer](int.md)
