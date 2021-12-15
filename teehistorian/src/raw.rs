@@ -270,6 +270,12 @@ impl Reader {
             format::Item::DdnetverOld(i) => Item::DdnetverOld(i),
             format::Item::Joinver6(i) => Item::Joinver6(i),
             format::Item::Joinver7(i) => Item::Joinver7(i),
+            format::Item::PlayerTeam(i) => Item::PlayerTeam(i),
+            format::Item::TeamLoadFailure(i) => Item::TeamLoadFailure(i),
+            format::Item::TeamLoadSuccess(i) => Item::TeamLoadSuccess(i),
+            format::Item::TeamPractice(i) => Item::TeamPractice(i),
+            format::Item::TeamSaveFailure(i) => Item::TeamSaveFailure(i),
+            format::Item::TeamSaveSuccess(i) => Item::TeamSaveSuccess(i),
             format::Item::UnknownEx(i) => Item::UnknownEx(i),
 
             format::Item::PlayerDiff(i) => {
@@ -441,6 +447,12 @@ pub enum Item<'a> {
     DdnetverOld(item::DdnetverOld),
     Joinver6(item::Joinver6),
     Joinver7(item::Joinver7),
+    PlayerTeam(item::PlayerTeam),
+    TeamLoadFailure(item::TeamLoadFailure),
+    TeamLoadSuccess(item::TeamLoadSuccess<'a>),
+    TeamPractice(item::TeamPractice),
+    TeamSaveFailure(item::TeamSaveFailure),
+    TeamSaveSuccess(item::TeamSaveSuccess<'a>),
     UnknownEx(item::UnknownEx<'a>),
 }
 
@@ -480,6 +492,12 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
+            Item::PlayerTeam(ref i) => i.fmt(f),
+            Item::TeamLoadFailure(ref i) => i.fmt(f),
+            Item::TeamLoadSuccess(ref i) => i.fmt(f),
+            Item::TeamPractice(ref i) => i.fmt(f),
+            Item::TeamSaveFailure(ref i) => i.fmt(f),
+            Item::TeamSaveSuccess(ref i) => i.fmt(f),
             Item::UnknownEx(ref i) => i.fmt(f),
         }
     }

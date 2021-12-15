@@ -63,6 +63,36 @@ pub const UUID_JOINVER7: [u8; 16] = [
     0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d,
     0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
 ];
+pub const UUID_PLAYER_TEAM: [u8; 16] = [
+    // "a111c04e-1ea8-38e0-90b1-d7f993ca0da9"
+    0xa1, 0x11, 0xc0, 0x4e, 0x1e, 0xa8, 0x38, 0xe0,
+    0x90, 0xb1, 0xd7, 0xf9, 0x93, 0xca, 0x0d, 0xa9,
+];
+pub const UUID_TEAM_LOAD_FAILURE: [u8; 16] = [
+    // "ef8905a2-c695-3591-a1cd-53d2015992dd"
+    0xef, 0x89, 0x05, 0xa2, 0xc6, 0x95, 0x35, 0x91,
+    0xa1, 0xcd, 0x53, 0xd2, 0x01, 0x59, 0x92, 0xdd,
+];
+pub const UUID_TEAM_LOAD_SUCCESS: [u8; 16] = [
+    // "e05408d3-a313-33df-9eb3-ddb990ab954a"
+    0xe0, 0x54, 0x08, 0xd3, 0xa3, 0x13, 0x33, 0xdf,
+    0x9e, 0xb3, 0xdd, 0xb9, 0x90, 0xab, 0x95, 0x4a,
+];
+pub const UUID_TEAM_PRACTICE: [u8; 16] = [
+    // "5792834e-81d1-34c9-a29b-b5ff25dac3bc"
+    0x57, 0x92, 0x83, 0x4e, 0x81, 0xd1, 0x34, 0xc9,
+    0xa2, 0x9b, 0xb5, 0xff, 0x25, 0xda, 0xc3, 0xbc,
+];
+pub const UUID_TEAM_SAVE_FAILURE: [u8; 16] = [
+    // "b29901d5-1244-3bd0-bbde-23d04b1f7ba9"
+    0xb2, 0x99, 0x01, 0xd5, 0x12, 0x44, 0x3b, 0xd0,
+    0xbb, 0xde, 0x23, 0xd0, 0x4b, 0x1f, 0x7b, 0xa9,
+];
+pub const UUID_TEAM_SAVE_SUCCESS: [u8; 16] = [
+    // "4560c756-da29-3036-81d4-90a50f0182cd"
+    0x45, 0x60, 0xc7, 0x56, 0xda, 0x29, 0x30, 0x36,
+    0x81, 0xd4, 0x90, 0xa5, 0x0f, 0x01, 0x82, 0xcd,
+];
 
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Kind {
@@ -194,6 +224,12 @@ pub enum Item<'a> {
     DdnetverOld(DdnetverOld),
     Joinver6(Joinver6),
     Joinver7(Joinver7),
+    PlayerTeam(PlayerTeam),
+    TeamLoadFailure(TeamLoadFailure),
+    TeamLoadSuccess(TeamLoadSuccess<'a>),
+    TeamPractice(TeamPractice),
+    TeamSaveFailure(TeamSaveFailure),
+    TeamSaveSuccess(TeamSaveSuccess<'a>),
 
     UnknownEx(UnknownEx<'a>),
 }
@@ -311,6 +347,44 @@ pub struct Joinver7 {
     pub cid: i32,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PlayerTeam {
+    pub cid: i32,
+    pub team: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TeamLoadFailure {
+    pub team: i32,
+}
+
+#[derive(Clone, Serialize)]
+pub struct TeamLoadSuccess<'a> {
+    pub team: i32,
+    pub save_uuid: Uuid,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub save: &'a [u8],
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TeamPractice {
+    pub team: i32,
+    pub practice: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TeamSaveFailure {
+    pub team: i32,
+}
+
+#[derive(Clone, Serialize)]
+pub struct TeamSaveSuccess<'a> {
+    pub team: i32,
+    pub save_uuid: Uuid,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub save: &'a [u8],
+}
+
 #[derive(Clone, Serialize)]
 pub struct UnknownEx<'a> {
     pub uuid: Uuid,
@@ -348,6 +422,12 @@ impl<'a> Item<'a> {
             UUID_DDNETVER_OLD => DdnetverOld::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER6 => Joinver6::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER7 => Joinver7::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_TEAM => PlayerTeam::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_LOAD_FAILURE => TeamLoadFailure::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_LOAD_SUCCESS => TeamLoadSuccess::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_PRACTICE => TeamPractice::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_SAVE_FAILURE => TeamSaveFailure::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_SAVE_SUCCESS => TeamSaveSuccess::decode(&mut Unpacker::new(data))?.into(),
             _ => UnknownEx {
                 uuid: uuid,
                 data: data,
@@ -374,6 +454,12 @@ impl<'a> Item<'a> {
             Item::DdnetverOld(ref i) => i.cid,
             Item::Joinver6(ref i) => i.cid,
             Item::Joinver7(ref i) => i.cid,
+            Item::PlayerTeam(ref i) => i.cid,
+            Item::TeamLoadFailure(_) => return None,
+            Item::TeamLoadSuccess(_) => return None,
+            Item::TeamPractice(_) => return None,
+            Item::TeamSaveFailure(_) => return None,
+            Item::TeamSaveSuccess(_) => return None,
             Item::UnknownEx(_) => return None,
         })
     }
@@ -573,6 +659,60 @@ impl Joinver7 {
     }
 }
 
+impl PlayerTeam {
+    fn decode(_p: &mut Unpacker) -> Result<PlayerTeam, MaybeEnd<Error>> {
+        Ok(PlayerTeam {
+            cid: _p.read_int(&mut Ignore)?,
+            team: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl TeamLoadFailure {
+    fn decode(_p: &mut Unpacker) -> Result<TeamLoadFailure, MaybeEnd<Error>> {
+        Ok(TeamLoadFailure {
+            team: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl<'a> TeamLoadSuccess<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<TeamLoadSuccess<'a>, MaybeEnd<Error>> {
+        Ok(TeamLoadSuccess {
+            team: _p.read_int(&mut Ignore)?,
+            save_uuid: _p.read_uuid()?,
+            save: _p.read_string()?,
+        })
+    }
+}
+
+impl TeamPractice {
+    fn decode(_p: &mut Unpacker) -> Result<TeamPractice, MaybeEnd<Error>> {
+        Ok(TeamPractice {
+            team: _p.read_int(&mut Ignore)?,
+            practice: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl TeamSaveFailure {
+    fn decode(_p: &mut Unpacker) -> Result<TeamSaveFailure, MaybeEnd<Error>> {
+        Ok(TeamSaveFailure {
+            team: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl<'a> TeamSaveSuccess<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<TeamSaveSuccess<'a>, MaybeEnd<Error>> {
+        Ok(TeamSaveSuccess {
+            team: _p.read_int(&mut Ignore)?,
+            save_uuid: _p.read_uuid()?,
+            save: _p.read_string()?,
+        })
+    }
+}
+
 impl<'a> fmt::Debug for Item<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -594,6 +734,12 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
+            Item::PlayerTeam(ref i) => i.fmt(f),
+            Item::TeamLoadFailure(ref i) => i.fmt(f),
+            Item::TeamLoadSuccess(ref i) => i.fmt(f),
+            Item::TeamPractice(ref i) => i.fmt(f),
+            Item::TeamSaveFailure(ref i) => i.fmt(f),
+            Item::TeamSaveSuccess(ref i) => i.fmt(f),
             Item::UnknownEx(ref i) => i.fmt(f),
         }
     }
@@ -655,6 +801,26 @@ impl<'a> fmt::Debug for Ddnetver<'a> {
             .field("connection_id", &self.connection_id)
             .field("ddnet_version", &self.ddnet_version)
             .field("ddnet_version_str", &pretty::Bytes::new(&self.ddnet_version_str))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for TeamLoadSuccess<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("TeamLoadSuccess")
+            .field("team", &self.team)
+            .field("save_uuid", &self.save_uuid)
+            .field("save", &pretty::Bytes::new(&self.save))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for TeamSaveSuccess<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("TeamSaveSuccess")
+            .field("team", &self.team)
+            .field("save_uuid", &self.save_uuid)
+            .field("save", &pretty::Bytes::new(&self.save))
             .finish()
     }
 }
@@ -773,6 +939,42 @@ impl<'a> From<Joinver6> for Item<'a> {
 impl<'a> From<Joinver7> for Item<'a> {
     fn from(i: Joinver7) -> Item<'a> {
         Item::Joinver7(i)
+    }
+}
+
+impl<'a> From<PlayerTeam> for Item<'a> {
+    fn from(i: PlayerTeam) -> Item<'a> {
+        Item::PlayerTeam(i)
+    }
+}
+
+impl<'a> From<TeamLoadFailure> for Item<'a> {
+    fn from(i: TeamLoadFailure) -> Item<'a> {
+        Item::TeamLoadFailure(i)
+    }
+}
+
+impl<'a> From<TeamLoadSuccess<'a>> for Item<'a> {
+    fn from(i: TeamLoadSuccess<'a>) -> Item<'a> {
+        Item::TeamLoadSuccess(i)
+    }
+}
+
+impl<'a> From<TeamPractice> for Item<'a> {
+    fn from(i: TeamPractice) -> Item<'a> {
+        Item::TeamPractice(i)
+    }
+}
+
+impl<'a> From<TeamSaveFailure> for Item<'a> {
+    fn from(i: TeamSaveFailure) -> Item<'a> {
+        Item::TeamSaveFailure(i)
+    }
+}
+
+impl<'a> From<TeamSaveSuccess<'a>> for Item<'a> {
+    fn from(i: TeamSaveSuccess<'a>) -> Item<'a> {
+        Item::TeamSaveSuccess(i)
     }
 }
 
