@@ -43,6 +43,16 @@ pub const UUID_AUTH_LOGOUT: [u8; 16] = [
     0xd4, 0xf5, 0xab, 0xe8, 0xed, 0xd2, 0x3f, 0xb9,
     0xab, 0xd8, 0x1c, 0x8b, 0xb8, 0x4f, 0x4a, 0x63,
 ];
+pub const UUID_DDNETVER: [u8; 16] = [
+    // "1397b63e-ee4e-3919-b86a-b058887fcaf5"
+    0x13, 0x97, 0xb6, 0x3e, 0xee, 0x4e, 0x39, 0x19,
+    0xb8, 0x6a, 0xb0, 0x58, 0x88, 0x7f, 0xca, 0xf5,
+];
+pub const UUID_DDNETVER_OLD: [u8; 16] = [
+    // "41b49541-f26f-325d-8715-9baf4b544ef9"
+    0x41, 0xb4, 0x95, 0x41, 0xf2, 0x6f, 0x32, 0x5d,
+    0x87, 0x15, 0x9b, 0xaf, 0x4b, 0x54, 0x4e, 0xf9,
+];
 pub const UUID_JOINVER6: [u8; 16] = [
     // "1899a382-71e3-36da-937d-c9de6bb95b1d"
     0x18, 0x99, 0xa3, 0x82, 0x71, 0xe3, 0x36, 0xda,
@@ -180,6 +190,8 @@ pub enum Item<'a> {
     AuthInit(AuthInit<'a>),
     AuthLogin(AuthLogin<'a>),
     AuthLogout(AuthLogout),
+    Ddnetver(Ddnetver<'a>),
+    DdnetverOld(DdnetverOld),
     Joinver6(Joinver6),
     Joinver7(Joinver7),
 
@@ -274,6 +286,21 @@ pub struct AuthLogout {
     pub cid: i32,
 }
 
+#[derive(Clone, Serialize)]
+pub struct Ddnetver<'a> {
+    pub cid: i32,
+    pub connection_id: Uuid,
+    pub ddnet_version: i32,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub ddnet_version_str: &'a [u8],
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DdnetverOld {
+    pub cid: i32,
+    pub ddnet_version: i32,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Joinver6 {
     pub cid: i32,
@@ -317,6 +344,8 @@ impl<'a> Item<'a> {
             UUID_AUTH_INIT => AuthInit::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGIN => AuthLogin::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGOUT => AuthLogout::decode(&mut Unpacker::new(data))?.into(),
+            UUID_DDNETVER => Ddnetver::decode(&mut Unpacker::new(data))?.into(),
+            UUID_DDNETVER_OLD => DdnetverOld::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER6 => Joinver6::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER7 => Joinver7::decode(&mut Unpacker::new(data))?.into(),
             _ => UnknownEx {
@@ -341,6 +370,8 @@ impl<'a> Item<'a> {
             Item::AuthInit(ref i) => i.cid,
             Item::AuthLogin(ref i) => i.cid,
             Item::AuthLogout(ref i) => i.cid,
+            Item::Ddnetver(ref i) => i.cid,
+            Item::DdnetverOld(ref i) => i.cid,
             Item::Joinver6(ref i) => i.cid,
             Item::Joinver7(ref i) => i.cid,
             Item::UnknownEx(_) => return None,
@@ -506,6 +537,26 @@ impl AuthLogout {
     }
 }
 
+impl<'a> Ddnetver<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<Ddnetver<'a>, MaybeEnd<Error>> {
+        Ok(Ddnetver {
+            cid: _p.read_int(&mut Ignore)?,
+            connection_id: _p.read_uuid()?,
+            ddnet_version: _p.read_int(&mut Ignore)?,
+            ddnet_version_str: _p.read_string()?,
+        })
+    }
+}
+
+impl DdnetverOld {
+    fn decode(_p: &mut Unpacker) -> Result<DdnetverOld, MaybeEnd<Error>> {
+        Ok(DdnetverOld {
+            cid: _p.read_int(&mut Ignore)?,
+            ddnet_version: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
 impl Joinver6 {
     fn decode(_p: &mut Unpacker) -> Result<Joinver6, MaybeEnd<Error>> {
         Ok(Joinver6 {
@@ -539,6 +590,8 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::AuthInit(ref i) => i.fmt(f),
             Item::AuthLogin(ref i) => i.fmt(f),
             Item::AuthLogout(ref i) => i.fmt(f),
+            Item::Ddnetver(ref i) => i.fmt(f),
+            Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
             Item::UnknownEx(ref i) => i.fmt(f),
@@ -591,6 +644,17 @@ impl<'a> fmt::Debug for AuthLogin<'a> {
             .field("cid", &self.cid)
             .field("level", &self.level)
             .field("identity", &pretty::Bytes::new(&self.identity))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for Ddnetver<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Ddnetver")
+            .field("cid", &self.cid)
+            .field("connection_id", &self.connection_id)
+            .field("ddnet_version", &self.ddnet_version)
+            .field("ddnet_version_str", &pretty::Bytes::new(&self.ddnet_version_str))
             .finish()
     }
 }
@@ -679,6 +743,18 @@ impl<'a> From<AuthInit<'a>> for Item<'a> {
 impl<'a> From<AuthLogin<'a>> for Item<'a> {
     fn from(i: AuthLogin<'a>) -> Item<'a> {
         Item::AuthLogin(i)
+    }
+}
+
+impl<'a> From<Ddnetver<'a>> for Item<'a> {
+    fn from(i: Ddnetver<'a>) -> Item<'a> {
+        Item::Ddnetver(i)
+    }
+}
+
+impl<'a> From<DdnetverOld> for Item<'a> {
+    fn from(i: DdnetverOld) -> Item<'a> {
+        Item::DdnetverOld(i)
     }
 }
 
