@@ -96,7 +96,7 @@ The following extra messages are known right now:
 * TEEHISTORIAN_PLAYER_TEAM(teehistorian-player-team@ddnet.tw): cid(int), team(int) records team changes
   * uuid: a111c04e-1ea8-38e0-90b1-d7f993ca0da9
   * introduced in DDNet 15.6, [e9dec007b22a071e](https://github.com/ddnet/ddnet/commit/e9dec007b22a071e9d104682955c952633455c27)
-* TEEHISTORIAN_TEAM_PRACTICE(teehistorian-team-practice@ddnet.tw): team(int), practice(int) records when a team enters practice mode, resulting ranks don't get sumbitted to the database
+* TEEHISTORIAN_TEAM_PRACTICE(teehistorian-team-practice@ddnet.tw): team(int), practice(int) records when a team enters practice mode, resulting ranks don't get submitted to the database
   * uuid: 5792834e-81d1-34c9-a29b-b5ff25dac3bc
   * introduced in DDNet 15.6, [81f4263428069526](https://github.com/ddnet/ddnet/commit/81f426342806952603a2d28290279e0a7107db5b)
 
