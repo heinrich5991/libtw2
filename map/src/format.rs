@@ -1,4 +1,5 @@
 use common;
+use common::num::LeI16;
 use datafile::OnlyI32;
 use std::fmt;
 use std::mem;
@@ -290,7 +291,7 @@ pub struct SpeedupTile {
     pub max_speed: u8,
     pub index: u8,
     pub padding: u8,
-    pub angle: common::num::LeI16,
+    pub angle: LeI16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
