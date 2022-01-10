@@ -24,36 +24,43 @@ impl CastFloat for f32 {
 ///
 /// Is internally represented as `[u8; 4]`.
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BeU32([u8; 4]);
 
 /// Big-endian signed 32-bit integer
 ///
 /// Is internally represented as `[u8; 4]`.
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BeI32([u8; 4]);
 
 /// Little-endian signed 32-bit integer
 ///
 /// Is internally represented as `[u8; 4]`.
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LeI32([u8; 4]);
 
 /// Big-endian unsigned 16-bit integer
 ///
 /// Is internally represented as `[u8; 2]`.
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BeU16([u8; 2]);
 
 /// Little-endian unsigned 16-bit integer
 ///
 /// Is internally represented as `[u8; 2]`.
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LeU16([u8; 2]);
+
+/// Little-endian signed 16-bit integer
+///
+/// Is internally represented as `[u8; 2]`.
+#[repr(C, packed)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct LeI16([u8; 2]);
 
 // ======================
 // BOILERPLATE CODE BELOW
@@ -145,11 +152,28 @@ impl fmt::Debug for LeU16 {
     }
 }
 
+impl LeI16 {
+    pub fn from_i16(value: i16) -> LeI16 {
+        LeI16([value as u8, (value >> 8) as u8])
+    }
+    pub fn to_i16(self) -> i16 {
+        let LeI16(v) = self;
+        (v[1] as i16) << 8 | v[0] as i16
+    }
+}
+
+impl fmt::Debug for LeI16 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.to_i16().fmt(f)
+    }
+}
+
 unsafe_boilerplate_packed!(BeI32, 4, test_size_bei32, test_align_bei32);
 unsafe_boilerplate_packed!(BeU16, 2, test_size_beu16, test_align_beu16);
 unsafe_boilerplate_packed!(BeU32, 4, test_size_beu32, test_align_beu32);
 unsafe_boilerplate_packed!(LeI32, 4, test_size_lei32, test_align_lei32);
 unsafe_boilerplate_packed!(LeU16, 2, test_size_leu16, test_align_leu16);
+unsafe_boilerplate_packed!(LeI16, 2, test_size_lei16, test_align_lei16);
 
 #[cfg(test)]
 mod test {
@@ -158,6 +182,7 @@ mod test {
     use super::BeU32;
     use super::LeI32;
     use super::LeU16;
+    use super::LeI16;
 
     quickcheck! {
         fn bei32_roundtrip(val: i32) -> bool { BeI32::from_i32(val).to_i32() == val }
@@ -165,6 +190,7 @@ mod test {
         fn beu32_roundtrip(val: u32) -> bool { BeU32::from_u32(val).to_u32() == val }
         fn lei32_roundtrip(val: i32) -> bool { LeI32::from_i32(val).to_i32() == val }
         fn leu16_roundtrip(val: u16) -> bool { LeU16::from_u16(val).to_u16() == val }
+        fn lei16_roundtrip(val: i16) -> bool { LeI16::from_i16(val).to_i16() == val }
 
         fn bei32_unpack(v: (u8, u8, u8, u8)) -> bool {
             let bytes = &[v.0, v.1, v.2, v.3];
@@ -186,12 +212,22 @@ mod test {
             let bytes = &[v.0, v.1];
             LeU16::from_u16(LeU16::from_bytes(bytes).to_u16()).as_bytes() == bytes
         }
+        fn lei16_unpack(v: (u8, u8)) -> bool {
+            let bytes = &[v.0, v.1];
+            LeI16::from_i16(LeI16::from_bytes(bytes).to_i16()).as_bytes() == bytes
+        }
     }
     #[test]
     fn order_u16() {
         let be = *BeU16::from_u16(0x1234).as_bytes();
         let le = *LeU16::from_u16(0x1234).as_bytes();
         assert_eq!(be, [0x12, 0x34]);
+        assert_eq!(le, [0x34, 0x12]);
+    }
+
+    #[test]
+    fn order_i16() {
+        let le = *LeI16::from_i16(0x1234).as_bytes();
         assert_eq!(le, [0x34, 0x12]);
     }
 
