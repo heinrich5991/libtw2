@@ -283,6 +283,25 @@ pub struct TeleTile {
     pub index: u8,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct SpeedupTile {
+    pub force: u8,
+    pub max_speed: u8,
+    pub index: u8,
+    pub padding: u8,
+    pub angle: common::num::LeI16,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[repr(C)]
+pub struct SwitchTile {
+    pub number: u8,
+    pub index: u8,
+    pub flags: u8,
+    pub delay: u8,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(C)]
 pub struct TuneTile {
