@@ -758,7 +758,7 @@ impl<'a> fmt::Debug for Drop<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Drop")
             .field("cid", &self.cid)
-            .field("reason", &pretty::Bytes::new(&self.reason))
+            .field("reason", &pretty::AlmostString::new(&self.reason))
             .finish()
     }
 }
@@ -768,8 +768,8 @@ impl<'a> fmt::Debug for ConsoleCommand<'a> {
         f.debug_struct("ConsoleCommand")
             .field("cid", &self.cid)
             .field("flag_mask", &self.flag_mask)
-            .field("cmd", &pretty::Bytes::new(&self.cmd))
-            .field("args", &pretty::BytesSlice::new(&self.args))
+            .field("cmd", &pretty::AlmostString::new(&self.cmd))
+            .field("args", &pretty::AlmostStringSlice::new(&self.args))
             .finish()
     }
 }
@@ -779,7 +779,7 @@ impl<'a> fmt::Debug for AuthInit<'a> {
         f.debug_struct("AuthInit")
             .field("cid", &self.cid)
             .field("level", &self.level)
-            .field("identity", &pretty::Bytes::new(&self.identity))
+            .field("identity", &pretty::AlmostString::new(&self.identity))
             .finish()
     }
 }
@@ -789,7 +789,7 @@ impl<'a> fmt::Debug for AuthLogin<'a> {
         f.debug_struct("AuthLogin")
             .field("cid", &self.cid)
             .field("level", &self.level)
-            .field("identity", &pretty::Bytes::new(&self.identity))
+            .field("identity", &pretty::AlmostString::new(&self.identity))
             .finish()
     }
 }
@@ -800,7 +800,7 @@ impl<'a> fmt::Debug for Ddnetver<'a> {
             .field("cid", &self.cid)
             .field("connection_id", &self.connection_id)
             .field("ddnet_version", &self.ddnet_version)
-            .field("ddnet_version_str", &pretty::Bytes::new(&self.ddnet_version_str))
+            .field("ddnet_version_str", &pretty::AlmostString::new(&self.ddnet_version_str))
             .finish()
     }
 }
@@ -810,7 +810,7 @@ impl<'a> fmt::Debug for TeamLoadSuccess<'a> {
         f.debug_struct("TeamLoadSuccess")
             .field("team", &self.team)
             .field("save_uuid", &self.save_uuid)
-            .field("save", &pretty::Bytes::new(&self.save))
+            .field("save", &pretty::AlmostString::new(&self.save))
             .finish()
     }
 }
@@ -820,7 +820,7 @@ impl<'a> fmt::Debug for TeamSaveSuccess<'a> {
         f.debug_struct("TeamSaveSuccess")
             .field("team", &self.team)
             .field("save_uuid", &self.save_uuid)
-            .field("save", &pretty::Bytes::new(&self.save))
+            .field("save", &pretty::AlmostString::new(&self.save))
             .finish()
     }
 }

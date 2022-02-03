@@ -138,7 +138,7 @@ fn process(path: &Path) -> Result<(), Error> {
                 }
                 if let Some(i) = info {
                     if supplied_infos.get(msg.cid.assert_usize()).map(|prev| prev.name != i.name).unwrap_or(true) {
-                        println!("{} player_name cid={} name={:?}", tick.expect("in tick"), msg.cid, pretty::Bytes::new(&i.name));
+                        println!("{} player_name cid={} name={:?}", tick.expect("in tick"), msg.cid, pretty::AlmostString::new(&i.name));
                     }
                     supplied_infos.insert(msg.cid.assert_usize(), i);
                 }
