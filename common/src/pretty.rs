@@ -15,6 +15,16 @@ impl AlmostString {
     }
 }
 
+pub struct AlmostStringSlice<'a>([&'a [u8]]);
+
+impl<'a> AlmostStringSlice<'a> {
+    pub fn new<'b>(bytes_slice: &'b [&'a [u8]]) -> &'b AlmostStringSlice<'a> {
+        unsafe {
+            mem::transmute(bytes_slice)
+        }
+    }
+}
+
 pub struct Bytes([u8]);
 
 impl Bytes {
@@ -97,5 +107,11 @@ impl fmt::Display for AlmostString {
         } else {
             fmt::Display::fmt(&string, f)
         }
+    }
+}
+
+impl<'a> fmt::Debug for AlmostStringSlice<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_list().entries(self.0.iter().cloned().map(AlmostString::new)).finish()
     }
 }
