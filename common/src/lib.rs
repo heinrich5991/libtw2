@@ -23,5 +23,6 @@ pub mod map_iter;
 pub mod num;
 pub mod pretty;
 pub mod slice;
+pub mod str;
 pub mod takeable;
 pub mod vec;
