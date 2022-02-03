@@ -187,8 +187,8 @@ fn print_start() {
 
 fn print_player_new(addr: LogAddr, info: &ClientInfo) {
     print_server("PLADD", addr, &[
-        &B64(&info.name),
-        &B64(&info.clan),
+        &B64(info.name.as_bytes()),
+        &B64(info.clan.as_bytes()),
         &info.is_player,
         &info.country,
     ]);
@@ -196,7 +196,7 @@ fn print_player_new(addr: LogAddr, info: &ClientInfo) {
 
 fn print_player_remove(addr: LogAddr, info: &ClientInfo) {
     print_server("PLDEL", addr, &[
-        &B64(&info.name),
+        &B64(info.name.as_bytes()),
     ]);
 }
 
@@ -213,10 +213,10 @@ fn print_server_remove(addr: LogAddr, info: &ServerInfo) {
 fn print_server_change_impl(addr: LogAddr, new: bool, info: &ServerInfo) {
     print_server(if new { "SVADD" } else { "SVCHG" }, addr, &[
         &info.flags,
-        &B64(&info.version),
-        &B64(&info.game_type),
-        &B64(&info.map),
-        &B64(&info.name),
+        &B64(info.version.as_bytes()),
+        &B64(info.game_type.as_bytes()),
+        &B64(info.map.as_bytes()),
+        &B64(info.name.as_bytes()),
     ]);
 }
 
@@ -231,5 +231,5 @@ fn print_server_change(addr: LogAddr, old: &ServerInfo, new: &ServerInfo) {
 
 fn player_ignore(addr: LogAddr, info: &ClientInfo) -> bool {
     let _ = addr;
-    &*info.name == "(connecting)".as_bytes()
+    &*info.name == "(connecting)"
 }

@@ -1,9 +1,9 @@
-use arrayvec::ArrayVec;
+use arrayvec::ArrayString;
 use common::num::BeU16;
 use common::num::BeU32;
 use common::num::Cast;
 use common::num::LeU16;
-use common::pretty;
+use common::str::truncated_arraystring;
 use common;
 use packer::Unpacker;
 use std::default::Default;
@@ -123,8 +123,8 @@ fn request_info(header: Header, challenge: u8) -> [u8; 15] {
 
 #[derive(Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ClientInfo {
-    pub name: ArrayVec<[u8; PLAYER_MAX_NAME_LENGTH]>,
-    pub clan: ArrayVec<[u8; PLAYER_MAX_CLAN_LENGTH]>,
+    pub name: ArrayString<[u8; PLAYER_MAX_NAME_LENGTH]>,
+    pub clan: ArrayString<[u8; PLAYER_MAX_CLAN_LENGTH]>,
     pub country: i32,
     pub score: i32,
     pub is_player: i32,
@@ -133,8 +133,8 @@ pub struct ClientInfo {
 impl fmt::Debug for ClientInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?} {:?} {:?} {:?} {:?}",
-            pretty::AlmostString::new(&self.name),
-            pretty::AlmostString::new(&self.clan),
+            self.name,
+            self.clan,
             self.country,
             self.score,
             self.is_player,
@@ -225,13 +225,13 @@ impl Default for ServerInfoVersion { fn default() -> ServerInfoVersion { ServerI
 pub struct ServerInfo {
     pub info_version: ServerInfoVersion,
     pub token: i32,
-    pub version: ArrayVec<[u8; 32]>,
-    pub name: ArrayVec<[u8; 64]>,
-    pub hostname: Option<ArrayVec<[u8; 64]>>,
-    pub map: ArrayVec<[u8; 32]>,
+    pub version: ArrayString<[u8; 32]>,
+    pub name: ArrayString<[u8; 64]>,
+    pub hostname: Option<ArrayString<[u8; 64]>>,
+    pub map: ArrayString<[u8; 32]>,
     pub map_crc: Option<u32>,
     pub map_size: Option<u32>,
-    pub game_type: ArrayVec<[u8; 32]>,
+    pub game_type: ArrayString<[u8; 32]>,
     pub flags: i32,
     pub progression: Option<i32>,
     pub skill_level: Option<i32>,
@@ -253,11 +253,11 @@ impl fmt::Debug for ServerInfo {
         write!(f, "{:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}/{:?} {:?}/{:?}: {:?}",
             self.info_version,
             self.token,
-            pretty::AlmostString::new(&self.version),
-            pretty::AlmostString::new(&self.name),
-            self.hostname.as_ref().map(|x| pretty::AlmostString::new(x)),
-            pretty::AlmostString::new(&self.map),
-            pretty::AlmostString::new(&self.game_type),
+            self.version,
+            self.name,
+            self.hostname,
+            self.map,
+            self.game_type,
             self.flags,
             self.progression,
             self.skill_level,
@@ -357,7 +357,7 @@ fn parse_server_info<RI,RS>(
     received_version: ReceivedServerInfoVersion,
 ) -> Option<PartialServerInfo>
     where RI: FnMut(&mut Unpacker) -> Option<i32>,
-          RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a [u8]>,
+          RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a str>,
 {
     use self::debug_parse_fail as fail;
 
@@ -366,12 +366,11 @@ fn parse_server_info<RI,RS>(
     let mut result = PartialServerInfo::new();
 
     macro_rules! int { ($cause:expr) => {
-        unwrap_or_return!(read_int(unpacker), fail($cause));
+        unwrap_or_return!(read_int(unpacker), fail($cause))
     } }
 
     macro_rules! str { ($cause:expr) => {
-        unwrap_or_return!(read_str(unpacker), fail($cause))
-            .iter().cloned().collect();
+        truncated_arraystring(unwrap_or_return!(read_str(unpacker), fail($cause)))
     } }
 
     let version: ServerInfoVersion = received_version.into();
@@ -447,7 +446,7 @@ fn parse_server_info<RI,RS>(
             offset = unwrap_or_return!(raw_offset.try_u32(), fail("offset sanity check"));
         }
         if version.has_extra_info() {
-            let _: ArrayVec<[u8; 0]> = str!("extra_info");
+            let _: ArrayString<[u8; 0]> = str!("extra_info");
         }
 
         if version == ServerInfoVersion::V6Ex {
@@ -456,7 +455,7 @@ fn parse_server_info<RI,RS>(
 
         for j in offset.. {
             let name = match read_str(unpacker) {
-                Some(n) => n.iter().cloned().collect(),
+                Some(n) => truncated_arraystring(n),
                 None => break,
             };
             let clan;
@@ -476,7 +475,7 @@ fn parse_server_info<RI,RS>(
                 is_player = 1;
             }
             if version.has_extra_info() {
-                let _: ArrayVec<[u8; 0]> = str!("extra_info");
+                let _: ArrayString<[u8; 0]> = str!("extra_info");
             }
             if version == ServerInfoVersion::V664 {
                 if j > MAX_CLIENTS_6_64 {
@@ -508,8 +507,8 @@ fn info_read_int_v7(unpacker: &mut Unpacker) -> Option<i32> {
     unpacker.read_int(&mut Ignore).ok()
 }
 
-fn info_read_str<'a>(unpacker: &mut Unpacker<'a>) -> Option<&'a [u8]> {
-    unpacker.read_string().ok()
+fn info_read_str<'a>(unpacker: &mut Unpacker<'a>) -> Option<&'a str> {
+    unpacker.read_string().ok().and_then(|s| str::from_utf8(s).ok())
 }
 
 impl<'a> Info5Response<'a> {
@@ -829,17 +828,13 @@ impl Addr6Packed {
 
 #[cfg(test)]
 mod test {
-    use std::iter::FromIterator;
+    use common::str::truncated_arraystring as b;
     use super::ClientInfo;
     use super::Info6ExMoreResponse;
     use super::Info6ExResponse;
     use super::Info6Response;
     use super::ServerInfo;
     use super::ServerInfoVersion;
-
-    fn b<FI: FromIterator<u8>>(s: &str) -> FI {
-        s.as_bytes().iter().cloned().collect()
-    }
 
     #[test]
     fn parse_info_v6_real_world() {

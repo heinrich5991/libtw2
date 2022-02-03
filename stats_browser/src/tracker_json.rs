@@ -23,13 +23,11 @@ use std::time::Instant;
 
 mod json {
     use addr;
-    use arrayvec::Array;
     use arrayvec::ArrayString;
     use serverbrowse::protocol;
     use std::convert::TryFrom;
     use std::convert::TryInto;
     use std::fmt::Write;
-    use std::str;
 
     #[derive(Eq, Ord, PartialEq, PartialOrd)]
     pub struct Addr(pub addr::ServerAddr);
@@ -50,7 +48,7 @@ mod json {
         pub max_clients: i32,
         pub max_players: i32,
         pub passworded: bool,
-        pub game_type: ArrayString<[u8; 16]>,
+        pub game_type: ArrayString<[u8; 32]>,
         pub name: ArrayString<[u8; 64]>,
         pub map: MapInfo,
         pub version: ArrayString<[u8; 32]>,
@@ -62,8 +60,8 @@ mod json {
     }
     #[derive(Serialize)]
     pub struct ClientInfo {
-        pub name: ArrayString<[u8; 16]>,
-        pub clan: ArrayString<[u8; 16]>,
+        pub name: ArrayString<[u8; 15]>,
+        pub clan: ArrayString<[u8; 11]>,
         pub country: i32,
         pub score: i32,
         pub is_player: bool,
@@ -86,18 +84,12 @@ mod json {
 
     pub struct Error;
 
-    fn s<A: Array<Item=u8> + Copy>(bytes: &[u8]) -> Result<ArrayString<A>, Error> {
-        let string = str::from_utf8(bytes).map_err(|_| Error)?;
-        let mut result = ArrayString::new();
-        result.try_push_str(string).map_err(|_| Error)?;
-        Ok(result)
-    }
     impl<'a> TryFrom<&'a super::ClientInfo> for ClientInfo {
         type Error = Error;
         fn try_from(i: &'a super::ClientInfo) -> Result<ClientInfo, Error> {
             Ok(ClientInfo {
-                name: s(&i.name)?,
-                clan: s(&i.clan)?,
+                name: i.name,
+                clan: i.clan,
                 country: i.country,
                 score: i.score,
                 is_player: i.is_player != 0,
@@ -111,12 +103,12 @@ mod json {
                 max_clients: i.max_clients,
                 max_players: i.max_players,
                 passworded: i.flags & protocol::SERVERINFO_FLAG_PASSWORDED != 0,
-                game_type: s(&i.game_type)?,
-                name: s(&i.name)?,
+                game_type: i.game_type,
+                name: i.name,
                 map: MapInfo {
-                    name: s(&i.map)?,
+                    name: i.map,
                 },
-                version: s(&i.version)?,
+                version: i.version,
                 clients: Vec::new(),
             };
             result.clients.reserve_exact(i.clients.len());
