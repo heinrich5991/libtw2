@@ -231,14 +231,6 @@ fn read_index(path: &Path) -> Result<Vec<ReadRecord>, Error> {
     read(path).map(|mut v| { v.sort(); v })
 }
 
-fn swap<T, E>(x: Option<Result<T, E>>) -> Result<Option<T>, E> {
-    match x {
-        Some(Ok(x)) => Ok(Some(x)),
-        Some(Err(x)) => Err(x),
-        None => Ok(None)
-    }
-}
-
 fn handle_args(
     base: Option<&Path>,
     output: Option<&Path>,
@@ -246,9 +238,9 @@ fn handle_args(
     config: &Config,
 ) -> Result<(), ()>
 {
-    let base = swap(base.map(|b| {
+    let base = base.map(|b| {
         read_index(b).map_err(|e| eprintln!("{}: {:?}", b.display(), e))
-    }))?.unwrap_or(Vec::new());
+    }).transpose()?.unwrap_or(Vec::new());
 
     let mut base_iter = base.iter();
 

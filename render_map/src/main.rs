@@ -202,10 +202,6 @@ fn sanitize(s: &str) -> Option<&str> {
     }
 }
 
-fn swap<T, E>(v: Option<Result<T, E>>) -> Result<Option<T>, E> {
-    v.map(|r| r.map(|t| Some(t))).unwrap_or(Ok(None))
-}
-
 fn transform_coordinates((mut iy, mut ix): (u32, u32), rotate: bool, vflip: bool, hflip: bool, tile_len: u32)
     -> (u32, u32)
 {
@@ -289,9 +285,10 @@ fn prepare_tilesets<E>(
                                 let image_name = map.image_name(image.name)?;
                                 // WARN? Unknown external image
                                 // WARN! Wrong dimensions
-                                swap(str::from_utf8(&image_name).ok()
-                                          .and_then(sanitize)
-                                          .map(&mut external_tileset_loader))?
+                                str::from_utf8(&image_name).ok()
+                                    .and_then(sanitize)
+                                    .map(&mut external_tileset_loader)
+                                    .transpose()?
                                     .unwrap_or(None)
                                     .unwrap_or_else(|| Array2::from_elem((1, 1), Color::white()))
                             }
