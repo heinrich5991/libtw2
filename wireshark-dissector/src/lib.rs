@@ -79,7 +79,7 @@ pub static plugin_want_major: c_int = 3;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
-pub static plugin_want_minor: c_int = 4;
+pub static plugin_want_minor: c_int = 6;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
