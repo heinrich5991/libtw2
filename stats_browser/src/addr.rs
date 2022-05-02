@@ -6,7 +6,7 @@ use std::fmt;
 use std::net;
 
 /// Protocol version of the `SERVERBROWSE_GETINFO` packet.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ProtocolVersion {
     /// `SERVERBROWSE_GETINFO_5`.
     V5,

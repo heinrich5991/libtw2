@@ -51,7 +51,7 @@ pub trait StatsBrowserCb {
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo);
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, RustcEncodable)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct MasterId(usize);
 
 impl vec_map::Index for MasterId {
