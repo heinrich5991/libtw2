@@ -13,7 +13,7 @@ pub struct UdpSocket(MioUdpSocket);
 impl UdpSocket {
     /// Opens a UDP socket.
     pub fn open() -> SockResult<UdpSocket> {
-        MioUdpSocket::v4()
+        MioUdpSocket::v6()
             .map(|s| UdpSocket(s))
             .map_err(|e| SockError(e))
     }

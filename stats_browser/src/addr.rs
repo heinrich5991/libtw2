@@ -51,7 +51,16 @@ impl Addr {
     pub fn from_socket_addr(addr: net::SocketAddr) -> Addr {
         let (ip_addr, port) = match addr {
             net::SocketAddr::V4(a) => (IpAddr::V4(*a.ip()), a.port()),
-            net::SocketAddr::V6(a) => (IpAddr::V6(*a.ip()), a.port()),
+            net::SocketAddr::V6(a) => {
+                let mut ip = IpAddr::V6(*a.ip());
+                // TODO: switch to `to_ipv4_mapped` in the future.
+                if let Some(v4) = a.ip().to_ipv4() {
+                    if !a.ip().is_loopback() {
+                        ip = IpAddr::V4(v4);
+                    }
+                }
+                (ip, a.port())
+            }
         };
         Addr(protocol::Addr { ip_address: ip_addr, port: port })
     }
