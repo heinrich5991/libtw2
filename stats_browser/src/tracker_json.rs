@@ -7,8 +7,10 @@ use ipnet::Ipv4Net;
 use serverbrowse::protocol::ClientInfo;
 use serverbrowse::protocol::IpAddr;
 use serverbrowse::protocol::ServerInfo;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fmt;
 use std::fs::File;
 use std::fs;
 use std::io::BufWriter;
@@ -20,27 +22,46 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
+use uuid::Uuid;
 
 mod json {
     use addr;
     use arrayvec::ArrayString;
     use serverbrowse::protocol;
+    use std::collections::BTreeMap;
     use std::convert::TryFrom;
     use std::convert::TryInto;
     use std::fmt::Write;
+    use super::Timestamp;
+    use uuid::Uuid;
 
-    #[derive(Eq, Ord, PartialEq, PartialOrd)]
+    #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct Addr(pub addr::ServerAddr);
 
     #[derive(Serialize)]
-    pub struct MasterInfo<'a> {
-        pub servers: &'a [Server<'a>],
+    #[serde(rename_all = "snake_case")]
+    pub enum EntryKind {
+        Backcompat,
+    }
+
+    #[derive(Serialize)]
+    pub struct Dump<'a> {
+        pub now: Timestamp,
+        // Use `BTreeMap`s so the serialization is stable.
+        pub addresses: BTreeMap<Addr, AddrInfo>,
+        pub servers: BTreeMap<Uuid, Server<'a>>,
+    }
+    #[derive(Serialize)]
+    pub struct AddrInfo {
+        pub kind: EntryKind,
+        pub ping_time: Timestamp,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub location: Option<ArrayString<[u8; 15]>>,
+        pub secret: Uuid,
     }
     #[derive(Serialize)]
     pub struct Server<'a> {
-        pub addresses: Vec<Addr>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub location: Option<ArrayString<[u8; 15]>>,
+        pub info_serial: Timestamp,
         pub info: &'a ServerInfo,
     }
     #[derive(Serialize)]
@@ -120,6 +141,32 @@ mod json {
     }
 }
 
+/// Time in milliseconds since the epoch of the timekeeper.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Timestamp(i64);
+
+impl fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Timekeeper {
+    instant: Instant,
+}
+
+impl Timekeeper {
+    fn new() -> Timekeeper {
+        Timekeeper {
+            instant: Instant::now(),
+        }
+    }
+    fn now(&self) -> Timestamp {
+        Timestamp(self.instant.elapsed().as_millis() as i64)
+    }
+}
+
 #[derive(Deserialize)]
 struct LocationRecord {
     network: Ipv4Net,
@@ -129,12 +176,15 @@ struct LocationRecord {
 pub struct ServerEntry {
     location: Option<ArrayString<[u8; 15]>>,
     info: Option<json::ServerInfo>,
+    ping_time: Timestamp,
 }
 
 pub struct Tracker {
     filename: String,
     locations: Vec<LocationRecord>,
+    secret_seed: Uuid,
     servers: Arc<Mutex<HashMap<ServerAddr, ServerEntry>>>,
+    timekeeper: Timekeeper,
 }
 
 const PROTOCOL_VERSIONS_PRIORITY: &'static [ProtocolVersion] = &[
@@ -144,7 +194,9 @@ const PROTOCOL_VERSIONS_PRIORITY: &'static [ProtocolVersion] = &[
 ];
 
 impl Tracker {
-    pub fn new(filename: String, locations_filename: Option<String>) -> Tracker {
+    pub fn new(filename: String, locations_filename: Option<String>, secret_seed: Option<Uuid>)
+        -> Tracker
+    {
         let locations: Result<Vec<_>, _>;
         if let Some(l) = locations_filename {
             let mut locations_reader = csv::Reader::from_path(l).unwrap();
@@ -155,14 +207,18 @@ impl Tracker {
         Tracker {
             filename,
             locations: locations.unwrap(),
+            secret_seed: secret_seed.unwrap_or_else(Uuid::new_v4),
             servers: Default::default(),
+            timekeeper: Timekeeper::new(),
         }
     }
     pub fn start(&mut self) {
         let mut tracker_thread = Tracker {
             filename: mem::replace(&mut self.filename, String::new()),
             locations: Vec::new(),
+            secret_seed: self.secret_seed,
             servers: self.servers.clone(),
+            timekeeper: self.timekeeper,
         };
         thread::spawn(move || tracker_thread.handle_writeout());
     }
@@ -193,36 +249,39 @@ impl Tracker {
                 addresses.sort_unstable();
                 addresses.dedup();
 
-                let mut result = Vec::new();
+                let mut dump = json::Dump {
+                    now: self.timekeeper.now(),
+                    addresses: BTreeMap::new(),
+                    servers: BTreeMap::new(),
+                };
                 for &addr in &addresses {
+                    let secret = Uuid::new_v5(&self.secret_seed, addr.to_string().as_bytes());
                     let mut entry = None;
-                    let mut addresses = Vec::new();
                     for &version in PROTOCOL_VERSIONS_PRIORITY {
                         let server_addr = ServerAddr::new(version, addr);
-                        if let Some(i) = servers.get(&server_addr) {
-                            addresses.push(json::Addr(server_addr));
-                            entry = Some(i);
+                        if let Some(e) = servers.get(&server_addr) {
+                            assert!(dump.addresses.insert(json::Addr(server_addr), json::AddrInfo {
+                                kind: json::EntryKind::Backcompat,
+                                ping_time: e.ping_time,
+                                location: e.location,
+                                secret,
+                            }).is_none());
+                            entry = Some(e);
                         }
                     }
-                    addresses.sort();
                     let entry = entry.unwrap();
                     if let Some(i) = &entry.info {
-                        result.push(json::Server {
-                            addresses,
-                            location: entry.location,
+                        dump.servers.insert(secret, json::Server {
+                            info_serial: entry.ping_time,
                             info: i,
                         });
                     }
                 }
 
-                let master = json::MasterInfo {
-                    servers: &result,
-                };
-
                 {
                     let temp_file = File::create(&temp_filename).unwrap();
                     let mut temp_file = BufWriter::new(temp_file);
-                    serde_json::to_writer(&mut temp_file, &master).unwrap();
+                    serde_json::to_writer(&mut temp_file, &dump).unwrap();
                     temp_file.flush().unwrap();
                     // Drop the temporary file.
                 }
@@ -249,6 +308,7 @@ impl StatsBrowserCb for Tracker {
         assert!(servers.insert(addr, ServerEntry {
             location: self.lookup_location(addr),
             info,
+            ping_time: self.timekeeper.now(),
         }).is_none());
     }
     fn on_server_change(
@@ -258,7 +318,9 @@ impl StatsBrowserCb for Tracker {
         new: &ServerInfo,
     ) {
         let mut servers = self.servers.lock().unwrap();
-        servers.get_mut(&addr).unwrap().info = json::ServerInfo::try_from(new).ok();
+        let server = servers.get_mut(&addr).unwrap();
+        server.info = json::ServerInfo::try_from(new).ok();
+        server.ping_time = self.timekeeper.now();
     }
     fn on_server_remove(&mut self, addr: ServerAddr, _last: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
