@@ -99,6 +99,12 @@ The following extra messages are known right now:
 * TEEHISTORIAN_TEAM_PRACTICE(teehistorian-team-practice@ddnet.tw): team(int), practice(int) records when a team enters practice mode, resulting ranks don't get submitted to the database
   * uuid: 5792834e-81d1-34c9-a29b-b5ff25dac3bc
   * introduced in DDNet 15.6, [81f4263428069526](https://github.com/ddnet/ddnet/commit/81f426342806952603a2d28290279e0a7107db5b)
+* TEEHISTORIAN_PLAYER_READY(teehistorian-player-ready@ddnet.tw): cid(int) records when the client messages that it is ready to join the game, leading to the tee being spawned in the following tick
+  * uuid: 638587c9-3f75-3887-918e-a3c2614ffaa0
+  * introduced in DDNet 16.0, [3ea55dcc0ebc1c79](https://github.com/ddnet/ddnet/commit/3ea55dcc0ebc1c791e11cab0c268febe7e783504)
+* TEEHISTORIAN_PLAYER_SWITCH("teehistorian-player-swap@ddnet.tw): cid1(int), cid2(int) records the ids of players swapping tees
+  * uuid: 5de9b633-49cf-3e99-9a25-d4a78e9717d7
+  * introduced in DDNet 16.1, [86f57289c6ff1926](https://github.com/ddnet/ddnet/commit/86f57289c6ff1926e1e9802de33ceae69a026717)
 
 The following data types are used:
 * int is a [teeworlds variable-width integer](int.md)
