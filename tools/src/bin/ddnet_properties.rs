@@ -97,6 +97,7 @@ fn tile(index: u8) -> Option<&'static str> {
         26 => "TELEIN",
         28 => "BOOST",
         29 => "TELECHECK",
+        35 => "CHECKPOINT_FIRST",
 
         60 => "STOP",
         66 => "THROUGH_ALL",
