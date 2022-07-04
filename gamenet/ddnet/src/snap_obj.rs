@@ -9,6 +9,7 @@ use packer::Unpacker;
 use packer::Warning;
 use packer::in_range;
 use packer::positive;
+use packer::to_bool;
 use std::fmt;
 use uuid::Uuid;
 use warn::Warn;
@@ -50,6 +51,7 @@ pub const CHARACTERFLAG_WEAPON_SHOTGUN: i32 = 1 << 16;
 pub const CHARACTERFLAG_WEAPON_GRENADE: i32 = 1 << 17;
 pub const CHARACTERFLAG_WEAPON_LASER: i32 = 1 << 18;
 pub const CHARACTERFLAG_WEAPON_NINJA: i32 = 1 << 19;
+pub const CHARACTERFLAG_NO_MOVEMENTS: i32 = 1 << 20;
 
 pub const GAMEINFOFLAG_TIMESCORE: i32 = 1 << 0;
 pub const GAMEINFOFLAG_GAMETYPE_RACE: i32 = 1 << 1;
@@ -86,10 +88,30 @@ pub const GAMEINFOFLAG_ENTITIES_BW: i32 = 1 << 31;
 
 pub const GAMEINFOFLAG2_ALLOW_X_SKINS: i32 = 1 << 0;
 pub const GAMEINFOFLAG2_GAMETYPE_CITY: i32 = 1 << 1;
+pub const GAMEINFOFLAG2_GAMETYPE_FDDRACE: i32 = 1 << 2;
+pub const GAMEINFOFLAG2_ENTITIES_FDDRACE: i32 = 1 << 3;
+pub const GAMEINFOFLAG2_HUD_HEALTH_ARMOR: i32 = 1 << 4;
+pub const GAMEINFOFLAG2_HUD_AMMO: i32 = 1 << 5;
+pub const GAMEINFOFLAG2_HUD_DDRACE: i32 = 1 << 6;
 
 pub const EXPLAYERFLAG_AFK: i32 = 1 << 0;
 pub const EXPLAYERFLAG_PAUSED: i32 = 1 << 1;
 pub const EXPLAYERFLAG_SPEC: i32 = 1 << 2;
+
+pub const PROJECTILEFLAG_CLIENTID_BIT0: i32 = 1 << 0;
+pub const PROJECTILEFLAG_CLIENTID_BIT1: i32 = 1 << 1;
+pub const PROJECTILEFLAG_CLIENTID_BIT2: i32 = 1 << 2;
+pub const PROJECTILEFLAG_CLIENTID_BIT3: i32 = 1 << 3;
+pub const PROJECTILEFLAG_CLIENTID_BIT4: i32 = 1 << 4;
+pub const PROJECTILEFLAG_CLIENTID_BIT5: i32 = 1 << 5;
+pub const PROJECTILEFLAG_CLIENTID_BIT6: i32 = 1 << 6;
+pub const PROJECTILEFLAG_CLIENTID_BIT7: i32 = 1 << 7;
+pub const PROJECTILEFLAG_NO_OWNER: i32 = 1 << 8;
+pub const PROJECTILEFLAG_IS_DDNET: i32 = 1 << 9;
+pub const PROJECTILEFLAG_BOUNCE_HORIZONTAL: i32 = 1 << 10;
+pub const PROJECTILEFLAG_BOUNCE_VERTICAL: i32 = 1 << 11;
+pub const PROJECTILEFLAG_EXPLOSIVE: i32 = 1 << 12;
+pub const PROJECTILEFLAG_FREEZE: i32 = 1 << 13;
 
 pub const PLAYER_INPUT: u16 = 1;
 pub const PROJECTILE: u16 = 2;
@@ -105,8 +127,10 @@ pub const CLIENT_INFO: u16 = 11;
 pub const SPECTATOR_INFO: u16 = 12;
 pub const MY_OWN_OBJECT: Uuid = Uuid::from_u128(0x0dc77a02_bfee_3a53_ac8e_0bb0241bd722);
 pub const DDNET_CHARACTER: Uuid = Uuid::from_u128(0x76ce455b_f9eb_3a48_add7_e04b941d045c);
+pub const DDNET_CHARACTER_DISPLAY_INFO: Uuid = Uuid::from_u128(0xe7b431e5_dee0_3e5f_9224_2c95efb38878);
 pub const DDNET_PLAYER: Uuid = Uuid::from_u128(0x22ca938d_1380_3e2b_9e7b_d2558ea6be11);
 pub const GAME_INFO_EX: Uuid = Uuid::from_u128(0x933dea6a_da79_30ea_a98f_8af03689a945);
+pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x0e6db85c_2b61_386f_bbf2_d0d0471b9272);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -117,6 +141,8 @@ pub const SOUND_WORLD: u16 = 19;
 pub const DAMAGE_IND: u16 = 20;
 pub const MY_OWN_EVENT: Uuid = Uuid::from_u128(0x0c4fd27d_47e3_3871_a226_9f417486a311);
 pub const SPEC_CHAR: Uuid = Uuid::from_u128(0x4b801c74_e24c_3ce0_b92c_b754d02cfc8a);
+pub const SWITCH_STATE: Uuid = Uuid::from_u128(0xec15e669_ce11_3367_ae8e_b90e5b27b9d5);
+pub const ENTITY_EX: Uuid = Uuid::from_u128(0x2de9aec3_32e4_3986_8f7e_e7459da7f535);
 
 #[derive(Clone, Copy)]
 pub enum SnapObj {
@@ -134,8 +160,10 @@ pub enum SnapObj {
     SpectatorInfo(SpectatorInfo),
     MyOwnObject(MyOwnObject),
     DdnetCharacter(DdnetCharacter),
+    DdnetCharacterDisplayInfo(DdnetCharacterDisplayInfo),
     DdnetPlayer(DdnetPlayer),
     GameInfoEx(GameInfoEx),
+    DdnetProjectile(DdnetProjectile),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -146,6 +174,8 @@ pub enum SnapObj {
     DamageInd(DamageInd),
     MyOwnEvent(MyOwnEvent),
     SpecChar(SpecChar),
+    SwitchState(SwitchState),
+    EntityEx(EntityEx),
 }
 
 impl SnapObj {
@@ -166,8 +196,10 @@ impl SnapObj {
             Ordinal(SPECTATOR_INFO) => SnapObj::SpectatorInfo(SpectatorInfo::decode(warn, _p)?),
             Uuid(MY_OWN_OBJECT) => SnapObj::MyOwnObject(MyOwnObject::decode(warn, _p)?),
             Uuid(DDNET_CHARACTER) => SnapObj::DdnetCharacter(DdnetCharacter::decode(warn, _p)?),
+            Uuid(DDNET_CHARACTER_DISPLAY_INFO) => SnapObj::DdnetCharacterDisplayInfo(DdnetCharacterDisplayInfo::decode(warn, _p)?),
             Uuid(DDNET_PLAYER) => SnapObj::DdnetPlayer(DdnetPlayer::decode(warn, _p)?),
             Uuid(GAME_INFO_EX) => SnapObj::GameInfoEx(GameInfoEx::decode(warn, _p)?),
+            Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
             Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
             Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
             Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
@@ -178,6 +210,8 @@ impl SnapObj {
             Ordinal(DAMAGE_IND) => SnapObj::DamageInd(DamageInd::decode(warn, _p)?),
             Uuid(MY_OWN_EVENT) => SnapObj::MyOwnEvent(MyOwnEvent::decode(warn, _p)?),
             Uuid(SPEC_CHAR) => SnapObj::SpecChar(SpecChar::decode(warn, _p)?),
+            Uuid(SWITCH_STATE) => SnapObj::SwitchState(SwitchState::decode(warn, _p)?),
+            Uuid(ENTITY_EX) => SnapObj::EntityEx(EntityEx::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -197,8 +231,10 @@ impl SnapObj {
             SnapObj::SpectatorInfo(_) => TypeId::from(SPECTATOR_INFO),
             SnapObj::MyOwnObject(_) => TypeId::from(MY_OWN_OBJECT),
             SnapObj::DdnetCharacter(_) => TypeId::from(DDNET_CHARACTER),
+            SnapObj::DdnetCharacterDisplayInfo(_) => TypeId::from(DDNET_CHARACTER_DISPLAY_INFO),
             SnapObj::DdnetPlayer(_) => TypeId::from(DDNET_PLAYER),
             SnapObj::GameInfoEx(_) => TypeId::from(GAME_INFO_EX),
+            SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
             SnapObj::Common(_) => TypeId::from(COMMON),
             SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
             SnapObj::Spawn(_) => TypeId::from(SPAWN),
@@ -209,6 +245,8 @@ impl SnapObj {
             SnapObj::DamageInd(_) => TypeId::from(DAMAGE_IND),
             SnapObj::MyOwnEvent(_) => TypeId::from(MY_OWN_EVENT),
             SnapObj::SpecChar(_) => TypeId::from(SPEC_CHAR),
+            SnapObj::SwitchState(_) => TypeId::from(SWITCH_STATE),
+            SnapObj::EntityEx(_) => TypeId::from(ENTITY_EX),
         }
     }
     pub fn encode(&self) -> &[i32] {
@@ -227,8 +265,10 @@ impl SnapObj {
             SnapObj::SpectatorInfo(ref i) => i.encode(),
             SnapObj::MyOwnObject(ref i) => i.encode(),
             SnapObj::DdnetCharacter(ref i) => i.encode(),
+            SnapObj::DdnetCharacterDisplayInfo(ref i) => i.encode(),
             SnapObj::DdnetPlayer(ref i) => i.encode(),
             SnapObj::GameInfoEx(ref i) => i.encode(),
+            SnapObj::DdnetProjectile(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -239,6 +279,8 @@ impl SnapObj {
             SnapObj::DamageInd(ref i) => i.encode(),
             SnapObj::MyOwnEvent(ref i) => i.encode(),
             SnapObj::SpecChar(ref i) => i.encode(),
+            SnapObj::SwitchState(ref i) => i.encode(),
+            SnapObj::EntityEx(ref i) => i.encode(),
         }
     }
 }
@@ -260,8 +302,10 @@ impl fmt::Debug for SnapObj {
             SnapObj::SpectatorInfo(ref i) => i.fmt(f),
             SnapObj::MyOwnObject(ref i) => i.fmt(f),
             SnapObj::DdnetCharacter(ref i) => i.fmt(f),
+            SnapObj::DdnetCharacterDisplayInfo(ref i) => i.fmt(f),
             SnapObj::DdnetPlayer(ref i) => i.fmt(f),
             SnapObj::GameInfoEx(ref i) => i.fmt(f),
+            SnapObj::DdnetProjectile(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -272,6 +316,8 @@ impl fmt::Debug for SnapObj {
             SnapObj::DamageInd(ref i) => i.fmt(f),
             SnapObj::MyOwnEvent(ref i) => i.fmt(f),
             SnapObj::SpecChar(ref i) => i.fmt(f),
+            SnapObj::SwitchState(ref i) => i.fmt(f),
+            SnapObj::EntityEx(ref i) => i.fmt(f),
         }
     }
 }
@@ -360,6 +406,12 @@ impl From<DdnetCharacter> for SnapObj {
     }
 }
 
+impl From<DdnetCharacterDisplayInfo> for SnapObj {
+    fn from(i: DdnetCharacterDisplayInfo) -> SnapObj {
+        SnapObj::DdnetCharacterDisplayInfo(i)
+    }
+}
+
 impl From<DdnetPlayer> for SnapObj {
     fn from(i: DdnetPlayer) -> SnapObj {
         SnapObj::DdnetPlayer(i)
@@ -369,6 +421,12 @@ impl From<DdnetPlayer> for SnapObj {
 impl From<GameInfoEx> for SnapObj {
     fn from(i: GameInfoEx) -> SnapObj {
         SnapObj::GameInfoEx(i)
+    }
+}
+
+impl From<DdnetProjectile> for SnapObj {
+    fn from(i: DdnetProjectile) -> SnapObj {
+        SnapObj::DdnetProjectile(i)
     }
 }
 
@@ -429,6 +487,18 @@ impl From<MyOwnEvent> for SnapObj {
 impl From<SpecChar> for SnapObj {
     fn from(i: SpecChar) -> SnapObj {
         SnapObj::SpecChar(i)
+    }
+}
+
+impl From<SwitchState> for SnapObj {
+    fn from(i: SwitchState) -> SnapObj {
+        SnapObj::SwitchState(i)
+    }
+}
+
+impl From<EntityEx> for SnapObj {
+    fn from(i: EntityEx) -> SnapObj {
+        SnapObj::EntityEx(i)
     }
 }
 
@@ -588,6 +658,19 @@ pub struct DdnetCharacter {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct DdnetCharacterDisplayInfo {
+    pub jumped_total: i32,
+    pub ninja_activation_tick: ::snap_obj::Tick,
+    pub freeze_tick: ::snap_obj::Tick,
+    pub is_in_freeze: bool,
+    pub is_in_practice_mode: bool,
+    pub target_x: i32,
+    pub target_y: i32,
+    pub ramp_value: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct DdnetPlayer {
     pub flags: i32,
     pub auth_level: i32,
@@ -599,6 +682,17 @@ pub struct GameInfoEx {
     pub flags: i32,
     pub version: i32,
     pub flags2: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetProjectile {
+    pub x: i32,
+    pub y: i32,
+    pub angle: i32,
+    pub data: i32,
+    pub type_: enums::Weapon,
+    pub start_tick: ::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -665,6 +759,23 @@ pub struct MyOwnEvent {
 pub struct SpecChar {
     pub x: i32,
     pub y: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SwitchState {
+    pub highest_switch_number: i32,
+    pub status: [i32; 8],
+    pub switch_numbers: [i32; 4],
+    pub end_ticks: [i32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct EntityEx {
+    pub switch_number: i32,
+    pub layer: i32,
+    pub entity_class: i32,
 }
 
 impl fmt::Debug for PlayerInput {
@@ -1214,14 +1325,52 @@ impl DdnetCharacter {
         Ok(DdnetCharacter {
             flags: _p.read_int()?,
             freeze_end: ::snap_obj::Tick(_p.read_int()?),
-            jumps: in_range(_p.read_int()?, 0, 255)?,
+            jumps: in_range(_p.read_int()?, -1, 255)?,
             tele_checkpoint: _p.read_int()?,
             strong_weak_id: in_range(_p.read_int()?, 0, 63)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(0 <= self.jumps && self.jumps <= 255);
+        assert!(-1 <= self.jumps && self.jumps <= 255);
         assert!(0 <= self.strong_weak_id && self.strong_weak_id <= 63);
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetCharacterDisplayInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetCharacterDisplayInfo")
+            .field("jumped_total", &self.jumped_total)
+            .field("ninja_activation_tick", &self.ninja_activation_tick)
+            .field("freeze_tick", &self.freeze_tick)
+            .field("is_in_freeze", &self.is_in_freeze)
+            .field("is_in_practice_mode", &self.is_in_practice_mode)
+            .field("target_x", &self.target_x)
+            .field("target_y", &self.target_y)
+            .field("ramp_value", &self.ramp_value)
+            .finish()
+    }
+}
+impl DdnetCharacterDisplayInfo {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetCharacterDisplayInfo, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetCharacterDisplayInfo, Error> {
+        Ok(DdnetCharacterDisplayInfo {
+            jumped_total: in_range(_p.read_int()?, 0, 255)?,
+            ninja_activation_tick: ::snap_obj::Tick(_p.read_int()?),
+            freeze_tick: ::snap_obj::Tick(_p.read_int()?),
+            is_in_freeze: to_bool(_p.read_int()?)?,
+            is_in_practice_mode: to_bool(_p.read_int()?)?,
+            target_x: _p.read_int()?,
+            target_y: _p.read_int()?,
+            ramp_value: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(0 <= self.jumped_total && self.jumped_total <= 255);
         unsafe { slice::transmute(slice::ref_slice(self)) }
     }
 }
@@ -1272,6 +1421,39 @@ impl GameInfoEx {
             flags: _p.read_int()?,
             version: _p.read_int()?,
             flags2: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetProjectile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetProjectile")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("angle", &self.angle)
+            .field("data", &self.data)
+            .field("type_", &self.type_)
+            .field("start_tick", &self.start_tick)
+            .finish()
+    }
+}
+impl DdnetProjectile {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
+        Ok(DdnetProjectile {
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            angle: _p.read_int()?,
+            data: _p.read_int()?,
+            type_: enums::Weapon::from_i32(_p.read_int()?)?,
+            start_tick: ::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1522,6 +1704,81 @@ impl SpecChar {
         Ok(SpecChar {
             x: _p.read_int()?,
             y: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for SwitchState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SwitchState")
+            .field("highest_switch_number", &self.highest_switch_number)
+            .field("status", &self.status)
+            .field("switch_numbers", &self.switch_numbers)
+            .field("end_ticks", &self.end_ticks)
+            .finish()
+    }
+}
+impl SwitchState {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SwitchState, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SwitchState, Error> {
+        Ok(SwitchState {
+            highest_switch_number: _p.read_int()?,
+            status: [
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+            ],
+            switch_numbers: [
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+            ],
+            end_ticks: [
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+                _p.read_int()?,
+            ],
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(slice::ref_slice(self)) }
+    }
+}
+
+impl fmt::Debug for EntityEx {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("EntityEx")
+            .field("switch_number", &self.switch_number)
+            .field("layer", &self.layer)
+            .field("entity_class", &self.entity_class)
+            .finish()
+    }
+}
+impl EntityEx {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<EntityEx, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<EntityEx, Error> {
+        Ok(EntityEx {
+            switch_number: _p.read_int()?,
+            layer: _p.read_int()?,
+            entity_class: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {

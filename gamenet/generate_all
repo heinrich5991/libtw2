@@ -6,4 +6,4 @@ set -o pipefail
 python3 generate/generate.py generate/spec/teeworlds-0.5.json teeworlds-0.5 gamenet_teeworlds_0_5
 python3 generate/generate.py generate/spec/teeworlds-0.6.json teeworlds-0.6 gamenet_teeworlds_0_6
 python3 generate/generate.py generate/spec/teeworlds-0.7.5.json teeworlds-0.7 gamenet_teeworlds_0_7
-python3 generate/generate.py generate/spec/ddnet-15.2.5.json ddnet gamenet_ddnet
+python3 generate/generate.py generate/spec/ddnet-16.2.json ddnet gamenet_ddnet

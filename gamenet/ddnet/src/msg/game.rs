@@ -63,15 +63,18 @@ pub const CL_KILL: i32 = 22;
 pub const CL_EMOTICON: i32 = 23;
 pub const CL_VOTE: i32 = 24;
 pub const CL_CALL_VOTE: i32 = 25;
-pub const CL_IS_DDNET: i32 = 26;
-pub const SV_DDRACE_TIME: i32 = 27;
-pub const SV_RECORD: i32 = 28;
+pub const CL_IS_DDNET_LEGACY: i32 = 26;
+pub const SV_DDRACE_TIME_LEGACY: i32 = 27;
+pub const SV_RECORD_LEGACY: i32 = 28;
 pub const UNUSED: i32 = 29;
-pub const SV_TEAMS_STATE: i32 = 30;
+pub const SV_TEAMS_STATE_LEGACY: i32 = 30;
 pub const CL_SHOW_OTHERS_LEGACY: i32 = 31;
 pub const SV_MY_OWN_MESSAGE: Uuid = Uuid::from_u128(0x1231e484_f607_3722_a89a_bd85db46f5d2);
 pub const CL_SHOW_DISTANCE: Uuid = Uuid::from_u128(0x53bb28af_4252_3ac9_8fd3_6ccbc2a603e3);
 pub const CL_SHOW_OTHERS: Uuid = Uuid::from_u128(0x7f264cdd_71a2_3962_bbce_0f94bbd81913);
+pub const SV_TEAMS_STATE: Uuid = Uuid::from_u128(0xa091961a_95e8_3744_bb60_5eac9bd563c6);
+pub const SV_DDRACE_TIME: Uuid = Uuid::from_u128(0x5dde8b3c_6f6f_37ac_a72a_bb341fe76de5);
+pub const SV_RECORD: Uuid = Uuid::from_u128(0x804f149f_9b53_3b0a_897f_59663a1c4eb9);
 
 #[derive(Clone, Copy)]
 pub enum Game<'a> {
@@ -100,15 +103,18 @@ pub enum Game<'a> {
     ClEmoticon(ClEmoticon),
     ClVote(ClVote),
     ClCallVote(ClCallVote<'a>),
-    ClIsDdnet(ClIsDdnet),
-    SvDdraceTime(SvDdraceTime),
-    SvRecord(SvRecord),
+    ClIsDdnetLegacy(ClIsDdnetLegacy),
+    SvDdraceTimeLegacy(SvDdraceTimeLegacy),
+    SvRecordLegacy(SvRecordLegacy),
     Unused(Unused),
-    SvTeamsState(SvTeamsState),
+    SvTeamsStateLegacy(SvTeamsStateLegacy),
     ClShowOthersLegacy(ClShowOthersLegacy),
     SvMyOwnMessage(SvMyOwnMessage),
     ClShowDistance(ClShowDistance),
     ClShowOthers(ClShowOthers),
+    SvTeamsState(SvTeamsState),
+    SvDdraceTime(SvDdraceTime),
+    SvRecord(SvRecord),
 }
 
 impl<'a> Game<'a> {
@@ -140,15 +146,18 @@ impl<'a> Game<'a> {
             Ordinal(CL_EMOTICON) => Game::ClEmoticon(ClEmoticon::decode(warn, _p)?),
             Ordinal(CL_VOTE) => Game::ClVote(ClVote::decode(warn, _p)?),
             Ordinal(CL_CALL_VOTE) => Game::ClCallVote(ClCallVote::decode(warn, _p)?),
-            Ordinal(CL_IS_DDNET) => Game::ClIsDdnet(ClIsDdnet::decode(warn, _p)?),
-            Ordinal(SV_DDRACE_TIME) => Game::SvDdraceTime(SvDdraceTime::decode(warn, _p)?),
-            Ordinal(SV_RECORD) => Game::SvRecord(SvRecord::decode(warn, _p)?),
+            Ordinal(CL_IS_DDNET_LEGACY) => Game::ClIsDdnetLegacy(ClIsDdnetLegacy::decode(warn, _p)?),
+            Ordinal(SV_DDRACE_TIME_LEGACY) => Game::SvDdraceTimeLegacy(SvDdraceTimeLegacy::decode(warn, _p)?),
+            Ordinal(SV_RECORD_LEGACY) => Game::SvRecordLegacy(SvRecordLegacy::decode(warn, _p)?),
             Ordinal(UNUSED) => Game::Unused(Unused::decode(warn, _p)?),
-            Ordinal(SV_TEAMS_STATE) => Game::SvTeamsState(SvTeamsState::decode(warn, _p)?),
+            Ordinal(SV_TEAMS_STATE_LEGACY) => Game::SvTeamsStateLegacy(SvTeamsStateLegacy::decode(warn, _p)?),
             Ordinal(CL_SHOW_OTHERS_LEGACY) => Game::ClShowOthersLegacy(ClShowOthersLegacy::decode(warn, _p)?),
             Uuid(SV_MY_OWN_MESSAGE) => Game::SvMyOwnMessage(SvMyOwnMessage::decode(warn, _p)?),
             Uuid(CL_SHOW_DISTANCE) => Game::ClShowDistance(ClShowDistance::decode(warn, _p)?),
             Uuid(CL_SHOW_OTHERS) => Game::ClShowOthers(ClShowOthers::decode(warn, _p)?),
+            Uuid(SV_TEAMS_STATE) => Game::SvTeamsState(SvTeamsState::decode(warn, _p)?),
+            Uuid(SV_DDRACE_TIME) => Game::SvDdraceTime(SvDdraceTime::decode(warn, _p)?),
+            Uuid(SV_RECORD) => Game::SvRecord(SvRecord::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -179,15 +188,18 @@ impl<'a> Game<'a> {
             Game::ClEmoticon(_) => MessageId::from(CL_EMOTICON),
             Game::ClVote(_) => MessageId::from(CL_VOTE),
             Game::ClCallVote(_) => MessageId::from(CL_CALL_VOTE),
-            Game::ClIsDdnet(_) => MessageId::from(CL_IS_DDNET),
-            Game::SvDdraceTime(_) => MessageId::from(SV_DDRACE_TIME),
-            Game::SvRecord(_) => MessageId::from(SV_RECORD),
+            Game::ClIsDdnetLegacy(_) => MessageId::from(CL_IS_DDNET_LEGACY),
+            Game::SvDdraceTimeLegacy(_) => MessageId::from(SV_DDRACE_TIME_LEGACY),
+            Game::SvRecordLegacy(_) => MessageId::from(SV_RECORD_LEGACY),
             Game::Unused(_) => MessageId::from(UNUSED),
-            Game::SvTeamsState(_) => MessageId::from(SV_TEAMS_STATE),
+            Game::SvTeamsStateLegacy(_) => MessageId::from(SV_TEAMS_STATE_LEGACY),
             Game::ClShowOthersLegacy(_) => MessageId::from(CL_SHOW_OTHERS_LEGACY),
             Game::SvMyOwnMessage(_) => MessageId::from(SV_MY_OWN_MESSAGE),
             Game::ClShowDistance(_) => MessageId::from(CL_SHOW_DISTANCE),
             Game::ClShowOthers(_) => MessageId::from(CL_SHOW_OTHERS),
+            Game::SvTeamsState(_) => MessageId::from(SV_TEAMS_STATE),
+            Game::SvDdraceTime(_) => MessageId::from(SV_DDRACE_TIME),
+            Game::SvRecord(_) => MessageId::from(SV_RECORD),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -217,15 +229,18 @@ impl<'a> Game<'a> {
             Game::ClEmoticon(ref i) => i.encode(p),
             Game::ClVote(ref i) => i.encode(p),
             Game::ClCallVote(ref i) => i.encode(p),
-            Game::ClIsDdnet(ref i) => i.encode(p),
-            Game::SvDdraceTime(ref i) => i.encode(p),
-            Game::SvRecord(ref i) => i.encode(p),
+            Game::ClIsDdnetLegacy(ref i) => i.encode(p),
+            Game::SvDdraceTimeLegacy(ref i) => i.encode(p),
+            Game::SvRecordLegacy(ref i) => i.encode(p),
             Game::Unused(ref i) => i.encode(p),
-            Game::SvTeamsState(ref i) => i.encode(p),
+            Game::SvTeamsStateLegacy(ref i) => i.encode(p),
             Game::ClShowOthersLegacy(ref i) => i.encode(p),
             Game::SvMyOwnMessage(ref i) => i.encode(p),
             Game::ClShowDistance(ref i) => i.encode(p),
             Game::ClShowOthers(ref i) => i.encode(p),
+            Game::SvTeamsState(ref i) => i.encode(p),
+            Game::SvDdraceTime(ref i) => i.encode(p),
+            Game::SvRecord(ref i) => i.encode(p),
         }
     }
 }
@@ -258,15 +273,18 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::ClEmoticon(ref i) => i.fmt(f),
             Game::ClVote(ref i) => i.fmt(f),
             Game::ClCallVote(ref i) => i.fmt(f),
-            Game::ClIsDdnet(ref i) => i.fmt(f),
-            Game::SvDdraceTime(ref i) => i.fmt(f),
-            Game::SvRecord(ref i) => i.fmt(f),
+            Game::ClIsDdnetLegacy(ref i) => i.fmt(f),
+            Game::SvDdraceTimeLegacy(ref i) => i.fmt(f),
+            Game::SvRecordLegacy(ref i) => i.fmt(f),
             Game::Unused(ref i) => i.fmt(f),
-            Game::SvTeamsState(ref i) => i.fmt(f),
+            Game::SvTeamsStateLegacy(ref i) => i.fmt(f),
             Game::ClShowOthersLegacy(ref i) => i.fmt(f),
             Game::SvMyOwnMessage(ref i) => i.fmt(f),
             Game::ClShowDistance(ref i) => i.fmt(f),
             Game::ClShowOthers(ref i) => i.fmt(f),
+            Game::SvTeamsState(ref i) => i.fmt(f),
+            Game::SvDdraceTime(ref i) => i.fmt(f),
+            Game::SvRecord(ref i) => i.fmt(f),
         }
     }
 }
@@ -421,21 +439,21 @@ impl<'a> From<ClCallVote<'a>> for Game<'a> {
     }
 }
 
-impl<'a> From<ClIsDdnet> for Game<'a> {
-    fn from(i: ClIsDdnet) -> Game<'a> {
-        Game::ClIsDdnet(i)
+impl<'a> From<ClIsDdnetLegacy> for Game<'a> {
+    fn from(i: ClIsDdnetLegacy) -> Game<'a> {
+        Game::ClIsDdnetLegacy(i)
     }
 }
 
-impl<'a> From<SvDdraceTime> for Game<'a> {
-    fn from(i: SvDdraceTime) -> Game<'a> {
-        Game::SvDdraceTime(i)
+impl<'a> From<SvDdraceTimeLegacy> for Game<'a> {
+    fn from(i: SvDdraceTimeLegacy) -> Game<'a> {
+        Game::SvDdraceTimeLegacy(i)
     }
 }
 
-impl<'a> From<SvRecord> for Game<'a> {
-    fn from(i: SvRecord) -> Game<'a> {
-        Game::SvRecord(i)
+impl<'a> From<SvRecordLegacy> for Game<'a> {
+    fn from(i: SvRecordLegacy) -> Game<'a> {
+        Game::SvRecordLegacy(i)
     }
 }
 
@@ -445,9 +463,9 @@ impl<'a> From<Unused> for Game<'a> {
     }
 }
 
-impl<'a> From<SvTeamsState> for Game<'a> {
-    fn from(i: SvTeamsState) -> Game<'a> {
-        Game::SvTeamsState(i)
+impl<'a> From<SvTeamsStateLegacy> for Game<'a> {
+    fn from(i: SvTeamsStateLegacy) -> Game<'a> {
+        Game::SvTeamsStateLegacy(i)
     }
 }
 
@@ -472,6 +490,24 @@ impl<'a> From<ClShowDistance> for Game<'a> {
 impl<'a> From<ClShowOthers> for Game<'a> {
     fn from(i: ClShowOthers) -> Game<'a> {
         Game::ClShowOthers(i)
+    }
+}
+
+impl<'a> From<SvTeamsState> for Game<'a> {
+    fn from(i: SvTeamsState) -> Game<'a> {
+        Game::SvTeamsState(i)
+    }
+}
+
+impl<'a> From<SvDdraceTime> for Game<'a> {
+    fn from(i: SvDdraceTime) -> Game<'a> {
+        Game::SvDdraceTime(i)
+    }
+}
+
+impl<'a> From<SvRecord> for Game<'a> {
+    fn from(i: SvRecord) -> Game<'a> {
+        Game::SvRecord(i)
     }
 }
 #[derive(Clone, Copy)]
@@ -550,6 +586,7 @@ pub struct SvTuneParams {
     pub grenade_fire_delay: TuneParam,
     pub laser_fire_delay: TuneParam,
     pub ninja_fire_delay: TuneParam,
+    pub hammer_hit_fire_delay: TuneParam,
 }
 
 #[derive(Clone, Copy)]
@@ -664,19 +701,17 @@ pub struct ClCallVote<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct ClIsDdnet {
-    pub ddnet_version: i32,
-}
+pub struct ClIsDdnetLegacy;
 
 #[derive(Clone, Copy)]
-pub struct SvDdraceTime {
+pub struct SvDdraceTimeLegacy {
     pub time: i32,
     pub check: i32,
     pub finish: i32,
 }
 
 #[derive(Clone, Copy)]
-pub struct SvRecord {
+pub struct SvRecordLegacy {
     pub server_time_best: i32,
     pub player_time_best: i32,
 }
@@ -685,7 +720,7 @@ pub struct SvRecord {
 pub struct Unused;
 
 #[derive(Clone, Copy)]
-pub struct SvTeamsState;
+pub struct SvTeamsStateLegacy;
 
 #[derive(Clone, Copy)]
 pub struct ClShowOthersLegacy {
@@ -706,6 +741,22 @@ pub struct ClShowDistance {
 #[derive(Clone, Copy)]
 pub struct ClShowOthers {
     pub show: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvTeamsState;
+
+#[derive(Clone, Copy)]
+pub struct SvDdraceTime {
+    pub time: i32,
+    pub check: i32,
+    pub finish: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvRecord {
+    pub server_time_best: i32,
+    pub player_time_best: i32,
 }
 
 impl<'a> SvMotd<'a> {
@@ -881,6 +932,7 @@ impl SvTuneParams {
             grenade_fire_delay: TuneParam(_p.read_int(warn)?),
             laser_fire_delay: TuneParam(_p.read_int(warn)?),
             ninja_fire_delay: TuneParam(_p.read_int(warn)?),
+            hammer_hit_fire_delay: TuneParam(_p.read_int(warn)?),
         });
         _p.finish(warn);
         result
@@ -930,6 +982,7 @@ impl SvTuneParams {
         _p.write_int(self.grenade_fire_delay.0)?;
         _p.write_int(self.laser_fire_delay.0)?;
         _p.write_int(self.ninja_fire_delay.0)?;
+        _p.write_int(self.hammer_hit_fire_delay.0)?;
         Ok(_p.written())
     }
 }
@@ -980,6 +1033,7 @@ impl fmt::Debug for SvTuneParams {
             .field("grenade_fire_delay", &self.grenade_fire_delay)
             .field("laser_fire_delay", &self.laser_fire_delay)
             .field("ninja_fire_delay", &self.ninja_fire_delay)
+            .field("hammer_hit_fire_delay", &self.hammer_hit_fire_delay)
             .finish()
     }
 }
@@ -1481,30 +1535,26 @@ impl<'a> fmt::Debug for ClCallVote<'a> {
     }
 }
 
-impl ClIsDdnet {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClIsDdnet, Error> {
-        let result = Ok(ClIsDdnet {
-            ddnet_version: _p.read_int(warn)?,
-        });
+impl ClIsDdnetLegacy {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClIsDdnetLegacy, Error> {
+        let result = Ok(ClIsDdnetLegacy);
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_int(self.ddnet_version)?;
         Ok(_p.written())
     }
 }
-impl fmt::Debug for ClIsDdnet {
+impl fmt::Debug for ClIsDdnetLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("ClIsDdnet")
-            .field("ddnet_version", &self.ddnet_version)
+        f.debug_struct("ClIsDdnetLegacy")
             .finish()
     }
 }
 
-impl SvDdraceTime {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvDdraceTime, Error> {
-        let result = Ok(SvDdraceTime {
+impl SvDdraceTimeLegacy {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvDdraceTimeLegacy, Error> {
+        let result = Ok(SvDdraceTimeLegacy {
             time: _p.read_int(warn)?,
             check: _p.read_int(warn)?,
             finish: in_range(_p.read_int(warn)?, 0, 1)?,
@@ -1520,9 +1570,9 @@ impl SvDdraceTime {
         Ok(_p.written())
     }
 }
-impl fmt::Debug for SvDdraceTime {
+impl fmt::Debug for SvDdraceTimeLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("SvDdraceTime")
+        f.debug_struct("SvDdraceTimeLegacy")
             .field("time", &self.time)
             .field("check", &self.check)
             .field("finish", &self.finish)
@@ -1530,9 +1580,9 @@ impl fmt::Debug for SvDdraceTime {
     }
 }
 
-impl SvRecord {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvRecord, Error> {
-        let result = Ok(SvRecord {
+impl SvRecordLegacy {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvRecordLegacy, Error> {
+        let result = Ok(SvRecordLegacy {
             server_time_best: _p.read_int(warn)?,
             player_time_best: _p.read_int(warn)?,
         });
@@ -1545,9 +1595,9 @@ impl SvRecord {
         Ok(_p.written())
     }
 }
-impl fmt::Debug for SvRecord {
+impl fmt::Debug for SvRecordLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("SvRecord")
+        f.debug_struct("SvRecordLegacy")
             .field("server_time_best", &self.server_time_best)
             .field("player_time_best", &self.player_time_best)
             .finish()
@@ -1571,9 +1621,9 @@ impl fmt::Debug for Unused {
     }
 }
 
-impl SvTeamsState {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsState, Error> {
-        let result = Ok(SvTeamsState);
+impl SvTeamsStateLegacy {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsStateLegacy, Error> {
+        let result = Ok(SvTeamsStateLegacy);
         _p.finish(warn);
         result
     }
@@ -1581,9 +1631,9 @@ impl SvTeamsState {
         Ok(_p.written())
     }
 }
-impl fmt::Debug for SvTeamsState {
+impl fmt::Debug for SvTeamsStateLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("SvTeamsState")
+        f.debug_struct("SvTeamsStateLegacy")
             .finish()
     }
 }
@@ -1672,6 +1722,75 @@ impl fmt::Debug for ClShowOthers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClShowOthers")
             .field("show", &self.show)
+            .finish()
+    }
+}
+
+impl SvTeamsState {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsState, Error> {
+        let result = Ok(SvTeamsState);
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvTeamsState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvTeamsState")
+            .finish()
+    }
+}
+
+impl SvDdraceTime {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvDdraceTime, Error> {
+        let result = Ok(SvDdraceTime {
+            time: _p.read_int(warn)?,
+            check: _p.read_int(warn)?,
+            finish: in_range(_p.read_int(warn)?, 0, 1)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(0 <= self.finish && self.finish <= 1);
+        _p.write_int(self.time)?;
+        _p.write_int(self.check)?;
+        _p.write_int(self.finish)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvDdraceTime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvDdraceTime")
+            .field("time", &self.time)
+            .field("check", &self.check)
+            .field("finish", &self.finish)
+            .finish()
+    }
+}
+
+impl SvRecord {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvRecord, Error> {
+        let result = Ok(SvRecord {
+            server_time_best: _p.read_int(warn)?,
+            player_time_best: _p.read_int(warn)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.server_time_best)?;
+        _p.write_int(self.player_time_best)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvRecord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvRecord")
+            .field("server_time_best", &self.server_time_best)
+            .field("player_time_best", &self.player_time_best)
             .finish()
     }
 }

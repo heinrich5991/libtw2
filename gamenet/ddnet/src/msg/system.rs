@@ -59,6 +59,11 @@ pub const RCON_TYPE: Uuid = Uuid::from_u128(0x12810e1f_a1db_3378_b4fb_164ed65059
 pub const MAP_DETAILS: Uuid = Uuid::from_u128(0xf9117b3c_8039_3416_9fc0_aef2bcb75c03);
 pub const CAPABILITIES: Uuid = Uuid::from_u128(0xf621a5a1_f585_3775_8e73_41beee79f2b2);
 pub const CLIENT_VERSION: Uuid = Uuid::from_u128(0x8c001304_8461_3e47_8787_f672b3835bd4);
+pub const PING_EX: Uuid = Uuid::from_u128(0xbcb43bf5_427c_36d8_b5b8_7975c8c06aa1);
+pub const PONG_EX: Uuid = Uuid::from_u128(0xd8295530_14a7_3a0a_b02e_b2cee08d2033);
+pub const CHECKSUM_REQUEST: Uuid = Uuid::from_u128(0x60a7cef1_2ecc_3ed4_b138_00fd0c8f5994);
+pub const CHECKSUM_RESPONSE: Uuid = Uuid::from_u128(0x88fc61ec_5a3c_3fc3_8dfa_fd3b715db9e0);
+pub const CHECKSUM_ERROR: Uuid = Uuid::from_u128(0x090960d1_4000_3fd5_9670_4976ae702a6a);
 
 #[derive(Clone, Copy)]
 pub enum System<'a> {
@@ -89,6 +94,11 @@ pub enum System<'a> {
     MapDetails(MapDetails<'a>),
     Capabilities(Capabilities),
     ClientVersion(ClientVersion<'a>),
+    PingEx(PingEx),
+    PongEx(PongEx),
+    ChecksumRequest(ChecksumRequest),
+    ChecksumResponse(ChecksumResponse),
+    ChecksumError(ChecksumError),
 }
 
 impl<'a> System<'a> {
@@ -122,6 +132,11 @@ impl<'a> System<'a> {
             Uuid(MAP_DETAILS) => System::MapDetails(MapDetails::decode(warn, _p)?),
             Uuid(CAPABILITIES) => System::Capabilities(Capabilities::decode(warn, _p)?),
             Uuid(CLIENT_VERSION) => System::ClientVersion(ClientVersion::decode(warn, _p)?),
+            Uuid(PING_EX) => System::PingEx(PingEx::decode(warn, _p)?),
+            Uuid(PONG_EX) => System::PongEx(PongEx::decode(warn, _p)?),
+            Uuid(CHECKSUM_REQUEST) => System::ChecksumRequest(ChecksumRequest::decode(warn, _p)?),
+            Uuid(CHECKSUM_RESPONSE) => System::ChecksumResponse(ChecksumResponse::decode(warn, _p)?),
+            Uuid(CHECKSUM_ERROR) => System::ChecksumError(ChecksumError::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -154,6 +169,11 @@ impl<'a> System<'a> {
             System::MapDetails(_) => MessageId::from(MAP_DETAILS),
             System::Capabilities(_) => MessageId::from(CAPABILITIES),
             System::ClientVersion(_) => MessageId::from(CLIENT_VERSION),
+            System::PingEx(_) => MessageId::from(PING_EX),
+            System::PongEx(_) => MessageId::from(PONG_EX),
+            System::ChecksumRequest(_) => MessageId::from(CHECKSUM_REQUEST),
+            System::ChecksumResponse(_) => MessageId::from(CHECKSUM_RESPONSE),
+            System::ChecksumError(_) => MessageId::from(CHECKSUM_ERROR),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -185,6 +205,11 @@ impl<'a> System<'a> {
             System::MapDetails(ref i) => i.encode(p),
             System::Capabilities(ref i) => i.encode(p),
             System::ClientVersion(ref i) => i.encode(p),
+            System::PingEx(ref i) => i.encode(p),
+            System::PongEx(ref i) => i.encode(p),
+            System::ChecksumRequest(ref i) => i.encode(p),
+            System::ChecksumResponse(ref i) => i.encode(p),
+            System::ChecksumError(ref i) => i.encode(p),
         }
     }
 }
@@ -219,6 +244,11 @@ impl<'a> fmt::Debug for System<'a> {
             System::MapDetails(ref i) => i.fmt(f),
             System::Capabilities(ref i) => i.fmt(f),
             System::ClientVersion(ref i) => i.fmt(f),
+            System::PingEx(ref i) => i.fmt(f),
+            System::PongEx(ref i) => i.fmt(f),
+            System::ChecksumRequest(ref i) => i.fmt(f),
+            System::ChecksumResponse(ref i) => i.fmt(f),
+            System::ChecksumError(ref i) => i.fmt(f),
         }
     }
 }
@@ -384,6 +414,36 @@ impl<'a> From<ClientVersion<'a>> for System<'a> {
         System::ClientVersion(i)
     }
 }
+
+impl<'a> From<PingEx> for System<'a> {
+    fn from(i: PingEx) -> System<'a> {
+        System::PingEx(i)
+    }
+}
+
+impl<'a> From<PongEx> for System<'a> {
+    fn from(i: PongEx) -> System<'a> {
+        System::PongEx(i)
+    }
+}
+
+impl<'a> From<ChecksumRequest> for System<'a> {
+    fn from(i: ChecksumRequest) -> System<'a> {
+        System::ChecksumRequest(i)
+    }
+}
+
+impl<'a> From<ChecksumResponse> for System<'a> {
+    fn from(i: ChecksumResponse) -> System<'a> {
+        System::ChecksumResponse(i)
+    }
+}
+
+impl<'a> From<ChecksumError> for System<'a> {
+    fn from(i: ChecksumError) -> System<'a> {
+        System::ChecksumError(i)
+    }
+}
 #[derive(Clone, Copy)]
 pub struct Info<'a> {
     pub version: &'a [u8],
@@ -537,6 +597,35 @@ pub struct ClientVersion<'a> {
     pub connection_id: Uuid,
     pub ddnet_version: i32,
     pub ddnet_version_string: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct PingEx {
+    pub id: Uuid,
+}
+
+#[derive(Clone, Copy)]
+pub struct PongEx {
+    pub id: Uuid,
+}
+
+#[derive(Clone, Copy)]
+pub struct ChecksumRequest {
+    pub id: Uuid,
+    pub start: i32,
+    pub length: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct ChecksumResponse {
+    pub id: Uuid,
+    pub sha256: Sha256,
+}
+
+#[derive(Clone, Copy)]
+pub struct ChecksumError {
+    pub id: Uuid,
+    pub error: i32,
 }
 
 impl<'a> Info<'a> {
@@ -1176,6 +1265,123 @@ impl<'a> fmt::Debug for ClientVersion<'a> {
             .field("connection_id", &self.connection_id)
             .field("ddnet_version", &self.ddnet_version)
             .field("ddnet_version_string", &pretty::Bytes::new(&self.ddnet_version_string))
+            .finish()
+    }
+}
+
+impl PingEx {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PingEx, Error> {
+        let result = Ok(PingEx {
+            id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_raw(self.id.as_bytes())?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for PingEx {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PingEx")
+            .field("id", &self.id)
+            .finish()
+    }
+}
+
+impl PongEx {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PongEx, Error> {
+        let result = Ok(PongEx {
+            id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_raw(self.id.as_bytes())?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for PongEx {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PongEx")
+            .field("id", &self.id)
+            .finish()
+    }
+}
+
+impl ChecksumRequest {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ChecksumRequest, Error> {
+        let result = Ok(ChecksumRequest {
+            id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
+            start: _p.read_int(warn)?,
+            length: _p.read_int(warn)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_raw(self.id.as_bytes())?;
+        _p.write_int(self.start)?;
+        _p.write_int(self.length)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for ChecksumRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ChecksumRequest")
+            .field("id", &self.id)
+            .field("start", &self.start)
+            .field("length", &self.length)
+            .finish()
+    }
+}
+
+impl ChecksumResponse {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ChecksumResponse, Error> {
+        let result = Ok(ChecksumResponse {
+            id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
+            sha256: Sha256::from_slice(_p.read_raw(32)?).unwrap(),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_raw(self.id.as_bytes())?;
+        _p.write_raw(&self.sha256.0)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for ChecksumResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ChecksumResponse")
+            .field("id", &self.id)
+            .field("sha256", &self.sha256)
+            .finish()
+    }
+}
+
+impl ChecksumError {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ChecksumError, Error> {
+        let result = Ok(ChecksumError {
+            id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
+            error: _p.read_int(warn)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_raw(self.id.as_bytes())?;
+        _p.write_int(self.error)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for ChecksumError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ChecksumError")
+            .field("id", &self.id)
+            .field("error", &self.error)
             .finish()
     }
 }

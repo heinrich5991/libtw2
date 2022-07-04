@@ -7,7 +7,7 @@ pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
 pub const VERSION: &'static str = "0.6 626fce9a778df4d4";
-pub const DDNET_VERSION: i32 = 15025;
+pub const DDNET_VERSION: i32 = 16020;
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
@@ -34,6 +34,10 @@ pub const POWERUP_HEALTH: i32 = 0;
 pub const POWERUP_ARMOR: i32 = 1;
 pub const POWERUP_WEAPON: i32 = 2;
 pub const POWERUP_NINJA: i32 = 3;
+pub const POWERUP_ARMOR_SHOTGUN: i32 = 4;
+pub const POWERUP_ARMOR_GRENADE: i32 = 5;
+pub const POWERUP_ARMOR_NINJA: i32 = 6;
+pub const POWERUP_ARMOR_LASER: i32 = 7;
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
@@ -42,6 +46,10 @@ pub enum Powerup {
     Armor,
     Weapon,
     Ninja,
+    ArmorShotgun,
+    ArmorGrenade,
+    ArmorNinja,
+    ArmorLaser,
 }
 
 pub const EMOTICON_OOP: i32 = 0;
@@ -94,6 +102,34 @@ pub enum Authed {
     Helper,
     Mod,
     Admin,
+}
+
+pub const ENTITYCLASS_PROJECTILE: i32 = 0;
+pub const ENTITYCLASS_DOOR: i32 = 1;
+pub const ENTITYCLASS_DRAGGER_WEAK: i32 = 2;
+pub const ENTITYCLASS_DRAGGER_NORMAL: i32 = 3;
+pub const ENTITYCLASS_DRAGGER_STRONG: i32 = 4;
+pub const ENTITYCLASS_GUN_NORMAL: i32 = 5;
+pub const ENTITYCLASS_GUN_EXPLOSIVE: i32 = 6;
+pub const ENTITYCLASS_GUN_FREEZE: i32 = 7;
+pub const ENTITYCLASS_GUN_UNFREEZE: i32 = 8;
+pub const ENTITYCLASS_LIGHT: i32 = 9;
+pub const ENTITYCLASS_PICKUP: i32 = 10;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Entityclass {
+    Projectile,
+    Door,
+    DraggerWeak,
+    DraggerNormal,
+    DraggerStrong,
+    GunNormal,
+    GunExplosive,
+    GunFreeze,
+    GunUnfreeze,
+    Light,
+    Pickup,
 }
 
 pub const WEAPON_HAMMER: i32 = 0;
@@ -248,6 +284,10 @@ impl Powerup {
             POWERUP_ARMOR => Armor,
             POWERUP_WEAPON => Weapon,
             POWERUP_NINJA => Ninja,
+            POWERUP_ARMOR_SHOTGUN => ArmorShotgun,
+            POWERUP_ARMOR_GRENADE => ArmorGrenade,
+            POWERUP_ARMOR_NINJA => ArmorNinja,
+            POWERUP_ARMOR_LASER => ArmorLaser,
             _ => return Err(IntOutOfRange),
         })
     }
@@ -258,6 +298,10 @@ impl Powerup {
             Armor => POWERUP_ARMOR,
             Weapon => POWERUP_WEAPON,
             Ninja => POWERUP_NINJA,
+            ArmorShotgun => POWERUP_ARMOR_SHOTGUN,
+            ArmorGrenade => POWERUP_ARMOR_GRENADE,
+            ArmorNinja => POWERUP_ARMOR_NINJA,
+            ArmorLaser => POWERUP_ARMOR_LASER,
         }
     }
 }
@@ -326,6 +370,42 @@ impl Authed {
             Helper => AUTHED_HELPER,
             Mod => AUTHED_MOD,
             Admin => AUTHED_ADMIN,
+        }
+    }
+}
+
+impl Entityclass {
+    pub fn from_i32(i: i32) -> Result<Entityclass, IntOutOfRange> {
+        use self::Entityclass::*;
+        Ok(match i {
+            ENTITYCLASS_PROJECTILE => Projectile,
+            ENTITYCLASS_DOOR => Door,
+            ENTITYCLASS_DRAGGER_WEAK => DraggerWeak,
+            ENTITYCLASS_DRAGGER_NORMAL => DraggerNormal,
+            ENTITYCLASS_DRAGGER_STRONG => DraggerStrong,
+            ENTITYCLASS_GUN_NORMAL => GunNormal,
+            ENTITYCLASS_GUN_EXPLOSIVE => GunExplosive,
+            ENTITYCLASS_GUN_FREEZE => GunFreeze,
+            ENTITYCLASS_GUN_UNFREEZE => GunUnfreeze,
+            ENTITYCLASS_LIGHT => Light,
+            ENTITYCLASS_PICKUP => Pickup,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Entityclass::*;
+        match self {
+            Projectile => ENTITYCLASS_PROJECTILE,
+            Door => ENTITYCLASS_DOOR,
+            DraggerWeak => ENTITYCLASS_DRAGGER_WEAK,
+            DraggerNormal => ENTITYCLASS_DRAGGER_NORMAL,
+            DraggerStrong => ENTITYCLASS_DRAGGER_STRONG,
+            GunNormal => ENTITYCLASS_GUN_NORMAL,
+            GunExplosive => ENTITYCLASS_GUN_EXPLOSIVE,
+            GunFreeze => ENTITYCLASS_GUN_FREEZE,
+            GunUnfreeze => ENTITYCLASS_GUN_UNFREEZE,
+            Light => ENTITYCLASS_LIGHT,
+            Pickup => ENTITYCLASS_PICKUP,
         }
     }
 }
