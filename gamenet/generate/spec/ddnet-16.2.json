@@ -1,0 +1,1522 @@
+{
+	"constants": [
+		{"name": ["max", "clients"], "type": "int32", "value": 64},
+		{"name": ["spec", "freeview"], "type": "int32", "value": -1},
+		{"name": ["max", "snapshot", "packsize"], "type": "int32", "value": 900},
+		{"name": ["flag", "missing"], "type": "int32", "value": -3},
+		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
+		{"name": ["flag", "taken"], "type": "int32", "value": -1},
+		{"name": ["version"], "type": "string", "value": "0.6 626fce9a778df4d4"},
+		{"name": ["ddnet", "version"], "type": "int32", "value": 16020},
+		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
+		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"},
+		{"name": ["cl", "call", "vote", "type", "spec"], "type": "string", "value": "spec"}
+	],
+	"game_enumerations": [
+		{
+			"name": ["emote"],
+			"values": [
+				{"value": 0, "name": ["normal"]},
+				{"value": 1, "name": ["pain"]},
+				{"value": 2, "name": ["happy"]},
+				{"value": 3, "name": ["surprise"]},
+				{"value": 4, "name": ["angry"]},
+				{"value": 5, "name": ["blink"]}
+			]
+		},
+		{
+			"name": ["powerup"],
+			"values": [
+				{"value": 0, "name": ["health"]},
+				{"value": 1, "name": ["armor"]},
+				{"value": 2, "name": ["weapon"]},
+				{"value": 3, "name": ["ninja"]},
+				{"value": 4, "name": ["armor", "shotgun"]},
+				{"value": 5, "name": ["armor", "grenade"]},
+				{"value": 6, "name": ["armor", "ninja"]},
+				{"value": 7, "name": ["armor", "laser"]}
+			]
+		},
+		{
+			"name": ["emoticon"],
+			"values": [
+				{"value": 0, "name": ["oop"]},
+				{"value": 1, "name": ["exclamation"]},
+				{"value": 2, "name": ["hearts"]},
+				{"value": 3, "name": ["drop"]},
+				{"value": 4, "name": ["dotdot"]},
+				{"value": 5, "name": ["music"]},
+				{"value": 6, "name": ["sorry"]},
+				{"value": 7, "name": ["ghost"]},
+				{"value": 8, "name": ["sushi"]},
+				{"value": 9, "name": ["splattee"]},
+				{"value": 10, "name": ["deviltee"]},
+				{"value": 11, "name": ["zomg"]},
+				{"value": 12, "name": ["zzz"]},
+				{"value": 13, "name": ["wtf"]},
+				{"value": 14, "name": ["eyes"]},
+				{"value": 15, "name": ["question"]}
+			]
+		},
+		{
+			"name": ["authed"],
+			"values": [
+				{"value": 0, "name": ["no"]},
+				{"value": 1, "name": ["helper"]},
+				{"value": 2, "name": ["mod"]},
+				{"value": 3, "name": ["admin"]}
+			]
+		},
+		{
+			"name": ["entityclass"],
+			"values": [
+				{"value": 0, "name": ["projectile"]},
+				{"value": 1, "name": ["door"]},
+				{"value": 2, "name": ["dragger", "weak"]},
+				{"value": 3, "name": ["dragger", "normal"]},
+				{"value": 4, "name": ["dragger", "strong"]},
+				{"value": 5, "name": ["gun", "normal"]},
+				{"value": 6, "name": ["gun", "explosive"]},
+				{"value": 7, "name": ["gun", "freeze"]},
+				{"value": 8, "name": ["gun", "unfreeze"]},
+				{"value": 9, "name": ["light"]},
+				{"value": 10, "name": ["pickup"]}
+			]
+		},
+		{
+			"name": ["weapon"],
+			"values": [
+				{"value": 0, "name": ["hammer"]},
+				{"value": 1, "name": ["pistol"]},
+				{"value": 2, "name": ["shotgun"]},
+				{"value": 3, "name": ["grenade"]},
+				{"value": 4, "name": ["rifle"]},
+				{"value": 5, "name": ["ninja"]}
+			]
+		},
+		{
+			"name": ["team"],
+			"values": [
+				{"value": -1, "name": ["spectators"]},
+				{"value": 0, "name": ["red"]},
+				{"value": 1, "name": ["blue"]}
+			]
+		},
+		{
+			"name": ["sound"],
+			"values": [
+				{"value": 0, "name": ["gun", "fire"]},
+				{"value": 1, "name": ["shotgun", "fire"]},
+				{"value": 2, "name": ["grenade", "fire"]},
+				{"value": 3, "name": ["hammer", "fire"]},
+				{"value": 4, "name": ["hammer", "hit"]},
+				{"value": 5, "name": ["ninja", "fire"]},
+				{"value": 6, "name": ["grenade", "explode"]},
+				{"value": 7, "name": ["ninja", "hit"]},
+				{"value": 8, "name": ["rifle", "fire"]},
+				{"value": 9, "name": ["rifle", "bounce"]},
+				{"value": 10, "name": ["weapon", "switch"]},
+				{"value": 11, "name": ["player", "pain", "short"]},
+				{"value": 12, "name": ["player", "pain", "long"]},
+				{"value": 13, "name": ["body", "land"]},
+				{"value": 14, "name": ["player", "airjump"]},
+				{"value": 15, "name": ["player", "jump"]},
+				{"value": 16, "name": ["player", "die"]},
+				{"value": 17, "name": ["player", "spawn"]},
+				{"value": 18, "name": ["player", "skid"]},
+				{"value": 19, "name": ["tee", "cry"]},
+				{"value": 20, "name": ["hook", "loop"]},
+				{"value": 21, "name": ["hook", "attach", "ground"]},
+				{"value": 22, "name": ["hook", "attach", "player"]},
+				{"value": 23, "name": ["hook", "noattach"]},
+				{"value": 24, "name": ["pickup", "health"]},
+				{"value": 25, "name": ["pickup", "armor"]},
+				{"value": 26, "name": ["pickup", "grenade"]},
+				{"value": 27, "name": ["pickup", "shotgun"]},
+				{"value": 28, "name": ["pickup", "ninja"]},
+				{"value": 29, "name": ["weapon", "spawn"]},
+				{"value": 30, "name": ["weapon", "noammo"]},
+				{"value": 31, "name": ["hit"]},
+				{"value": 32, "name": ["chat", "server"]},
+				{"value": 33, "name": ["chat", "client"]},
+				{"value": 34, "name": ["chat", "highlight"]},
+				{"value": 35, "name": ["ctf", "drop"]},
+				{"value": 36, "name": ["ctf", "return"]},
+				{"value": 37, "name": ["ctf", "grab", "pl"]},
+				{"value": 38, "name": ["ctf", "grab", "en"]},
+				{"value": 39, "name": ["ctf", "capture"]},
+				{"value": 40, "name": ["menu"]}
+			]
+		}
+	],
+	"game_flags": [
+		{
+			"name": ["playerflag"],
+			"values": [
+				{"value": 1, "name": ["playing"]},
+				{"value": 2, "name": ["in", "menu"]},
+				{"value": 4, "name": ["chatting"]},
+				{"value": 8, "name": ["scoreboard"]},
+				{"value": 16, "name": ["aim"]}
+			]
+		},
+		{
+			"name": ["gameflag"],
+			"values": [
+				{"value": 1, "name": ["teams"]},
+				{"value": 2, "name": ["flags"]}
+			]
+		},
+		{
+			"name": ["gamestateflag"],
+			"values": [
+				{"value": 1, "name": ["gameover"]},
+				{"value": 2, "name": ["suddendeath"]},
+				{"value": 4, "name": ["paused"]},
+				{"value": 8, "name": ["racetime"]}
+			]
+		},
+		{
+			"name": ["characterflag"],
+			"values": [
+				{"value": 1, "name": ["solo"]},
+				{"value": 2, "name": ["jetpack"]},
+				{"value": 4, "name": ["no", "collision"]},
+				{"value": 8, "name": ["endless", "hook"]},
+				{"value": 16, "name": ["endless", "jump"]},
+				{"value": 32, "name": ["super"]},
+				{"value": 64, "name": ["no", "hammer", "hit"]},
+				{"value": 128, "name": ["no", "shotgun", "hit"]},
+				{"value": 256, "name": ["no", "grenade", "hit"]},
+				{"value": 512, "name": ["no", "laser", "hit"]},
+				{"value": 1024, "name": ["no", "hook"]},
+				{"value": 2048, "name": ["telegun", "gun"]},
+				{"value": 4096, "name": ["telegun", "grenade"]},
+				{"value": 8192, "name": ["telegun", "laser"]},
+				{"value": 16384, "name": ["weapon", "hammer"]},
+				{"value": 32768, "name": ["weapon", "gun"]},
+				{"value": 65536, "name": ["weapon", "shotgun"]},
+				{"value": 131072, "name": ["weapon", "grenade"]},
+				{"value": 262144, "name": ["weapon", "laser"]},
+				{"value": 524288, "name": ["weapon", "ninja"]},
+				{"value": 1048576, "name": ["no", "movements"]}
+			]
+		},
+		{
+			"name": ["gameinfoflag"],
+			"values": [
+				{"value": 1, "name": ["timescore"]},
+				{"value": 2, "name": ["gametype", "race"]},
+				{"value": 4, "name": ["gametype", "fastcap"]},
+				{"value": 8, "name": ["gametype", "fng"]},
+				{"value": 16, "name": ["gametype", "ddrace"]},
+				{"value": 32, "name": ["gametype", "ddnet"]},
+				{"value": 64, "name": ["gametype", "block", "worlds"]},
+				{"value": 128, "name": ["gametype", "vanilla"]},
+				{"value": 256, "name": ["gametype", "plus"]},
+				{"value": 512, "name": ["flag", "starts", "race"]},
+				{"value": 1024, "name": ["race"]},
+				{"value": 2048, "name": ["unlimited", "ammo"]},
+				{"value": 4096, "name": ["ddrace", "record", "message"]},
+				{"value": 8192, "name": ["race", "record", "message"]},
+				{"value": 16384, "name": ["allow", "eye", "wheel"]},
+				{"value": 32768, "name": ["allow", "hook", "coll"]},
+				{"value": 65536, "name": ["allow", "zoom"]},
+				{"value": 131072, "name": ["bug", "ddrace", "ghost"]},
+				{"value": 262144, "name": ["bug", "ddrace", "input"]},
+				{"value": 524288, "name": ["bug", "fng", "laser", "range"]},
+				{"value": 1048576, "name": ["bug", "vanilla", "bounce"]},
+				{"value": 2097152, "name": ["predict", "fng"]},
+				{"value": 4194304, "name": ["predict", "ddrace"]},
+				{"value": 8388608, "name": ["predict", "ddrace", "tiles"]},
+				{"value": 16777216, "name": ["predict", "vanilla"]},
+				{"value": 33554432, "name": ["entities", "ddnet"]},
+				{"value": 67108864, "name": ["entities", "ddrace"]},
+				{"value": 134217728, "name": ["entities", "race"]},
+				{"value": 268435456, "name": ["entities", "fng"]},
+				{"value": 536870912, "name": ["entities", "vanilla"]},
+				{"value": 1073741824, "name": ["dont", "mask", "entities"]},
+				{"value": 2147483648, "name": ["entities", "bw"]}
+			]
+		},
+		{
+			"name": ["gameinfoflag2"],
+			"values": [
+				{"value": 1, "name": ["allow", "x", "skins"]},
+				{"value": 2, "name": ["gametype", "city"]},
+				{"value": 4, "name": ["gametype", "fddrace"]},
+				{"value": 8, "name": ["entities", "fddrace"]},
+				{"value": 16, "name": ["hud", "health", "armor"]},
+				{"value": 32, "name": ["hud", "ammo"]},
+				{"value": 64, "name": ["hud", "ddrace"]}
+			]
+		},
+		{
+			"name": ["explayerflag"],
+			"values": [
+				{"value": 1, "name": ["afk"]},
+				{"value": 2, "name": ["paused"]},
+				{"value": 4, "name": ["spec"]}
+			]
+		},
+		{
+			"name": ["projectileflag"],
+			"values": [
+				{"value": 1, "name": ["clientid", "bit0"]},
+				{"value": 2, "name": ["clientid", "bit1"]},
+				{"value": 4, "name": ["clientid", "bit2"]},
+				{"value": 8, "name": ["clientid", "bit3"]},
+				{"value": 16, "name": ["clientid", "bit4"]},
+				{"value": 32, "name": ["clientid", "bit5"]},
+				{"value": 64, "name": ["clientid", "bit6"]},
+				{"value": 128, "name": ["clientid", "bit7"]},
+				{"value": 256, "name": ["no", "owner"]},
+				{"value": 512, "name": ["is", "ddnet"]},
+				{"value": 1024, "name": ["bounce", "horizontal"]},
+				{"value": 2048, "name": ["bounce", "vertical"]},
+				{"value": 4096, "name": ["explosive"]},
+				{"value": 8192, "name": ["freeze"]}
+			]
+		}
+	],
+	"game_messages": [
+		{
+			"id": 1,
+			"name": ["sv", "motd"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 2,
+			"name": ["sv", "broadcast"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 3,
+			"name": ["sv", "chat"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "int32", "min": -2, "max": 3}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["sv", "kill", "msg"],
+			"members": [
+				{"name": ["killer"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["victim"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["weapon"], "type": {"kind": "int32", "min": -3, "max": 5}},
+				{"name": ["mode", "special"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["sv", "sound", "global"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["sv", "tune", "params"],
+			"members": [
+				{"name": ["ground", "control", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "control", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "friction"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "jump", "impulse"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "jump", "impulse"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "control", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "control", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["air", "friction"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "length"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "fire", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "drag", "accel"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "drag", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["gravity"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "start"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "range"], "type": {"kind": "tune_param"}},
+				{"name": ["velramp", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "speeddiff"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "curvature"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "speed"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "lifetime"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "reach"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "num"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "bounce", "cost"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "damage"], "type": {"kind": "tune_param"}},
+				{"name": ["player", "collision"], "type": {"kind": "tune_param"}},
+				{"name": ["player", "hooking"], "type": {"kind": "tune_param"}},
+				{"name": ["jetpack", "strength"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "strength"], "type": {"kind": "tune_param"}},
+				{"name": ["explosion", "strength"], "type": {"kind": "tune_param"}},
+				{"name": ["hammer", "strength"], "type": {"kind": "tune_param"}},
+				{"name": ["hook", "duration"], "type": {"kind": "tune_param"}},
+				{"name": ["hammer", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["gun", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["shotgun", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["grenade", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["laser", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["ninja", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["hammer", "hit", "fire", "delay"], "type": {"kind": "tune_param"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 7,
+			"name": ["sv", "extra", "projectile"],
+			"members": [
+				{"name": ["projectile"], "type": {"kind": "snapshot_object", "name": ["projectile"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 8,
+			"name": ["sv", "ready", "to", "enter"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["sv", "weapon", "pickup"],
+			"members": [
+				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["sv", "emoticon"],
+			"members": [
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["emoticon"], "type": {"kind": "enum", "enum": ["emoticon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 11,
+			"name": ["sv", "vote", "clear", "options"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 12,
+			"name": ["sv", "vote", "option", "list", "add"],
+			"members": [
+				{"name": ["num", "options"], "type": {"kind": "int32", "min": 1, "max": 15}},
+				{"name": ["description"], "type": {"kind": "array", "count": 15, "member_type": {"kind": "string", "disallow_cc": true}}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 13,
+			"name": ["sv", "vote", "option", "add"],
+			"members": [
+				{"name": ["description"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["sv", "vote", "option", "remove"],
+			"members": [
+				{"name": ["description"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["sv", "vote", "set"],
+			"members": [
+				{"name": ["timeout"], "type": {"kind": "int32", "min": 0, "max": 60}},
+				{"name": ["description"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["reason"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["sv", "vote", "status"],
+			"members": [
+				{"name": ["yes"], "type": {"kind": "int32", "min": 0, "max": 64}},
+				{"name": ["no"], "type": {"kind": "int32", "min": 0, "max": 64}},
+				{"name": ["pass"], "type": {"kind": "int32", "min": 0, "max": 64}},
+				{"name": ["total"], "type": {"kind": "int32", "min": 0, "max": 64}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["cl", "say"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "boolean"}},
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": [
+				"nonteehistoric"
+			]
+		},
+		{
+			"id": 18,
+			"name": ["cl", "set", "team"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "enum", "enum": ["team"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 19,
+			"name": ["cl", "set", "spectator", "mode"],
+			"members": [
+				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 63}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 20,
+			"name": ["cl", "start", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clan"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["country"], "type": {"kind": "int32"}},
+				{"name": ["skin"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "boolean"}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 21,
+			"name": ["cl", "change", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clan"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["country"], "type": {"kind": "int32"}},
+				{"name": ["skin"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "boolean"}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 22,
+			"name": ["cl", "kill"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 23,
+			"name": ["cl", "emoticon"],
+			"members": [
+				{"name": ["emoticon"], "type": {"kind": "enum", "enum": ["emoticon"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 24,
+			"name": ["cl", "vote"],
+			"members": [
+				{"name": ["vote"], "type": {"kind": "int32", "min": -1, "max": 1}}
+			],
+			"attributes": [
+				"nonteehistoric"
+			]
+		},
+		{
+			"id": 25,
+			"name": ["cl", "call", "vote"],
+			"members": [
+				{"name": ["type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["value"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["reason"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": [
+				"nonteehistoric"
+			]
+		},
+		{
+			"id": 26,
+			"name": ["cl", "is", "ddnet", "legacy"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 27,
+			"name": ["sv", "ddrace", "time", "legacy"],
+			"members": [
+				{"name": ["time"], "type": {"kind": "int32"}},
+				{"name": ["check"], "type": {"kind": "int32"}},
+				{"name": ["finish"], "type": {"kind": "int32", "min": 0, "max": 1}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 28,
+			"name": ["sv", "record", "legacy"],
+			"members": [
+				{"name": ["server", "time", "best"], "type": {"kind": "int32"}},
+				{"name": ["player", "time", "best"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 29,
+			"name": ["unused"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 30,
+			"name": ["sv", "teams", "state", "legacy"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 31,
+			"name": ["cl", "show", "others", "legacy"],
+			"members": [
+				{"name": ["show"], "type": {"kind": "boolean"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "1231e484-f607-3722-a89a-bd85db46f5d2",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "my-own-message@heinrich5991.de"
+			},
+			"name": ["sv", "my", "own", "message"],
+			"members": [
+				{"name": ["test"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "53bb28af-4252-3ac9-8fd3-6ccbc2a603e3",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "show-distance@netmsg.ddnet.tw"
+			},
+			"name": ["cl", "show", "distance"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "7f264cdd-71a2-3962-bbce-0f94bbd81913",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "showothers@netmsg.ddnet.tw"
+			},
+			"name": ["cl", "show", "others"],
+			"members": [
+				{"name": ["show"], "type": {"kind": "int32", "min": 0, "max": 2}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "a091961a-95e8-3744-bb60-5eac9bd563c6",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "teamsstate@netmsg.ddnet.tw"
+			},
+			"name": ["sv", "teams", "state"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "5dde8b3c-6f6f-37ac-a72a-bb341fe76de5",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "ddrace-time@netmsg.ddnet.tw"
+			},
+			"name": ["sv", "ddrace", "time"],
+			"members": [
+				{"name": ["time"], "type": {"kind": "int32"}},
+				{"name": ["check"], "type": {"kind": "int32"}},
+				{"name": ["finish"], "type": {"kind": "int32", "min": 0, "max": 1}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "804f149f-9b53-3b0a-897f-59663a1c4eb9",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "record@netmsg.ddnet.tw"
+			},
+			"name": ["sv", "record"],
+			"members": [
+				{"name": ["server", "time", "best"], "type": {"kind": "int32"}},
+				{"name": ["player", "time", "best"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		}
+	],
+	"snapshot_objects": [
+		{
+			"id": 1,
+			"name": ["player", "input"],
+			"members": [
+				{"name": ["direction"], "type": {"kind": "int32"}},
+				{"name": ["target", "x"], "type": {"kind": "int32"}},
+				{"name": ["target", "y"], "type": {"kind": "int32"}},
+				{"name": ["jump"], "type": {"kind": "int32"}},
+				{"name": ["fire"], "type": {"kind": "int32"}},
+				{"name": ["hook"], "type": {"kind": "int32"}},
+				{"name": ["player", "flags"], "type": {"kind": "int32"}},
+				{"name": ["wanted", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["next", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["prev", "weapon"], "type": {"kind": "int32"}}
+			],
+			"attributes": [
+				"msg_encoding"
+			]
+		},
+		{
+			"id": 2,
+			"name": ["projectile"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["vel", "x"], "type": {"kind": "int32"}},
+				{"name": ["vel", "y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": [
+				"msg_encoding"
+			]
+		},
+		{
+			"id": 3,
+			"name": ["laser"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["from", "x"], "type": {"kind": "int32"}},
+				{"name": ["from", "y"], "type": {"kind": "int32"}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["pickup"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["subtype"], "type": {"kind": "int32", "min": 0}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["flag"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["team"], "type": {"kind": "int32", "min": 0, "max": 1}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["game", "info"],
+			"members": [
+				{"name": ["game", "flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
+				{"name": ["game", "state", "flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
+				{"name": ["round", "start", "tick"], "type": {"kind": "tick"}},
+				{"name": ["warmup", "timer"], "type": {"kind": "int32"}},
+				{"name": ["score", "limit"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["time", "limit"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["round", "num"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["round", "current"], "type": {"kind": "int32", "min": 0}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 7,
+			"name": ["game", "data"],
+			"members": [
+				{"name": ["teamscore", "red"], "type": {"kind": "int32"}},
+				{"name": ["teamscore", "blue"], "type": {"kind": "int32"}},
+				{"name": ["flag", "carrier", "red"], "type": {"kind": "int32", "min": -3, "max": 63}},
+				{"name": ["flag", "carrier", "blue"], "type": {"kind": "int32", "min": -3, "max": 63}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 8,
+			"name": ["character", "core"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["vel", "x"], "type": {"kind": "int32"}},
+				{"name": ["vel", "y"], "type": {"kind": "int32"}},
+				{"name": ["angle"], "type": {"kind": "int32"}},
+				{"name": ["direction"], "type": {"kind": "int32", "min": -1, "max": 1}},
+				{"name": ["jumped"], "type": {"kind": "int32", "min": 0, "max": 3}},
+				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["hook", "state"], "type": {"kind": "int32", "min": -1, "max": 5}},
+				{"name": ["hook", "tick"], "type": {"kind": "tick"}},
+				{"name": ["hook", "x"], "type": {"kind": "int32"}},
+				{"name": ["hook", "y"], "type": {"kind": "int32"}},
+				{"name": ["hook", "dx"], "type": {"kind": "int32"}},
+				{"name": ["hook", "dy"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["character"],
+			"super": ["character", "core"],
+			"members": [
+				{"name": ["player", "flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
+				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
+				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["player", "info"],
+			"members": [
+				{"name": ["local"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["team"], "type": {"kind": "enum", "enum": ["team"]}},
+				{"name": ["score"], "type": {"kind": "int32"}},
+				{"name": ["latency"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 11,
+			"name": ["client", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "array", "count": 4, "member_type": {"kind": "int32"}}},
+				{"name": ["clan"], "type": {"kind": "array", "count": 3, "member_type": {"kind": "int32"}}},
+				{"name": ["country"], "type": {"kind": "int32"}},
+				{"name": ["skin"], "type": {"kind": "array", "count": 6, "member_type": {"kind": "int32"}}},
+				{"name": ["use", "custom", "color"], "type": {"kind": "int32", "min": 0, "max": 1}},
+				{"name": ["color", "body"], "type": {"kind": "int32"}},
+				{"name": ["color", "feet"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 12,
+			"name": ["spectator", "info"],
+			"members": [
+				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "0dc77a02-bfee-3a53-ac8e-0bb0241bd722",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "my-own-object@heinrich5991.de"
+			},
+			"name": ["my", "own", "object"],
+			"members": [
+				{"name": ["test"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "76ce455b-f9eb-3a48-add7-e04b941d045c",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "character@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "character"],
+			"members": [
+				{"name": ["flags"], "type": {"kind": "int32"}},
+				{"name": ["freeze", "end"], "type": {"kind": "tick"}},
+				{"name": ["jumps"], "type": {"kind": "int32", "min": -1, "max": 255}},
+				{"name": ["tele", "checkpoint"], "type": {"kind": "int32"}},
+				{"name": ["strong", "weak", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "e7b431e5-dee0-3e5f-9224-2c95efb38878",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "character-display-info@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "character", "display", "info"],
+			"members": [
+				{"name": ["jumped", "total"], "type": {"kind": "int32", "min": 0, "max": 255}},
+				{"name": ["ninja", "activation", "tick"], "type": {"kind": "tick"}},
+				{"name": ["freeze", "tick"], "type": {"kind": "tick"}},
+				{"name": ["is", "in", "freeze"], "type": {"kind": "boolean"}},
+				{"name": ["is", "in", "practice", "mode"], "type": {"kind": "boolean"}},
+				{"name": ["target", "x"], "type": {"kind": "int32"}},
+				{"name": ["target", "y"], "type": {"kind": "int32"}},
+				{"name": ["ramp", "value"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "22ca938d-1380-3e2b-9e7b-d2558ea6be11",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "player@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "player"],
+			"members": [
+				{"name": ["flags"], "type": {"kind": "int32"}},
+				{"name": ["auth", "level"], "type": {"kind": "int32", "min": 0, "max": 3}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "933dea6a-da79-30ea-a98f-8af03689a945",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "gameinfo@netobj.ddnet.tw"
+			},
+			"name": ["game", "info", "ex"],
+			"members": [
+				{"name": ["flags"], "type": {"kind": "int32"}},
+				{"name": ["version"], "type": {"kind": "int32"}},
+				{"name": ["flags2"], "type": {"kind": "int32"}}
+			],
+			"attributes": [
+				"dont_validate_size"
+			]
+		},
+		{
+			"id": "0e6db85c-2b61-386f-bbf2-d0d0471b9272",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "projectile@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "projectile"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["angle"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 13,
+			"name": ["common"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["explosion"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["spawn"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["hammer", "hit"],
+			"super": ["common"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["death"],
+			"super": ["common"],
+			"members": [
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 18,
+			"name": ["sound", "global"],
+			"super": ["common"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 19,
+			"name": ["sound", "world"],
+			"super": ["common"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 20,
+			"name": ["damage", "ind"],
+			"super": ["common"],
+			"members": [
+				{"name": ["angle"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "0c4fd27d-47e3-3871-a226-9f417486a311",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "my-own-event@heinrich5991.de"
+			},
+			"name": ["my", "own", "event"],
+			"members": [
+				{"name": ["test"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "4b801c74-e24c-3ce0-b92c-b754d02cfc8a",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "spec-char@netobj.ddnet.tw"
+			},
+			"name": ["spec", "char"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "ec15e669-ce11-3367-ae8e-b90e5b27b9d5",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "switch-state@netobj.ddnet.tw"
+			},
+			"name": ["switch", "state"],
+			"members": [
+				{"name": ["highest", "switch", "number"], "type": {"kind": "int32"}},
+				{"name": ["status"], "type": {"kind": "array", "count": 8, "member_type": {"kind": "int32"}}},
+				{"name": ["switch", "numbers"], "type": {"kind": "array", "count": 4, "member_type": {"kind": "int32"}}},
+				{"name": ["end", "ticks"], "type": {"kind": "array", "count": 4, "member_type": {"kind": "int32"}}}
+			],
+			"attributes": [
+				"dont_validate_size"
+			]
+		},
+		{
+			"id": "2de9aec3-32e4-3986-8f7e-e7459da7f535",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "entity-ex@netobj.ddnet.tw"
+			},
+			"name": ["entity", "ex"],
+			"members": [
+				{"name": ["switch", "number"], "type": {"kind": "int32"}},
+				{"name": ["layer"], "type": {"kind": "int32"}},
+				{"name": ["entity", "class"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		}
+	],
+	"system_messages": [
+		{
+			"id": 1,
+			"name": ["info"],
+			"members": [
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["password"], "type": {"kind": "optional", "inner": {"kind": "string", "disallow_cc": false}}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 2,
+			"name": ["map", "change"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["size"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 3,
+			"name": ["map", "data"],
+			"members": [
+				{"name": ["last"], "type": {"kind": "int32"}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["chunk"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 4,
+			"name": ["con", "ready"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 5,
+			"name": ["snap"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}},
+				{"name": ["num", "parts"], "type": {"kind": "int32"}},
+				{"name": ["part"], "type": {"kind": "int32"}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 6,
+			"name": ["snap", "empty"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 7,
+			"name": ["snap", "single"],
+			"members": [
+				{"name": ["tick"], "type": {"kind": "int32"}},
+				{"name": ["delta", "tick"], "type": {"kind": "int32"}},
+				{"name": ["crc"], "type": {"kind": "int32"}},
+				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 9,
+			"name": ["input", "timing"],
+			"members": [
+				{"name": ["input", "pred", "tick"], "type": {"kind": "int32"}},
+				{"name": ["time", "left"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 10,
+			"name": ["rcon", "auth", "status"],
+			"members": [
+				{"name": ["auth", "level"], "type": {"kind": "optional", "inner": {"kind": "int32"}}},
+				{"name": ["receive", "commands"], "type": {"kind": "optional", "inner": {"kind": "int32"}}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 11,
+			"name": ["rcon", "line"],
+			"members": [
+				{"name": ["line"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 14,
+			"name": ["ready"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 15,
+			"name": ["enter", "game"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 16,
+			"name": ["input"],
+			"members": [
+				{"name": ["ack", "snapshot"], "type": {"kind": "int32"}},
+				{"name": ["intended", "tick"], "type": {"kind": "int32"}},
+				{"name": ["input", "size"], "type": {"kind": "int32"}},
+				{"name": ["input"], "type": {"kind": "snapshot_object", "name": ["player", "input"]}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 17,
+			"name": ["rcon", "cmd"],
+			"members": [
+				{"name": ["cmd"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 18,
+			"name": ["rcon", "auth"],
+			"members": [
+				{"name": ["", "unused"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["password"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["request", "commands"], "type": {"kind": "optional", "inner": {"kind": "int32"}}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 19,
+			"name": ["request", "map", "data"],
+			"members": [
+				{"name": ["chunk"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 20,
+			"name": ["ping"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 21,
+			"name": ["ping", "reply"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": 25,
+			"name": ["rcon", "cmd", "add"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["help"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["params"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": 26,
+			"name": ["rcon", "cmd", "remove"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "245e5097-9fe0-39d6-bf7d-9a29e1691e4c",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "what-is@ddnet.tw"
+			},
+			"name": ["what", "is"],
+			"members": [
+				{"name": ["uuid"], "type": {"kind": "uuid"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "6954847e-2e87-3603-b562-36da29ed1aca",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "it-is@ddnet.tw"
+			},
+			"name": ["it", "is"],
+			"members": [
+				{"name": ["uuid"], "type": {"kind": "uuid"}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "416911b5-7973-33bf-8d52-7bf01e519cf0",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "i-dont-know@ddnet.tw"
+			},
+			"name": ["i", "dont", "know"],
+			"members": [
+				{"name": ["uuid"], "type": {"kind": "uuid"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "12810e1f-a1db-3378-b4fb-164ed6505926",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "rcon-type@ddnet.tw"
+			},
+			"name": ["rcon", "type"],
+			"members": [
+				{"name": ["username", "required"], "type": {"kind": "boolean"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "f9117b3c-8039-3416-9fc0-aef2bcb75c03",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "map-details@ddnet.tw"
+			},
+			"name": ["map", "details"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["sha256"], "type": {"kind": "sha256"}},
+				{"name": ["crc"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "f621a5a1-f585-3775-8e73-41beee79f2b2",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "capabilities@ddnet.tw"
+			},
+			"name": ["capabilities"],
+			"members": [
+				{"name": ["version"], "type": {"kind": "int32"}},
+				{"name": ["flags"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "8c001304-8461-3e47-8787-f672b3835bd4",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "clientver@ddnet.tw"
+			},
+			"name": ["client", "version"],
+			"members": [
+				{"name": ["connection", "id"], "type": {"kind": "uuid"}},
+				{"name": ["ddnet", "version"], "type": {"kind": "int32"}},
+				{"name": ["ddnet", "version", "string"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "bcb43bf5-427c-36d8-b5b8-7975c8c06aa1",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "ping@ddnet.tw"
+			},
+			"name": ["ping", "ex"],
+			"members": [
+				{"name": ["id"], "type": {"kind": "uuid"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "d8295530-14a7-3a0a-b02e-b2cee08d2033",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "pong@ddnet.tw"
+			},
+			"name": ["pong", "ex"],
+			"members": [
+				{"name": ["id"], "type": {"kind": "uuid"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "60a7cef1-2ecc-3ed4-b138-00fd0c8f5994",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "checksum-request@ddnet.tw"
+			},
+			"name": ["checksum", "request"],
+			"members": [
+				{"name": ["id"], "type": {"kind": "uuid"}},
+				{"name": ["start"], "type": {"kind": "int32"}},
+				{"name": ["length"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "88fc61ec-5a3c-3fc3-8dfa-fd3b715db9e0",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "checksum-response@ddnet.tw"
+			},
+			"name": ["checksum", "response"],
+			"members": [
+				{"name": ["id"], "type": {"kind": "uuid"}},
+				{"name": ["sha256"], "type": {"kind": "sha256"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "090960d1-4000-3fd5-9670-4976ae702a6a",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "checksum-error@ddnet.tw"
+			},
+			"name": ["checksum", "error"],
+			"members": [
+				{"name": ["id"], "type": {"kind": "uuid"}},
+				{"name": ["error"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		}
+	],
+	"connless_messages": [
+		{
+			"id": [255, 255, 255, 255, 114, 101, 113, 50],
+			"name": ["request", "list"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 108, 105, 115, 50],
+			"name": ["list"],
+			"members": [
+				{"name": ["servers"], "type": {"kind": "packed_addresses"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 99, 111, 117, 50],
+			"name": ["request", "count"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 115, 105, 122, 50],
+			"name": ["count"],
+			"members": [
+				{"name": ["count"], "type": {"kind": "be_uint16"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 103, 105, 101, 51],
+			"name": ["request", "info"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "uint8"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 110, 102, 51],
+			"name": ["info"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32_string"}},
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["flags"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 101, 120, 116],
+			"name": ["info", "extended"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32_string"}},
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map", "crc"], "type": {"kind": "int32_string"}},
+				{"name": ["map", "size"], "type": {"kind": "int32_string"}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["flags"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "players"], "type": {"kind": "int32_string"}},
+				{"name": ["num", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["max", "clients"], "type": {"kind": "int32_string"}},
+				{"name": ["reserved"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 101, 120, 43],
+			"name": ["info", "extended", "more"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32_string"}},
+				{"name": ["packet", "no"], "type": {"kind": "int32_string"}},
+				{"name": ["reserved"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 98, 101, 97, 50],
+			"name": ["heartbeat"],
+			"members": [
+				{"name": ["alt", "port"], "type": {"kind": "be_uint16"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 63, 63],
+			"name": ["forward", "check"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 33, 33],
+			"name": ["forward", "response"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 111, 107],
+			"name": ["forward", "ok"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 102, 119, 101, 114],
+			"name": ["forward", "error"],
+			"members": []
+		}
+	]
+}

@@ -44,7 +44,7 @@ SYSTEM_MSGS_0_6 = [
     (26, "rcon_cmd_remove", "vital", "s:name"),
 ]
 
-SYSTEM_MSGS_DDNET = SYSTEM_MSGS_0_6 + [
+SYSTEM_MSGS_DDNET_15_2_5 = SYSTEM_MSGS_0_6 + [
     ("what-is@ddnet.tw", "what_is", "vital", "u:uuid"),
     ("it-is@ddnet.tw", "it_is", "vital", "u:uuid s:name"),
     ("i-dont-know@ddnet.tw", "i_dont_know", "vital", "u:uuid"),
@@ -52,6 +52,14 @@ SYSTEM_MSGS_DDNET = SYSTEM_MSGS_0_6 + [
     ("map-details@ddnet.tw", "map_details", "vital", "s:name h:sha256 i:crc"),
     ("capabilities@ddnet.tw", "capabilities", "vital", "i:version i:flags"),
     ("clientver@ddnet.tw", "client_version", "vital", "u:connection_id i:ddnet_version s:ddnet_version_string"),
+]
+
+SYSTEM_MSGS_DDNET_16_2 = SYSTEM_MSGS_DDNET_15_2_5 + [
+    ("ping@ddnet.tw", "ping_ex", "", "u:id"),
+    ("pong@ddnet.tw", "pong_ex", "", "u:id"),
+    ("checksum-request@ddnet.tw", "checksum_request", "vital", "u:id i:start i:length"),
+    ("checksum-response@ddnet.tw", "checksum_response", "vital", "u:id h:sha256"),
+    ("checksum-error@ddnet.tw", "checksum_error", "vital", "u:id i:error"),
 ]
 
 SYSTEM_MSGS_0_7 = [
@@ -130,6 +138,7 @@ def make_msgs(msgs):
 SYSTEM_MSGS = {
     "0.5": make_msgs(SYSTEM_MSGS_0_5),
     "0.6": make_msgs(SYSTEM_MSGS_0_6),
-    "ddnet": make_msgs(SYSTEM_MSGS_DDNET),
+    "ddnet-15.2.5": make_msgs(SYSTEM_MSGS_DDNET_15_2_5),
+    "ddnet-16.2": make_msgs(SYSTEM_MSGS_DDNET_16_2),
     "0.7": make_msgs(SYSTEM_MSGS_0_7),
 }

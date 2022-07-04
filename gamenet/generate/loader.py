@@ -13,7 +13,8 @@ VERSION_AUTO="auto"
 VERSION_0_5="0.5"
 VERSION_0_6="0.6"
 VERSION_0_7="0.7"
-VERSION_DDNET="ddnet"
+VERSION_DDNET_15_2_5="ddnet-15.2.5"
+VERSION_DDNET_16_2="ddnet-16.2"
 # Version determines how the loaded network files are fixed up. Use `None` to
 # disable fixing up.
 def load_network(path, version):
@@ -28,19 +29,22 @@ TUNE_PARAM_NAMES = {
     VERSION_0_5: TUNE_PARAM_NAMES_0_6,
     VERSION_0_6: TUNE_PARAM_NAMES_0_6,
     VERSION_0_7: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost PlayerCollision PlayerHooking".split(),
-    VERSION_DDNET: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay".split(),
+    VERSION_DDNET_15_2_5: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay".split(),
+    VERSION_DDNET_16_2: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay HammerHitFireDelay".split(),
 }
 MAX_CLIENTS = {
     VERSION_0_5: 16,
     VERSION_0_6: 16,
     VERSION_0_7: 64,
-    VERSION_DDNET: 64,
+    VERSION_DDNET_15_2_5: 64,
+    VERSION_DDNET_16_2: 64,
 }
 NETVERSION = {
     VERSION_0_5: "0.5 b67d1f1a1eea234e",
     VERSION_0_6: "0.6 626fce9a778df4d4",
     VERSION_0_7: "0.7 802f1be60a05665f",
-    VERSION_DDNET: "0.6 626fce9a778df4d4",
+    VERSION_DDNET_15_2_5: "0.6 626fce9a778df4d4",
+    VERSION_DDNET_16_2: "0.6 626fce9a778df4d4",
 }
 
 def fix_network(network, version):
@@ -49,7 +53,12 @@ def fix_network(network, version):
         if any(e.name == ("playerstate",) for e in network.Enums):
             version = VERSION_0_5
         elif any("ddnet" in m.name or "ddrace" in m.name for m in network.Messages):
-            version = VERSION_DDNET
+            version = VERSION_DDNET_15_2_5
+            try:
+                if len(network.GameInfoFlags2) > 4:
+                    version = VERSION_DDNET_16_2
+            except AttributeError:
+                pass
         elif "NUM_SKINPARTS" in network.RawHeader:
             version = VERSION_0_7
 
@@ -59,7 +68,7 @@ def fix_network(network, version):
     network.Constants += [
         Constant("MAX_CLIENTS", MAX_CLIENTS[version]),
     ]
-    if version == VERSION_0_6 or version == VERSION_DDNET:
+    if version in (VERSION_0_6, VERSION_DDNET_15_2_5, VERSION_DDNET_16_2):
         network.Constants += [
             Constant("SPEC_FREEVIEW", -1),
         ]
@@ -75,9 +84,13 @@ def fix_network(network, version):
     network.Constants += [
         Constant("VERSION", NETVERSION[version]),
     ]
-    if version == VERSION_DDNET:
+    if version == VERSION_DDNET_15_2_5:
         network.Constants += [
             Constant("DDNET_VERSION", 15025),
+        ]
+    if version == VERSION_DDNET_16_2:
+        network.Constants += [
+            Constant("DDNET_VERSION", 16020),
         ]
     if version == VERSION_0_7:
         network.Constants += [
@@ -141,7 +154,7 @@ def fix_network(network, version):
                 NetU8("token"),
             ]),
         ]
-        if version in (VERSION_0_6, VERSION_DDNET):
+        if version in (VERSION_0_6, VERSION_DDNET_15_2_5, VERSION_DDNET_16_2):
             network.Connless += [
                 NetConnless("Info", "inf3", [
                     NetIntString("token"),
@@ -157,7 +170,7 @@ def fix_network(network, version):
                     NetClients("clients"),
                 ]),
             ]
-        if version == VERSION_DDNET:
+        if version in (VERSION_DDNET_15_2_5, VERSION_DDNET_16_2):
             network.Connless += [
                 NetConnless("InfoExtended", "iext", [
                     NetIntString("token"),

@@ -72,7 +72,7 @@ def _serialize_json_iter(obj, loc, compact_patterns, **kwargs):
 
 def main():
     p = argparse.ArgumentParser(description="Generate protocol specs from Teeworlds-style network.py")
-    p.add_argument("--version", choices=["0.6", "0.7", "ddnet", "none"], help="Force version for fixup instead of heuristically guessing a version")
+    p.add_argument("--version", choices="0.5 0.6 0.7 ddnet-15.2.5 ddnet-16.2 none".split(), help="Force version for fixup instead of heuristically guessing a version")
     p.add_argument("network_py", help="Path to network.py")
     args = p.parse_args()
     version = args.version
