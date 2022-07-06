@@ -1,4 +1,7 @@
+use std::error::Error;
 use std::fmt;
+use std::iter;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct InvalidSliceLength;
@@ -34,10 +37,48 @@ impl fmt::Display for Sha256 {
     }
 }
 
+#[derive(Debug)]
+pub enum Sha256FromStrError {
+    InvalidLength(usize),
+    NonHexChar,
+}
+
+impl fmt::Display for Sha256FromStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Sha256FromStrError::*;
+        match self {
+            InvalidLength(len) => write!(f, "invalid length {}, must be 64", len),
+            NonHexChar => "non-hex character".fmt(f),
+        }
+    }
+}
+
+impl Error for Sha256FromStrError {}
+
+impl FromStr for Sha256 {
+    type Err = Sha256FromStrError;
+    fn from_str(v: &str) -> Result<Sha256, Sha256FromStrError> {
+        let len = v.chars().count();
+        if len != 64 {
+            return Err(Sha256FromStrError::InvalidLength(len));
+        }
+        let mut result = [0; 32];
+        // I just want to get string slices with two characters each. :(
+        // Sorry for this monstrosity.
+        let starts = v.char_indices().map(|(i, _)| i).chain(iter::once(v.len())).step_by(2);
+        let ends = { let mut e = starts.clone(); e.next(); e };
+        for (i, (s, e)) in starts.zip(ends).enumerate() {
+            result[i] = u8::from_str_radix(&v[s..e], 16).map_err(|_| {
+                Sha256FromStrError::NonHexChar
+            })?;
+        }
+        Ok(Sha256(result))
+    }
+}
+
 #[cfg(feature = "serde")]
 mod serialize {
     use std::fmt;
-    use std::iter;
 
     use super::Sha256;
 
@@ -58,21 +99,11 @@ mod serialize {
             f.write_str("64 character hex value")
         }
         fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Sha256, E> {
-            let len = v.chars().count();
-            if len != 64 {
-                return Err(E::invalid_length(len, &self));
-            }
-            let mut result = [0; 32];
-            // I just want to get string slices with two characters each. :(
-            // Sorry for this monstrosity.
-            let starts = v.char_indices().map(|(i, _)| i).chain(iter::once(v.len())).step_by(2);
-            let ends = { let mut e = starts.clone(); e.next(); e };
-            for (i, (s, e)) in starts.zip(ends).enumerate() {
-                result[i] = u8::from_str_radix(&v[s..e], 16).map_err(|_| {
-                    E::invalid_value(serde::de::Unexpected::Str(v), &self)
-                })?;
-            }
-            Ok(Sha256(result))
+            use super::Sha256FromStrError::*;
+            v.parse().map_err(|e| match e {
+                InvalidLength(len) => E::invalid_length(len, &self),
+                NonHexChar => E::invalid_value(serde::de::Unexpected::Str(v), &self),
+            })
         }
     }
 
