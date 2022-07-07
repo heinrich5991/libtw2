@@ -128,7 +128,7 @@ impl Reader {
         let version = header_version.version;
         let version_byte = version.to_u8();
         match version {
-            format::Version::V4 | format::Version::V5 => {},
+            format::Version::V4 | format::Version::V5 | format::Version::V6Ddnet => {},
             _ => return Err(format::Error::UnknownVersion(version_byte).into()),
         }
         let header: format::HeaderPacked =
@@ -137,6 +137,9 @@ impl Reader {
         let timeline_markers: format::TimelineMarkersPacked =
             cb.read_raw().on_eof(format::Error::TooShortTimelineMarkers)?;
         let timeline_markers = timeline_markers.unpack(warn)?;
+        if version == format::Version::V6Ddnet {
+            cb.skip(48).wrap()?;
+        }
         cb.skip(header.map_size).wrap()?;
 
         Ok(Reader {
