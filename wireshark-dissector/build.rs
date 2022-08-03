@@ -15,7 +15,7 @@ fn windows_msvc() {
     let target = env::var_os("TARGET").expect("missing TARGET")
         .into_string().expect("invalid TARGET");
 
-    let lib = cc::windows_registry::find_tool(&target, "lib.exe").expect("link.exe not found");
+    let lib = cc::windows_registry::find_tool(&target, "lib.exe").expect("lib.exe not found");
     let def_file = top_level.join("sys\\src\\libwireshark.def");
     let def_file = def_file.into_os_string().into_string().expect("invalid CARGO_MANIFEST_DIR");
 
