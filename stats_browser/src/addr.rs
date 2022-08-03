@@ -1,4 +1,3 @@
-use rustc_serialize;
 use serverbrowse::protocol;
 use serverbrowse::protocol::IpAddr;
 
@@ -110,12 +109,6 @@ impl fmt::Display for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let &Addr(ref inner) = self;
         fmt::Display::fmt(inner, f)
-    }
-}
-
-impl rustc_serialize::Encodable for Addr {
-    fn encode<S:rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(),S::Error> {
-        s.emit_str(&self.to_string())
     }
 }
 

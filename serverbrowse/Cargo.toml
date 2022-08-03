@@ -10,6 +10,5 @@ common = { path = "../common/" }
 log = "0.3.0"
 logger = { path = "../logger/" }
 packer = { path = "../packer/" }
-rustc-serialize = "0.3.20"
-time = { version = "0.1.25", features = ["rustc-serialize"] }
+time = "0.1.25"
 warn = "0.2.2"

@@ -10,6 +10,7 @@ doc = false
 
 [dependencies]
 arrayvec = { version = "0.5.2", features = ["serde"] }
+base64 = "0.13.0"
 csv = "1.1.6"
 clap = "2.23.1"
 common = { path = "../common/" }
@@ -18,7 +19,6 @@ log = "0.3.1"
 logger = { path = "../logger/" }
 mio = "0.6.6"
 rand = "0.8.3"
-rustc-serialize = "0.3.20"
 serde = "1.0.23"
 serde_derive = "1.0.27"
 serde_json = "1.0.7"

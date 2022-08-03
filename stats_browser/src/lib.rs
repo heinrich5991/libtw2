@@ -1,11 +1,11 @@
 #![cfg(not(test))]
 
 extern crate arrayvec;
+extern crate base64 as base64_dep;
 extern crate csv;
 extern crate ipnet;
 #[macro_use] extern crate log;
 extern crate rand;
-extern crate rustc_serialize;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate time as rust_time;
