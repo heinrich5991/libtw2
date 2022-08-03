@@ -38,8 +38,8 @@ NOTE: In `packet7_header_connless`, `version` must be set to 1.
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
-        [ 4] padding   |-- size
-        [ 4] <----------
+        [ 2] padding   |-- size
+        [ 6] <----------
 
         FFss ssss  PPss ssss
 
@@ -48,8 +48,8 @@ NOTE: In `packet7_header_connless`, `version` must be set to 1.
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
-        [ 4] sequence  |-- size
-        [ 4] <----------
+        [ 2] sequence  |-- size
+        [ 6] <----------
         [ 8] sequence
 
         FFss ssss  SSss ssss  SSSS SSSS
