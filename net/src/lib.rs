@@ -16,6 +16,7 @@ extern crate warn;
 pub mod collections;
 pub mod connection;
 pub mod net;
+pub mod protocol7;
 pub mod protocol;
 pub mod time;
 
