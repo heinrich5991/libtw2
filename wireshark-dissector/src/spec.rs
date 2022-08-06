@@ -13,6 +13,7 @@ use format::NumBytes;
 use gamenet_spec::MessageId;
 use intern::Interned;
 use intern::intern;
+use intern::intern_static_with_nul;
 use packer::Unpacker;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -27,8 +28,9 @@ use std::os::raw::c_uint;
 use std::str;
 use warn::Ignore;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Spec {
+    pub prefix: Interned,
     pub game_messages: HashMap<MessageId, Message>,
     pub system_messages: HashMap<MessageId, Message>,
     pub connless_messages: HashMap<[u8; 8], Message>,
@@ -120,6 +122,23 @@ impl FieldId {
     }
 }
 
+impl Default for Spec {
+    fn default() -> Spec {
+        Spec {
+            prefix: intern_static_with_nul("\0"),
+            game_messages: Default::default(),
+            system_messages: Default::default(),
+            connless_messages: Default::default(),
+            tree_msg: Default::default(),
+            id_msg: Default::default(),
+            id_msg_system: Default::default(),
+            id_msg_id_raw: Default::default(),
+            id_msg_id_ex: Default::default(),
+            id_connless_id_raw: Default::default(),
+        }
+    }
+}
+
 const PERCENT_S: &'static [u8] = b"%s\0";
 const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
 
@@ -128,12 +147,12 @@ fn load_gamenet_spec(s: &str) -> anyhow::Result<gamenet_spec::Spec> {
 }
 
 impl Spec {
-    pub fn load(s: &str) -> anyhow::Result<Spec> {
+    pub fn load(prefix: Interned, s: &str) -> anyhow::Result<Spec> {
         let spec = load_gamenet_spec(s)?;
         let mut game_messages = HashMap::new();
         for msg in spec.game_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet(false, msg);
+            let converted = Message::from_gamenet(prefix, false, msg);
             if game_messages.insert(msg_id, converted).is_some() {
                 bail!("duplicate game message id {}", msg_id);
             }
@@ -141,7 +160,7 @@ impl Spec {
         let mut system_messages = HashMap::new();
         for msg in spec.system_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet(true, msg);
+            let converted = Message::from_gamenet(prefix, true, msg);
             if system_messages.insert(msg_id, converted).is_some() {
                 bail!("duplicate system message id {}", msg_id);
             }
@@ -149,12 +168,13 @@ impl Spec {
         let mut connless_messages = HashMap::new();
         for msg in spec.connless_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet_connless(msg);
+            let converted = Message::from_gamenet_connless(prefix, msg);
             if connless_messages.insert(msg_id, converted).is_some() {
                 bail!("duplicate system message id {:?}", AlmostString::new(&msg_id));
             }
         }
         Ok(Spec {
+            prefix,
             game_messages,
             system_messages,
             connless_messages,
@@ -169,13 +189,13 @@ impl Spec {
             id: &FieldId,
             type_: sys::ftenum,
             description: &'static str,
-            name: &'static str,
+            name: Interned,
         ) -> sys::hf_register_info {
             sys::hf_register_info {
                 p_id: id.as_ptr(),
                 hfinfo: sys::_header_field_info {
                     name: c(description),
-                    abbrev: c(name),
+                    abbrev: name.c(),
                     type_: type_,
                     display: if type_ == sys::FT_INT32 {
                         sys::BASE_DEC as c_int
@@ -186,12 +206,13 @@ impl Spec {
                 },
             }
         }
-        h(field(&self.id_msg_system, sys::FT_BOOLEAN, "System\0", "tw.msg.system\0"));
+
+        h(field(&self.id_msg_system, sys::FT_BOOLEAN, "System\0", intern(&format!("{}.msg.system", self.prefix))));
         t(self.tree_msg.as_ptr());
-        h(field(&self.id_msg, sys::FT_STRING, "Message\0", "tw.msg\0"));
-        h(field(&self.id_msg_id_raw, sys::FT_INT32, "Raw message ID\0", "tw.msg.id_raw\0"));
-        h(field(&self.id_msg_id_ex, sys::FT_GUID, "Extended message ID\0", "tw.msg.id_ex\0"));
-        h(field(&self.id_connless_id_raw, sys::FT_STRING, "Raw connless message ID\0", "tw.msg.id_raw\0"));
+        h(field(&self.id_msg, sys::FT_STRING, "Message\0", intern(&format!("{}.msg", self.prefix))));
+        h(field(&self.id_msg_id_raw, sys::FT_INT32, "Raw message ID\0", intern(&format!("{}.msg.id_raw", self.prefix))));
+        h(field(&self.id_msg_id_ex, sys::FT_GUID, "Extended message ID\0", intern(&format!("{}.msg.id_ex", self.prefix))));
+        h(field(&self.id_connless_id_raw, sys::FT_STRING, "Raw connless message ID\0", intern(&format!("{}.msg.id_raw", self.prefix))));
         for msg in self.game_messages.values() {
             msg.field_register_info(h, t);
         }
@@ -383,10 +404,10 @@ impl Spec {
     }
 }
 impl Message {
-    fn from_gamenet(system: bool, m: gamenet_spec::Message) -> Message {
+    fn from_gamenet(prefix: Interned, system: bool, m: gamenet_spec::Message) -> Message {
         let sys_prefix = if system { "sys" } else { "game" };
         let name = intern(&format!("{}.{}", sys_prefix, m.name.snake()));
-        let prefix = intern(&format!("tw.{}", name));
+        let prefix = intern(&format!("{}.{}", prefix, name));
         Message {
             name,
             members: m.members.into_iter().map(
@@ -394,9 +415,9 @@ impl Message {
             ).collect(),
         }
     }
-    fn from_gamenet_connless(m: gamenet_spec::ConnlessMessage) -> Message {
+    fn from_gamenet_connless(prefix: Interned, m: gamenet_spec::ConnlessMessage) -> Message {
         let name = intern(&format!("connless.{}", m.name.snake()));
-        let prefix = intern(&format!("tw.{}", name));
+        let prefix = intern(&format!("{}.{}", prefix, name));
         Message {
             name,
             members: m.members.into_iter().map(

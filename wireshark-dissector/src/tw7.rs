@@ -8,7 +8,7 @@ use format::Bitfield;
 use format::CommaSeparated;
 use format::NumBytes;
 use intern::intern_static_with_nul;
-use net::protocol;
+use net::protocol7 as protocol;
 use packer::Unpacker;
 use spec::Spec;
 use std::ffi::CStr;
@@ -21,7 +21,7 @@ use std::ptr;
 use std::slice;
 use warn::Ignore;
 
-const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-15.2.5.json");
+const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/teeworlds-0.7.5.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;
@@ -38,8 +38,11 @@ static mut HF_PACKET_CONTROL: c_int = -1;
 static mut HF_PACKET_CONNLESS: c_int = -1;
 static mut HF_PACKET_REQUEST_RESEND: c_int = -1;
 static mut HF_PACKET_COMPRESSION: c_int = -1;
+static mut HF_PACKET_CONNLESS_VERSION: c_int = -1;
 static mut HF_PACKET_ACK: c_int = -1;
 static mut HF_PACKET_NUM_CHUNKS: c_int = -1;
+static mut HF_PACKET_TOKEN: c_int = -1;
+static mut HF_PACKET_RESPONSE_TOKEN: c_int = -1;
 static mut HF_PACKET_CTRL: c_int = -1;
 static mut HF_PACKET_CTRL_CLOSE_REASON: c_int = -1;
 static mut HF_PACKET_PAYLOAD: c_int = -1;
@@ -55,6 +58,12 @@ static mut SPEC: Option<Spec> = None;
 fn unpack_header(data: &[u8]) -> Option<protocol::PacketHeader> {
     let (raw_header, _) =
         protocol::PacketHeaderPacked::from_byte_slice(data)?;
+    Some(raw_header.unpack_warn(&mut Ignore))
+}
+
+fn unpack_header_connless(data: &[u8]) -> Option<protocol::PacketHeaderConnless> {
+    let (raw_header, _) =
+        protocol::PacketHeaderConnlessPacked::from_byte_slice(data)?;
     Some(raw_header.unpack_warn(&mut Ignore))
 }
 
@@ -120,7 +129,7 @@ unsafe fn dissect_impl(
 ) -> Result<(), ()> {
     let spec = SPEC.as_ref().unwrap();
 
-    sys::col_set_str((*pinfo).cinfo, sys::COL_PROTOCOL as c_int, c("TW\0"));
+    sys::col_set_str((*pinfo).cinfo, sys::COL_PROTOCOL as c_int, c("TW7\0"));
     sys::col_clear((*pinfo).cinfo, sys::COL_INFO as c_int);
 
     let mut tvb = tvb;
@@ -175,12 +184,13 @@ unsafe fn dissect_impl(
     let request_resend = header.flags & protocol::PACKETFLAG_REQUEST_RESEND != 0;
     let connless = header.flags & protocol::PACKETFLAG_CONNLESS != 0;
     let ctrl = header.flags & protocol::PACKETFLAG_CONTROL != 0;
+    let connless_header = if !connless { None } else { Some(unpack_header_connless(data).ok_or(())?) };
 
     let compression = !connless && compression;
     let request_resend = !connless && request_resend;
     let ctrl = !connless && ctrl;
 
-    let header_size = if !connless { 3 } else { 6 };
+    let header_size = if !connless { protocol::HEADER_SIZE } else { protocol::HEADER_SIZE_CONNLESS }.assert_i32();
     let ti = sys::proto_tree_add_item(ttree, PROTO_PACKET, tvb, 0, header_size, sys::ENC_NA);
     let tree = sys::proto_item_add_subtree(ti, ETT_PACKET);
 
@@ -195,20 +205,30 @@ unsafe fn dissect_impl(
     let flags_field = field_uint!(tree, HF_PACKET_FLAGS, 0, 1, header.flags,
         "Flags: {} ({})",
         flags_description.or("none"),
-        Bitfield::new(&data[0..1], 0b1111_0000),
+        Bitfield::new(&data[0..1], 0b0011_1100),
     );
     let flag_tree = sys::proto_item_add_subtree(flags_field, ETT_PACKET_FLAGS);
 
+    field_boolean!(flag_tree, HF_PACKET_CONNLESS, 0, connless,
+        "{} = {}",
+        Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONNLESS.u64() << 2),
+        if connless { "Connectionless" } else { "Connection-oriented" },
+    );
     if !connless {
         field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
             "{} = {}",
-            Bitfield::new(&data[0..1], protocol::PACKETFLAG_COMPRESSION.u64() << 4),
+            Bitfield::new(&data[0..1], protocol::PACKETFLAG_COMPRESSION.u64() << 2),
             if compression { "Compressed" } else { "Not compressed" },
         );
         field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, request_resend,
             "{} = {}",
-            Bitfield::new(&data[0..1], protocol::PACKETFLAG_REQUEST_RESEND.u64() << 4),
+            Bitfield::new(&data[0..1], protocol::PACKETFLAG_REQUEST_RESEND.u64() << 2),
             if request_resend { "Resend requested" } else { "No resend requested" },
+        );
+        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
+            "{} = {}",
+            Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONTROL.u64() << 2),
+            if ctrl { "Control message" } else { "Not a control message" },
         );
     } else {
         field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
@@ -219,25 +239,18 @@ unsafe fn dissect_impl(
             "{} = No resend requested (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
-    }
-    field_boolean!(flag_tree, HF_PACKET_CONNLESS, 0, connless,
-        "{} = {}",
-        Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONNLESS.u64() << 4),
-        if connless { "Connectionless" } else { "Connection-oriented" },
-    );
-    if !connless {
-        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
-            "{} = {}",
-            Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONTROL.u64() << 4),
-            if ctrl { "Control message" } else { "Not a control message" },
-        );
-    } else {
         field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
             "{} = Not a control message (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
     }
-    if !connless {
+    if let Some(header) = connless_header {
+        field_uint!(tree, HF_PACKET_CONNLESS_VERSION, 0, 1, header.version,
+            "Connless version: {} ({})",
+            header.version,
+            Bitfield::new(&data[0..1], 0b0000_0011),
+        );
+    } else {
         // TODO: Warn if `padding != 0`.
         field_uint!(tree, HF_PACKET_ACK, 0, 2, header.ack,
             "Acknowledged sequence number: {} ({})",
@@ -250,6 +263,25 @@ unsafe fn dissect_impl(
                 header.num_chunks,
             );
         }
+    }
+
+    if let Some(header) = connless_header {
+        let token = u32::from_be_bytes(header.token.0);
+        field_uint!(tree, HF_PACKET_TOKEN, 1, 4, token,
+            "Token: {:08x}",
+            token,
+        );
+        let response_token = u32::from_be_bytes(header.response_token.0);
+        field_uint!(tree, HF_PACKET_RESPONSE_TOKEN, 5, 4, response_token,
+            "Response token: {:08x}",
+            response_token,
+        );
+    } else {
+        let token = u32::from_be_bytes(header.token.0);
+        field_uint!(tree, HF_PACKET_TOKEN, 3, 4, token,
+            "Token: {:08x}",
+            token,
+        );
     }
 
     field_bytes!(tree, HF_PACKET_PAYLOAD, header_size, -1,
@@ -265,7 +297,7 @@ unsafe fn dissect_impl(
         slice::from_raw_parts_mut(buffer, decompress_buffer.len())
             .copy_from_slice(&decompress_buffer);
         tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
-        sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds packet\0"));
+        sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds 0.7 packet\0"));
         data = &decompress_buffer;
     }
     tvb = sys::tvb_new_subset_remaining(tvb, header_size);
@@ -280,26 +312,37 @@ unsafe fn dissect_impl(
         }) => {
             use self::protocol::ControlPacket::*;
 
-            let ctrl_raw = data[3];
+            let ctrl_raw = data[7];
             let (ctrl_str, ctrl_id) = match ctrl {
                 KeepAlive => ("Keep alive", "ctrl.keep_alive\0"),
-                Connect => ("Connect", "ctrl.connect\0"),
-                ConnectAccept => ("Accept connection", "ctrl.accept_connection\0"),
+                Connect(_) => ("Connect", "ctrl.connect\0"),
                 Accept => ("Acknowledge connection acceptance", "ctrl.ack_accept_connection\0"),
                 Close(_) => ("Disconnect", "ctrl.disconnect\0"),
+                Token(_) => ("Token", "ctrl.token\0"),
             };
             field_uint!(tree, HF_PACKET_CTRL, 0, 1, ctrl_raw,
                 "Control message: {} ({})",
                 ctrl_str,
                 ctrl_raw,
             );
-            if let Close(reason) = ctrl {
-                let reason_cstring = CString::new(reason).unwrap();
-                field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
-                    reason_cstring.as_ptr(),
-                    "Reason: {:?}",
-                    pretty::AlmostString::new(reason),
-                );
+            match ctrl {
+                Close(reason) => {
+                    let reason_cstring = CString::new(reason).unwrap();
+                    field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
+                        reason_cstring.as_ptr(),
+                        "Reason: {:?}",
+                        pretty::AlmostString::new(reason),
+                    );
+                },
+                Connect(response_token) | Token(response_token) => {
+                    // TODO: special case TOKEN_NONE
+                    let response_token = u32::from_be_bytes(response_token.0);
+                    field_uint!(tree, HF_PACKET_RESPONSE_TOKEN, 1, 4, response_token,
+                        "Response token: {:08x}",
+                        response_token,
+                    );
+                },
+                KeepAlive | Accept => {},
             }
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, c(ctrl_id));
         },
@@ -307,7 +350,7 @@ unsafe fn dissect_impl(
             ack: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
-            let data = &data[3..];
+            let data = &data[7..];
             let mut iter = protocol::ChunksIter::new(chunks_data, num_chunks);
             let mut summaries = String::new();
             while let (offset, Some(_)) = (iter.pos(), iter.next_warn(&mut Ignore)) {
@@ -361,7 +404,7 @@ unsafe fn dissect_impl(
                 field_uint!(header_tree, HF_CHUNK_HEADER_SIZE, offset.assert_i32(), 2, header.size,
                     "Size: {} ({})",
                     NumBytes::new(header.size.usize()),
-                    Bitfield::new(&data[offset..offset+2], 0b0011_1111_0000_1111),
+                    Bitfield::new(&data[offset..offset+2], 0b0011_1111_0011_1111),
                 );
                 if let Some(s) = sequence {
                     field_uint!(header_tree, HF_CHUNK_HEADER_SEQ, offset.assert_i32() + 1, 2, s,
@@ -431,7 +474,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_FLAGS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Flags\0"),
-                abbrev: c("tw.packet.flags\0"),
+                abbrev: c("tw7.packet.flags\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_HEX as c_int,
                 ..HFRI_DEFAULT
@@ -441,7 +484,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_COMPRESSION as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Compressed\0"),
-                abbrev: c("tw.packet.flags.compression\0"),
+                abbrev: c("tw7.packet.flags.compression\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -450,7 +493,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_REQUEST_RESEND as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Request resend\0"),
-                abbrev: c("tw.packet.flags.request_resend\0"),
+                abbrev: c("tw7.packet.flags.request_resend\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -459,7 +502,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_CONNLESS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Connless\0"),
-                abbrev: c("tw.packet.flags.connless\0"),
+                abbrev: c("tw7.packet.flags.connless\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -468,8 +511,18 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_CONTROL as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Control\0"),
-                abbrev: c("tw.packet.flags.control\0"),
+                abbrev: c("tw7.packet.flags.control\0"),
                 type_: sys::FT_BOOLEAN,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_PACKET_CONNLESS_VERSION as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: c("Version of the connless packet\0"),
+                abbrev: c("tw7.packet.connless_version\0"),
+                type_: sys::FT_UINT8,
+                display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
             },
         },
@@ -477,7 +530,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_ACK as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Acknowledged sequence number\0"),
-                abbrev: c("tw.packet.ack\0"),
+                abbrev: c("tw7.packet.ack\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -487,7 +540,27 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_NUM_CHUNKS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Number of chunks\0"),
-                abbrev: c("tw.packet.num_chunks\0"),
+                abbrev: c("tw7.packet.num_chunks\0"),
+                type_: sys::FT_UINT8,
+                display: sys::BASE_DEC as c_int,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_PACKET_TOKEN as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: c("Secret token identifying the peer\0"),
+                abbrev: c("tw7.packet.token\0"),
+                type_: sys::FT_UINT32,
+                display: sys::BASE_HEX as c_int,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_PACKET_RESPONSE_TOKEN as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: c("Secret token to be used by the receiver to identify against the sender\0"),
+                abbrev: c("tw7.packet.response_token\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -497,7 +570,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_CTRL as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Control message\0"),
-                abbrev: c("tw.packet.ctrl\0"),
+                abbrev: c("tw7.packet.ctrl\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -507,7 +580,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_CTRL_CLOSE_REASON as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Close reason\0"),
-                abbrev: c("tw.packet.ctrl.close_reason\0"),
+                abbrev: c("tw7.packet.ctrl.close_reason\0"),
                 type_: sys::FT_STRING,
                 display: sys::STR_ASCII as c_int,
                 ..HFRI_DEFAULT
@@ -517,7 +590,7 @@ pub unsafe extern "C" fn proto_register() {
             p_id: &HF_PACKET_PAYLOAD as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Payload\0"),
-                abbrev: c("tw.packet.payload\0"),
+                abbrev: c("tw7.packet.payload\0"),
                 type_: sys::FT_BYTES,
                 ..HFRI_DEFAULT
             },
@@ -531,9 +604,9 @@ pub unsafe extern "C" fn proto_register() {
     let fields_info = Box::leak(fields_info.into_boxed_slice());
     let etts = Box::leak(etts.into_boxed_slice());
     PROTO_PACKET = sys::proto_register_protocol(
-        c("Teeworlds Protocol packet\0"),
-        c("Teeworlds packet\0"),
-        c("twp\0"),
+        c("Teeworlds 0.7 Protocol packet\0"),
+        c("Teeworlds 0.7 packet\0"),
+        c("tw7p\0"),
     );
 
     sys::proto_register_field_array(PROTO_PACKET, fields_info.as_mut_ptr(), fields_info.len().assert_i32());
@@ -544,20 +617,20 @@ pub unsafe extern "C" fn proto_register() {
 
 pub unsafe extern "C" fn proto_reg_handoff() {
     PROTO_PACKET_HANDLE = sys::create_dissector_handle(Some(dissect), PROTO_PACKET);
-    sys::heur_dissector_add(c("udp\0"), Some(dissect_heur), c("TW over UDP\0"), c("tw_udp\0"), PROTO_PACKET, sys::HEURISTIC_ENABLE);
+    sys::heur_dissector_add(c("udp\0"), Some(dissect_heur), c("TW7 over UDP\0"), c("tw7_udp\0"), PROTO_PACKET, sys::HEURISTIC_ENABLE);
     sys::dissector_add_for_decode_as(c("udp.port\0"), PROTO_PACKET_HANDLE);
 }
 
 fn load_spec() -> anyhow::Result<Spec> {
-    Spec::load(intern_static_with_nul("tw\0"), SERIALIZED_SPEC)
+    Spec::load(intern_static_with_nul("tw7\0"), SERIALIZED_SPEC)
 }
 
 fn register_chunk_protocol(spec: &Spec) {
     unsafe {
         PROTO_CHUNK = sys::proto_register_protocol(
-            c("Teeworlds Protocol chunk\0"),
-            c("Teeworlds chunk\0"),
-            c("tw\0"),
+            c("Teeworlds 0.7 Protocol chunk\0"),
+            c("Teeworlds 0.7 chunk\0"),
+            c("tw7\0"),
         );
     }
     let mut fields_info = Vec::new();
@@ -567,7 +640,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Header\0"),
-                abbrev: c("tw.chunk\0"),
+                abbrev: c("tw7.chunk\0"),
                 type_: sys::FT_NONE,
                 ..HFRI_DEFAULT
             },
@@ -576,7 +649,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER_FLAGS as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Flags\0"),
-                abbrev: c("tw.chunk.flags\0"),
+                abbrev: c("tw7.chunk.flags\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -586,7 +659,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER_RESEND as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Resend\0"),
-                abbrev: c("tw.chunk.flags.resend\0"),
+                abbrev: c("tw7.chunk.flags.resend\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -595,7 +668,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER_VITAL as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Vital\0"),
-                abbrev: c("tw.chunk.flags.vital\0"),
+                abbrev: c("tw7.chunk.flags.vital\0"),
                 type_: sys::FT_BOOLEAN,
                 ..HFRI_DEFAULT
             },
@@ -604,7 +677,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER_SIZE as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Size\0"),
-                abbrev: c("tw.chunk.size\0"),
+                abbrev: c("tw7.chunk.size\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT
@@ -614,7 +687,7 @@ fn register_chunk_protocol(spec: &Spec) {
             p_id: &HF_CHUNK_HEADER_SEQ as *const _ as *mut _,
             hfinfo: sys::_header_field_info {
                 name: c("Sequence number\0"),
-                abbrev: c("tw.chunk.seq\0"),
+                abbrev: c("tw7.chunk.seq\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_DEC as c_int,
                 ..HFRI_DEFAULT

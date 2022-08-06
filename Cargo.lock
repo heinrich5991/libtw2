@@ -1660,6 +1660,7 @@ dependencies = [
  "gamenet_common",
  "gamenet_spec",
  "huffman",
+ "lazy_static",
  "matches",
  "net",
  "packer",

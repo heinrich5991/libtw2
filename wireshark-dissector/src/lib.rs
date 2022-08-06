@@ -5,6 +5,8 @@ extern crate common;
 extern crate gamenet_common;
 extern crate gamenet_spec;
 extern crate huffman;
+#[cfg(test)]
+extern crate lazy_static;
 #[macro_use]
 extern crate matches;
 extern crate net;
@@ -18,6 +20,16 @@ mod format;
 mod intern;
 mod spec;
 mod tw;
+mod tw7;
+
+#[cfg(test)]
+mod test {
+    use lazy_static::lazy_static;
+    use std::sync::Mutex;
+    lazy_static! {
+        pub static ref TEST_MUTEX: Mutex<()> = Mutex::new(());
+    }
+}
 
 use intern::Interned;
 use intern::intern;
@@ -103,10 +115,12 @@ fn to_guid(uuid: Uuid) -> sys::e_guid_t {
 
 unsafe extern "C" fn proto_register() {
     tw::proto_register();
+    tw7::proto_register();
 }
 
 unsafe extern "C" fn proto_reg_handoff() {
     tw::proto_reg_handoff();
+    tw7::proto_reg_handoff();
 }
 
 #[no_mangle]
