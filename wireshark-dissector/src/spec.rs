@@ -59,10 +59,12 @@ pub enum Type {
     Boolean(SimpleType),
     Data(SimpleType),
     Enum,
+    Flags,
     Int32(Int32Type),
     Int32String(SimpleType),
     Optional(OptionalType),
     PackedAddresses,
+    Rest(SimpleType),
     ServerinfoClient,
     Sha256(SimpleType),
     SnapshotObject,
@@ -449,6 +451,7 @@ impl From<gamenet_spec::Type> for Type {
             Boolean => Type::Boolean(Default::default()),
             Data => Type::Data(Default::default()),
             Enum(..) => Type::Enum,
+            Flags(..) => Type::Flags,
             Int32(i) => Type::Int32(Int32Type {
                 id: Default::default(),
                 min: i.min,
@@ -459,6 +462,7 @@ impl From<gamenet_spec::Type> for Type {
                 inner: Box::new((*i.inner).into()),
             }),
             PackedAddresses => Type::PackedAddresses,
+            Rest => Type::Rest(Default::default()),
             ServerinfoClient => Type::ServerinfoClient,
             Sha256 => Type::Sha256(Default::default()),
             SnapshotObject(..) => Type::SnapshotObject,
@@ -490,11 +494,13 @@ impl Type {
             Enum => return,
             // TODO: Does that work with enum reprs? (FIELDCONVERT)
             //Enum => sys::FT_INT32,
+            Flags => return, // TODO: Add support for flags.
             Int32(i) => (sys::FT_INT32, i.id.as_ptr()),
             Int32String(i) => (sys::FT_INT32, i.id.as_ptr()),
             Optional(i) =>
                 return i.inner.field_register_info(h, t, desc, identifier),
             PackedAddresses => return,
+            Rest(i) => (sys::FT_BYTES, i.id.as_ptr()),
             ServerinfoClient => return,
             Sha256(i) => (sys::FT_STRING, i.id.as_ptr()),
             SnapshotObject => return,
@@ -592,7 +598,8 @@ impl Type {
                     NumBytes::new(v.len()),
                 ));
             },
-            //Enum => return,
+            Enum => return Err(()),
+            Flags => return Err(()),
             Int32(i) => {
                 let v = p.read_int(&mut Ignore).map_err(|_| ())?;
                 sys::proto_tree_add_int_format(
@@ -625,8 +632,24 @@ impl Type {
                 let _ = i.inner.dissect(desc, tree, tvb, p);
                 return Ok(());
             },
-            //PackedAddresses => return,
-            //ServerinfoClient => return,
+            PackedAddresses => return Err(()),
+            Rest(i) => {
+                let v = p.read_rest().map_err(|_| ())?;
+                let ti = sys::proto_tree_add_bytes_with_length(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v.as_ptr(),
+                    v.len().assert_i32(),
+                );
+                sys::proto_item_set_text(ti, PS, bformat!("{} ({})",
+                    desc,
+                    NumBytes::new(v.len()),
+                ));
+            },
+            ServerinfoClient => return Err(()),
             Sha256(i) => {
                 let size = mem::size_of::<digest::Sha256>();
                 let v = p.read_raw(size).map_err(|_| ())?;
@@ -643,7 +666,7 @@ impl Type {
                     bformat!("{}: {}", desc, v),
                 );
             }
-            //SnapshotObject => return,
+            SnapshotObject => return Err(()),
             String(i) => {
                 let v = p.read_string().map_err(|_| ())?;
                 let cstring_v = CString::new(v).unwrap();
@@ -711,7 +734,6 @@ impl Type {
                     bformat!("{}: {}", desc, v),
                 );
             },
-            _ => return Err(()),
         };
         Ok(())
     }

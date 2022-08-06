@@ -95,10 +95,12 @@ pub enum Type {
     Boolean,
     Data,
     Enum(EnumType),
+    Flags(FlagsType),
     Int32(Int32Type),
     Int32String,
     Optional(OptionalType),
     PackedAddresses,
+    Rest,
     ServerinfoClient,
     Sha256,
     SnapshotObject(SnapshotObjectType),
@@ -119,6 +121,11 @@ pub struct ArrayType {
 pub struct EnumType {
     #[serde(rename = "enum")]
     pub enum_: Identifier,
+}
+
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
+pub struct FlagsType {
+    pub flags: Identifier,
 }
 
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
