@@ -239,7 +239,7 @@ unsafe fn dissect_impl(
     if !connless {
         // TODO: Warn if `padding != 0`.
         field_uint!(tree, HF_PACKET_ACK, 0, 2, header.ack,
-            "Acknowleged sequence number: {} ({})",
+            "Acknowledged sequence number: {} ({})",
             header.ack,
             Bitfield::new(&data[0..2], 0b0000_0011_1111_1111),
         );
@@ -287,14 +287,14 @@ unsafe fn dissect_impl(
                 Accept => ("Acknowledge connection acceptance", "ctrl.ack_accept_connection\0"),
                 Close(_) => ("Disconnect", "ctrl.disconnect\0"),
             };
-            field_uint!(tree, HF_PACKET_CTRL, 3, 1, ctrl_raw,
+            field_uint!(tree, HF_PACKET_CTRL, 0, 1, ctrl_raw,
                 "Control message: {} ({})",
                 ctrl_str,
                 ctrl_raw,
             );
             if let Close(reason) = ctrl {
                 let reason_cstring = CString::new(reason).unwrap();
-                field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 4, reason.len().assert_i32(),
+                field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
                     reason_cstring.as_ptr(),
                     "Reason: {:?}",
                     pretty::AlmostString::new(reason),
@@ -479,7 +479,6 @@ pub unsafe extern "C" fn proto_register() {
                 abbrev: c("tw.packet.ack\0"),
                 type_: sys::FT_UINT16,
                 display: sys::BASE_DEC as c_int,
-                bitmask: 0,
                 ..HFRI_DEFAULT
             },
         },
