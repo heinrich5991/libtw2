@@ -1,4 +1,6 @@
-use anyhow::Context;
+use IdentifierEx;
+use anyhow::Context as _;
+use anyhow::anyhow;
 use anyhow::bail;
 use arrayvec::ArrayVec;
 use common::digest;
@@ -17,6 +19,7 @@ use intern::intern_static_with_nul;
 use packer::Unpacker;
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
@@ -25,6 +28,7 @@ use std::mem;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::os::raw::c_uint;
+use std::rc::Rc;
 use std::str;
 use warn::Ignore;
 
@@ -40,6 +44,10 @@ pub struct Spec {
     pub id_msg_id_raw: FieldId,
     pub id_msg_id_ex: FieldId,
     pub id_connless_id_raw: FieldId,
+}
+#[derive(Debug)]
+pub struct Enumeration {
+    pub values: HashMap<i32, Interned>,
 }
 #[derive(Debug)]
 pub struct Message {
@@ -60,7 +68,7 @@ pub enum Type {
     BeUint16(SimpleType),
     Boolean(SimpleType),
     Data(SimpleType),
-    Enum,
+    Enum(EnumType),
     Flags,
     Int32(Int32Type),
     Int32String(SimpleType),
@@ -86,6 +94,13 @@ pub struct ArrayType {
     pub member_type: Box<Type>,
 }
 #[derive(Debug)]
+pub struct EnumType {
+    pub id: FieldId,
+    pub tree: FieldId,
+    pub id_raw: FieldId,
+    pub enum_: Rc<Enumeration>,
+}
+#[derive(Debug)]
 pub struct Int32Type {
     pub id: FieldId,
     pub min: Option<i32>,
@@ -99,6 +114,10 @@ pub struct OptionalType {
 pub struct StringType {
     pub id: FieldId,
     pub disallow_cc: bool,
+}
+
+struct Context {
+    game_enumerations: HashMap<Interned, Rc<Enumeration>>,
 }
 
 impl Default for FieldId {
@@ -149,10 +168,23 @@ fn load_gamenet_spec(s: &str) -> anyhow::Result<gamenet_spec::Spec> {
 impl Spec {
     pub fn load(prefix: Interned, s: &str) -> anyhow::Result<Spec> {
         let spec = load_gamenet_spec(s)?;
+        let mut game_enumerations = HashMap::new();
+        for enum_ in spec.game_enumerations {
+            let enum_name = enum_.name.isnake();
+            let converted = Enumeration::from_gamenet(enum_)
+                .with_context(|| format!("failed to parse enumeration {}", enum_name))?;
+            if game_enumerations.insert(enum_name, Rc::new(converted)).is_some() {
+                bail!("duplicate game enumeration {}", enum_name);
+            }
+        }
+        let context = Context {
+            game_enumerations
+        };
         let mut game_messages = HashMap::new();
         for msg in spec.game_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet(prefix, false, msg);
+            let converted = Message::from_gamenet(&context, prefix, false, msg)
+                .with_context(|| format!("failed to parse game message id {}", msg_id))?;
             if game_messages.insert(msg_id, converted).is_some() {
                 bail!("duplicate game message id {}", msg_id);
             }
@@ -160,7 +192,8 @@ impl Spec {
         let mut system_messages = HashMap::new();
         for msg in spec.system_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet(prefix, true, msg);
+            let converted = Message::from_gamenet(&context, prefix, true, msg)
+                .with_context(|| format!("failed to parse system message id {}", msg_id))?;
             if system_messages.insert(msg_id, converted).is_some() {
                 bail!("duplicate system message id {}", msg_id);
             }
@@ -168,9 +201,10 @@ impl Spec {
         let mut connless_messages = HashMap::new();
         for msg in spec.connless_messages {
             let msg_id = msg.id;
-            let converted = Message::from_gamenet_connless(prefix, msg);
+            let converted = Message::from_gamenet_connless(&context, prefix, msg)
+                .with_context(|| format!("failed to parse connless message id {}", AlmostString::new(&msg_id)))?;
             if connless_messages.insert(msg_id, converted).is_some() {
-                bail!("duplicate system message id {:?}", AlmostString::new(&msg_id));
+                bail!("duplicate connless message id {:?}", AlmostString::new(&msg_id));
             }
         }
         Ok(Spec {
@@ -403,27 +437,45 @@ impl Spec {
         }
     }
 }
+impl Enumeration {
+    fn from_gamenet(e: gamenet_spec::Enumeration) -> anyhow::Result<Enumeration> {
+        let mut values = HashMap::new();
+        let mut names = HashSet::new();
+        for pair in e.values {
+            let name = pair.name.isnake();
+            if values.insert(pair.value, name).is_some() {
+                bail!("duplicate game enumeration id {}", name);
+            }
+            if !names.insert(name) {
+                bail!("duplicate game enumeration name {}", name);
+            }
+        }
+        Ok(Enumeration {
+            values,
+        })
+    }
+}
 impl Message {
-    fn from_gamenet(prefix: Interned, system: bool, m: gamenet_spec::Message) -> Message {
+    fn from_gamenet(context: &Context, prefix: Interned, system: bool, m: gamenet_spec::Message) -> anyhow::Result<Message> {
         let sys_prefix = if system { "sys" } else { "game" };
         let name = intern(&format!("{}.{}", sys_prefix, m.name.snake()));
         let prefix = intern(&format!("{}.{}", prefix, name));
-        Message {
+        Ok(Message {
             name,
             members: m.members.into_iter().map(
-                |member| Member::from_gamenet(prefix, member)
-            ).collect(),
-        }
+                |member| Member::from_gamenet(context, prefix, member)
+            ).collect::<Result<_, _>>()?,
+        })
     }
-    fn from_gamenet_connless(prefix: Interned, m: gamenet_spec::ConnlessMessage) -> Message {
+    fn from_gamenet_connless(context: &Context, prefix: Interned, m: gamenet_spec::ConnlessMessage) -> anyhow::Result<Message> {
         let name = intern(&format!("connless.{}", m.name.snake()));
         let prefix = intern(&format!("{}.{}", prefix, name));
-        Message {
+        Ok(Message {
             name,
             members: m.members.into_iter().map(
-                |member| Member::from_gamenet(prefix, member)
-            ).collect(),
-        }
+                |member| Member::from_gamenet(context, prefix, member)
+            ).collect::<Result<_, _>>()?,
+        })
     }
     pub fn field_register_info<FH, FT>(&self, h: &mut FH, t: &mut FT) where
         FH: FnMut(sys::hf_register_info),
@@ -446,12 +498,12 @@ impl Message {
     }
 }
 impl Member {
-    fn from_gamenet(prefix: Interned, m: gamenet_spec::Member) -> Member {
-        Member {
+    fn from_gamenet(context: &Context, prefix: Interned, m: gamenet_spec::Member) -> anyhow::Result<Member> {
+        Ok(Member {
             description: intern(&m.name.desc()),
             identifier: intern(&format!("{}.{}", prefix, m.name.snake())),
-            type_: m.type_.into(),
-        }
+            type_: Type::from_gamenet(context, m.type_)?,
+        })
     }
     pub fn field_register_info<FH, FT>(&self, h: &mut FH, t: &mut FT) where
         FH: FnMut(sys::hf_register_info),
@@ -460,18 +512,25 @@ impl Member {
         self.type_.field_register_info(h, t, self.description, self.identifier);
     }
 }
-impl From<gamenet_spec::Type> for Type {
-    fn from(t: gamenet_spec::Type) -> Type {
+impl Type {
+    fn from_gamenet(context: &Context, t: gamenet_spec::Type) -> anyhow::Result<Type> {
         use gamenet_spec::Type::*;
-        match t {
+        Ok(match t {
             Array(i) => Type::Array(ArrayType {
                 count: i.count,
-                member_type: Box::new((*i.member_type).into()),
+                member_type: Box::new(Type::from_gamenet(context, *i.member_type)?),
             }),
             BeUint16 => Type::BeUint16(Default::default()),
             Boolean => Type::Boolean(Default::default()),
             Data => Type::Data(Default::default()),
-            Enum(..) => Type::Enum,
+            Enum(i) => Type::Enum(EnumType {
+                id: Default::default(),
+                tree: Default::default(),
+                id_raw: Default::default(),
+                enum_: context.game_enumerations.get(&i.enum_.isnake())
+                    .ok_or_else(|| anyhow!("unknown enumeration {}", i.enum_.snake()))?
+                    .clone(),
+            }),
             Flags(..) => Type::Flags,
             Int32(i) => Type::Int32(Int32Type {
                 id: Default::default(),
@@ -480,7 +539,7 @@ impl From<gamenet_spec::Type> for Type {
             }),
             Int32String => Type::Int32String(Default::default()),
             Optional(i) => Type::Optional(OptionalType {
-                inner: Box::new((*i.inner).into()),
+                inner: Box::new(Type::from_gamenet(context, *i.inner)?),
             }),
             PackedAddresses => Type::PackedAddresses,
             Rest => Type::Rest(Default::default()),
@@ -495,7 +554,7 @@ impl From<gamenet_spec::Type> for Type {
             TuneParam => Type::TuneParam(Default::default()),
             Uint8 => Type::Uint8(Default::default()),
             Uuid => Type::Uuid(Default::default()),
-        }
+        })
     }
 }
 impl Type {
@@ -512,7 +571,29 @@ impl Type {
             BeUint16(i) => (sys::FT_UINT16, i.id.as_ptr()),
             Boolean(i) => (sys::FT_BOOLEAN, i.id.as_ptr()),
             Data(i) => (sys::FT_BYTES, i.id.as_ptr()),
-            Enum => return,
+            Enum(i) => {
+                t(i.tree.as_ptr());
+                h(sys::hf_register_info {
+                    p_id: i.id.as_ptr(),
+                    hfinfo: sys::_header_field_info {
+                        name: desc.c(),
+                        abbrev: identifier.c(),
+                        type_: sys::FT_STRING,
+                        ..HFRI_DEFAULT
+                    },
+                });
+                h(sys::hf_register_info {
+                    p_id: i.id_raw.as_ptr(),
+                    hfinfo: sys::_header_field_info {
+                        name: intern(&format!("{} (raw)", desc)).c(),
+                        abbrev: intern(&format!("{}.raw", identifier)).c(),
+                        type_: sys::FT_INT32,
+                        display: sys::BASE_DEC as c_int,
+                        ..HFRI_DEFAULT
+                    },
+                });
+                return;
+            },
             // TODO: Does that work with enum reprs? (FIELDCONVERT)
             //Enum => sys::FT_INT32,
             Flags => return, // TODO: Add support for flags.
@@ -619,7 +700,42 @@ impl Type {
                     NumBytes::new(v.len()),
                 ));
             },
-            Enum => return Err(()),
+            Enum(i) => {
+                let v = p.read_int(&mut Ignore).map_err(|_| ())?;
+                let name = i.enum_.values.get(&v);
+                let buffer;
+                let name_c = if let Some(name) = name {
+                    name.c()
+                } else {
+                    buffer = CString::new(format!("{}", v)).unwrap();
+                    buffer.as_ptr()
+                };
+                let id_field = sys::proto_tree_add_string_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    name_c,
+                    PS,
+                    if let Some(name) = name {
+                        bformat!("{}: {}", desc, name)
+                    } else {
+                        bformat!("{}: [unknown] ({})", desc, v)
+                    },
+                );
+                let id_subtree = sys::proto_item_add_subtree(id_field, i.tree.get());
+                sys::proto_tree_add_int_format(
+                    id_subtree,
+                    i.id_raw.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_int,
+                    PS,
+                    bformat!("Raw: {}", v),
+                );
+            },
             Flags => return Err(()),
             Int32(i) => {
                 let v = p.read_int(&mut Ignore).map_err(|_| ())?;
