@@ -21,7 +21,7 @@ use std::ptr;
 use std::slice;
 use warn::Ignore;
 
-const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-15.2.5.json");
+const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-16.2.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;
