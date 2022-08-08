@@ -11,6 +11,7 @@ use crate::HFRI_DEFAULT;
 use crate::c;
 use crate::to_guid;
 use format::Bitfield;
+use format::CommaSeparated;
 use format::NumBytes;
 use gamenet_spec::MessageId;
 use intern::Interned;
@@ -50,6 +51,16 @@ pub struct Enumeration {
     pub values: HashMap<i32, Interned>,
 }
 #[derive(Debug)]
+pub struct Flags {
+    pub values: Vec<Flag>,
+}
+#[derive(Debug)]
+pub struct Flag {
+    pub value: u32,
+    pub description: Interned,
+    pub identifier: Interned,
+}
+#[derive(Debug)]
 pub struct Message {
     pub name: Interned,
     pub members: Vec<Member>,
@@ -69,7 +80,7 @@ pub enum Type {
     Boolean(SimpleType),
     Data(SimpleType),
     Enum(EnumType),
-    Flags,
+    Flags(FlagsType),
     Int32(Int32Type),
     Int32String(SimpleType),
     Optional(OptionalType),
@@ -101,6 +112,13 @@ pub struct EnumType {
     pub enum_: Rc<Enumeration>,
 }
 #[derive(Debug)]
+pub struct FlagsType {
+    pub id: FieldId,
+    pub tree: FieldId,
+    pub id_flags: Vec<FieldId>,
+    pub flags: Rc<Flags>,
+}
+#[derive(Debug)]
 pub struct Int32Type {
     pub id: FieldId,
     pub min: Option<i32>,
@@ -116,8 +134,10 @@ pub struct StringType {
     pub disallow_cc: bool,
 }
 
+#[derive(Default)]
 struct Context {
     game_enumerations: HashMap<Interned, Rc<Enumeration>>,
+    game_flags: HashMap<Interned, Rc<Flags>>,
 }
 
 impl Default for FieldId {
@@ -177,8 +197,18 @@ impl Spec {
                 bail!("duplicate game enumeration {}", enum_name);
             }
         }
+        let mut game_flags = HashMap::new();
+        for flags in spec.game_flags {
+            let flags_name = flags.name.isnake();
+            let converted = Flags::from_gamenet(flags)
+                .with_context(|| format!("failed to parse flags {}", flags_name))?;
+            if game_flags.insert(flags_name, Rc::new(converted)).is_some() {
+                bail!("duplicate game flags {}", flags_name);
+            }
+        }
         let context = Context {
-            game_enumerations
+            game_enumerations,
+            game_flags,
         };
         let mut game_messages = HashMap::new();
         for msg in spec.game_messages {
@@ -455,6 +485,33 @@ impl Enumeration {
         })
     }
 }
+impl Flags {
+    fn from_gamenet(e: gamenet_spec::Flags) -> anyhow::Result<Flags> {
+        let mut seen_names = HashSet::new();
+        let mut seen_values = HashSet::new();
+        let mut values = Vec::new();
+        for pair in e.values {
+            let name = pair.name.isnake();
+            if !seen_names.insert(name) {
+                bail!("duplicate game flag name {}", name);
+            }
+            if !seen_values.insert(pair.value) {
+                bail!("duplicate game flag value {}", pair.value);
+            }
+            if pair.value.count_ones() != 1 {
+                bail!("game flag value has more than one bit set to 1: {}", pair.value);
+            }
+            values.push(Flag {
+                value: pair.value,
+                description: pair.name.idesc(),
+                identifier: name,
+            });
+        }
+        Ok(Flags {
+            values,
+        })
+    }
+}
 impl Message {
     fn from_gamenet(context: &Context, prefix: Interned, system: bool, m: gamenet_spec::Message) -> anyhow::Result<Message> {
         let sys_prefix = if system { "sys" } else { "game" };
@@ -531,7 +588,17 @@ impl Type {
                     .ok_or_else(|| anyhow!("unknown enumeration {}", i.enum_.snake()))?
                     .clone(),
             }),
-            Flags(..) => Type::Flags,
+            Flags(i) => {
+                let flags = context.game_flags.get(&i.flags.isnake())
+                    .ok_or_else(|| anyhow!("unknown flags {}", i.flags.snake()))?
+                    .clone();
+                Type::Flags(FlagsType {
+                    id: Default::default(),
+                    tree: Default::default(),
+                    id_flags: (0..flags.values.len()).map(|_| Default::default()).collect(),
+                    flags,
+                })
+            },
             Int32(i) => Type::Int32(Int32Type {
                 id: Default::default(),
                 min: i.min,
@@ -594,9 +661,31 @@ impl Type {
                 });
                 return;
             },
-            // TODO: Does that work with enum reprs? (FIELDCONVERT)
-            //Enum => sys::FT_INT32,
-            Flags => return, // TODO: Add support for flags.
+            Flags(i) => {
+                t(i.tree.as_ptr());
+                h(sys::hf_register_info {
+                    p_id: i.id.as_ptr(),
+                    hfinfo: sys::_header_field_info {
+                        name: desc.c(),
+                        abbrev: identifier.c(),
+                        type_: sys::FT_UINT32,
+                        display: sys::BASE_HEX as c_int,
+                        ..HFRI_DEFAULT
+                    },
+                });
+                for (idx, id) in i.id_flags.iter().enumerate() {
+                    h(sys::hf_register_info {
+                        p_id: id.as_ptr(),
+                        hfinfo: sys::_header_field_info {
+                            name: i.flags.values[idx].description.c(),
+                            abbrev: intern(&format!("{}.{}", identifier, i.flags.values[idx].identifier)).c(),
+                            type_: sys::FT_BOOLEAN,
+                            ..HFRI_DEFAULT
+                        },
+                    });
+                }
+                return;
+            },
             Int32(i) => (sys::FT_INT32, i.id.as_ptr()),
             Int32String(i) => (sys::FT_INT32, i.id.as_ptr()),
             Optional(i) =>
@@ -736,7 +825,50 @@ impl Type {
                     bformat!("Raw: {}", v),
                 );
             },
-            Flags => return Err(()),
+            Flags(i) => {
+                let v = p.read_int(&mut Ignore).map_err(|_| ())? as u32;
+                let mut flag_names: CommaSeparated<[u8; 256]> = CommaSeparated::new();
+                for flag in &i.flags.values {
+                    if v & flag.value != 0 {
+                        flag_names.add(flag.identifier.as_str());
+                    }
+                }
+                let id_field = sys::proto_tree_add_uint_format(
+                    tree,
+                    i.id.get(),
+                    tvb,
+                    pos.assert_i32(),
+                    (p.num_bytes_read() - pos).assert_i32(),
+                    v as c_uint,
+                    PS,
+                    bformat!("{}: {} (0x{:x})", desc, flag_names.or("none"), v),
+                );
+                let id_subtree = sys::proto_item_add_subtree(id_field, i.tree.get());
+                let num_unused_bytes = i.flags.values.iter()
+                    .map(|v| v.value.leading_zeros())
+                    .min()
+                    .unwrap_or(0)
+                    .usize()
+                    / 8;
+                let v_bytes = &v.to_be_bytes()[num_unused_bytes..];
+                for (idx, id) in i.id_flags.iter().enumerate() {
+                    let flag = i.flags.values[idx].value;
+                    sys::proto_tree_add_boolean_format(
+                        id_subtree,
+                        id.get(),
+                        tvb,
+                        pos.assert_i32(),
+                        (p.num_bytes_read() - pos).assert_i32(),
+                        (v & flag != 0) as c_uint,
+                        PS,
+                        bformat!("{} = {} {}",
+                            Bitfield::new(v_bytes, flag.u64()),
+                            if v & flag != 0 { "   " } else { "NOT" },
+                            i.flags.values[idx].identifier,
+                        ),
+                    );
+                }
+            },
             Int32(i) => {
                 let v = p.read_int(&mut Ignore).map_err(|_| ())?;
                 sys::proto_tree_add_int_format(
