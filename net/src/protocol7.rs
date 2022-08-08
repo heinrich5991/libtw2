@@ -32,7 +32,7 @@ pub const CHUNKFLAG_RESEND: u8 = 1 << 1;
 
 pub const CTRLMSG_KEEPALIVE:     u8 = 0;
 pub const CTRLMSG_CONNECT:       u8 = 1;
-pub const CTRLMSG_ACCEPT:        u8 = 3;
+pub const CTRLMSG_ACCEPT:        u8 = 2;
 pub const CTRLMSG_CLOSE:         u8 = 4;
 pub const CTRLMSG_TOKEN:         u8 = 5;
 

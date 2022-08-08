@@ -316,7 +316,7 @@ unsafe fn dissect_impl(
             let (ctrl_str, ctrl_id) = match ctrl {
                 KeepAlive => ("Keep alive", "ctrl.keep_alive\0"),
                 Connect(_) => ("Connect", "ctrl.connect\0"),
-                Accept => ("Acknowledge connection acceptance", "ctrl.ack_accept_connection\0"),
+                Accept => ("Accept connection", "ctrl.accept_connection\0"),
                 Close(_) => ("Disconnect", "ctrl.disconnect\0"),
                 Token(_) => ("Token", "ctrl.token\0"),
             };
