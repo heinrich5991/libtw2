@@ -34,19 +34,20 @@ bindgen \
 	--whitelist-function '^proto_register_plugin$' \
 	--whitelist-function '^proto_register_protocol$' \
 	--whitelist-function '^proto_register_subtree_array$' \
-	--whitelist-function '^proto_tree_add_boolean.*$' \
-	--whitelist-function '^proto_tree_add_bytes.*$' \
-	--whitelist-function '^proto_tree_add_float.*$' \
-	--whitelist-function '^proto_tree_add_guid.*$' \
-	--whitelist-function '^proto_tree_add_int.*$' \
+	--whitelist-function '^proto_tree_add_boolean(_format)?$' \
+	--whitelist-function '^proto_tree_add_bytes(_format)?$' \
+	--whitelist-function '^proto_tree_add_bytes_with_length$' \
+	--whitelist-function '^proto_tree_add_float(_format)?$' \
+	--whitelist-function '^proto_tree_add_guid(_format)?$' \
+	--whitelist-function '^proto_tree_add_int(_format)?$' \
 	--whitelist-function '^proto_tree_add_item$' \
-	--whitelist-function '^proto_tree_add_none.*$' \
-	--whitelist-function '^proto_tree_add_string.*$' \
-	--whitelist-function '^proto_tree_add_uint.*$' \
-	--whitelist-function '^tvb_reported_length$' \
+	--whitelist-function '^proto_tree_add_none_format?$' \
+	--whitelist-function '^proto_tree_add_string(_format)?$' \
+	--whitelist-function '^proto_tree_add_uint(_format)?$' \
 	--whitelist-function '^tvb_memcpy$' \
 	--whitelist-function '^tvb_new_child_real_data$' \
 	--whitelist-function '^tvb_new_subset_remaining$' \
+	--whitelist-function '^tvb_reported_length$' \
 	--whitelist-function '^wmem_alloc$' \
 	--whitelist-type '^field_display_e$' \
 	--whitelist-var '^COL_INFO$' \

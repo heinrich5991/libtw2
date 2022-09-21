@@ -24,43 +24,22 @@ EXPORTS
     proto_register_protocol
     proto_register_subtree_array
     proto_tree_add_boolean
-    proto_tree_add_boolean_bits_format_value
-    proto_tree_add_boolean_bits_format_value64
     proto_tree_add_boolean_format
-    proto_tree_add_boolean_format_value
     proto_tree_add_bytes
     proto_tree_add_bytes_format
-    proto_tree_add_bytes_format_value
-    proto_tree_add_bytes_item
     proto_tree_add_bytes_with_length
     proto_tree_add_float
-    proto_tree_add_float_bits_format_value
     proto_tree_add_float_format
-    proto_tree_add_float_format_value
     proto_tree_add_guid
     proto_tree_add_guid_format
-    proto_tree_add_guid_format_value
     proto_tree_add_int
-    proto_tree_add_int64
-    proto_tree_add_int64_bits_format_value
-    proto_tree_add_int64_format
-    proto_tree_add_int64_format_value
-    proto_tree_add_int_bits_format_value
     proto_tree_add_int_format
-    proto_tree_add_int_format_value
     proto_tree_add_item
     proto_tree_add_none_format
     proto_tree_add_string
     proto_tree_add_string_format
-    proto_tree_add_string_format_value
     proto_tree_add_uint
-    proto_tree_add_uint64
-    proto_tree_add_uint64_bits_format_value
-    proto_tree_add_uint64_format
-    proto_tree_add_uint64_format_value
-    proto_tree_add_uint_bits_format_value
     proto_tree_add_uint_format
-    proto_tree_add_uint_format_value
     tvb_memcpy
     tvb_new_child_real_data
     tvb_new_subset_remaining
