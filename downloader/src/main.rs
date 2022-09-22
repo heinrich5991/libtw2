@@ -73,7 +73,6 @@ use std::str;
 use std::time::Duration;
 use std::u32;
 use tempfile::NamedTempFile;
-use tempfile::NamedTempFileOptions;
 use warn::Log;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
@@ -231,10 +230,10 @@ impl Peer {
     }
     fn open_file(&mut self, crc: i32, name: String) -> Result<(), io::Error> {
         self.download = Some(Download {
-            file: NamedTempFileOptions::new()
+            file: tempfile::Builder::new()
                 .prefix(&format!("{}_{:08x}_", name, crc))
                 .suffix(".map")
-                .create_in("downloading")?,
+                .tempfile_in("downloading")?,
             crc: crc,
             name: name,
         });

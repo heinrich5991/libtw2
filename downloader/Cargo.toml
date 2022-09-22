@@ -17,5 +17,5 @@ logger = { path = "../logger/" }
 packer = { path = "../packer/" }
 rand = "0.8.3"
 snapshot = { path = "../snapshot/" }
-tempfile = "2.0.0"
+tempfile = "3.0.0"
 warn = ">=0.1.1,<0.3.0"
