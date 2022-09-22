@@ -44,4 +44,3 @@ EXPORTS
     tvb_new_child_real_data
     tvb_new_subset_remaining
     tvb_reported_length
-    wmem_alloc
