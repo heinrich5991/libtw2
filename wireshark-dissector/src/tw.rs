@@ -509,7 +509,7 @@ pub unsafe extern "C" fn proto_register() {
                 name: c("Close reason\0"),
                 abbrev: c("tw.packet.ctrl.close_reason\0"),
                 type_: sys::FT_STRING,
-                display: sys::STR_ASCII as c_int,
+                display: sys::BASE_NONE as c_int,
                 ..HFRI_DEFAULT
             },
         },
