@@ -17,6 +17,7 @@ pub type guint64 = u64;
 pub type gsize = usize;
 pub type __time_t = i64;
 pub type time_t = __time_t;
+pub type __uint64_t = u64;
 """.splitlines()}
 #2345678901234567
 

@@ -83,6 +83,8 @@ where
 }
 pub const ENC_BIG_ENDIAN: u32 = 0;
 pub const ENC_NA: u32 = 0;
+pub type __uint64_t = u64;
+pub type __time_t = i64;
 pub type size_t = usize;
 pub type guint8 = u8;
 pub type gint16 = ::std::os::raw::c_short;
@@ -91,7 +93,6 @@ pub type gint32 = i32;
 pub type guint32 = u32;
 pub type guint64 = u64;
 pub type gsize = usize;
-pub type __time_t = i64;
 pub type time_t = __time_t;
 pub type gchar = ::std::os::raw::c_char;
 pub type gint = ::std::os::raw::c_int;
@@ -99,12 +100,6 @@ pub type gboolean = gint;
 pub type guint = ::std::os::raw::c_uint;
 pub type GHashTable = u8;
 pub type GSList = [u64; 2usize];
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct wtap_block {
-    _unused: [u8; 0],
-}
-pub type wtap_block_t = *mut wtap_block;
 #[doc = " A public opaque type representing one wmem allocation pool."]
 pub type wmem_allocator_t = u8;
 extern "C" {
@@ -119,6 +114,23 @@ extern "C" {
     ) -> *mut ::std::os::raw::c_void;
 }
 pub type wmem_list_t = u8;
+#[doc = " @addtogroup wmem"]
+#[doc = "  @{"]
+#[doc = "    @defgroup wmem-map Hash Map"]
+#[doc = ""]
+#[doc = "    A hash map implementation on top of wmem. Provides insertion, deletion and"]
+#[doc = "    lookup in expected amortized constant time. Uses universal hashing to map"]
+#[doc = "    keys into buckets, and provides a generic strong hash function that makes"]
+#[doc = "    it secure against algorithmic complexity attacks, and suitable for use"]
+#[doc = "    even with untrusted data."]
+#[doc = ""]
+#[doc = "    @{"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _wmem_map_t {
+    _unused: [u8; 0],
+}
+pub type wmem_map_t = _wmem_map_t;
 #[doc = " @addtogroup wmem"]
 #[doc = "  @{"]
 #[doc = "    @defgroup wmem-tree Red/Black Tree"]
@@ -137,6 +149,12 @@ pub struct _wmem_tree_t {
     _unused: [u8; 0],
 }
 pub type wmem_tree_t = _wmem_tree_t;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct wtap_block {
+    _unused: [u8; 0],
+}
+pub type wtap_block_t = *mut wtap_block;
 #[doc = " data structure to hold time values with nanosecond resolution"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -778,6 +796,7 @@ fn bindgen_test_layout_wtap_custom_block_header() {
 pub struct wtap_rec {
     pub rec_type: guint,
     pub presence_flags: guint32,
+    pub section_number: guint,
     pub ts: nstime_t,
     pub tsprec: ::std::os::raw::c_int,
     pub rec_header: wtap_rec__bindgen_ty_1,
@@ -874,7 +893,7 @@ fn bindgen_test_layout_wtap_rec__bindgen_ty_1() {
 fn bindgen_test_layout_wtap_rec() {
     assert_eq!(
         ::std::mem::size_of::<wtap_rec>(),
-        248usize,
+        256usize,
         concat!("Size of: ", stringify!(wtap_rec))
     );
     assert_eq!(
@@ -903,8 +922,18 @@ fn bindgen_test_layout_wtap_rec() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<wtap_rec>())).ts as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).section_number as *const _ as usize },
         8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(wtap_rec),
+            "::",
+            stringify!(section_number)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<wtap_rec>())).ts as *const _ as usize },
+        16usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -914,7 +943,7 @@ fn bindgen_test_layout_wtap_rec() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<wtap_rec>())).tsprec as *const _ as usize },
-        24usize,
+        32usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -924,7 +953,7 @@ fn bindgen_test_layout_wtap_rec() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<wtap_rec>())).rec_header as *const _ as usize },
-        32usize,
+        40usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -934,7 +963,7 @@ fn bindgen_test_layout_wtap_rec() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<wtap_rec>())).block as *const _ as usize },
-        200usize,
+        208usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -944,7 +973,7 @@ fn bindgen_test_layout_wtap_rec() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<wtap_rec>())).block_was_modified as *const _ as usize },
-        208usize,
+        216usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -954,7 +983,7 @@ fn bindgen_test_layout_wtap_rec() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<wtap_rec>())).options_buf as *const _ as usize },
-        216usize,
+        224usize,
         concat!(
             "Offset of field: ",
             stringify!(wtap_rec),
@@ -984,11 +1013,6 @@ pub const PT_IBQP: port_type = 10;
 pub const PT_BLUETOOTH: port_type = 11;
 pub const PT_IWARP_MPA: port_type = 12;
 pub type port_type = ::std::os::raw::c_uint;
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct endpoint {
-    _unused: [u8; 0],
-}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct _packet_info {
@@ -1039,10 +1063,12 @@ pub struct _packet_info {
     pub match_uint: guint32,
     #[doc = "< matched string for calling subdissector from table"]
     pub match_string: *const ::std::os::raw::c_char,
-    #[doc = "< TRUE if endpoint member should be used for conversations"]
-    pub use_endpoint: gboolean,
-    #[doc = "< Data that can be used for conversations"]
-    pub conv_endpoint: *mut endpoint,
+    #[doc = "< TRUE if address/port endpoints member should be used for conversations"]
+    pub use_conv_addr_port_endpoints: gboolean,
+    #[doc = "< Data that can be used for address+port conversations, including wildcarding"]
+    pub conv_addr_port_endpoints: *mut conversation_addr_port_endpoints,
+    #[doc = "< Arbritrary conversation identifier; can't be wildcarded"]
+    pub conv_elements: *mut conversation_element,
     #[doc = "< >0 if this segment could be desegmented."]
     #[doc = "A dissector that can offer this API (e.g."]
     #[doc = "TCP) sets can_desegment=2, then"]
@@ -1105,8 +1131,11 @@ pub struct _packet_info {
     pub private_table: *mut GHashTable,
     #[doc = "< layers of each protocol"]
     pub layers: *mut wmem_list_t,
+    pub proto_layers: *mut wmem_map_t,
     #[doc = "< The current \"depth\" or layer number in the current frame"]
     pub curr_layer_num: guint8,
+    #[doc = "< The current \"depth\" or layer number for this dissector in the current frame"]
+    pub curr_proto_layer_num: guint8,
     pub link_number: guint16,
     #[doc = "< clnp/cotp source reference (can't use srcport, this would confuse tpkt)"]
     pub clnp_srcref: guint16,
@@ -1194,7 +1223,7 @@ impl _packet_info__bindgen_ty_1 {
 fn bindgen_test_layout__packet_info() {
     assert_eq!(
         ::std::mem::size_of::<_packet_info>(),
-        400usize,
+        416usize,
         concat!("Size of: ", stringify!(_packet_info))
     );
     assert_eq!(
@@ -1455,28 +1484,43 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).use_endpoint as *const _ as usize },
+        unsafe {
+            &(*(::std::ptr::null::<_packet_info>())).use_conv_addr_port_endpoints as *const _
+                as usize
+        },
         280usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
             "::",
-            stringify!(use_endpoint)
+            stringify!(use_conv_addr_port_endpoints)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<_packet_info>())).conv_endpoint as *const _ as usize },
+        unsafe {
+            &(*(::std::ptr::null::<_packet_info>())).conv_addr_port_endpoints as *const _ as usize
+        },
         288usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
             "::",
-            stringify!(conv_endpoint)
+            stringify!(conv_addr_port_endpoints)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_packet_info>())).conv_elements as *const _ as usize },
+        296usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_packet_info),
+            "::",
+            stringify!(conv_elements)
         )
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).can_desegment as *const _ as usize },
-        296usize,
+        304usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1488,7 +1532,7 @@ fn bindgen_test_layout__packet_info() {
         unsafe {
             &(*(::std::ptr::null::<_packet_info>())).saved_can_desegment as *const _ as usize
         },
-        298usize,
+        306usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1498,7 +1542,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).desegment_offset as *const _ as usize },
-        300usize,
+        308usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1508,7 +1552,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).desegment_len as *const _ as usize },
-        304usize,
+        312usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1518,7 +1562,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).want_pdu_tracking as *const _ as usize },
-        308usize,
+        316usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1530,7 +1574,7 @@ fn bindgen_test_layout__packet_info() {
         unsafe {
             &(*(::std::ptr::null::<_packet_info>())).bytes_until_next_pdu as *const _ as usize
         },
-        312usize,
+        320usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1540,7 +1584,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).p2p_dir as *const _ as usize },
-        316usize,
+        324usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1550,7 +1594,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).private_table as *const _ as usize },
-        320usize,
+        328usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1560,7 +1604,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).layers as *const _ as usize },
-        328usize,
+        336usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1569,8 +1613,18 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_packet_info>())).proto_layers as *const _ as usize },
+        344usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_packet_info),
+            "::",
+            stringify!(proto_layers)
+        )
+    );
+    assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).curr_layer_num as *const _ as usize },
-        336usize,
+        352usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1579,8 +1633,20 @@ fn bindgen_test_layout__packet_info() {
         )
     );
     assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<_packet_info>())).curr_proto_layer_num as *const _ as usize
+        },
+        353usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_packet_info),
+            "::",
+            stringify!(curr_proto_layer_num)
+        )
+    );
+    assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).link_number as *const _ as usize },
-        338usize,
+        354usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1590,7 +1656,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).clnp_srcref as *const _ as usize },
-        340usize,
+        356usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1600,7 +1666,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).clnp_dstref as *const _ as usize },
-        342usize,
+        358usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1610,7 +1676,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).link_dir as *const _ as usize },
-        344usize,
+        360usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1620,7 +1686,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).src_win_scale as *const _ as usize },
-        348usize,
+        364usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1630,7 +1696,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).dst_win_scale as *const _ as usize },
-        350usize,
+        366usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1640,7 +1706,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).proto_data as *const _ as usize },
-        352usize,
+        368usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1650,7 +1716,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).dependent_frames as *const _ as usize },
-        360usize,
+        376usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1660,7 +1726,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).frame_end_routines as *const _ as usize },
-        368usize,
+        384usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1670,7 +1736,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).pool as *const _ as usize },
-        376usize,
+        392usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1680,7 +1746,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).epan as *const _ as usize },
-        384usize,
+        400usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1690,7 +1756,7 @@ fn bindgen_test_layout__packet_info() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<_packet_info>())).heur_list_name as *const _ as usize },
-        392usize,
+        408usize,
         concat!(
             "Offset of field: ",
             stringify!(_packet_info),
@@ -1750,24 +1816,20 @@ pub const FT_NUM_TYPES: ftenum = 46;
 pub type ftenum = ::std::os::raw::c_uint;
 #[doc = "< none"]
 pub const BASE_NONE: field_display_e = 0;
-#[doc = "< decimal"]
+#[doc = "< decimal [integer, float]"]
 pub const BASE_DEC: field_display_e = 1;
-#[doc = "< hexadecimal"]
+#[doc = "< hexadecimal [integer, float]"]
 pub const BASE_HEX: field_display_e = 2;
-#[doc = "< octal"]
+#[doc = "< octal [integer]"]
 pub const BASE_OCT: field_display_e = 3;
-#[doc = "< decimal (hexadecimal)"]
+#[doc = "< decimal (hexadecimal) [integer]"]
 pub const BASE_DEC_HEX: field_display_e = 4;
-#[doc = "< hexadecimal (decimal)"]
+#[doc = "< hexadecimal (decimal) [integer]"]
 pub const BASE_HEX_DEC: field_display_e = 5;
-#[doc = "< call custom routine (in ->strings) to format"]
+#[doc = "< call custom routine to format [integer, float]"]
 pub const BASE_CUSTOM: field_display_e = 6;
-#[doc = "< decimal-format float"]
-pub const BASE_FLOAT: field_display_e = 0;
-#[doc = "< shows non-printable ASCII characters as C-style escapes"]
-pub const STR_ASCII: field_display_e = 0;
-#[doc = "< shows non-printable UNICODE characters as \\\\uXXXX (XXX for now non-printable characters display depends on UI)"]
-pub const STR_UNICODE: field_display_e = 7;
+#[doc = "< exponential [float]"]
+pub const BASE_EXP: field_display_e = 7;
 #[doc = "< hexadecimal bytes with a period (.) between each byte"]
 pub const SEP_DOT: field_display_e = 8;
 #[doc = "< hexadecimal bytes with a dash (-) between each byte"]
@@ -1788,6 +1850,14 @@ pub const BASE_PT_DCCP: field_display_e = 15;
 pub const BASE_PT_SCTP: field_display_e = 16;
 #[doc = "< OUI resolution"]
 pub const BASE_OUI: field_display_e = 17;
+#[doc = "< local time in our time zone, with month and day"]
+pub const ABSOLUTE_TIME_LOCAL: field_display_e = 18;
+#[doc = "< UTC, with month and day"]
+pub const ABSOLUTE_TIME_UTC: field_display_e = 19;
+#[doc = "< UTC, with 1-origin day-of-year"]
+pub const ABSOLUTE_TIME_DOY_UTC: field_display_e = 20;
+#[doc = "< UTC, with \"NULL\" when timestamp is all zeros"]
+pub const ABSOLUTE_TIME_NTP_UTC: field_display_e = 21;
 pub type field_display_e = ::std::os::raw::c_uint;
 #[doc = "< Field is not referenced"]
 pub const HF_REF_TYPE_NONE: hf_ref_type = 0;
@@ -1804,7 +1874,7 @@ pub type header_field_info = _header_field_info;
 pub struct _header_field_info {
     #[doc = "< [FIELDNAME] full name of this field"]
     pub name: *const ::std::os::raw::c_char,
-    #[doc = "< [FIELDABBREV] abbreviated name of this field"]
+    #[doc = "< [FIELDFILTERNAME] filter name of this field"]
     pub abbrev: *const ::std::os::raw::c_char,
     #[doc = "< [FIELDTYPE] field type, one of FT_ (from ftypes.h)"]
     pub type_: ftenum,
@@ -2840,13 +2910,220 @@ extern "C" {
         name: *const ::std::os::raw::c_char,
     );
 }
-#[doc = " Data structure representing a conversation."]
+pub const CONVERSATION_NONE: conversation_type = 0;
+pub const CONVERSATION_SCTP: conversation_type = 1;
+pub const CONVERSATION_TCP: conversation_type = 2;
+pub const CONVERSATION_UDP: conversation_type = 3;
+pub const CONVERSATION_DCCP: conversation_type = 4;
+pub const CONVERSATION_IPX: conversation_type = 5;
+pub const CONVERSATION_NCP: conversation_type = 6;
+pub const CONVERSATION_EXCHG: conversation_type = 7;
+pub const CONVERSATION_DDP: conversation_type = 8;
+pub const CONVERSATION_SBCCS: conversation_type = 9;
+pub const CONVERSATION_IDP: conversation_type = 10;
+pub const CONVERSATION_TIPC: conversation_type = 11;
+pub const CONVERSATION_USB: conversation_type = 12;
+pub const CONVERSATION_I2C: conversation_type = 13;
+pub const CONVERSATION_IBQP: conversation_type = 14;
+pub const CONVERSATION_BLUETOOTH: conversation_type = 15;
+pub const CONVERSATION_TDMOP: conversation_type = 16;
+pub const CONVERSATION_DVBCI: conversation_type = 17;
+pub const CONVERSATION_ISO14443: conversation_type = 18;
+pub const CONVERSATION_ISDN: conversation_type = 19;
+pub const CONVERSATION_H223: conversation_type = 20;
+pub const CONVERSATION_X25: conversation_type = 21;
+pub const CONVERSATION_IAX2: conversation_type = 22;
+pub const CONVERSATION_DLCI: conversation_type = 23;
+pub const CONVERSATION_ISUP: conversation_type = 24;
+pub const CONVERSATION_BICC: conversation_type = 25;
+pub const CONVERSATION_GSMTAP: conversation_type = 26;
+pub const CONVERSATION_IUUP: conversation_type = 27;
+pub const CONVERSATION_DVBBBF: conversation_type = 28;
+pub const CONVERSATION_IWARP_MPA: conversation_type = 29;
+pub const CONVERSATION_BT_UTP: conversation_type = 30;
+pub const CONVERSATION_LOG: conversation_type = 31;
+pub type conversation_type = ::std::os::raw::c_uint;
+pub const CE_CONVERSATION_TYPE: conversation_element_type = 0;
+pub const CE_ADDRESS: conversation_element_type = 1;
+pub const CE_PORT: conversation_element_type = 2;
+pub const CE_STRING: conversation_element_type = 3;
+pub const CE_UINT: conversation_element_type = 4;
+pub const CE_UINT64: conversation_element_type = 5;
+#[doc = " Conversation element type."]
+pub type conversation_element_type = ::std::os::raw::c_uint;
+#[doc = " Elements used to identify conversations for *_full routines and"]
+#[doc = " pinfo->conv_elements."]
+#[doc = " Arrays must be terminated with an element .type set to CE_CONVERSATION_TYPE."]
+#[doc = ""]
+#[doc = " This is currently set only by conversation_set_elements_by_id(); it"]
+#[doc = " is not set for conversations identified by address/port endpoints."]
+#[doc = ""]
+#[doc = " In find_conversation_pinfo() and find_or_create_conversation(), if"]
+#[doc = " any dissector has set this, then, unless some dissector has set the"]
+#[doc = " pair of address/port endpoints (see below), the array of elements"]
+#[doc = " is used to look up or create the conversation.  Otherwise, the"]
+#[doc = " current addresses and ports in the packet_info structure are used."]
+#[doc = ""]
+#[doc = " XXX - is there any reason why we shouldn't use an array of conversation"]
+#[doc = " elements, with the appropriate addresses and ports, and set it for"]
+#[doc = " all protocols that use conversations specified by a pair of address/port"]
+#[doc = " endpoints?  That might simplify find_conversation_pinfo() by having"]
+#[doc = " them always use the array of elements if it's present, and just fail if"]
+#[doc = " it's not."]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct conversation_key {
-    _unused: [u8; 0],
+#[derive(Copy, Clone)]
+pub struct conversation_element {
+    pub type_: conversation_element_type,
+    pub __bindgen_anon_1: conversation_element__bindgen_ty_1,
 }
-pub type conversation_key_t = *mut conversation_key;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union conversation_element__bindgen_ty_1 {
+    pub conversation_type_val: conversation_type,
+    pub addr_val: address,
+    pub port_val: ::std::os::raw::c_uint,
+    pub str_val: *const ::std::os::raw::c_char,
+    pub uint_val: ::std::os::raw::c_uint,
+    pub uint64_val: u64,
+}
+#[test]
+fn bindgen_test_layout_conversation_element__bindgen_ty_1() {
+    assert_eq!(
+        ::std::mem::size_of::<conversation_element__bindgen_ty_1>(),
+        24usize,
+        concat!("Size of: ", stringify!(conversation_element__bindgen_ty_1))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<conversation_element__bindgen_ty_1>(),
+        8usize,
+        concat!(
+            "Alignment of ",
+            stringify!(conversation_element__bindgen_ty_1)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).conversation_type_val
+                as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(conversation_type_val)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).addr_val as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(addr_val)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).port_val as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(port_val)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).str_val as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(str_val)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).uint_val as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(uint_val)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<conversation_element__bindgen_ty_1>())).uint64_val as *const _
+                as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element__bindgen_ty_1),
+            "::",
+            stringify!(uint64_val)
+        )
+    );
+}
+#[test]
+fn bindgen_test_layout_conversation_element() {
+    assert_eq!(
+        ::std::mem::size_of::<conversation_element>(),
+        32usize,
+        concat!("Size of: ", stringify!(conversation_element))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<conversation_element>(),
+        8usize,
+        concat!("Alignment of ", stringify!(conversation_element))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<conversation_element>())).type_ as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(conversation_element),
+            "::",
+            stringify!(type_)
+        )
+    );
+}
+#[doc = " Elements used to identify conversations for *_full routines and"]
+#[doc = " pinfo->conv_elements."]
+#[doc = " Arrays must be terminated with an element .type set to CE_CONVERSATION_TYPE."]
+#[doc = ""]
+#[doc = " This is currently set only by conversation_set_elements_by_id(); it"]
+#[doc = " is not set for conversations identified by address/port endpoints."]
+#[doc = ""]
+#[doc = " In find_conversation_pinfo() and find_or_create_conversation(), if"]
+#[doc = " any dissector has set this, then, unless some dissector has set the"]
+#[doc = " pair of address/port endpoints (see below), the array of elements"]
+#[doc = " is used to look up or create the conversation.  Otherwise, the"]
+#[doc = " current addresses and ports in the packet_info structure are used."]
+#[doc = ""]
+#[doc = " XXX - is there any reason why we shouldn't use an array of conversation"]
+#[doc = " elements, with the appropriate addresses and ports, and set it for"]
+#[doc = " all protocols that use conversations specified by a pair of address/port"]
+#[doc = " endpoints?  That might simplify find_conversation_pinfo() by having"]
+#[doc = " them always use the array of elements if it's present, and just fail if"]
+#[doc = " it's not."]
+pub type conversation_element_t = conversation_element;
+#[doc = " Data structure representing a conversation."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct conversation {
@@ -2868,7 +3145,7 @@ pub struct conversation {
     #[doc = " tree containing protocol dissector client associated with conversation"]
     pub options: guint,
     #[doc = " wildcard flags"]
-    pub key_ptr: conversation_key_t,
+    pub key_ptr: *mut conversation_element_t,
 }
 #[test]
 fn bindgen_test_layout_conversation() {
@@ -2983,13 +3260,22 @@ fn bindgen_test_layout_conversation() {
         )
     );
 }
+#[doc = " Data structure representing a conversation."]
 pub type conversation_t = conversation;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct conversation_addr_port_endpoints {
+    _unused: [u8; 0],
+}
 extern "C" {
-    #[doc = "  A helper function that calls find_conversation() and, if a conversation is"]
-    #[doc = "  not found, calls conversation_new()."]
-    #[doc = "  The frame number and addresses are taken from pinfo."]
-    #[doc = "  No options are used, though we could extend this API to include an options"]
-    #[doc = "  parameter."]
+    #[doc = " A helper function that calls find_conversation() and, if a conversation is"]
+    #[doc = " not found, calls conversation_new()."]
+    #[doc = " The frame number and addresses are taken from pinfo."]
+    #[doc = " No options are used, though we could extend this API to include an options"]
+    #[doc = " parameter."]
+    #[doc = ""]
+    #[doc = " @param pinfo Packet info."]
+    #[doc = " @return The existing or new conversation."]
     pub fn find_or_create_conversation(pinfo: *mut packet_info) -> *mut conversation_t;
 }
 extern "C" {
