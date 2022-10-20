@@ -701,14 +701,9 @@ impl Type {
             Uint8(i) => (sys::FT_UINT8, i.id.as_ptr()),
             Uuid(i) => (sys::FT_GUID, i.id.as_ptr()),
         };
-        let display = if matches!(type_,
-            sys::FT_INT32
-            | sys::FT_UINT8
-            | sys::FT_UINT16
-        ) {
-            sys::BASE_DEC as c_int
-        } else {
-            HFRI_DEFAULT.display
+        let display = match type_ {
+            sys::FT_INT32 | sys::FT_UINT8 | sys::FT_UINT16 => sys::BASE_DEC as c_int,
+            _ => HFRI_DEFAULT.display,
         };
         h(sys::hf_register_info {
             p_id: hf_id,

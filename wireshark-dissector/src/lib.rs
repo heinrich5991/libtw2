@@ -7,8 +7,6 @@ extern crate gamenet_spec;
 extern crate huffman;
 #[cfg(test)]
 extern crate lazy_static;
-#[macro_use]
-extern crate matches;
 extern crate net;
 extern crate packer;
 extern crate serde_json;
