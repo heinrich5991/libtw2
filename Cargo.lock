@@ -1698,7 +1698,6 @@ dependencies = [
  "gamenet_spec",
  "huffman",
  "lazy_static",
- "matches",
  "net",
  "packer",
  "serde_json",

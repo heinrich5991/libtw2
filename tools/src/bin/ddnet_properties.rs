@@ -170,8 +170,8 @@ fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     if let Some(t) = game_layers.teleport() {
         tele_count(map.tele_layer_tiles(t)?.iter(), &mut tiles_count);
     }
+    tiles_count[22] = 0; // The only overlapping tile, unsolo / timed switch activator
     if let Some(s) = game_layers.switch() {
-        tiles_count[22] = 0; // The only overlapping tile, unsolo / timed switch activator
         switch_count(map.switch_layer_tiles(s)?.iter(), &mut tiles_count);
     }
     if let Some(s) = game_layers.speedup() {
