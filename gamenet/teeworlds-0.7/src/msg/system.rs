@@ -358,7 +358,7 @@ pub struct MapChange<'a> {
     pub name: &'a [u8],
     pub crc: i32,
     pub size: i32,
-    pub chunk_num: i32,
+    pub num_response_chunks_per_request: i32,
     pub chunk_size: i32,
     pub sha256: Sha256,
 }
@@ -507,7 +507,7 @@ impl<'a> MapChange<'a> {
             name: _p.read_string()?,
             crc: _p.read_int(warn)?,
             size: _p.read_int(warn)?,
-            chunk_num: _p.read_int(warn)?,
+            num_response_chunks_per_request: _p.read_int(warn)?,
             chunk_size: _p.read_int(warn)?,
             sha256: Sha256::from_slice(_p.read_raw(32)?).unwrap(),
         });
@@ -518,7 +518,7 @@ impl<'a> MapChange<'a> {
         _p.write_string(self.name)?;
         _p.write_int(self.crc)?;
         _p.write_int(self.size)?;
-        _p.write_int(self.chunk_num)?;
+        _p.write_int(self.num_response_chunks_per_request)?;
         _p.write_int(self.chunk_size)?;
         _p.write_raw(&self.sha256.0)?;
         Ok(_p.written())
@@ -530,7 +530,7 @@ impl<'a> fmt::Debug for MapChange<'a> {
             .field("name", &pretty::Bytes::new(&self.name))
             .field("crc", &self.crc)
             .field("size", &self.size)
-            .field("chunk_num", &self.chunk_num)
+            .field("num_response_chunks_per_request", &self.num_response_chunks_per_request)
             .field("chunk_size", &self.chunk_size)
             .field("sha256", &self.sha256)
             .finish()

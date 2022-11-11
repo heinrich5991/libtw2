@@ -917,7 +917,7 @@
 				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
 				{"name": ["crc"], "type": {"kind": "int32"}},
 				{"name": ["size"], "type": {"kind": "int32"}},
-				{"name": ["chunk", "num"], "type": {"kind": "int32"}},
+				{"name": ["num", "response", "chunks", "per", "request"], "type": {"kind": "int32"}},
 				{"name": ["chunk", "size"], "type": {"kind": "int32"}},
 				{"name": ["sha256"], "type": {"kind": "sha256"}}
 			],
