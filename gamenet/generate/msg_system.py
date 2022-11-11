@@ -64,7 +64,7 @@ SYSTEM_MSGS_DDNET_16_2 = SYSTEM_MSGS_DDNET_15_2_5 + [
 
 SYSTEM_MSGS_0_7 = [
     ( 1, "info", "vital", "s:version s?:password i?:client_version"),
-    ( 2, "map_change", "vital", "s:name i:crc i:size i:chunk_num i:chunk_size h:sha256"),
+    ( 2, "map_change", "vital", "s:name i:crc i:size i:num_response_chunks_per_request i:chunk_size h:sha256"),
     ( 3, "map_data", "vital", "r:data"),
     ( 4, "server_info", "vital", "r:data"),
     ( 5, "con_ready", "vital", ""),
