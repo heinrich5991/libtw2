@@ -99,7 +99,7 @@ Appendix
 Pre-agreed item sizes
 ---------------------
 
-This describes the 0.6 protocol of Teeworlds.
+The following describes the 0.6 protocol of Teeworlds.
 
 | `type_id` | `size` | name                   |
 | --------: | -----: | ---------------------- |
@@ -124,3 +124,30 @@ This describes the 0.6 protocol of Teeworlds.
 |       19  |     3  | event_sound_world      |
 |       20  |     3  | event_damage_indicator |
 
+The following describes the 0.7 protocol of Teeworlds.
+There were more items added after the initial 0.7 release, but they're not "pre-agreed item sizes" to stay backward compatible.
+
+| `type_id` | `size` | name                   |
+| --------: | -----: | ---------------------- |
+|        1  |    10  | obj_player_input       |
+|        2  |     6  | obj_projectile         |
+|        3  |     5  | obj_laser              |
+|        4  |     3  | obj_pickup             |
+|        5  |     3  | obj_flag               |
+|        6  |     3  | obj_game_data          |
+|        7  |     2  | obj_game_data_team     |
+|        8  |     4  | obj_game_data_flag     |
+|        9  |    15  | obj_character_core     |
+|       10  |    22  | obj_character          |
+|       11  |     3  | obj_player_info        |
+|       12  |     4  | obj_spectator_info     |
+|       13  |    58  | obj_client_info        |
+|       14  |     5  | obj_game_info          |
+|       15  |    32  | obj_tune_params        |
+|       16  |     2  | event_common           |
+|       17  |     2  | event_explosion        |
+|       18  |     2  | event_spawn            |
+|       19  |     2  | event_hammerhit        |
+|       20  |     3  | event_death            |
+|       21  |     3  | event_sound_world      |
+|       22  |     5  | event_damage           |
