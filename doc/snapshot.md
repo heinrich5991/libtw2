@@ -52,6 +52,7 @@ Snapshot deltas
         [*4] removed_item_keys
         [  ] item_deltas
 
+All snapshots are deltas. The first is a delta against the empty snapshot.
 Snapshot deltas are used to describe the differences between two snapshots, the
 "old" and the "new" one. You can use the delta together with the old snapshot
 to construct the new one. Note that the reverse does not work, because the
