@@ -318,9 +318,9 @@ impl Reader {
             },
             format::Item::InputNew(i) => {
                 let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
-                if self.inputs.insert(cid, i.new).is_some() {
-                    return Err(format::Error::InputDiffWithoutNew.into());
-                }
+                // Input already existing when getting `InputNew` is fine --
+                // it's for a new player.
+                let _ = self.inputs.insert(cid, i.new);
                 Item::Input(Input { cid: i.cid, input: i.new })
             },
             // WARN: Detect overlong teehistorian files.
