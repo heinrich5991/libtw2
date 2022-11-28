@@ -26,7 +26,7 @@ fn huffman_default() -> Huffman {
         u32::from_str_radix(&l, 10).unwrap()
     });
 
-    Huffman::from_frequencies(&frequencies).unwrap()
+    Huffman::from_frequencies(&frequencies)
 }
 
 fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {

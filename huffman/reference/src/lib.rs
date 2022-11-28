@@ -14,19 +14,19 @@ pub struct Huffman {
 }
 
 impl Huffman {
-    pub fn from_frequencies(frequencies: &[u32]) -> Result<Huffman,()> {
+    pub fn from_frequencies(frequencies: &[u32]) -> Huffman {
         assert!(frequencies.len() == 256);
         let array = unsafe { &*(frequencies as *const _ as *const _) };
         Huffman::from_frequencies_array(array)
     }
-    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman,()> {
+    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Huffman {
         let huffman_size = unsafe { sys::huffman_size() };
         let huffman = Vec::with_capacity(huffman_size);
         let mut result = Huffman { huffman: huffman };
         // Implicit assumption that `c_uint == u32`. Screams when it breaks, so
         // it's fine.
         unsafe { sys::huffman_init(result.inner_huffman_mut(), frequencies); }
-        Ok(result)
+        result
     }
     pub fn compress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
         -> Result<&'a [u8], buffer::CapacityError>

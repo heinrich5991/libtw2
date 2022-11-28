@@ -13,6 +13,7 @@ use buffer::BufferRef;
 use buffer::with_buffer;
 use common::num::Cast;
 use itertools::Itertools;
+use std::error;
 use std::fmt::Write;
 use std::fmt;
 use std::slice;
@@ -30,15 +31,22 @@ pub struct Huffman {
 }
 
 #[derive(Debug)]
-pub struct Error {
-    _unused: (),
-}
-
-#[derive(Debug)]
 pub enum DecompressionError {
     Capacity(buffer::CapacityError),
     InvalidInput,
 }
+
+impl fmt::Display for DecompressionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::DecompressionError::*;
+        match self {
+            Capacity(_) => "output buffer too small",
+            InvalidInput => "input is not a valid huffman compression",
+        }.fmt(f)
+    }
+}
+
+impl error::Error for DecompressionError {}
 
 #[derive(Clone)]
 pub struct Repr<'a> {
@@ -125,12 +133,12 @@ struct Frequency {
 }
 
 impl Huffman {
-    pub fn from_frequencies(frequencies: &[u32]) -> Result<Huffman, Error> {
+    pub fn from_frequencies(frequencies: &[u32]) -> Huffman {
         assert!(frequencies.len() == 256);
         let array = unsafe { &*(frequencies as *const _ as *const _) };
         Huffman::from_frequencies_array(array)
     }
-    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Result<Huffman, Error> {
+    pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Huffman {
         let mut frequencies: ArrayVec<[_; 512]> = frequencies.iter()
             .cloned().enumerate().map(|(i, f)| {
                 Frequency { frequency: f, node_idx: i.assert_u16() }
@@ -202,7 +210,7 @@ impl Huffman {
 
         let mut result = Huffman { nodes: [NODE_SENTINEL; NUM_NODES] };
         assert!(result.nodes.iter_mut().set_from(nodes.iter().cloned()) == NUM_NODES);
-        Ok(result)
+        result
     }
     fn compressed_bit_len(&self, input: &[u8]) -> usize {
         input.iter().map(|&b| self.symbol_bit_length(b.u16()))

@@ -35,7 +35,7 @@ fn huffman_default() -> Huffman {
 }
 
 fn huffman_reference_default() -> HuffmanReference {
-    HuffmanReference::from_frequencies(&frequencies_default()).unwrap()
+    HuffmanReference::from_frequencies(&frequencies_default())
 }
 
 fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
@@ -53,7 +53,7 @@ fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
 fn from_frequencies(b: &mut Bencher) {
     let frequencies = frequencies_default();
     b.iter(|| {
-        black_box(Huffman::from_frequencies(&frequencies).unwrap());
+        black_box(Huffman::from_frequencies(&frequencies));
     });
 }
 
@@ -110,7 +110,7 @@ fn decompress(b: &mut Bencher) {
 fn from_frequencies_reference(b: &mut Bencher) {
     let frequencies = frequencies_default();
     b.iter(|| {
-        black_box(HuffmanReference::from_frequencies(&frequencies).unwrap());
+        black_box(HuffmanReference::from_frequencies(&frequencies));
     });
 }
 

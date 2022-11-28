@@ -18,7 +18,7 @@ fn main() {
         u32::from_str_radix(&l, 10).unwrap()
     });
 
-    for r in Huffman::from_frequencies(&input).unwrap().repr() {
+    for r in Huffman::from_frequencies(&input).repr() {
         println!("{}", r);
     }
 }
