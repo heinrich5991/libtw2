@@ -912,6 +912,7 @@ class NetObject(Struct):
             "error::Error",
             "packer::ExcessData",
             "packer::IntUnpacker",
+            "std::slice::from_ref",
             "warn::Warn",
         )
         if self.super:
@@ -942,7 +943,7 @@ class NetObject(Struct):
         with indent(2):
             for m in self.values:
                 m.emit_assert()
-        print("        unsafe { slice::transmute(slice::ref_slice(self)) }")
+        print("        unsafe { slice::transmute(from_ref(self)) }")
         print("    }")
         print("}")
     def int_size(self):

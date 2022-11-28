@@ -10,6 +10,7 @@ use packer::Warning;
 use packer::in_range;
 use packer::positive;
 use std::fmt;
+use std::slice::from_ref;
 use warn::Warn;
 
 pub use gamenet_common::snap_obj::Tick;
@@ -524,7 +525,7 @@ impl PlayerInput {
         })
     }
     pub fn encode(&self) -> &[i32] {
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 impl PlayerInput {
@@ -588,7 +589,7 @@ impl Projectile {
         })
     }
     pub fn encode(&self) -> &[i32] {
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 impl Projectile {
@@ -642,7 +643,7 @@ impl Laser {
         })
     }
     pub fn encode(&self) -> &[i32] {
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -673,7 +674,7 @@ impl Pickup {
     pub fn encode(&self) -> &[i32] {
         assert!(self.type_ >= 0);
         assert!(self.subtype >= 0);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -701,7 +702,7 @@ impl Flag {
     }
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.team && self.team <= 1);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -745,7 +746,7 @@ impl GameInfo {
         assert!(self.time_limit >= 0);
         assert!(self.round_num >= 0);
         assert!(self.round_current >= 0);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -776,7 +777,7 @@ impl GameData {
     pub fn encode(&self) -> &[i32] {
         assert!(-3 <= self.flag_carrier_red && self.flag_carrier_red <= 15);
         assert!(-3 <= self.flag_carrier_blue && self.flag_carrier_blue <= 15);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -831,7 +832,7 @@ impl CharacterCore {
         assert!(0 <= self.jumped && self.jumped <= 3);
         assert!(-1 <= self.hooked_player && self.hooked_player <= 15);
         assert!(-1 <= self.hook_state && self.hook_state <= 5);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -874,7 +875,7 @@ impl Character {
         assert!(0 <= self.armor && self.armor <= 10);
         assert!(0 <= self.ammo_count && self.ammo_count <= 10);
         assert!(self.attack_tick >= 0);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -907,7 +908,7 @@ impl PlayerInfo {
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.local && self.local <= 1);
         assert!(0 <= self.client_id && self.client_id <= 15);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -959,7 +960,7 @@ impl ClientInfo {
     }
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.use_custom_color && self.use_custom_color <= 1);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -987,7 +988,7 @@ impl SpectatorInfo {
     }
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.spectator_id && self.spectator_id <= 15);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1012,7 +1013,7 @@ impl Common {
         })
     }
     pub fn encode(&self) -> &[i32] {
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1036,7 +1037,7 @@ impl Explosion {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1060,7 +1061,7 @@ impl Spawn {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1084,7 +1085,7 @@ impl HammerHit {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1111,7 +1112,7 @@ impl Death {
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
         assert!(0 <= self.client_id && self.client_id <= 15);
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1137,7 +1138,7 @@ impl SoundGlobal {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1163,7 +1164,7 @@ impl SoundWorld {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 
@@ -1189,7 +1190,7 @@ impl DamageInd {
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        unsafe { slice::transmute(slice::ref_slice(self)) }
+        unsafe { slice::transmute(from_ref(self)) }
     }
 }
 

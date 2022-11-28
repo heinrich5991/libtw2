@@ -4,9 +4,9 @@ use bitmagic::CallbackNewExt;
 use bitmagic::as_mut_i32_slice;
 use bitmagic::to_little_endian;
 use common::num::Cast;
-use common::slice::mut_ref_slice;
 use raw::CallbackNew;
 use raw;
+use std::slice;
 use zlib;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -96,12 +96,12 @@ pub struct HeaderCheckResult {
 impl Header {
     pub fn read(mut cb: &mut dyn CallbackNew) -> Result<Header, raw::Error> {
         let mut result: Header = unsafe { mem::zeroed() };
-        let read = cb.read_le_i32s(mut_ref_slice(&mut result))?;
+        let read = cb.read_le_i32s(slice::from_mut(&mut result))?;
         if read < mem::size_of_val(&result.hv) {
             return Err(raw::Error::Df(Error::TooShortHeaderVersion));
         }
         {
-            let slice = as_mut_i32_slice(mut_ref_slice(&mut result));
+            let slice = as_mut_i32_slice(slice::from_mut(&mut result));
             // Revert endian conversion for magic field.
             unsafe { to_little_endian(&mut slice[..1]); }
         }
