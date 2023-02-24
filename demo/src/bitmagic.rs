@@ -1,13 +1,8 @@
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
 use common;
+use std::io;
 use std::mem;
 use std::slice;
 
-use raw::Callback;
-use raw::CallbackReadError;
-use raw::ResultExt;
 use writer;
 
 /// Safe to write arbitrary bytes to this struct.
@@ -28,34 +23,15 @@ pub fn as_bytes<T: Packed>(x: &T) -> &[u8] {
     unsafe { slice::from_raw_parts(x as *const _ as *const _, mem::size_of_val(x)) }
 }
 
-pub trait CallbackExt: Callback {
-    fn read_raw<T: Packed>(&mut self) -> Result<T, CallbackReadError<Self::Error>> {
-        let mut result = unsafe { mem::zeroed() };
-        {
-            let buffer = as_mut_bytes(&mut result);
-            let read = self.read(buffer).wrap()?;
-            if read != buffer.len() {
-                return Err(CallbackReadError::EndOfFile);
-            }
-        }
+pub(crate) trait ReadExt: io::Read + Sized {
+    fn read_packed<T: Packed>(&mut self) -> io::Result<T> {
+        let mut result: T = unsafe { mem::zeroed() };
+        self.read_exact(as_mut_bytes(&mut result))?;
         Ok(result)
-    }
-    fn read_buffer<'d, B: Buffer<'d>>(&mut self, buf: B) -> Result<&'d [u8], Self::Error> {
-        with_buffer(buf, |buf| self.read_buffer_ref(buf))
-    }
-    fn read_buffer_ref<'d, 's>(
-        &mut self,
-        mut buf: BufferRef<'d, 's>,
-    ) -> Result<&'d [u8], Self::Error> {
-        unsafe {
-            let read = self.read(buf.uninitialized_mut())?;
-            buf.advance(read);
-            Ok(buf.initialized())
-        }
     }
 }
 
-impl<T: Callback> CallbackExt for T {}
+impl<T: io::Read> ReadExt for T {}
 
 pub trait WriteCallbackExt: writer::Callback {
     fn write_raw<T: Packed>(&mut self, t: &T) -> Result<(), Self::Error> {

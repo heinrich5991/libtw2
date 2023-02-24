@@ -8,12 +8,12 @@ extern crate packer;
 extern crate uuid;
 extern crate warn;
 
-pub use file::Error;
 pub use file::Reader;
 pub use file::Writer;
 pub use format::Chunk;
 pub use format::Tick;
 pub use format::Warning;
+pub use raw::Error;
 
 pub mod format;
 

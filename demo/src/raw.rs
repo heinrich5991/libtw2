@@ -1,17 +1,12 @@
-use arrayvec::ArrayVec;
-use buffer;
-use buffer::with_buffer;
-use buffer::Buffer;
 use common::num::Cast;
-use common::num::LeI32;
 use huffman;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer;
 use packer::Unpacker;
-use warn;
+use std::io;
 use warn::Warn;
 
-use bitmagic::CallbackExt;
+use bitmagic::ReadExt;
 use format;
 use format::Warning;
 use format::MAX_SNAPSHOT_SIZE;
@@ -24,7 +19,7 @@ fn huffman_error(e: huffman::DecompressionError) -> format::Error {
     }
 }
 
-fn packer_warning(w: packer::Warning) -> format::Warning {
+fn _packer_warning(w: packer::Warning) -> format::Warning {
     use packer::Warning::*;
     match w {
         OverlongIntEncoding => Warning::IntDecompressionOverlongEncoding,
@@ -33,72 +28,47 @@ fn packer_warning(w: packer::Warning) -> format::Warning {
     }
 }
 
-fn packer_error(_: packer::UnexpectedEnd) -> format::Error {
+fn _packer_error(_: packer::UnexpectedEnd) -> format::Error {
     format::Error::IntDecompressionError
 }
 
-fn buffer_error(_: buffer::CapacityError) -> format::Error {
+fn _buffer_error(_: buffer::CapacityError) -> format::Error {
     format::Error::IntDecompressionTooLong
 }
 
-pub trait Callback {
-    type Error;
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error>;
-    fn skip(&mut self, num_bytes: u32) -> Result<(), Self::Error>;
-}
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub enum CallbackReadError<CE> {
-    Cb(CE),
-    EndOfFile,
-}
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
-pub enum Error<CE> {
+#[derive(Debug)]
+pub enum Error {
     Demo(format::Error),
-    Cb(CE),
+    Io(io::Error),
 }
 
-impl<CE> From<format::Error> for Error<CE> {
-    fn from(err: format::Error) -> Error<CE> {
+impl From<format::Error> for Error {
+    fn from(err: format::Error) -> Error {
         Error::Demo(err)
     }
 }
 
-pub struct WrapCallbackError<CE>(pub CE);
-impl<CE> From<WrapCallbackError<CE>> for Error<CE> {
-    fn from(err: WrapCallbackError<CE>) -> Error<CE> {
-        let WrapCallbackError(err) = err;
-        Error::Cb(err)
-    }
-}
-impl<CE> From<WrapCallbackError<CE>> for CallbackReadError<CE> {
-    fn from(err: WrapCallbackError<CE>) -> CallbackReadError<CE> {
-        let WrapCallbackError(err) = err;
-        CallbackReadError::Cb(err)
-    }
-}
-pub trait ResultExt {
-    type ResultWrapped;
-    fn wrap(self) -> Self::ResultWrapped;
-}
-impl<T, CE> ResultExt for Result<T, CE> {
-    type ResultWrapped = Result<T, WrapCallbackError<CE>>;
-    fn wrap(self) -> Result<T, WrapCallbackError<CE>> {
-        self.map_err(WrapCallbackError)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::Io(err)
     }
 }
 
-pub trait CallbackReadResultExt {
-    type Result;
-    fn on_eof(self, demo_err: format::Error) -> Self::Result;
+pub(crate) trait IoResultExt {
+    type Ok;
+    fn on_eof(self, demo_err: format::Error) -> Result<Self::Ok, Error>;
 }
-impl<T, CE> CallbackReadResultExt for Result<T, CallbackReadError<CE>> {
-    type Result = Result<T, Error<CE>>;
-    fn on_eof(self, demo_err: format::Error) -> Result<T, Error<CE>> {
-        self.map_err(|e| match e {
-            CallbackReadError::Cb(err) => Error::Cb(err),
-            CallbackReadError::EndOfFile => From::from(demo_err),
+
+impl<T> IoResultExt for Result<T, io::Error> {
+    type Ok = T;
+
+    fn on_eof(self, demo_err: format::Error) -> Result<T, Error> {
+        self.map_err(|err| {
+            if err.kind() == io::ErrorKind::UnexpectedEof {
+                Error::Demo(demo_err)
+            } else {
+                Error::Io(err)
+            }
         })
     }
 }
@@ -107,9 +77,11 @@ struct Inner {
     version: format::Version,
     header: format::Header,
     timeline_markers: format::TimelineMarkers,
+    _map_sha256: Option<[u8; 32]>,
+    _map: Vec<u8>,
     current_tick: Option<format::Tick>,
-    buffer1: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
-    buffer2: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+    buffer1: [u8; MAX_SNAPSHOT_SIZE],
+    buffer2: [u8; MAX_SNAPSHOT_SIZE],
 }
 
 pub struct Reader {
@@ -117,14 +89,19 @@ pub struct Reader {
     error_encountered: bool,
 }
 
+const SHA_256_EXTENSION: [u8; 16] = [
+    0x6b, 0xe6, 0xda, 0x4a, 0xce, 0xbd, 0x38, 0x0c, 0x9b, 0x5b, 0x12, 0x89, 0xc8, 0x42, 0xd7, 0x80,
+];
+
 impl Reader {
-    pub fn new<W, CB>(warn: &mut W, cb: &mut CB) -> Result<Reader, Error<CB::Error>>
+    pub fn new<W, R>(warn: &mut W, data: &mut R) -> Result<Reader, Error>
     where
         W: Warn<Warning>,
-        CB: Callback,
+        R: io::Read,
     {
-        let header_version: format::HeaderVersionPacked =
-            cb.read_raw().on_eof(format::Error::TooShortHeaderVersion)?;
+        let header_version: format::HeaderVersionPacked = data
+            .read_packed()
+            .on_eof(format::Error::TooShortHeaderVersion)?;
         let header_version = header_version.unpack()?;
         let version = header_version.version;
         let version_byte = version.to_u8();
@@ -132,25 +109,39 @@ impl Reader {
             format::Version::V4 | format::Version::V5 | format::Version::V6Ddnet => {}
             _ => return Err(format::Error::UnknownVersion(version_byte).into()),
         }
-        let header: format::HeaderPacked = cb.read_raw().on_eof(format::Error::TooShortHeader)?;
+        let header: format::HeaderPacked =
+            data.read_packed().on_eof(format::Error::TooShortHeader)?;
         let header = header.unpack(warn)?;
-        let timeline_markers: format::TimelineMarkersPacked = cb
-            .read_raw()
+        let timeline_markers: format::TimelineMarkersPacked = data
+            .read_packed()
             .on_eof(format::Error::TooShortTimelineMarkers)?;
         let timeline_markers = timeline_markers.unpack(warn)?;
+        let mut map_sha256: Option<[u8; 32]> = None;
         if version == format::Version::V6Ddnet {
-            cb.skip(48).wrap()?;
+            let map_sha256_uuid: [u8; 16] = data
+                .read_packed()
+                .on_eof(format::Error::TooShortMapSha256)?;
+            if map_sha256_uuid != SHA_256_EXTENSION {
+                return Err(format::Error::NotMapSha256Extension.into());
+            }
+            map_sha256 = Some(
+                data.read_packed()
+                    .on_eof(format::Error::TooShortMapSha256)?,
+            );
         }
-        cb.skip(header.map_size).wrap()?;
+        let mut map = vec![0; header.map_size.usize()];
+        data.read_exact(&mut map)?;
 
         Ok(Reader {
             i: Inner {
                 version: version,
                 header: header,
                 timeline_markers: timeline_markers,
+                _map_sha256: map_sha256,
+                _map: map,
                 current_tick: None,
-                buffer1: ArrayVec::new(),
-                buffer2: ArrayVec::new(),
+                buffer1: [0; MAX_SNAPSHOT_SIZE],
+                buffer2: [0; MAX_SNAPSHOT_SIZE],
             },
             error_encountered: false,
         })
@@ -176,14 +167,14 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[format::Tick] {
         &self.i.timeline_markers.timeline_markers
     }
-    pub fn read_chunk<'a, W, CB>(
+    pub fn read_chunk<'a, W, R>(
         &'a mut self,
         warn: &mut W,
-        cb: &mut CB,
-    ) -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+        cb: &mut R,
+    ) -> Result<Option<format::Chunk<'a>>, Error>
     where
         W: Warn<Warning>,
-        CB: Callback,
+        R: io::Read,
     {
         assert!(
             !self.error_encountered,
@@ -198,14 +189,14 @@ impl Reader {
 }
 
 impl Inner {
-    pub fn read_chunk<'a, W, CB>(
+    pub fn read_chunk<'a, W, R>(
         &'a mut self,
         warn: &mut W,
-        cb: &mut CB,
-    ) -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+        data: &mut R,
+    ) -> Result<Option<format::Chunk<'a>>, Error>
     where
         W: Warn<Warning>,
-        CB: Callback,
+        R: io::Read,
     {
         use format::Chunk;
         use format::ChunkHeader;
@@ -213,7 +204,7 @@ impl Inner {
         use format::Tickmarker;
 
         let chunk_header;
-        if let Some(ch) = ChunkHeader::read(warn, cb, self.version)? {
+        if let Some(ch) = ChunkHeader::read(warn, data, self.version)? {
             chunk_header = ch;
         } else {
             return Ok(None);
@@ -241,33 +232,17 @@ impl Inner {
                 Ok(Some(Chunk::Tick(keyframe, result)))
             }
             ChunkHeader::Chunk(type_, size) => {
-                {
-                    self.buffer1.clear();
-                    let result = cb.read_buffer(self.buffer1.cap_at(size.usize())).wrap()?;
-                    if result.len() != size.usize() {
-                        return Err(format::Error::TooShort.into());
-                    }
-                }
-                self.buffer2.clear();
-                HUFFMAN
-                    .decompress(&self.buffer1, &mut self.buffer2)
+                let raw_data = &mut self.buffer1[..size.usize()];
+                data.read_exact(raw_data).on_eof(format::Error::TooShort)?;
+                let huff_data = HUFFMAN
+                    .decompress(raw_data, self.buffer2.as_mut_slice())
                     .map_err(huffman_error)?;
                 if !matches!(type_, ChunkType::Snapshot | ChunkType::SnapshotDelta) {
-                    self.buffer1.clear();
-                    let mut u = Unpacker::new(&self.buffer2);
-                    with_buffer(&mut self.buffer1, |mut buf| -> Result<(), format::Error> {
-                        while !u.is_empty() {
-                            let i = u
-                                .read_int(&mut warn::rev_map(warn, packer_warning))
-                                .map_err(packer_error)?;
-                            let packed = LeI32::from_i32(i);
-                            buf.write(packed.as_bytes()).map_err(buffer_error)?;
-                        }
-                        Ok(())
-                    })?;
+                    let _u = Unpacker::new(huff_data);
+                    // No need for manual var-int unpacking
                 }
                 Ok(Some(match type_ {
-                    ChunkType::Unknown => return self.read_chunk(warn, cb),
+                    ChunkType::Unknown => return self.read_chunk(warn, data),
                     ChunkType::Snapshot => Chunk::Snapshot(&self.buffer2),
                     ChunkType::SnapshotDelta => Chunk::SnapshotDelta(&self.buffer2),
                     ChunkType::Message => Chunk::Message(&self.buffer1),

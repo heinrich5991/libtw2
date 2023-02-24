@@ -1,12 +1,8 @@
 use common::digest::Sha256;
-use common::io::ReadExt;
-use common::num::Cast;
 use std::fs::File;
 use std::io;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::io::Write;
 use std::path::Path;
 use warn::Warn;
@@ -14,78 +10,28 @@ use warn::Warn;
 use format;
 use format::Warning;
 use raw;
-use raw::Callback;
 use writer;
 
-#[derive(Debug)]
-pub enum Error {
-    Demo(format::Error),
-    Io(io::Error),
-}
-
-impl From<format::Error> for Error {
-    fn from(err: format::Error) -> Error {
-        Error::Demo(err)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl From<raw::Error<io::Error>> for Error {
-    fn from(err: raw::Error<io::Error>) -> Error {
-        match err {
-            raw::Error::Demo(e) => Error::Demo(e),
-            raw::Error::Cb(e) => Error::Io(e),
-        }
-    }
-}
-
-impl From<raw::WrapCallbackError<io::Error>> for Error {
-    fn from(err: raw::WrapCallbackError<io::Error>) -> Error {
-        let raw::WrapCallbackError(e) = err;
-        Error::Io(e)
-    }
-}
-
-struct CallbackData {
-    file: BufReader<File>,
-}
-
 pub struct Reader {
-    callback_data: CallbackData,
+    data: Box<dyn io::Read>,
     raw: raw::Reader,
 }
 
 impl Reader {
-    fn new_impl<W: Warn<Warning>>(warn: &mut W, file: File) -> Result<Reader, Error> {
-        let mut callback_data = CallbackData {
-            file: BufReader::new(file),
-        };
-        let raw = raw::Reader::new(warn, &mut callback_data)?;
+    pub fn new<W: Warn<Warning>>(warn: &mut W, file: File) -> Result<Reader, raw::Error> {
+        let mut data = BufReader::new(file);
+        let raw = raw::Reader::new(warn, &mut data)?;
         Ok(Reader {
-            callback_data: callback_data,
+            data: Box::new(data),
             raw: raw,
         })
     }
-    pub fn new<W: Warn<Warning>>(warn: &mut W, file: File) -> Result<Reader, Error> {
-        Reader::new_impl(warn, file)
-    }
-    pub fn open<W, P>(warn: &mut W, path: P) -> Result<Reader, Error>
+    pub fn open<W, P>(warn: &mut W, path: P) -> Result<Reader, raw::Error>
     where
         W: Warn<Warning>,
         P: AsRef<Path>,
     {
-        fn inner<W>(warn: &mut W, path: &Path) -> Result<Reader, Error>
-        where
-            W: Warn<Warning>,
-        {
-            Reader::new_impl(warn, File::open(path)?)
-        }
-        inner(warn, path.as_ref())
+        Reader::new(warn, File::open(path)?)
     }
     pub fn version(&self) -> format::Version {
         self.raw.version()
@@ -108,23 +54,14 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[format::Tick] {
         self.raw.timeline_markers()
     }
-    pub fn read_chunk<'a, W>(&'a mut self, warn: &mut W) -> Result<Option<format::Chunk<'a>>, Error>
+    pub fn read_chunk<'a, W>(
+        &'a mut self,
+        warn: &mut W,
+    ) -> Result<Option<format::Chunk<'a>>, raw::Error>
     where
         W: Warn<Warning>,
     {
-        Ok(self.raw.read_chunk(warn, &mut self.callback_data)?)
-    }
-}
-
-impl Callback for CallbackData {
-    type Error = io::Error;
-    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        self.file.read_retry(buffer)
-    }
-    fn skip(&mut self, num_bytes: u32) -> io::Result<()> {
-        self.file
-            .seek(SeekFrom::Current(num_bytes.i64()))
-            .map(|_| ())
+        Ok(self.raw.read_chunk(warn, &mut self.data)?)
     }
 }
 
