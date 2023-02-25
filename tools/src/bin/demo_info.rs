@@ -8,13 +8,15 @@ extern crate warn;
 use gamenet::msg::Game;
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::io;
 use std::path::Path;
 use warn::Warn;
 
 #[derive(Debug)]
 enum Error {
-    Demo(demo::format::Error),
+    DemoRead(demo::ReadError),
+    DemoWrite(demo::WriteError),
     Io(io::Error),
     Gamenet(gamenet::Error),
 }
@@ -25,11 +27,26 @@ enum Warning {
     Gamenet(packer::Warning),
 }
 
-impl From<demo::Error> for Error {
-    fn from(e: demo::Error) -> Error {
-        match e {
-            demo::Error::Demo(e) => Error::Demo(e),
-            demo::Error::Io(e) => Error::Io(e),
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+impl From<demo::ReadError> for Error {
+    fn from(err: demo::ReadError) -> Self {
+        match err.io_error() {
+            Ok(io) => Error::Io(io),
+            Err(demo) => Error::DemoRead(demo),
+        }
+    }
+}
+
+impl From<demo::WriteError> for Error {
+    fn from(err: demo::WriteError) -> Error {
+        match err.io_error() {
+            Ok(io) => Error::Io(io),
+            Err(demo) => Error::DemoWrite(demo),
         }
     }
 }
@@ -55,7 +72,8 @@ impl From<packer::Warning> for Warning {
 #[derive(Default)]
 struct ErrorStats {
     demo_warnings: HashMap<demo::Warning, u64>,
-    demo_errors: HashMap<demo::format::Error, u64>,
+    demo_read_errors: Vec<demo::ReadError>,
+    demo_write_errors: Vec<demo::WriteError>,
     gamenet_warnings: HashMap<packer::Warning, u64>,
     gamenet_errors: HashMap<gamenet::Error, u64>,
     io_errors: Vec<io::Error>,
@@ -71,15 +89,19 @@ fn update_warning_stats(stats: &mut ErrorStats, warning: Warning) {
 
 fn update_error_stats(stats: &mut ErrorStats, err: Error) {
     match err {
-        Error::Demo(e) => *stats.demo_errors.entry(e).or_insert(0) += 1,
+        Error::DemoRead(e) => stats.demo_read_errors.push(e),
+        Error::DemoWrite(e) => stats.demo_write_errors.push(e),
         Error::Gamenet(e) => *stats.gamenet_errors.entry(e).or_insert(0) += 1,
         Error::Io(e) => stats.io_errors.push(e),
     }
 }
 
 fn print_error_stats(error_stats: &ErrorStats) {
-    for (e, c) in &error_stats.demo_errors {
-        println!("{:?}: {}", e, c);
+    for e in &error_stats.demo_read_errors {
+        println!("{}", e);
+    }
+    for e in &error_stats.demo_write_errors {
+        println!("{}", e);
     }
     for (w, c) in &error_stats.demo_warnings {
         println!("{:?}: {}", w, c);
@@ -97,7 +119,8 @@ fn print_error_stats(error_stats: &ErrorStats) {
 }
 
 fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
-    let mut reader = demo::Reader::open(warn::wrap(warn), path)?;
+    let file = fs::File::open(path)?;
+    let mut reader = demo::Reader::new(warn::wrap(warn), file)?;
     println!("{}", path.display());
     println!("version: {:?}", reader.version());
     println!(
@@ -110,13 +133,14 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
     println!("timestamp: {}", String::from_utf8_lossy(reader.timestamp()));
     while let Some(chunk) = reader.read_chunk(warn::wrap(warn))? {
         match chunk {
-            demo::Chunk::Message(bytes) => {
+            demo::RawChunk::Message(bytes) => {
                 let mut u = packer::Unpacker::new_from_demo(bytes);
                 println!("message {:?}", Game::decode(warn::wrap(warn), &mut u)?);
             }
-            demo::Chunk::Tick(_, demo::Tick(t)) => println!("tick={}", t),
-            demo::Chunk::Snapshot(_) => println!("snapshot"),
-            demo::Chunk::SnapshotDelta(_) => println!("snapshot_delta"),
+            demo::RawChunk::Tick { tick, .. } => println!("tick={}", tick),
+            demo::RawChunk::Snapshot(_) => println!("snapshot"),
+            demo::RawChunk::SnapshotDelta(_) => println!("snapshot_delta"),
+            demo::RawChunk::Unknown => println!("Unknown chunk"),
         }
     }
     println!();

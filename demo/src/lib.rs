@@ -1,23 +1,22 @@
 extern crate arrayvec;
+extern crate binrw;
 extern crate buffer;
 extern crate common;
 extern crate huffman;
 #[macro_use]
 extern crate matches;
 extern crate packer;
-extern crate uuid;
+extern crate thiserror;
 extern crate warn;
 
-pub use crate::file::Reader;
-pub use crate::file::Writer;
-pub use crate::format::Chunk;
-pub use crate::format::Tick;
-pub use crate::format::Warning;
-pub use crate::raw::Error;
-
-pub mod format;
-
-mod bitmagic;
-mod file;
-mod raw;
+mod format;
+mod reader;
 mod writer;
+
+pub use format::DemoKind;
+pub use format::RawChunk;
+pub use format::Warning;
+pub use reader::ReadError;
+pub use reader::Reader;
+pub use writer::WriteError;
+pub use writer::Writer;

@@ -7,10 +7,11 @@ edition = "2018"
 
 [dependencies]
 arrayvec = "0.5.2"
+binrw = "0.11.1"
 buffer = "0.1.9"
 common = { path = "../common/" }
 huffman = { path = "../huffman/" }
 matches = "0.1.1"
 packer = { path = "../packer/" }
-uuid = "0.8.1"
+thiserror = "1.0.0"
 warn = "0.2.1"

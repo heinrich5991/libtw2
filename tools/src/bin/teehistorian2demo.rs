@@ -34,10 +34,10 @@ use packer::Unpacker;
 use snapshot::snap;
 use snapshot::snap::MAX_SNAPSHOT_SIZE;
 use std::ffi::OsString;
+use std::fs;
 use std::path::Path;
 use std::process;
 use teehistorian::Buffer;
-use teehistorian::Error;
 use teehistorian::Item;
 use teehistorian::Pos;
 use teehistorian::Reader;
@@ -99,33 +99,38 @@ impl<'a> From<game7::ClStartInfo<'a>> for Info {
     }
 }
 
-fn process(in_: &Path, out: &Path) -> Result<(), Error> {
+fn process(in_: &Path, out: &Path) -> Result<(), String> {
     let mut buffer = Buffer::new();
     let mut snap_buffer = Vec::new();
     let mut th;
     let mut demo;
     {
-        let (header, teehistorian) = Reader::open(in_, &mut buffer)?;
+        let (header, teehistorian) =
+            Reader::open(in_, &mut buffer).map_err(|err| format!("{:?}", err))?;
         th = teehistorian;
+        let file = fs::File::create(out).map_err(|err| err.to_string())?;
         if let Some(map_sha256) = header.map_sha256 {
-            demo = Writer::create_ddnet(
-                out,
+            demo = Writer::new(
+                file,
                 VERSION.as_bytes(),
                 header.map_name.as_bytes(),
-                map_sha256,
+                Some(map_sha256),
                 header.map_crc,
-                demo::format::TYPE_SERVER,
+                demo::DemoKind::Server,
                 b"", // Timestamp
-            )?;
+            )
+            .map_err(|err| err.to_string())?;
         } else {
-            demo = Writer::create(
-                out,
+            demo = Writer::new(
+                file,
                 VERSION.as_bytes(),
                 header.map_name.as_bytes(),
+                None,
                 header.map_crc,
-                demo::format::TYPE_SERVER,
+                demo::DemoKind::Server,
                 b"", // Timestamp
-            )?;
+            )
+            .map_err(|err| err.to_string())?;
         }
     }
     let mut delta = snap::Delta::new();
@@ -138,7 +143,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
     let mut inputs: VecMap<PlayerInput> = VecMap::new();
     let mut prev_pos: VecMap<Pos> = VecMap::new();
     let mut encoded: Vec<u8> = Vec::with_capacity(MAX_SNAPSHOT_SIZE);
-    while let Some(item) = th.read(&mut buffer)? {
+    while let Some(item) = th.read(&mut buffer).map_err(|err| format!("{:?}", err))? {
         let mut do_ticks = 0..0;
         match item {
             Item::TickStart(tick) => {
@@ -288,17 +293,20 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
             encoded.clear();
             match (&last_snap, last_full_snap_tick) {
                 (&Some(ref l), Some(t)) if tick - t <= 5 * TICKS_PER_SECOND => {
-                    demo.write_tick(false, demo::Tick(tick))?;
+                    demo.write_tick(false, tick)
+                        .map_err(|err| err.to_string())?;
                     delta.create(l, &snap);
                     demo.write_snapshot_delta(with_packer(&mut encoded, |p| {
                         delta.write(snap_obj::obj_size, p).unwrap()
-                    }))?;
+                    }))
+                    .map_err(|err| err.to_string())?;
                 }
                 _ => {
-                    demo.write_tick(true, demo::Tick(tick))?;
+                    demo.write_tick(true, tick).map_err(|err| err.to_string())?;
                     demo.write_snapshot(with_packer(&mut encoded, |p| {
                         snap.write(&mut snap_buffer, p).unwrap()
-                    }))?;
+                    }))
+                    .map_err(|err| err.to_string())?;
                     last_full_snap_tick = Some(tick);
                 }
             }
