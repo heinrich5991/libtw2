@@ -170,7 +170,7 @@ impl Reader {
     pub fn read_chunk<'a, W, R>(
         &'a mut self,
         warn: &mut W,
-        cb: &mut R,
+        data: &mut R,
     ) -> Result<Option<format::Chunk<'a>>, Error>
     where
         W: Warn<Warning>,
@@ -180,7 +180,7 @@ impl Reader {
             !self.error_encountered,
             "reading new chunks isn't supported after errors"
         );
-        let result = self.i.read_chunk(warn, cb);
+        let result = self.i.read_chunk(warn, data);
         if let Err(_) = result {
             self.error_encountered = true;
         }

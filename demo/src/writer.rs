@@ -6,10 +6,10 @@ use common::num::Cast;
 use common::num::LeI32;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer::with_packer;
-use std::mem;
+use std::{io, mem};
 use uuid::Uuid;
 
-use bitmagic::WriteCallbackExt;
+use bitmagic::WriteExt;
 use format::Chunk;
 use format::ChunkHeader;
 use format::ChunkType;
@@ -20,11 +20,6 @@ use format::Tickmarker;
 use format::TimelineMarkers;
 use format::Version;
 use format::MAX_SNAPSHOT_SIZE;
-
-pub trait Callback {
-    type Error;
-    fn write(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
-}
 
 pub struct Writer {
     header: Header,
@@ -47,16 +42,19 @@ const WRITER_VERSION_DDNET: Version = Version::V6Ddnet;
 
 const DDNET_SHA256_EXTENSION: Uuid = Uuid::from_u128(0x6be6da4a_cebd_380c_9b5b_1289c842d780);
 
+pub(crate) trait SeekableWrite: io::Write + io::Seek {}
+impl<T: io::Write + io::Seek> SeekableWrite for T {}
+
 impl Writer {
-    pub fn new<CB: Callback>(
-        cb: &mut CB,
+    pub fn new<W: io::Write + io::Seek>(
+        file: &mut W,
         net_version: &[u8],
         map_name: &[u8],
         map_sha256: Option<Sha256>,
         map_crc: u32,
         type_: &[u8],
         timestamp: &[u8],
-    ) -> Result<Writer, CB::Error> {
+    ) -> Result<Writer, io::Error> {
         use self::nullterminated_arrayvec_from_slice as nafs;
 
         let mut writer = Writer {
@@ -73,88 +71,89 @@ impl Writer {
             buffer1: ArrayVec::new(),
             buffer2: ArrayVec::new(),
         };
-        writer.write_header(cb, map_sha256.is_some())?;
-        cb.write_raw(
+        writer.write_header(file, map_sha256.is_some())?;
+        file.write_packed(
             &TimelineMarkers {
                 timeline_markers: ArrayVec::new(),
             }
             .pack(),
         )?;
         if let Some(sha256) = map_sha256 {
-            cb.write_raw(DDNET_SHA256_EXTENSION.as_bytes())?;
-            cb.write_raw(&sha256.0)?;
+            file.write_packed(DDNET_SHA256_EXTENSION.as_bytes())?;
+            file.write_packed(&sha256.0)?;
         }
         Ok(writer)
     }
-    fn write_header<CB: Callback>(&mut self, cb: &mut CB, ddnet: bool) -> Result<(), CB::Error> {
+    fn write_header<W: SeekableWrite>(
+        &mut self,
+        file: &mut W,
+        ddnet: bool,
+    ) -> Result<(), io::Error> {
         let version = if ddnet {
             WRITER_VERSION_DDNET
         } else {
             WRITER_VERSION
         };
-        cb.write_raw(&HeaderVersion { version: version }.pack())?;
-        cb.write_raw(&self.header.pack())?;
+        file.write_packed(&HeaderVersion { version: version }.pack())?;
+        file.write_packed(&self.header.pack())?;
         Ok(())
     }
-    pub fn write_chunk<CB: Callback>(
+    pub fn write_chunk<W: io::Write + io::Seek>(
         &mut self,
-        cb: &mut CB,
+        file: &mut W,
         chunk: Chunk,
-    ) -> Result<(), CB::Error> {
+    ) -> Result<(), io::Error> {
         match chunk {
-            Chunk::Tick(keyframe, tick) => self.write_tick(cb, keyframe, tick),
-            Chunk::Snapshot(snapshot) => self.write_snapshot(cb, snapshot),
-            Chunk::SnapshotDelta(delta) => self.write_snapshot_delta(cb, delta),
-            Chunk::Message(msg) => self.write_message(cb, msg),
+            Chunk::Tick(keyframe, tick) => self.write_tick(file, keyframe, tick),
+            Chunk::Snapshot(snapshot) => self.write_snapshot(file, snapshot),
+            Chunk::SnapshotDelta(delta) => self.write_snapshot_delta(file, delta),
+            Chunk::Message(msg) => self.write_message(file, msg),
         }
     }
-    pub fn write_tick<CB: Callback>(
+    pub fn write_tick<W: io::Write + io::Seek>(
         &mut self,
-        cb: &mut CB,
+        file: &mut W,
         keyframe: bool,
         tick: Tick,
-    ) -> Result<(), CB::Error> {
+    ) -> Result<(), io::Error> {
         let tm = Tickmarker::new(tick, self.prev_tick, keyframe, WRITER_VERSION);
-        ChunkHeader::Tickmarker(keyframe, tm).write(cb, WRITER_VERSION)?;
+        ChunkHeader::Tickmarker(keyframe, tm).write(file, WRITER_VERSION)?;
         self.prev_tick = Some(tick);
         Ok(())
     }
-    fn write_chunk_impl<CB>(
-        cb: &mut CB,
+    fn write_chunk_impl<W: SeekableWrite>(
+        file: &mut W,
         buffer: &mut ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
         type_: ChunkType,
         data: &[u8],
-    ) -> Result<(), CB::Error>
-    where
-        CB: Callback,
-    {
+    ) -> Result<(), io::Error> {
         buffer.clear();
         HUFFMAN
             .compress(&data, &mut *buffer)
             .expect("too long compression");
-        ChunkHeader::Chunk(type_, buffer.len().assert_u32()).write(cb, WRITER_VERSION)?;
-        cb.write(buffer)?;
+        ChunkHeader::Chunk(type_, buffer.len().assert_u32()).write(file, WRITER_VERSION)?;
+        file.write(buffer)?;
         Ok(())
     }
-    pub fn write_snapshot<CB: Callback>(
+    pub fn write_snapshot<W: io::Write + io::Seek>(
         &mut self,
-        cb: &mut CB,
+        file: &mut W,
         snapshot: &[u8],
-    ) -> Result<(), CB::Error> {
-        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::Snapshot, snapshot)
+    ) -> Result<(), io::Error> {
+        Self::write_chunk_impl(file, &mut self.buffer1, ChunkType::Snapshot, snapshot)
     }
-    pub fn write_snapshot_delta<CB: Callback>(
+    pub fn write_snapshot_delta<W: io::Write + io::Seek>(
         &mut self,
-        cb: &mut CB,
+        file: &mut W,
         delta: &[u8],
-    ) -> Result<(), CB::Error> {
-        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::SnapshotDelta, delta)
+    ) -> Result<(), io::Error> {
+        Self::write_chunk_impl(file, &mut self.buffer1, ChunkType::SnapshotDelta, delta)
     }
-    pub fn write_message<CB: Callback>(
+    pub fn write_message<W: io::Write + io::Seek>(
         &mut self,
-        cb: &mut CB,
+        file: &mut W,
         msg: &[u8],
-    ) -> Result<(), CB::Error> {
+    ) -> Result<(), io::Error> {
         self.buffer2.clear();
         with_packer(
             &mut self.buffer2,
@@ -171,7 +170,7 @@ impl Writer {
             },
         )
         .expect("overlong message");
-        Self::write_chunk_impl(cb, &mut self.buffer1, ChunkType::Message, &self.buffer2)
+        Self::write_chunk_impl(file, &mut self.buffer1, ChunkType::Message, &self.buffer2)
     }
     // TODO: Add a `finalize` function that writes the demo length into the
     // original header.

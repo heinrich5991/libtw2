@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Write;
 use std::path::Path;
 use warn::Warn;
 
@@ -65,12 +64,8 @@ impl Reader {
     }
 }
 
-struct WriteCallbackData {
-    file: BufWriter<File>,
-}
-
 pub struct Writer {
-    callback_data: WriteCallbackData,
+    file: BufWriter<File>,
     raw: writer::Writer,
 }
 
@@ -84,11 +79,9 @@ impl Writer {
         type_: &[u8],
         timestamp: &[u8],
     ) -> io::Result<Writer> {
-        let mut callback_data = WriteCallbackData {
-            file: BufWriter::new(file),
-        };
+        let mut file = BufWriter::new(file);
         let raw = writer::Writer::new(
-            &mut callback_data,
+            &mut file,
             net_version,
             map_name,
             map_sha256,
@@ -97,7 +90,7 @@ impl Writer {
             timestamp,
         )?;
         Ok(Writer {
-            callback_data: callback_data,
+            file: file,
             raw: raw,
         })
     }
@@ -204,26 +197,18 @@ impl Writer {
         )
     }
     pub fn write_chunk(&mut self, chunk: format::Chunk) -> io::Result<()> {
-        self.raw.write_chunk(&mut self.callback_data, chunk)
+        self.raw.write_chunk(&mut self.file, chunk)
     }
     pub fn write_tick(&mut self, keyframe: bool, tick: format::Tick) -> io::Result<()> {
-        self.raw.write_tick(&mut self.callback_data, keyframe, tick)
+        self.raw.write_tick(&mut self.file, keyframe, tick)
     }
     pub fn write_snapshot(&mut self, snapshot: &[u8]) -> io::Result<()> {
-        self.raw.write_snapshot(&mut self.callback_data, snapshot)
+        self.raw.write_snapshot(&mut self.file, snapshot)
     }
     pub fn write_snapshot_delta(&mut self, delta: &[u8]) -> io::Result<()> {
-        self.raw
-            .write_snapshot_delta(&mut self.callback_data, delta)
+        self.raw.write_snapshot_delta(&mut self.file, delta)
     }
     pub fn write_message(&mut self, msg: &[u8]) -> io::Result<()> {
-        self.raw.write_message(&mut self.callback_data, msg)
-    }
-}
-
-impl writer::Callback for WriteCallbackData {
-    type Error = io::Error;
-    fn write(&mut self, data: &[u8]) -> io::Result<()> {
-        self.file.write_all(data)
+        self.raw.write_message(&mut self.file, msg)
     }
 }

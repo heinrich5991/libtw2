@@ -13,10 +13,9 @@ use warn::Warn;
 
 use bitmagic::Packed;
 use bitmagic::ReadExt;
-use bitmagic::WriteCallbackExt;
+use bitmagic::WriteExt;
 use raw;
 use raw::IoResultExt;
-use writer;
 
 pub const MAGIC: &'static [u8; 7] = b"TWDEMO\0";
 pub const MAX_SNAPSHOT_SIZE: usize = 65536;
@@ -493,21 +492,21 @@ impl ChunkHeader {
             }
         })
     }
-    pub fn write<CB>(&self, cb: &mut CB, version: Version) -> Result<(), CB::Error>
+    pub fn write<W>(&self, file: &mut W, version: Version) -> Result<(), io::Error>
     where
-        CB: writer::Callback,
+        W: io::Write + io::Seek,
     {
         assert!(version == Version::V5, "only v5 writing is implemented");
         match *self {
             ChunkHeader::Tickmarker(keyframe, Tickmarker::Delta(dt)) => {
                 assert!(dt <= version.max_tick_delta());
                 assert!(!keyframe);
-                cb.write(&[CHUNKTYPEFLAG_TICKMARKER | CHUNKTICKFLAG_INLINETICK | dt])?;
+                file.write(&[CHUNKTYPEFLAG_TICKMARKER | CHUNKTICKFLAG_INLINETICK | dt])?;
             }
             ChunkHeader::Tickmarker(keyframe, Tickmarker::Absolute(t)) => {
                 let keyframe_flag = if keyframe { CHUNKTICKFLAG_KEYFRAME } else { 0 };
-                cb.write(&[CHUNKTYPEFLAG_TICKMARKER | keyframe_flag])?;
-                cb.write_raw(&BeI32::from_i32(t.0))?;
+                file.write(&[CHUNKTYPEFLAG_TICKMARKER | keyframe_flag])?;
+                file.write_packed(&BeI32::from_i32(t.0))?;
             }
             ChunkHeader::Chunk(type_, size) => {
                 let type_raw = match type_ {
@@ -517,12 +516,12 @@ impl ChunkHeader {
                     ChunkType::SnapshotDelta => CHUNKTYPE_SNAPSHOTDELTA,
                 };
                 if size < CHUNKSIZE_ONEBYTEFOLLOWS.u32() {
-                    cb.write(&[type_raw | size.assert_u8()])?;
+                    file.write(&[type_raw | size.assert_u8()])?;
                 } else if size < 256 {
-                    cb.write(&[type_raw | CHUNKSIZE_ONEBYTEFOLLOWS, size.assert_u8()])?;
+                    file.write(&[type_raw | CHUNKSIZE_ONEBYTEFOLLOWS, size.assert_u8()])?;
                 } else {
-                    cb.write(&[type_raw | CHUNKSIZE_TWOBYTESFOLLOW])?;
-                    cb.write_raw(&LeU16::from_u16(size.assert_u16()))?;
+                    file.write(&[type_raw | CHUNKSIZE_TWOBYTESFOLLOW])?;
+                    file.write_packed(&LeU16::from_u16(size.assert_u16()))?;
                 }
             }
         }

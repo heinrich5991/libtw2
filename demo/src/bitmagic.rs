@@ -3,8 +3,6 @@ use std::io;
 use std::mem;
 use std::slice;
 
-use writer;
-
 /// Safe to write arbitrary bytes to this struct.
 pub unsafe trait Packed {}
 
@@ -33,10 +31,10 @@ pub(crate) trait ReadExt: io::Read + Sized {
 
 impl<T: io::Read> ReadExt for T {}
 
-pub trait WriteCallbackExt: writer::Callback {
-    fn write_raw<T: Packed>(&mut self, t: &T) -> Result<(), Self::Error> {
-        self.write(as_bytes(t))
+pub trait WriteExt: io::Write {
+    fn write_packed<T: Packed>(&mut self, t: &T) -> Result<(), io::Error> {
+        self.write_all(as_bytes(t))
     }
 }
 
-impl<T: writer::Callback> WriteCallbackExt for T {}
+impl<T: io::Write> WriteExt for T {}
