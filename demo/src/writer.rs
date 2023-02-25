@@ -9,17 +9,17 @@ use packer::with_packer;
 use std::{io, mem};
 use uuid::Uuid;
 
-use bitmagic::WriteExt;
-use format::Chunk;
-use format::ChunkHeader;
-use format::ChunkType;
-use format::Header;
-use format::HeaderVersion;
-use format::Tick;
-use format::Tickmarker;
-use format::TimelineMarkers;
-use format::Version;
-use format::MAX_SNAPSHOT_SIZE;
+use crate::bitmagic::WriteExt;
+use crate::format::Chunk;
+use crate::format::ChunkHeader;
+use crate::format::ChunkType;
+use crate::format::Header;
+use crate::format::HeaderVersion;
+use crate::format::Tick;
+use crate::format::Tickmarker;
+use crate::format::TimelineMarkers;
+use crate::format::Version;
+use crate::format::MAX_SNAPSHOT_SIZE;
 
 pub struct Writer {
     header: Header,

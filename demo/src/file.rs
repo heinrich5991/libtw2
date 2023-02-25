@@ -6,10 +6,10 @@ use std::io::BufWriter;
 use std::path::Path;
 use warn::Warn;
 
-use format;
-use format::Warning;
-use raw;
-use writer;
+use crate::format;
+use crate::format::Warning;
+use crate::raw;
+use crate::writer;
 
 pub struct Reader {
     data: Box<dyn io::Read>,

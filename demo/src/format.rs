@@ -11,11 +11,11 @@ use std::u8;
 use warn;
 use warn::Warn;
 
-use bitmagic::Packed;
-use bitmagic::ReadExt;
-use bitmagic::WriteExt;
-use raw;
-use raw::IoResultExt;
+use crate::bitmagic::Packed;
+use crate::bitmagic::ReadExt;
+use crate::bitmagic::WriteExt;
+use crate::raw;
+use crate::raw::IoResultExt;
 
 pub const MAGIC: &'static [u8; 7] = b"TWDEMO\0";
 pub const MAX_SNAPSHOT_SIZE: usize = 65536;
