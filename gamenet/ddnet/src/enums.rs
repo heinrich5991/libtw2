@@ -7,7 +7,7 @@ pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
 pub const VERSION: &'static str = "0.6 626fce9a778df4d4";
-pub const DDNET_VERSION: i32 = 16020;
+pub const DDNET_VERSION: i32 = 16072;
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
@@ -130,6 +130,20 @@ pub enum Entityclass {
     GunUnfreeze,
     Light,
     Pickup,
+}
+
+pub const LASERTYPE_RIFLE: i32 = 0;
+pub const LASERTYPE_SHOTGUN: i32 = 1;
+pub const LASERTYPE_DOOR: i32 = 2;
+pub const LASERTYPE_FREEZE: i32 = 3;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Lasertype {
+    Rifle,
+    Shotgun,
+    Door,
+    Freeze,
 }
 
 pub const WEAPON_HAMMER: i32 = 0;
@@ -406,6 +420,28 @@ impl Entityclass {
             GunUnfreeze => ENTITYCLASS_GUN_UNFREEZE,
             Light => ENTITYCLASS_LIGHT,
             Pickup => ENTITYCLASS_PICKUP,
+        }
+    }
+}
+
+impl Lasertype {
+    pub fn from_i32(i: i32) -> Result<Lasertype, IntOutOfRange> {
+        use self::Lasertype::*;
+        Ok(match i {
+            LASERTYPE_RIFLE => Rifle,
+            LASERTYPE_SHOTGUN => Shotgun,
+            LASERTYPE_DOOR => Door,
+            LASERTYPE_FREEZE => Freeze,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Lasertype::*;
+        match self {
+            Rifle => LASERTYPE_RIFLE,
+            Shotgun => LASERTYPE_SHOTGUN,
+            Door => LASERTYPE_DOOR,
+            Freeze => LASERTYPE_FREEZE,
         }
     }
 }

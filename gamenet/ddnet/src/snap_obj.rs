@@ -9,7 +9,6 @@ use packer::Unpacker;
 use packer::Warning;
 use packer::in_range;
 use packer::positive;
-use packer::to_bool;
 use std::fmt;
 use std::slice::from_ref;
 use uuid::Uuid;
@@ -34,15 +33,15 @@ pub const GAMESTATEFLAG_RACETIME: i32 = 1 << 3;
 
 pub const CHARACTERFLAG_SOLO: i32 = 1 << 0;
 pub const CHARACTERFLAG_JETPACK: i32 = 1 << 1;
-pub const CHARACTERFLAG_NO_COLLISION: i32 = 1 << 2;
+pub const CHARACTERFLAG_COLLISION_DISABLED: i32 = 1 << 2;
 pub const CHARACTERFLAG_ENDLESS_HOOK: i32 = 1 << 3;
 pub const CHARACTERFLAG_ENDLESS_JUMP: i32 = 1 << 4;
 pub const CHARACTERFLAG_SUPER: i32 = 1 << 5;
-pub const CHARACTERFLAG_NO_HAMMER_HIT: i32 = 1 << 6;
-pub const CHARACTERFLAG_NO_SHOTGUN_HIT: i32 = 1 << 7;
-pub const CHARACTERFLAG_NO_GRENADE_HIT: i32 = 1 << 8;
-pub const CHARACTERFLAG_NO_LASER_HIT: i32 = 1 << 9;
-pub const CHARACTERFLAG_NO_HOOK: i32 = 1 << 10;
+pub const CHARACTERFLAG_HAMMER_HIT_DISABLED: i32 = 1 << 6;
+pub const CHARACTERFLAG_SHOTGUN_HIT_DISABLED: i32 = 1 << 7;
+pub const CHARACTERFLAG_GRENADE_HIT_DISABLED: i32 = 1 << 8;
+pub const CHARACTERFLAG_LASER_HIT_DISABLED: i32 = 1 << 9;
+pub const CHARACTERFLAG_HOOK_HIT_DISABLED: i32 = 1 << 10;
 pub const CHARACTERFLAG_TELEGUN_GUN: i32 = 1 << 11;
 pub const CHARACTERFLAG_TELEGUN_GRENADE: i32 = 1 << 12;
 pub const CHARACTERFLAG_TELEGUN_LASER: i32 = 1 << 13;
@@ -52,7 +51,9 @@ pub const CHARACTERFLAG_WEAPON_SHOTGUN: i32 = 1 << 16;
 pub const CHARACTERFLAG_WEAPON_GRENADE: i32 = 1 << 17;
 pub const CHARACTERFLAG_WEAPON_LASER: i32 = 1 << 18;
 pub const CHARACTERFLAG_WEAPON_NINJA: i32 = 1 << 19;
-pub const CHARACTERFLAG_NO_MOVEMENTS: i32 = 1 << 20;
+pub const CHARACTERFLAG_MOVEMENTS_DISABLED: i32 = 1 << 20;
+pub const CHARACTERFLAG_IN_FREEZE: i32 = 1 << 21;
+pub const CHARACTERFLAG_PRACTICE_MODE: i32 = 1 << 22;
 
 pub const GAMEINFOFLAG_TIMESCORE: i32 = 1 << 0;
 pub const GAMEINFOFLAG_GAMETYPE_RACE: i32 = 1 << 1;
@@ -94,6 +95,7 @@ pub const GAMEINFOFLAG2_ENTITIES_FDDRACE: i32 = 1 << 3;
 pub const GAMEINFOFLAG2_HUD_HEALTH_ARMOR: i32 = 1 << 4;
 pub const GAMEINFOFLAG2_HUD_AMMO: i32 = 1 << 5;
 pub const GAMEINFOFLAG2_HUD_DDRACE: i32 = 1 << 6;
+pub const GAMEINFOFLAG2_NO_WEAK_HOOK: i32 = 1 << 7;
 
 pub const EXPLAYERFLAG_AFK: i32 = 1 << 0;
 pub const EXPLAYERFLAG_PAUSED: i32 = 1 << 1;
@@ -128,10 +130,10 @@ pub const CLIENT_INFO: u16 = 11;
 pub const SPECTATOR_INFO: u16 = 12;
 pub const MY_OWN_OBJECT: Uuid = Uuid::from_u128(0x0dc77a02_bfee_3a53_ac8e_0bb0241bd722);
 pub const DDNET_CHARACTER: Uuid = Uuid::from_u128(0x76ce455b_f9eb_3a48_add7_e04b941d045c);
-pub const DDNET_CHARACTER_DISPLAY_INFO: Uuid = Uuid::from_u128(0xe7b431e5_dee0_3e5f_9224_2c95efb38878);
 pub const DDNET_PLAYER: Uuid = Uuid::from_u128(0x22ca938d_1380_3e2b_9e7b_d2558ea6be11);
 pub const GAME_INFO_EX: Uuid = Uuid::from_u128(0x933dea6a_da79_30ea_a98f_8af03689a945);
 pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x0e6db85c_2b61_386f_bbf2_d0d0471b9272);
+pub const DDNET_LASER: Uuid = Uuid::from_u128(0x29de68a2_6928_31b8_8360_a2307e0d844f);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -161,10 +163,10 @@ pub enum SnapObj {
     SpectatorInfo(SpectatorInfo),
     MyOwnObject(MyOwnObject),
     DdnetCharacter(DdnetCharacter),
-    DdnetCharacterDisplayInfo(DdnetCharacterDisplayInfo),
     DdnetPlayer(DdnetPlayer),
     GameInfoEx(GameInfoEx),
     DdnetProjectile(DdnetProjectile),
+    DdnetLaser(DdnetLaser),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -197,10 +199,10 @@ impl SnapObj {
             Ordinal(SPECTATOR_INFO) => SnapObj::SpectatorInfo(SpectatorInfo::decode(warn, _p)?),
             Uuid(MY_OWN_OBJECT) => SnapObj::MyOwnObject(MyOwnObject::decode(warn, _p)?),
             Uuid(DDNET_CHARACTER) => SnapObj::DdnetCharacter(DdnetCharacter::decode(warn, _p)?),
-            Uuid(DDNET_CHARACTER_DISPLAY_INFO) => SnapObj::DdnetCharacterDisplayInfo(DdnetCharacterDisplayInfo::decode(warn, _p)?),
             Uuid(DDNET_PLAYER) => SnapObj::DdnetPlayer(DdnetPlayer::decode(warn, _p)?),
             Uuid(GAME_INFO_EX) => SnapObj::GameInfoEx(GameInfoEx::decode(warn, _p)?),
             Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
+            Uuid(DDNET_LASER) => SnapObj::DdnetLaser(DdnetLaser::decode(warn, _p)?),
             Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
             Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
             Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
@@ -232,10 +234,10 @@ impl SnapObj {
             SnapObj::SpectatorInfo(_) => TypeId::from(SPECTATOR_INFO),
             SnapObj::MyOwnObject(_) => TypeId::from(MY_OWN_OBJECT),
             SnapObj::DdnetCharacter(_) => TypeId::from(DDNET_CHARACTER),
-            SnapObj::DdnetCharacterDisplayInfo(_) => TypeId::from(DDNET_CHARACTER_DISPLAY_INFO),
             SnapObj::DdnetPlayer(_) => TypeId::from(DDNET_PLAYER),
             SnapObj::GameInfoEx(_) => TypeId::from(GAME_INFO_EX),
             SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
+            SnapObj::DdnetLaser(_) => TypeId::from(DDNET_LASER),
             SnapObj::Common(_) => TypeId::from(COMMON),
             SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
             SnapObj::Spawn(_) => TypeId::from(SPAWN),
@@ -266,10 +268,10 @@ impl SnapObj {
             SnapObj::SpectatorInfo(ref i) => i.encode(),
             SnapObj::MyOwnObject(ref i) => i.encode(),
             SnapObj::DdnetCharacter(ref i) => i.encode(),
-            SnapObj::DdnetCharacterDisplayInfo(ref i) => i.encode(),
             SnapObj::DdnetPlayer(ref i) => i.encode(),
             SnapObj::GameInfoEx(ref i) => i.encode(),
             SnapObj::DdnetProjectile(ref i) => i.encode(),
+            SnapObj::DdnetLaser(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -303,10 +305,10 @@ impl fmt::Debug for SnapObj {
             SnapObj::SpectatorInfo(ref i) => i.fmt(f),
             SnapObj::MyOwnObject(ref i) => i.fmt(f),
             SnapObj::DdnetCharacter(ref i) => i.fmt(f),
-            SnapObj::DdnetCharacterDisplayInfo(ref i) => i.fmt(f),
             SnapObj::DdnetPlayer(ref i) => i.fmt(f),
             SnapObj::GameInfoEx(ref i) => i.fmt(f),
             SnapObj::DdnetProjectile(ref i) => i.fmt(f),
+            SnapObj::DdnetLaser(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -407,12 +409,6 @@ impl From<DdnetCharacter> for SnapObj {
     }
 }
 
-impl From<DdnetCharacterDisplayInfo> for SnapObj {
-    fn from(i: DdnetCharacterDisplayInfo) -> SnapObj {
-        SnapObj::DdnetCharacterDisplayInfo(i)
-    }
-}
-
 impl From<DdnetPlayer> for SnapObj {
     fn from(i: DdnetPlayer) -> SnapObj {
         SnapObj::DdnetPlayer(i)
@@ -428,6 +424,12 @@ impl From<GameInfoEx> for SnapObj {
 impl From<DdnetProjectile> for SnapObj {
     fn from(i: DdnetProjectile) -> SnapObj {
         SnapObj::DdnetProjectile(i)
+    }
+}
+
+impl From<DdnetLaser> for SnapObj {
+    fn from(i: DdnetLaser) -> SnapObj {
+        SnapObj::DdnetLaser(i)
     }
 }
 
@@ -655,19 +657,11 @@ pub struct DdnetCharacter {
     pub jumps: i32,
     pub tele_checkpoint: i32,
     pub strong_weak_id: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct DdnetCharacterDisplayInfo {
     pub jumped_total: i32,
     pub ninja_activation_tick: ::snap_obj::Tick,
-    pub freeze_tick: ::snap_obj::Tick,
-    pub is_in_freeze: bool,
-    pub is_in_practice_mode: bool,
+    pub freeze_start: ::snap_obj::Tick,
     pub target_x: i32,
     pub target_y: i32,
-    pub ramp_value: i32,
 }
 
 #[repr(C)]
@@ -694,6 +688,18 @@ pub struct DdnetProjectile {
     pub data: i32,
     pub type_: enums::Weapon,
     pub start_tick: ::snap_obj::Tick,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetLaser {
+    pub to_x: i32,
+    pub to_y: i32,
+    pub from_x: i32,
+    pub from_y: i32,
+    pub start_tick: ::snap_obj::Tick,
+    pub owner: i32,
+    pub type_: i32,
 }
 
 #[repr(C)]
@@ -1313,6 +1319,11 @@ impl fmt::Debug for DdnetCharacter {
             .field("jumps", &self.jumps)
             .field("tele_checkpoint", &self.tele_checkpoint)
             .field("strong_weak_id", &self.strong_weak_id)
+            .field("jumped_total", &self.jumped_total)
+            .field("ninja_activation_tick", &self.ninja_activation_tick)
+            .field("freeze_start", &self.freeze_start)
+            .field("target_x", &self.target_x)
+            .field("target_y", &self.target_y)
             .finish()
     }
 }
@@ -1329,49 +1340,17 @@ impl DdnetCharacter {
             jumps: in_range(_p.read_int()?, -1, 255)?,
             tele_checkpoint: _p.read_int()?,
             strong_weak_id: in_range(_p.read_int()?, 0, 63)?,
+            jumped_total: in_range(_p.read_int()?, -1, 255)?,
+            ninja_activation_tick: ::snap_obj::Tick(_p.read_int()?),
+            freeze_start: ::snap_obj::Tick(_p.read_int()?),
+            target_x: _p.read_int()?,
+            target_y: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.jumps && self.jumps <= 255);
         assert!(0 <= self.strong_weak_id && self.strong_weak_id <= 63);
-        unsafe { slice::transmute(from_ref(self)) }
-    }
-}
-
-impl fmt::Debug for DdnetCharacterDisplayInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DdnetCharacterDisplayInfo")
-            .field("jumped_total", &self.jumped_total)
-            .field("ninja_activation_tick", &self.ninja_activation_tick)
-            .field("freeze_tick", &self.freeze_tick)
-            .field("is_in_freeze", &self.is_in_freeze)
-            .field("is_in_practice_mode", &self.is_in_practice_mode)
-            .field("target_x", &self.target_x)
-            .field("target_y", &self.target_y)
-            .field("ramp_value", &self.ramp_value)
-            .finish()
-    }
-}
-impl DdnetCharacterDisplayInfo {
-    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetCharacterDisplayInfo, Error> {
-        let result = Self::decode_inner(p)?;
-        p.finish(warn);
-        Ok(result)
-    }
-    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetCharacterDisplayInfo, Error> {
-        Ok(DdnetCharacterDisplayInfo {
-            jumped_total: in_range(_p.read_int()?, 0, 255)?,
-            ninja_activation_tick: ::snap_obj::Tick(_p.read_int()?),
-            freeze_tick: ::snap_obj::Tick(_p.read_int()?),
-            is_in_freeze: to_bool(_p.read_int()?)?,
-            is_in_practice_mode: to_bool(_p.read_int()?)?,
-            target_x: _p.read_int()?,
-            target_y: _p.read_int()?,
-            ramp_value: _p.read_int()?,
-        })
-    }
-    pub fn encode(&self) -> &[i32] {
-        assert!(0 <= self.jumped_total && self.jumped_total <= 255);
+        assert!(-1 <= self.jumped_total && self.jumped_total <= 255);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1458,6 +1437,42 @@ impl DdnetProjectile {
         })
     }
     pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetLaser {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetLaser")
+            .field("to_x", &self.to_x)
+            .field("to_y", &self.to_y)
+            .field("from_x", &self.from_x)
+            .field("from_y", &self.from_y)
+            .field("start_tick", &self.start_tick)
+            .field("owner", &self.owner)
+            .field("type_", &self.type_)
+            .finish()
+    }
+}
+impl DdnetLaser {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetLaser, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetLaser, Error> {
+        Ok(DdnetLaser {
+            to_x: _p.read_int()?,
+            to_y: _p.read_int()?,
+            from_x: _p.read_int()?,
+            from_y: _p.read_int()?,
+            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            owner: in_range(_p.read_int()?, -1, 63)?,
+            type_: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(-1 <= self.owner && self.owner <= 63);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
