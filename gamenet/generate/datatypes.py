@@ -1246,8 +1246,8 @@ def evaluate_constant(consts, enums, constant):
     raise ProtocolSpecError("unevaluatable constant {}".format(constant))
 
 class NetIntRange(NetIntAny):
-    def __init__(self, name, min, max):
-        super().__init__(name)
+    def __init__(self, name, min, max, default=None):
+        super().__init__(name, default=default)
         self.min = min
         self.max = max
     def update(self, parent, consts, enums, structs):
