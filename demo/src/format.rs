@@ -27,6 +27,13 @@ pub enum Warning {
     WeirdTimelineMarkerPadding,
     WeirdTimestamp,
     WeirdType,
+    Message(packer::Warning),
+}
+
+impl From<packer::Warning> for Warning {
+    fn from(w: packer::Warning) -> Warning {
+        Warning::Message(w)
+    }
 }
 
 #[derive(BinRead, BinWrite, Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -55,7 +62,7 @@ pub enum RawChunk<'a> {
     },
     Snapshot(&'a ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>),
     SnapshotDelta(&'a ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>),
-    Message(&'a ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>),
+    Message(&'a [u8]),
     Unknown,
 }
 

@@ -120,7 +120,7 @@ fn print_error_stats(error_stats: &ErrorStats) {
 
 fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
     let file = fs::File::open(path)?;
-    let mut reader = demo::Reader::new(warn::wrap(warn), file)?;
+    let mut reader = demo::Reader::new(file, warn::wrap(warn))?;
     println!("{}", path.display());
     println!("version: {:?}", reader.version());
     println!(

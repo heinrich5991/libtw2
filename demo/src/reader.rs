@@ -6,19 +6,13 @@ use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer;
 use std::io;
 use thiserror::Error;
+use warn::wrap;
 use warn::Warn;
 
 use crate::format;
+use crate::format::TickMarker;
 use crate::format::Warning;
-use crate::format::{TickMarker, MAX_SNAPSHOT_SIZE};
-
-fn _packer_warning(w: packer::Warning) -> format::Warning {
-    match w {
-        packer::Warning::OverlongIntEncoding => Warning::IntDecompressionOverlongEncoding,
-        packer::Warning::NonZeroIntPadding => Warning::IntDecompressionNonZeroPadding,
-        packer::Warning::ExcessData => unreachable!(),
-    }
-}
+use crate::format::MAX_SNAPSHOT_SIZE;
 
 #[derive(Error, Debug)]
 #[error(transparent)]
@@ -26,6 +20,10 @@ pub enum ReadError {
     Io(#[from] io::Error),
     Binrw(#[from] binrw::Error),
     Huffman(#[from] huffman::DecompressionError),
+    #[error("Unexpected data end during secondary decompression of message")]
+    MessageVarIntUnexpectedEnd,
+    #[error("Too big decompressed size during secondary decompression of message")]
+    MessageVarIntTooLong,
     #[error("Tick number did not increase")]
     NotIncreasingTick,
     #[error("The first snapshot is only a snapshot-delta")]
@@ -38,6 +36,7 @@ impl ReadError {
     pub fn io_error(self) -> Result<io::Error, ReadError> {
         match self {
             ReadError::Io(io) => Ok(io),
+            ReadError::Binrw(binrw::Error::Io(io)) => Ok(io),
             err => Err(err),
         }
     }
@@ -55,7 +54,7 @@ pub struct Reader {
 }
 
 impl Reader {
-    pub fn new<W, R>(warn: &mut W, mut data: R) -> Result<Reader, ReadError>
+    pub fn new<W, R>(mut data: R, warn: &mut W) -> Result<Reader, ReadError>
     where
         W: Warn<Warning>,
         R: io::Read + io::Seek + 'static,
@@ -148,7 +147,22 @@ impl Reader {
                     DataKind::Unknown => RawChunk::Unknown,
                     DataKind::Snapshot => RawChunk::Snapshot(&self.huffman),
                     DataKind::SnapshotDelta => RawChunk::SnapshotDelta(&self.huffman),
-                    DataKind::Message => RawChunk::Message(&self.huffman),
+                    DataKind::Message => {
+                        let mut unpacker = packer::Unpacker::new(&self.huffman);
+                        let mut len = 0;
+                        let mut buffer = self.raw.chunks_mut(4);
+                        while !unpacker.is_empty() {
+                            let n: i32 = unpacker
+                                .read_int(wrap(warn))
+                                .map_err(|_| ReadError::MessageVarIntUnexpectedEnd)?;
+                            buffer
+                                .next()
+                                .ok_or(ReadError::MessageVarIntTooLong)?
+                                .copy_from_slice(&n.to_le_bytes());
+                            len += 4;
+                        }
+                        RawChunk::Message(&self.raw[..len])
+                    }
                 }))
             }
         }

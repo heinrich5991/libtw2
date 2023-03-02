@@ -10,8 +10,12 @@ arrayvec = "0.5.2"
 binrw = "0.11.1"
 buffer = "0.1.9"
 common = { path = "../common/" }
+gamenet_common = { path = "../gamenet/common/" }
+gamenet_ddnet = { path = "../gamenet/ddnet/" }
 huffman = { path = "../huffman/" }
 matches = "0.1.1"
 packer = { path = "../packer/" }
+snapshot = { path = "../snapshot/" }
 thiserror = "1.0.0"
+uuid = "0.8.1"
 warn = "0.2.1"

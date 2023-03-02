@@ -293,10 +293,14 @@ dependencies = [
  "binrw",
  "buffer",
  "common",
+ "gamenet_common",
+ "gamenet_ddnet",
  "huffman",
  "matches",
  "packer",
+ "snapshot",
  "thiserror",
+ "uuid",
  "warn",
 ]
 
