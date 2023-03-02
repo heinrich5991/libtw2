@@ -9,7 +9,6 @@ use gamenet::snap_obj::obj_size;
 use packer::Unpacker;
 use packer::with_packer;
 use snapshot::snap::Delta;
-use snapshot::snap::DeltaReader;
 use snapshot::snap::Snap;
 use warn::Panic;
 
@@ -22,7 +21,6 @@ const SECOND_CRC: i32 = 0x5b96263b;
 #[test]
 fn simple() {
     let mut buf = Vec::with_capacity(4096);
-    let mut reader = DeltaReader::new();
     let mut delta = Delta::new();
     let mut prev = Snap::empty();
     let mut snap = Snap::default();
@@ -34,7 +32,7 @@ fn simple() {
         Ok(p.written())
     }).unwrap();
 
-    reader.read(&mut Panic, &mut delta, obj_size, &mut Unpacker::new(&buf)).unwrap();
+    delta.read(&mut Panic, obj_size, &mut Unpacker::new(&buf)).unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), FIRST_CRC);
@@ -50,7 +48,7 @@ fn simple() {
         Ok(p.written())
     }).unwrap();
 
-    reader.read(&mut Panic, &mut delta, obj_size, &mut Unpacker::new(&buf)).unwrap();
+    delta.read(&mut Panic, obj_size, &mut Unpacker::new(&buf)).unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), SECOND_CRC);

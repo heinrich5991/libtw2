@@ -1,5 +1,4 @@
 use Delta;
-use DeltaReader;
 use DeltaReceiver;
 use ReceivedDelta;
 use Snap;
@@ -66,7 +65,6 @@ impl From<storage::Warning> for Warning {
 #[derive(Clone, Default)]
 struct ManagerInner {
     temp_delta: Delta,
-    reader: DeltaReader,
     storage: Storage,
 }
 
@@ -131,7 +129,7 @@ impl ManagerInner {
     {
         let crc = delta.data_and_crc.map(|d| d.1);
         if let Some((data, _)) = delta.data_and_crc {
-            self.reader.read(wrap(warn), &mut self.temp_delta, object_size, &mut Unpacker::new(data))?;
+            self.temp_delta.read(wrap(warn), object_size, &mut Unpacker::new(data))?;
         } else {
             self.temp_delta.clear();
         }
