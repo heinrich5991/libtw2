@@ -325,79 +325,58 @@ impl Delta {
         }
         Ok(p.written())
     }
-}
 
-#[derive(Clone, Default)]
-pub struct DeltaReader {
-    buf: Vec<i32>,
-}
-
-impl DeltaReader {
-    pub fn new() -> DeltaReader {
-        Default::default()
-    }
-    fn clear(&mut self) {
-        self.buf.clear();
-    }
-    pub fn read<W, O>(&mut self, warn: &mut W, delta: &mut Delta, object_size: O, p: &mut Unpacker)
+    pub fn read<W, O>(&mut self, warn: &mut W, object_size: O, p: &mut Unpacker)
         -> Result<(), Error>
         where W: Warn<Warning>,
               O: FnMut(u16) -> Option<u32>,
     {
-        delta.clear();
+        fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, warn: &mut W, e: Error)
+            -> Result<i32, Error> {
+            p.read_int(wrap(warn)).map_err(|_| e)
+        }
+
         self.clear();
 
         let mut object_size = object_size;
 
         let header = DeltaHeader::decode(warn, p)?;
-        while !p.as_slice().is_empty() {
-            self.buf.push(p.read_int(wrap(warn))?);
+
+        for _ in 0..header.num_deleted_items {
+            self.deleted_items.insert(read_int_err(p, warn, Error::DeletedItemsUnpacking)?);
         }
-        let split = header.num_deleted_items.assert_usize();
-        if split > self.buf.len() {
-            return Err(Error::DeletedItemsUnpacking);
-        }
-        let (deleted_items, buf) = self.buf.split_at(split);
-        delta.deleted_items.extend(deleted_items);
-        if deleted_items.len() != delta.deleted_items.len() {
+        if header.num_deleted_items.assert_usize() != self.deleted_items.len() {
             warn.warn(Warning::DuplicateDelete);
         }
 
         let mut num_updates = 0;
-        let mut buf = buf.iter();
-        // FIXME: Use `is_empty`.
-        while buf.len() != 0 {
-            let type_id = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
-            let id = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
+
+        while !p.is_empty() {
+            let type_id = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
+            let id = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
 
             let type_id = type_id.try_u16().ok_or(Error::TypeIdRange)?;
             let id = id.try_u16().ok_or(Error::IdRange)?;
 
             let size = match object_size(type_id) {
-                Some(s) => s.usize(),
+                Some(s) => s,
                 None => {
-                    let s = buf.next().ok_or(Error::ItemDiffsUnpacking)?;
-                    s.try_usize().ok_or(Error::NegativeSize)?
+                    let s = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
+                    s.try_u32().ok_or(Error::NegativeSize)?
                 }
             };
-
-            if size > buf.len() {
-                return Err(Error::ItemDiffsUnpacking);
+            let start = self.buf.len().try_u32().ok_or(Error::TooLongDiff)?;
+            let end = start.checked_add(size).ok_or(Error::TooLongDiff)?;
+            for _ in 0..size {
+                self.buf.push(read_int_err(p, warn, Error::ItemDiffsUnpacking)?);
             }
-            let (data, b) = buf.as_slice().split_at(size);
-            buf = b.iter();
-
-            let offset = delta.buf.len();
-            let start = offset.try_u32().ok_or(Error::TooLongDiff)?;
-            let end = (offset + data.len()).try_u32().ok_or(Error::TooLongDiff)?;
-            delta.buf.extend(data.iter());
 
             // In case of conflict, take later update (as the original code does).
-            if delta.updated_items.insert(key(type_id, id), start..end).is_some() {
+            if self.updated_items.insert(key(type_id, id), start..end).is_some() {
                 warn.warn(Warning::DuplicateUpdate);
             }
 
-            if delta.deleted_items.contains(&key(type_id, id)) {
+            if self.deleted_items.contains(&key(type_id, id)) {
                 warn.warn(Warning::DeleteUpdate);
             }
             num_updates += 1;

@@ -15,7 +15,6 @@ pub use manager::Manager;
 pub use receiver::DeltaReceiver;
 pub use receiver::ReceivedDelta;
 pub use snap::Delta;
-pub use snap::DeltaReader;
 pub use snap::Snap;
 pub use storage::Storage;
 
