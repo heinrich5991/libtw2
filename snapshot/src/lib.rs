@@ -16,6 +16,7 @@ pub use receiver::DeltaReceiver;
 pub use receiver::ReceivedDelta;
 pub use snap::Delta;
 pub use snap::Snap;
+pub use snap::SnapReader;
 pub use storage::Storage;
 
 use common::num::Cast;

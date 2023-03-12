@@ -5,6 +5,7 @@ use format::key_to_id;
 use format::key_to_type_id;
 use format::DeltaHeader;
 use format::Item;
+use format::SnapHeader;
 use format::Warning;
 use gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
 use gamenet::msg::system;
@@ -39,12 +40,25 @@ pub enum Error {
     TooLongDiff,
     TooLongSnap,
     DeltaDifferingSizes,
+    OffsetsUnpacking,
+    InvalidOffset,
+    ItemsUnpacking,
+    DuplicateKey,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BuilderError {
     DuplicateKey,
     TooLongSnap,
+}
+
+impl From<BuilderError> for Error {
+    fn from(err: BuilderError) -> Error {
+        match err {
+            BuilderError::DuplicateKey => Error::DuplicateKey,
+            BuilderError::TooLongSnap => Error::TooLongSnap,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -241,6 +255,64 @@ impl Snap {
     }
 }
 
+pub struct SnapReader {
+    sizes: Vec<i32>,
+}
+
+fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, w: &mut W, e: Error) -> Result<i32, Error> {
+    p.read_int(wrap(w)).map_err(|_| e)
+}
+
+impl SnapReader {
+    pub fn new() -> SnapReader {
+        SnapReader { sizes: Vec::new() }
+    }
+    pub fn read<W>(&mut self, warn: &mut W, snap: Snap, p: &mut Unpacker) -> Result<Snap, Error>
+    where
+        W: Warn<Warning>,
+    {
+        self.sizes.clear();
+        let header = SnapHeader::decode(warn, p)?;
+        let mut prev_offset = None;
+        for _ in 0..header.num_items {
+            let offset = p.read_int(wrap(warn)).unwrap();
+            if let Some(prev) = prev_offset {
+                if prev > offset {
+                    return Err(Error::InvalidOffset);
+                }
+                self.sizes.push(offset - prev);
+            } else if offset != 0 {
+                // First offset must be 0
+                return Err(Error::InvalidOffset);
+            }
+            prev_offset = Some(offset);
+        }
+        if let Some(last) = prev_offset {
+            if last > header.data_size {
+                return Err(Error::InvalidOffset);
+            }
+            self.sizes.push(header.data_size - last)
+        }
+
+        let mut builder = snap.recycle();
+        for size in &self.sizes {
+            if *size % 4 != 0 {
+                return Err(Error::InvalidOffset);
+            }
+            if *size == 0 {
+                return Err(Error::InvalidOffset);
+            }
+            let size = size / 4;
+            let key = read_int_err(p, warn, Error::ItemsUnpacking)?;
+            let type_id = key_to_type_id(key);
+            let id = key_to_id(key);
+            builder.add_packed(warn, type_id, id, size.assert_usize() - 1, p)?;
+        }
+        assert!(p.is_empty());
+        Ok(builder.finish())
+    }
+}
+
 pub struct Items<'a> {
     snap: &'a Snap,
     iter: hash_map::Iter<'a, i32, ops::Range<u32>>,
@@ -360,14 +432,6 @@ impl Delta {
         W: Warn<Warning>,
         O: FnMut(u16) -> Option<u32>,
     {
-        fn read_int_err<W: Warn<Warning>>(
-            p: &mut Unpacker,
-            warn: &mut W,
-            e: Error,
-        ) -> Result<i32, Error> {
-            p.read_int(wrap(warn)).map_err(|_| e)
-        }
-
         self.clear();
 
         let mut object_size = object_size;
@@ -437,15 +501,38 @@ impl Builder {
     pub fn new() -> Builder {
         Default::default()
     }
-    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+    fn add_item_raw(
+        &mut self,
+        type_id: u16,
+        id: u16,
+        size: usize,
+    ) -> Result<&mut [i32], BuilderError> {
         let offset = match self.snap.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            hash_map::Entry::Vacant(v) => {
-                Snap::prepare_item_vacant(v, &mut self.snap.buf, data.len())?
-            }
+            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.snap.buf, size)?,
         }
         .clone();
-        self.snap.buf[to_usize(offset)].copy_from_slice(data);
+        Ok(&mut self.snap.buf[to_usize(offset)])
+    }
+    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+        self.add_item_raw(type_id, id, data.len())?
+            .copy_from_slice(data);
+        Ok(())
+    }
+    fn add_packed<W>(
+        &mut self,
+        w: &mut W,
+        type_id: u16,
+        id: u16,
+        size: usize,
+        p: &mut Unpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+    {
+        for x in self.add_item_raw(type_id, id, size)? {
+            *x = read_int_err(p, w, Error::ItemsUnpacking)?;
+        }
         Ok(())
     }
     pub fn finish(self) -> Snap {

@@ -55,6 +55,20 @@ impl<'a> Item<'a> {
     }
 }
 
+pub struct SnapHeader {
+    pub data_size: i32,
+    pub num_items: i32,
+}
+
+impl SnapHeader {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<SnapHeader, Error> {
+        Ok(SnapHeader {
+            data_size: packer::positive(p.read_int(wrap(warn))?)?,
+            num_items: packer::positive(p.read_int(wrap(warn))?)?,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct DeltaHeader {
     pub num_deleted_items: i32,
