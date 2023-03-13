@@ -42,6 +42,30 @@ The checksum of a snapshot is calculated by summing all the `data` array
 elements of all items, using wrapping overflow behavior.
 
 
+Snapshots
+---------
+
+    snapshot:
+        [ 4] data_size
+        [ 4] num_items
+        [*4] item_offsets
+        [  ] items
+
+Snapshots provide the full game state. In demos, they are used to provide
+additional entry points for the stream of snapshot deltas.
+
+- `data_size` is a positive signed 32-bit integer describing the amount of
+bytes in the `items` segment.
+- `num_items` is a positive signed 32-bit integer describing the amount of
+items present in the snapshot.
+- `item_offsets` is an array of `num_item` positive signed 32-bit integers
+which describe the offsets for all items contained in the snapshot. They must
+be monotonically increasing and the first one should be 0.
+- `items` is a concatenation of `num_items` items. The `item_offsets` describe
+the positions: the `n`th offset is the start of the `n`th item (and the end of
+the `n-1`th item). The end of the last item is `data_size`.
+
+
 Snapshot deltas
 ---------------
 

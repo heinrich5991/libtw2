@@ -66,6 +66,8 @@ new tick, it looks like follows (sizes specified in bits):
 `is_tick` is set to `0` for normal chunks.
 
 `type` can be one of `1` (snapshot), `2` (message) or `3` (snapshot delta).
+The `chunk_data` of snapshots and snapshot deltas goes through variable-int
+compression once, and twice for messages.
 
 `size` determines the size of the following `chunk_data` unless one of the
 special values `30` or `31` are used. `30` indicates that `chunk_header`
