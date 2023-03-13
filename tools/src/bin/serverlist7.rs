@@ -48,7 +48,6 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
                 for &s in list.iter() {
                     println!("{}", s.unpack());
                 }
-                break;
             },
             _ => {
                 error!("received non-list response from peer");
