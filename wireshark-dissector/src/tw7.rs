@@ -284,7 +284,7 @@ unsafe fn dissect_impl(
         );
     }
 
-    field_bytes!(tree, HF_PACKET_PAYLOAD, header_size, -1,
+    field_bytes!(tree, HF_PACKET_PAYLOAD, header_size, len.assert_i32() - header_size,
         "{} ({})",
         if !compression { "Payload" } else { "Compressed payload" },
         NumBytes::new(len - header_size.assert_usize()),
@@ -437,7 +437,7 @@ unsafe fn dissect_impl(
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         }
         protocol::Packet::Connless(message) => {
-            let ti = sys::proto_tree_add_item(ttree, PROTO_CHUNK, tvb, 0, -1, sys::ENC_NA);
+            let ti = sys::proto_tree_add_item(ttree, PROTO_CHUNK, tvb, 0, len.assert_i32() - header_size, sys::ENC_NA);
             let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
             let mut p = Unpacker::new(message);
