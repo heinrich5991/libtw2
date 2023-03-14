@@ -56,6 +56,13 @@ pub const IPV4_MAPPING: [u8; 12] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
 ];
 
+// dont-send-http-servers@mastersrv.ddnet.org
+// e02cb630-b680-38f6-81a6-da096e9696d1
+pub const NO_BACKCOMPAT: &'static [u8; 16] = &[
+    0xe0, 0x2c, 0xb6, 0x30, 0xb6, 0x80, 0x38, 0xf6,
+    0x81, 0xa6, 0xda, 0x09, 0x6e, 0x96, 0x96, 0xd1,
+];
+
 pub fn request_list_5() -> [u8; 14] { *REQUEST_LIST_5 }
 pub fn request_list_6() -> [u8; 14] { *REQUEST_LIST_6 }
 pub fn request_list_7(own_token: u32, their_token: u32) -> [u8; 17] {
@@ -63,6 +70,24 @@ pub fn request_list_7(own_token: u32, their_token: u32) -> [u8; 17] {
     request.copy_from_slice(REQUEST_LIST_7);
     request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
     request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request
+}
+pub fn request_list_5_nobackcompat() -> [u8; 30] {
+    let mut request = [0; 30];
+    request[..14].copy_from_slice(REQUEST_LIST_5);
+    request[14..].copy_from_slice(NO_BACKCOMPAT);
+    request
+}
+pub fn request_list_6_nobackcompat() -> [u8; 30] {
+    let mut request = [0; 30];
+    request[..14].copy_from_slice(REQUEST_LIST_6);
+    request[14..].copy_from_slice(NO_BACKCOMPAT);
+    request
+}
+pub fn request_list_7_nobackcompat(own_token: u32, their_token: u32) -> [u8; 33] {
+    let mut request = [0; 33];
+    request[..17].copy_from_slice(&request_list_7(own_token, their_token));
+    request[17..].copy_from_slice(NO_BACKCOMPAT);
     request
 }
 
@@ -104,11 +129,23 @@ pub fn request_info_7(own_token: u32, their_token: u32, challenge: u8) -> [u8; 1
 }
 
 pub fn request_count() -> [u8; 14] { *REQUEST_COUNT }
+pub fn request_count_nobackcompat() -> [u8; 30] {
+    let mut request = [0; 30];
+    request[..14].copy_from_slice(REQUEST_COUNT);
+    request[14..].copy_from_slice(NO_BACKCOMPAT);
+    request
+}
 pub fn request_count_7(own_token: u32, their_token: u32) -> [u8; 17] {
     let mut request = [0; 17];
     request.copy_from_slice(REQUEST_COUNT_7);
     request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
     request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request
+}
+pub fn request_count_7_nobackcompat(own_token: u32, their_token: u32) -> [u8; 33] {
+    let mut request = [0; 33];
+    request[..17].copy_from_slice(&request_count_7(own_token, their_token));
+    request[17..].copy_from_slice(NO_BACKCOMPAT);
     request
 }
 
