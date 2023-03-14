@@ -9,6 +9,7 @@ bindgen \
 	--allowlist-function '^conversation_set_dissector$' \
 	--allowlist-function '^create_dissector_handle$' \
 	--allowlist-function '^dissector_add_.*$' \
+	--allowlist-function '^epan_get_version$' \
 	--allowlist-function '^find_or_create_conversation$' \
 	--allowlist-function '^heur_dissector_add$' \
 	--allowlist-function '^proto_item_add_subtree$' \

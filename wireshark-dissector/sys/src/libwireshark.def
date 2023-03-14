@@ -14,6 +14,7 @@ EXPORTS
     dissector_add_uint_range
     dissector_add_uint_range_with_preference
     dissector_add_uint_with_preference
+    epan_get_version
     find_or_create_conversation
     heur_dissector_add
     proto_item_add_subtree

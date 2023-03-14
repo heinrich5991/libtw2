@@ -2609,6 +2609,9 @@ fn bindgen_test_layout_epan_range() {
 pub struct epan_column_info {
     _unused: [u8; 0],
 }
+extern "C" {
+    pub fn epan_get_version() -> *const gchar;
+}
 pub type column_info = epan_column_info;
 #[doc = "< 0) 802.1Q vlan ID"]
 pub const COL_8021Q_VLAN_ID: ::std::os::raw::c_uint = 0;
