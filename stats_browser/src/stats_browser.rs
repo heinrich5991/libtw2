@@ -88,7 +88,7 @@ impl<'a> StatsBrowser<'a> {
         const MASTER_MAX: u32 = 4;
         StatsBrowser::new_without_masters(cb).map(|mut browser| {
             for i in MASTER_MIN..MASTER_MAX+1 {
-                browser.add_master(format!("master{}.teeworlds.com", i));
+                browser.add_master(format!("master{}.teeworlds.com", i), false);
             }
             browser
         })
@@ -120,8 +120,8 @@ impl<'a> StatsBrowser<'a> {
             cb: cb,
         })
     }
-    pub fn add_master(&mut self, domain: String) {
-        let master_id = self.master_servers.push(MasterServerEntry::new(domain));
+    pub fn add_master(&mut self, domain: String, nobackcompat: bool) {
+        let master_id = self.master_servers.push(MasterServerEntry::new(domain, nobackcompat));
         self.work_queue.push_now(Work::Resolve(master_id));
     }
     fn do_resolve(&mut self, master_id: MasterId) -> Result<(),()> {
@@ -174,13 +174,24 @@ impl<'a> StatsBrowser<'a> {
         let socket = &mut self.socket;
         let mut send = |data: &[u8]| socket.send_to(data, master.addr.unwrap()).unwrap();
 
-        debug!("Requesting count and list from {}", master.domain);
-        if send(&protocol::request_count()).would_block()
-            || send(&protocol::request_list_5()).would_block()
-            || send(&protocol::request_list_6()).would_block()
-        {
-            debug!("Failed to send count or list request, would block");
-            return Err(());
+        if !master.nobackcompat {
+            debug!("Requesting count and list from {}", master.domain);
+            if send(&protocol::request_count()).would_block()
+                || send(&protocol::request_list_5()).would_block()
+                || send(&protocol::request_list_6()).would_block()
+            {
+                debug!("Failed to send count or list request, would block");
+                return Err(());
+            }
+        } else {
+            debug!("Requesting nobackcompat count and list from {}", master.domain);
+            if send(&protocol::request_count_nobackcompat()).would_block()
+                || send(&protocol::request_list_5_nobackcompat()).would_block()
+                || send(&protocol::request_list_6_nobackcompat()).would_block()
+            {
+                debug!("Failed to send count or list request, would block");
+                return Err(());
+            }
         }
 
         self.work_queue.push(config::LIST_EXPECT_MS, Work::ExpectList(master_id));
@@ -305,11 +316,20 @@ impl<'a> StatsBrowser<'a> {
         let socket = &mut self.socket;
         let mut send = |data: &[u8]| socket.send_to(data, master.addr_7.unwrap()).unwrap();
 
-        debug!("Requesting 0.7 count and list from {}", master.domain);
-        if send(&protocol::request_count_7(master.own_token.unwrap().u32(), their_token.u32())).would_block()
-            || send(&protocol::request_list_7(master.own_token.unwrap().u32(), their_token.u32())).would_block()
-        {
-            debug!("Failed to send count or list request, would block");
+        if !master.nobackcompat {
+            debug!("Requesting 0.7 count and list from {}", master.domain);
+            if send(&protocol::request_count_7(master.own_token.unwrap().u32(), their_token.u32())).would_block()
+                || send(&protocol::request_list_7(master.own_token.unwrap().u32(), their_token.u32())).would_block()
+            {
+                debug!("Failed to send count or list request, would block");
+            }
+        } else {
+            debug!("Requesting 0.7 nobackcompat count and list from {}", master.domain);
+            if send(&protocol::request_count_7_nobackcompat(master.own_token.unwrap().u32(), their_token.u32())).would_block()
+                || send(&protocol::request_list_7_nobackcompat(master.own_token.unwrap().u32(), their_token.u32())).would_block()
+            {
+                debug!("Failed to send count or list request, would block");
+            }
         }
     }
     fn process_count(&mut self, from: MasterId, count: u16) {

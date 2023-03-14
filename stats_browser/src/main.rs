@@ -8,20 +8,31 @@ extern crate uuid;
 
 use clap::App;
 use clap::Arg;
+use clap::Values;
+use std::collections::HashSet;
 use stats_browser::StatsBrowser;
 use stats_browser::StatsBrowserCb;
 use stats_browser::tracker_fstd;
 use stats_browser::tracker_json;
 use uuid::Uuid;
 
-fn run_browser<T: StatsBrowserCb>(tracker: &mut T) {
-    let mut browser = match StatsBrowser::new(tracker) {
-        Some(b) => b,
-        None => {
-            panic!("Failed to bind socket.");
-        },
+fn run_browser<T: StatsBrowserCb>(tracker: &mut T, masters: Vec<(String, bool)>) {
+    let browser = if masters.is_empty() {
+        StatsBrowser::new(tracker)
+    } else {
+        StatsBrowser::new_without_masters(tracker)
+            .map(|mut browser| {
+                for (master, nobackcompat) in masters {
+                    browser.add_master(master, nobackcompat);
+                }
+                browser
+            })
     };
-    browser.run();
+    if let Some(mut browser) = browser {
+        browser.run();
+    } else {
+        panic!("Failed to bind socket.");
+    }
 }
 
 fn main() {
@@ -60,13 +71,51 @@ fn main() {
             .value_name("SEED")
             .help("UUID seed to use for fake secrets of the reported servers (only used for json tracker, useful if you want to merge output of multiple stats_browser instances)")
         )
+        .arg(Arg::with_name("master")
+            .long("master")
+            .takes_value(true)
+            .value_name("MASTER")
+            .multiple(true)
+            .number_of_values(1)
+            .help("Master server to use [default: master1.teeworlds.com to master4.teeworlds.com]")
+        )
+        .arg(Arg::with_name("master-nobackcompat")
+            .long("master-nobackcompat")
+            .takes_value(true)
+            .value_name("MASTER")
+            .multiple(true)
+            .number_of_values(1)
+            .help("Master server to use, has to support the NOBACKCOMPAT extension to not send servers obtained from the newer HTTPS masters")
+        )
         .get_matches();
+
+    fn add_masters(
+        masters: &mut Vec<(String, bool)>,
+        seen: &mut HashSet<String>,
+        args: Option<Values<'_>>,
+        nobackcompat: bool,
+    ) {
+        if let Some(args) = args {
+            for arg in args {
+                if !seen.insert(arg.to_owned()) {
+                    panic!("master {:?} seen twice", arg);
+                }
+                masters.push((arg.to_owned(), nobackcompat));
+            }
+        }
+    }
+    let mut masters = Vec::new();
+    {
+        let mut seen = HashSet::new();
+        add_masters(&mut masters, &mut seen, matches.values_of("master"), false);
+        add_masters(&mut masters, &mut seen, matches.values_of("master-nobackcompat"), true);
+    }
 
     match matches.value_of("format").unwrap() {
         "fstd" => {
             let mut tracker = tracker_fstd::Tracker::new();
             tracker.start();
-            run_browser(&mut tracker);
+            run_browser(&mut tracker, masters);
         }
         "json" => {
             let filename = String::from(matches.value_of("filename").unwrap());
@@ -78,7 +127,7 @@ fn main() {
             };
             let mut tracker = tracker_json::Tracker::new(filename, locations, seed);
             tracker.start();
-            run_browser(&mut tracker);
+            run_browser(&mut tracker, masters);
         }
         _ => unreachable!(),
     }

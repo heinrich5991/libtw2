@@ -16,6 +16,10 @@ use rand;
 pub struct MasterServerEntry {
     /// Domain of the master server.
     pub domain: String,
+    /// Whether the master server understands the NOBACKCOMPAT protocol to only
+    /// fetch servers that don't come from a HTTPS master sever backward
+    /// compatibility.
+    pub nobackcompat: bool,
     /// Address of the master server if resolved, `None` otherwise.
     pub addr: Option<Addr>,
     /// Address of the master server version 0.7 if resolved, `None` otherwise.
@@ -44,9 +48,10 @@ pub struct MasterServerEntry {
 
 impl MasterServerEntry {
     /// Creates a new master server entry with empty responses from a domain.
-    pub fn new(domain: String) -> MasterServerEntry {
+    pub fn new(domain: String, nobackcompat: bool) -> MasterServerEntry {
         MasterServerEntry {
             domain: domain,
+            nobackcompat: nobackcompat,
             addr: None,
             addr_7: None,
             own_token: None,
