@@ -32,8 +32,10 @@ mod test {
 use intern::Interned;
 use intern::intern;
 use gamenet_spec::Identifier;
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
+use std::process;
 use uuid::Uuid;
 
 #[allow(non_upper_case_globals)]
@@ -123,6 +125,16 @@ unsafe extern "C" fn proto_reg_handoff() {
 
 #[no_mangle]
 pub unsafe extern "C" fn plugin_register() {
+    {
+        let version = CStr::from_ptr(sys::epan_get_version()).to_bytes();
+        if version == b"4.0.4" {
+            eprintln!("libtw2: Wireshark 4.0.4 is ABI-incompatible with the 4.0 series.");
+            eprintln!("libtw2: Use Wireshark 4.0.3 or Wireshark 4.0.5+ instead.");
+            eprintln!("libtw2: https://gitlab.com/wireshark/wireshark/-/issues/18908");
+            eprintln!("libtw2: https://github.com/heinrich5991/libtw2/issues/73");
+            process::abort();
+        }
+    }
     sys::proto_register_plugin(&sys::proto_plugin {
         register_protoinfo: Some(proto_register),
         register_handoff: Some(proto_reg_handoff),
