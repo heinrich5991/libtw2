@@ -2,6 +2,41 @@
 (
 echo "#![allow(bad_style)]"
 bindgen \
+	--allowlist-function '^add_new_data_source$' \
+	--allowlist-function '^col_add_str$' \
+	--allowlist-function '^col_clear$' \
+	--allowlist-function '^col_set_str$' \
+	--allowlist-function '^conversation_set_dissector$' \
+	--allowlist-function '^create_dissector_handle$' \
+	--allowlist-function '^dissector_add_.*$' \
+	--allowlist-function '^find_or_create_conversation$' \
+	--allowlist-function '^heur_dissector_add$' \
+	--allowlist-function '^proto_item_add_subtree$' \
+	--allowlist-function '^proto_item_append_text$' \
+	--allowlist-function '^proto_item_set_text$' \
+	--allowlist-function '^proto_register_field_array$' \
+	--allowlist-function '^proto_register_plugin$' \
+	--allowlist-function '^proto_register_protocol$' \
+	--allowlist-function '^proto_register_subtree_array$' \
+	--allowlist-function '^proto_tree_add_boolean(_format)?$' \
+	--allowlist-function '^proto_tree_add_bytes(_format)?$' \
+	--allowlist-function '^proto_tree_add_bytes_with_length$' \
+	--allowlist-function '^proto_tree_add_float(_format)?$' \
+	--allowlist-function '^proto_tree_add_guid(_format)?$' \
+	--allowlist-function '^proto_tree_add_int(_format)?$' \
+	--allowlist-function '^proto_tree_add_item$' \
+	--allowlist-function '^proto_tree_add_none_format?$' \
+	--allowlist-function '^proto_tree_add_string(_format)?$' \
+	--allowlist-function '^proto_tree_add_uint(_format)?$' \
+	--allowlist-function '^tvb_memcpy$' \
+	--allowlist-function '^tvb_new_child_real_data$' \
+	--allowlist-function '^tvb_new_subset_remaining$' \
+	--allowlist-function '^tvb_reported_length$' \
+	--allowlist-function '^wmem_alloc$' \
+	--allowlist-type '^field_display_e$' \
+	--allowlist-var '^COL_INFO$' \
+	--allowlist-var '^ENC_BIG_ENDIAN$' \
+	--allowlist-var '^ENC_NA$' \
 	--no-prepend-enum-name \
 	--opaque-type 'GByteArray' \
 	--opaque-type 'GHashTable' \
@@ -18,41 +53,6 @@ bindgen \
 	--opaque-type 'wmem_list_t' \
 	--opaque-type 'wtap_pkthdr' \
 	--opaque-type 'wtap_pseudo_header' \
-	--whitelist-function '^add_new_data_source$' \
-	--whitelist-function '^col_add_str$' \
-	--whitelist-function '^col_clear$' \
-	--whitelist-function '^col_set_str$' \
-	--whitelist-function '^conversation_set_dissector$' \
-	--whitelist-function '^create_dissector_handle$' \
-	--whitelist-function '^dissector_add_.*$' \
-	--whitelist-function '^find_or_create_conversation$' \
-	--whitelist-function '^heur_dissector_add$' \
-	--whitelist-function '^proto_item_add_subtree$' \
-	--whitelist-function '^proto_item_append_text$' \
-	--whitelist-function '^proto_item_set_text$' \
-	--whitelist-function '^proto_register_field_array$' \
-	--whitelist-function '^proto_register_plugin$' \
-	--whitelist-function '^proto_register_protocol$' \
-	--whitelist-function '^proto_register_subtree_array$' \
-	--whitelist-function '^proto_tree_add_boolean(_format)?$' \
-	--whitelist-function '^proto_tree_add_bytes(_format)?$' \
-	--whitelist-function '^proto_tree_add_bytes_with_length$' \
-	--whitelist-function '^proto_tree_add_float(_format)?$' \
-	--whitelist-function '^proto_tree_add_guid(_format)?$' \
-	--whitelist-function '^proto_tree_add_int(_format)?$' \
-	--whitelist-function '^proto_tree_add_item$' \
-	--whitelist-function '^proto_tree_add_none_format?$' \
-	--whitelist-function '^proto_tree_add_string(_format)?$' \
-	--whitelist-function '^proto_tree_add_uint(_format)?$' \
-	--whitelist-function '^tvb_memcpy$' \
-	--whitelist-function '^tvb_new_child_real_data$' \
-	--whitelist-function '^tvb_new_subset_remaining$' \
-	--whitelist-function '^tvb_reported_length$' \
-	--whitelist-function '^wmem_alloc$' \
-	--whitelist-type '^field_display_e$' \
-	--whitelist-var '^COL_INFO$' \
-	--whitelist-var '^ENC_BIG_ENDIAN$' \
-	--whitelist-var '^ENC_NA$' \
 	bindgen.h \
 	-- \
 	$(pkg-config wireshark --cflags)
