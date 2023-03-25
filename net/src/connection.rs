@@ -284,8 +284,7 @@ impl OnlineState {
     }
     fn ack_chunks(&mut self, ack: Sequence) {
         let index = self.resend_queue.iter().position(|chunk| chunk.sequence == ack);
-        // FIXME(rust#27788): Replace with `truncate`.
-        index.map(|i| self.resend_queue.drain(i..));
+        index.map(|i| self.resend_queue.truncate(i));
     }
     fn flush<CB: Callback>(&mut self, cb: &mut CB, builder: &mut PacketBuilder)
         -> Result<(), CB::Error>
