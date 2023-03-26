@@ -82,6 +82,9 @@ impl Reader {
     pub fn map_size(&self) -> u32 {
         self.start.header.map_size.assert_u32()
     }
+    pub fn map_data(&self) -> &[u8] {
+        &self.start.map
+    }
     pub fn map_crc(&self) -> u32 {
         self.start.header.map_crc
     }
