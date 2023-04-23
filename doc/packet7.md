@@ -34,7 +34,7 @@ not be set. `flag_control` implies `!flag_compression`.
 
 NOTE: In `packet7_header_connless`, `version` must be set to 1.
 
-    chunk7_header_vital:
+    chunk7_header_nonvital:
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
@@ -44,7 +44,7 @@ NOTE: In `packet7_header_connless`, `version` must be set to 1.
         FFss ssss  PPss ssss
 
 
-    chunk7_header_nonvital:
+    chunk7_header_vital:
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
