@@ -17,7 +17,7 @@ All sizes in bits.
 NOTE: `padding` must be zeroed, it's incorrectly used as part of the `ack`
 field while unpacking in the reference implementation.
 
-    chunk_header_vital:
+    chunk_header_nonvital:
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
@@ -27,7 +27,7 @@ field while unpacking in the reference implementation.
         FFss ssss  PPPP ssss
 
 
-    chunk_header_nonvital:
+    chunk_header_vital:
         [ 1] flag_resend
         [ 1] flag_vital
         [ 6] <----------
