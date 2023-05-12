@@ -7,9 +7,13 @@ use gamenet_common::msg::string_from_int;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use packer::in_range;
+use packer::sanitize;
 use packer::with_packer;
 use std::fmt;
 use super::AddrPacked;
+use super::ClientsData;
+use warn::Panic;
 use warn::Warn;
 use warn::wrap;
 
@@ -68,6 +72,7 @@ pub const LIST: &'static [u8; 8] = b"\xff\xff\xff\xfflis2";
 pub const REQUEST_COUNT: &'static [u8; 8] = b"\xff\xff\xff\xffcou2";
 pub const COUNT: &'static [u8; 8] = b"\xff\xff\xff\xffsiz2";
 pub const REQUEST_INFO: &'static [u8; 8] = b"\xff\xff\xff\xffgie3";
+pub const INFO: &'static [u8; 8] = b"\xff\xff\xff\xffinf3";
 pub const HEARTBEAT: &'static [u8; 8] = b"\xff\xff\xff\xffbea2";
 pub const FORWARD_CHECK: &'static [u8; 8] = b"\xff\xff\xff\xfffw??";
 pub const FORWARD_RESPONSE: &'static [u8; 8] = b"\xff\xff\xff\xfffw!!";
@@ -81,6 +86,7 @@ pub enum Connless<'a> {
     RequestCount(RequestCount),
     Count(Count),
     RequestInfo(RequestInfo),
+    Info(Info<'a>),
     Heartbeat(Heartbeat),
     ForwardCheck(ForwardCheck),
     ForwardResponse(ForwardResponse),
@@ -96,6 +102,7 @@ impl<'a> Connless<'a> {
             REQUEST_COUNT => Connless::RequestCount(RequestCount::decode(warn, _p)?),
             COUNT => Connless::Count(Count::decode(warn, _p)?),
             REQUEST_INFO => Connless::RequestInfo(RequestInfo::decode(warn, _p)?),
+            INFO => Connless::Info(Info::decode(warn, _p)?),
             HEARTBEAT => Connless::Heartbeat(Heartbeat::decode(warn, _p)?),
             FORWARD_CHECK => Connless::ForwardCheck(ForwardCheck::decode(warn, _p)?),
             FORWARD_RESPONSE => Connless::ForwardResponse(ForwardResponse::decode(warn, _p)?),
@@ -111,6 +118,7 @@ impl<'a> Connless<'a> {
             Connless::RequestCount(_) => *REQUEST_COUNT,
             Connless::Count(_) => *COUNT,
             Connless::RequestInfo(_) => *REQUEST_INFO,
+            Connless::Info(_) => *INFO,
             Connless::Heartbeat(_) => *HEARTBEAT,
             Connless::ForwardCheck(_) => *FORWARD_CHECK,
             Connless::ForwardResponse(_) => *FORWARD_RESPONSE,
@@ -125,6 +133,7 @@ impl<'a> Connless<'a> {
             Connless::RequestCount(ref i) => i.encode(p),
             Connless::Count(ref i) => i.encode(p),
             Connless::RequestInfo(ref i) => i.encode(p),
+            Connless::Info(ref i) => i.encode(p),
             Connless::Heartbeat(ref i) => i.encode(p),
             Connless::ForwardCheck(ref i) => i.encode(p),
             Connless::ForwardResponse(ref i) => i.encode(p),
@@ -142,6 +151,7 @@ impl<'a> fmt::Debug for Connless<'a> {
             Connless::RequestCount(ref i) => i.fmt(f),
             Connless::Count(ref i) => i.fmt(f),
             Connless::RequestInfo(ref i) => i.fmt(f),
+            Connless::Info(ref i) => i.fmt(f),
             Connless::Heartbeat(ref i) => i.fmt(f),
             Connless::ForwardCheck(ref i) => i.fmt(f),
             Connless::ForwardResponse(ref i) => i.fmt(f),
@@ -178,6 +188,12 @@ impl<'a> From<Count> for Connless<'a> {
 impl<'a> From<RequestInfo> for Connless<'a> {
     fn from(i: RequestInfo) -> Connless<'a> {
         Connless::RequestInfo(i)
+    }
+}
+
+impl<'a> From<Info<'a>> for Connless<'a> {
+    fn from(i: Info<'a>) -> Connless<'a> {
+        Connless::Info(i)
     }
 }
 
@@ -229,6 +245,23 @@ pub struct Count {
 #[derive(Clone, Copy)]
 pub struct RequestInfo {
     pub token: u8,
+}
+
+#[derive(Clone, Copy)]
+pub struct Info<'a> {
+    pub token: i32,
+    pub version: &'a [u8],
+    pub name: &'a [u8],
+    pub hostname: &'a [u8],
+    pub map: &'a [u8],
+    pub game_type: &'a [u8],
+    pub flags: i32,
+    pub skill_level: i32,
+    pub num_players: i32,
+    pub max_players: i32,
+    pub num_clients: i32,
+    pub max_clients: i32,
+    pub clients: ClientsData<'a>,
 }
 
 #[derive(Clone, Copy)]
@@ -341,6 +374,69 @@ impl fmt::Debug for RequestInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RequestInfo")
             .field("token", &self.token)
+            .finish()
+    }
+}
+
+impl<'a> Info<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
+        let result = Ok(Info {
+            token: _p.read_int(warn)?,
+            version: sanitize(warn, _p.read_string()?)?,
+            name: sanitize(warn, _p.read_string()?)?,
+            hostname: sanitize(warn, _p.read_string()?)?,
+            map: sanitize(warn, _p.read_string()?)?,
+            game_type: sanitize(warn, _p.read_string()?)?,
+            flags: _p.read_int(warn)?,
+            skill_level: in_range(_p.read_int(warn)?, 0, 2)?,
+            num_players: _p.read_int(warn)?,
+            max_players: _p.read_int(warn)?,
+            num_clients: _p.read_int(warn)?,
+            max_clients: _p.read_int(warn)?,
+            clients: ClientsData::from_bytes(_p.read_rest()?),
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        sanitize(&mut Panic, self.version).unwrap();
+        sanitize(&mut Panic, self.name).unwrap();
+        sanitize(&mut Panic, self.hostname).unwrap();
+        sanitize(&mut Panic, self.map).unwrap();
+        sanitize(&mut Panic, self.game_type).unwrap();
+        assert!(0 <= self.skill_level && self.skill_level <= 2);
+        _p.write_int(self.token)?;
+        _p.write_string(self.version)?;
+        _p.write_string(self.name)?;
+        _p.write_string(self.hostname)?;
+        _p.write_string(self.map)?;
+        _p.write_string(self.game_type)?;
+        _p.write_int(self.flags)?;
+        _p.write_int(self.skill_level)?;
+        _p.write_int(self.num_players)?;
+        _p.write_int(self.max_players)?;
+        _p.write_int(self.num_clients)?;
+        _p.write_int(self.max_clients)?;
+        _p.write_rest(self.clients.as_bytes())?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for Info<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Info")
+            .field("token", &self.token)
+            .field("version", &pretty::Bytes::new(&self.version))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("hostname", &pretty::Bytes::new(&self.hostname))
+            .field("map", &pretty::Bytes::new(&self.map))
+            .field("game_type", &pretty::Bytes::new(&self.game_type))
+            .field("flags", &self.flags)
+            .field("skill_level", &self.skill_level)
+            .field("num_players", &self.num_players)
+            .field("max_players", &self.max_players)
+            .field("num_clients", &self.num_clients)
+            .field("max_clients", &self.max_clients)
+            .field("clients", &self.clients)
             .finish()
     }
 }

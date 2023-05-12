@@ -1132,6 +1132,25 @@
 			]
 		},
 		{
+			"id": [255, 255, 255, 255, 105, 110, 102, 51],
+			"name": ["info"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "int32"}},
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["hostname"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["flags"], "type": {"kind": "int32"}},
+				{"name": ["skill", "level"], "type": {"kind": "int32", "min": 0, "max": 2}},
+				{"name": ["num", "players"], "type": {"kind": "int32"}},
+				{"name": ["max", "players"], "type": {"kind": "int32"}},
+				{"name": ["num", "clients"], "type": {"kind": "int32"}},
+				{"name": ["max", "clients"], "type": {"kind": "int32"}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
 			"id": [255, 255, 255, 255, 98, 101, 97, 50],
 			"name": ["heartbeat"],
 			"members": [

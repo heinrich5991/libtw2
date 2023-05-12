@@ -180,6 +180,24 @@ def fix_network(network, version):
                     NetClients("clients"),
                 ]),
             ]
+        if version == VERSION_0_7:
+            network.Connless += [
+                NetConnless("Info", "inf3", [
+                    NetIntAny("token"),
+                    NetStringStrict("version"),
+                    NetStringStrict("name"),
+                    NetStringStrict("hostname"),
+                    NetStringStrict("map"),
+                    NetStringStrict("game_type"),
+                    NetIntAny("flags"),
+                    NetIntRange("skill_level", 0, 2),
+                    NetIntAny("num_players"),
+                    NetIntAny("max_players"),
+                    NetIntAny("num_clients"),
+                    NetIntAny("max_clients"),
+                    NetClients("clients"),
+                ]),
+            ]
         if version in (VERSION_DDNET_15_2_5, VERSION_DDNET_16_2, VERSION_DDNET_16_7_2):
             network.Connless += [
                 NetConnless("InfoExtended", "iext", [
