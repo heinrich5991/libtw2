@@ -18,18 +18,68 @@ use std::fmt::Write;
 use std::fmt;
 use std::slice;
 
+/// Compresses some bytes using the Teeworlds-specific Huffman code into a
+/// given buffer.
+///
+/// # Errors
+///
+/// Returns an error if the given buffer does not have enough capacity for the
+/// compressed bytes.
+pub fn compress_into<'a, B: Buffer<'a>>(input: &[u8], buffer: B)
+    -> Result<&'a [u8], buffer::CapacityError>
+{
+    instances::TEEWORLDS.compress(input, buffer)
+}
+
+/// Compresses some bytes using the Teeworlds-specific Huffman code.
+pub fn compress(input: &[u8]) -> Vec<u8> {
+    instances::TEEWORLDS.compress_into_vec(input)
+}
+
+/// Decompresses some bytes using the Teeworlds-specific Huffman code into a
+/// given buffer.
+///
+/// # Errors
+///
+/// Returns an error if the given bytes aren't a valid compression, or if the
+/// given buffer does not have enough capacity for the uncompressed bytes.
+pub fn decompress_into<'a, B: Buffer<'a>>(input: &[u8], buffer: B)
+    -> Result<&'a [u8], DecompressionError>
+{
+    instances::TEEWORLDS.decompress(input, buffer)
+}
+
+/// Decompresses some bytes using the Teeworlds-specific Huffman code.
+///
+/// # Errors
+///
+/// Returns an error if the given bytes aren't a valid compression, or if the
+/// given buffer does not have enough capacity for the uncompressed bytes.
+pub fn decompress(input: &[u8]) -> Result<Vec<u8>, InvalidInput> {
+    instances::TEEWORLDS.decompress_into_vec(input)
+}
+
+#[doc(hidden)]
 pub mod instances;
 
 const EOF: u16 = 256;
+#[doc(hidden)]
 pub const NUM_SYMBOLS: u16 = EOF + 1;
 const NUM_NODES: usize = NUM_SYMBOLS as usize * 2 - 1;
 const ROOT_IDX: u16 = NUM_NODES as u16 - 1;
+#[doc(hidden)]
 pub const NUM_FREQUENCIES: usize = 256;
 
+#[doc(hidden)]
 pub struct Huffman {
     nodes: [Node; NUM_NODES],
 }
 
+/// Error when decompressing into a given buffer.
+///
+/// Either `Capacity`, which means that the given buffer was too small, or
+/// `InvalidInput` which means that the given bytes weren't a valid
+/// compression.
 #[derive(Debug)]
 pub enum DecompressionError {
     Capacity(buffer::CapacityError),
@@ -48,11 +98,32 @@ impl fmt::Display for DecompressionError {
 
 impl error::Error for DecompressionError {}
 
+/// Error returned when the bytes given for decompression weren't a valid
+/// compression.
+#[derive(Debug)]
+pub struct InvalidInput;
+
+impl fmt::Display for InvalidInput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        "input is not a valid huffman compression".fmt(f)
+    }
+}
+
+impl error::Error for InvalidInput {}
+
+impl From<InvalidInput> for DecompressionError {
+    fn from(InvalidInput: InvalidInput) -> DecompressionError {
+        DecompressionError::InvalidInput
+    }
+}
+
+#[doc(hidden)]
 #[derive(Clone)]
 pub struct Repr<'a> {
     repr: &'a [Node],
 }
 
+#[doc(hidden)]
 #[derive(Clone)]
 pub struct ReprIter<'a> {
     iter: slice::Iter<'a, Node>,
@@ -233,6 +304,13 @@ impl Huffman {
     {
         with_buffer(buffer, |b| self.compress_impl(input, b, false))
     }
+    pub fn compress_into_vec(&self, input: &[u8]) -> Vec<u8> {
+        // At most 3 bytes per symbol, i.e. input byte. Plus EOF symbol.
+        let mut result = Vec::with_capacity(input.len() * 3 + 3);
+        self.compress(input, &mut result).unwrap();
+        result.shrink_to_fit();
+        result
+    }
     pub fn compress_bug<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
         -> Result<&'a [u8], buffer::CapacityError>
     {
@@ -286,6 +364,17 @@ impl Huffman {
         -> Result<&'a [u8], DecompressionError>
     {
         with_buffer(buffer, |b| self.decompress_impl(input, b))
+    }
+    pub fn decompress_into_vec(&self, input: &[u8]) -> Result<Vec<u8>, InvalidInput> {
+        // At most one output byte per input bit.
+        let mut result = Vec::with_capacity(input.len() * 8);
+        match self.decompress(input, &mut result) {
+            Ok(_) => {},
+            Err(DecompressionError::InvalidInput) => return Err(InvalidInput),
+            Err(DecompressionError::Capacity(buffer::CapacityError)) => unreachable!(),
+        }
+        result.shrink_to_fit();
+        Ok(result)
     }
     fn decompress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>)
         -> Result<&'d [u8], DecompressionError>
@@ -346,6 +435,7 @@ struct Node {
     children: [u16; 2],
 }
 
+#[doc(hidden)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct SymbolRepr {
     bits: u32, // u24
