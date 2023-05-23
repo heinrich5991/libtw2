@@ -371,7 +371,10 @@ impl Huffman {
         match self.decompress(input, &mut result) {
             Ok(_) => {},
             Err(DecompressionError::InvalidInput) => return Err(InvalidInput),
-            Err(DecompressionError::Capacity(buffer::CapacityError)) => unreachable!(),
+            // If the buffer does not suffice, it means we have a runaway
+            // decompression.
+            Err(DecompressionError::Capacity(buffer::CapacityError)) =>
+                return Err(InvalidInput),
         }
         result.shrink_to_fit();
         Ok(result)
