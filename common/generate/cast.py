@@ -1,9 +1,8 @@
 from .types import TYPES, formatt, printt
 
 prologue = """\
-use num_traits::ToPrimitive;
+use std::convert::TryInto;
 use std::fmt;
-use unreachable::unreachable;
 
 trait TypeName {
     fn type_name() -> &'static str;
@@ -100,19 +99,19 @@ def print_cast_impl(type, types):
     printt("impl Cast for {type} {{", type)
     for t in types:
         if can_always_represent(t, type):
-            printt("    #[inline] fn {type}(self) -> {type} {{ self.to_{type}().unwrap() }}", t)
+            printt("    #[inline] fn {type}(self) -> {type} {{ self.try_into().ok().unwrap() }}", t)
         else:
-            printt("    #[inline] fn {type}(self) -> {type} {{ unsafe {{ unreachable() }} }}", t)
+            printt("    #[inline] fn {type}(self) -> {type} {{ unreachable!() }}", t)
     for t in types:
         if not can_always_represent(t, type):
-            printt("    #[inline] fn try_{type}(self) -> Option<{type}> {{ self.to_{type}() }}", t)
+            printt("    #[inline] fn try_{type}(self) -> Option<{type}> {{ self.try_into().ok() }}", t)
         else:
-            printt("    #[inline] fn try_{type}(self) -> Option<{type}> {{ unsafe {{ unreachable() }} }}", t)
+            printt("    #[inline] fn try_{type}(self) -> Option<{type}> {{ unreachable!() }}", t)
     for t in types:
         if not can_always_represent(t, type):
-            printt("    #[inline] fn assert_{type}(self) -> {type} {{ unwrap_overflow(self, self.to_{type}()) }}", t)
+            printt("    #[inline] fn assert_{type}(self) -> {type} {{ unwrap_overflow(self, self.try_into().ok()) }}", t)
         else:
-            printt("    #[inline] fn assert_{type}(self) -> {type} {{ unsafe {{ unreachable() }} }}", t)
+            printt("    #[inline] fn assert_{type}(self) -> {type} {{ unreachable!() }}", t)
     print("}")
 
 def print_cast_impls(types):
