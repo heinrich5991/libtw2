@@ -1,0 +1,9 @@
+[project]
+name = "libtw2-huffman"
+
+[project.urls]
+repository = "https://github.com/heinrich5991/libtw2"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0", "libtw2-uniffi-bindgen>=0.2.0,<0.3.0"]
+build-backend = "maturin"

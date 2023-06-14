@@ -1,0 +1,8 @@
+[package]
+name = "uniffi-bindgen"
+version = "0.2.0"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+uniffi = { git = "https://github.com/mozilla/uniffi-rs/", rev = "62979fa0899b74f29db48d715da20ea514e400fe", features = ["cli"] }

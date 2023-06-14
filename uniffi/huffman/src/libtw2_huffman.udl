@@ -1,0 +1,10 @@
+[Error]
+enum DecompressionError {
+    "InvalidInput",
+};
+
+namespace libtw2_huffman {
+    bytes compress([ByRef] bytes input);
+    [Throws = DecompressionError]
+    bytes decompress([ByRef] bytes input);
+};
