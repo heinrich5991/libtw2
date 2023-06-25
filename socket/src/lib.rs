@@ -175,7 +175,7 @@ impl Socket {
 
         fn register(poll: &mut mio::Poll, token: usize, socket: &UdpSocket) -> io::Result<()> {
             use mio::PollOpt;
-            poll.register(socket, Token(token), Ready::readable(), PollOpt::level())
+            poll.register(socket, Token(token), Ready::readable() | Ready::writable(), PollOpt::level())
         }
 
         let addr_v4 = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
@@ -251,7 +251,10 @@ impl Socket {
         // ```
         // on loss-free networks.
         for ev in &self.events {
-            assert!(ev.readiness() == Ready::readable());
+            assert!(ev.readiness().is_readable() || ev.readiness().is_writable());
+            if !ev.readiness().is_readable() {
+                continue;
+            }
             match ev.token() {
                 Token(4) => self.check_v4 = true,
                 Token(6) => self.check_v6 = true,
@@ -286,6 +289,7 @@ impl Callback<Addr> for Socket {
             return Err(io::Error::new(io::ErrorKind::Other,
                                       AddressFamilyNotSupported(())));
         }
+        self.poll.poll(&mut self.events, None)?;
         non_block(socket.send_to(data, &sock_addr))
             .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
             .map(|s| assert!(data.len() == s))
