@@ -554,7 +554,9 @@
 		{
 			"id": 26,
 			"name": ["cl", "is", "ddnet", "legacy"],
-			"members": [],
+			"members": [
+				{"name": ["ddnet", "version"], "type": {"kind": "int32"}}
+			],
 			"attributes": []
 		},
 		{

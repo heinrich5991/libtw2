@@ -701,7 +701,9 @@ pub struct ClCallVote<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct ClIsDdnetLegacy;
+pub struct ClIsDdnetLegacy {
+    pub ddnet_version: i32,
+}
 
 #[derive(Clone, Copy)]
 pub struct SvDdraceTimeLegacy {
@@ -1537,17 +1539,21 @@ impl<'a> fmt::Debug for ClCallVote<'a> {
 
 impl ClIsDdnetLegacy {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClIsDdnetLegacy, Error> {
-        let result = Ok(ClIsDdnetLegacy);
+        let result = Ok(ClIsDdnetLegacy {
+            ddnet_version: _p.read_int(warn)?,
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.ddnet_version)?;
         Ok(_p.written())
     }
 }
 impl fmt::Debug for ClIsDdnetLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ClIsDdnetLegacy")
+            .field("ddnet_version", &self.ddnet_version)
             .finish()
     }
 }

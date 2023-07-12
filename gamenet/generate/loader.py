@@ -137,12 +137,13 @@ def fix_network(network, version):
     TUNE_PARAMS = ("sv", "tune", "params")
     EXTRA_PROJECTILE = ("sv", "extra", "projectile")
     IS_DDNET = ("cl", "is", "ddnet")
+    IS_DDNET_LEGACY = ("cl", "is", "ddnet", "legacy")
     for i in range(len(network.Messages)):
         if network.Messages[i].name == TUNE_PARAMS:
             network.Messages[i] = NetMessage("SvTuneParams", [NetTuneParam(n) for n in TUNE_PARAM_NAMES[version]])
         elif network.Messages[i].name == EXTRA_PROJECTILE:
             network.Messages[i].values.append(NetObjectMember("projectile", ("projectile",)))
-        elif network.Messages[i].name == IS_DDNET:
+        elif network.Messages[i].name in (IS_DDNET, IS_DDNET_LEGACY):
             network.Messages[i].values.append(NetIntAny("ddnet_version"))
     extra_msg_generation = set(v.type_name for m in network.Messages + network.System for v in m.values if isinstance(v, NetObjectMember))
     for i in range(len(network.Objects)):
