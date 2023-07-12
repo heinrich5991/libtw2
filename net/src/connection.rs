@@ -903,7 +903,7 @@ mod test {
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
-        assert!(&packet == b"\x10\x00\x00\x02\x12\x34\x56\x78");
+        assert!(&packet == b"\x10\x00\x00\x02TKEN\x12\x34\x56\x78");
 
         // Accept
         assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()

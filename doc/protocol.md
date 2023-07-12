@@ -166,11 +166,12 @@ because it requires computational overhead before a packet can be validated.
 
 In the `connect` packet, since the token isn't known at that time (the server
 decides on which token to use), it is set to the all-ones token. The `connect`
-packet is additionally special in the sense that it is used to signal support
-for the DDNet token extension.
+and `connectaccept` packets are additionally special in the sense that they are
+used to signal support for the DDNet token extension.
 
-    packet_control_connect_ddnet:
+    packet_control_connect_connectaccept_ddnet:
         [24] packet_header
+        [ 8] control_message
         [32] token_magic
         [32] token
 

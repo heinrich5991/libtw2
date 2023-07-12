@@ -45,7 +45,7 @@ pub const TOKEN_NONE:     Token = Token([0xff, 0xff, 0xff, 0xff]);
 pub const TOKEN_RESERVED: Token = Token([0x00, 0x00, 0x00, 0x00]);
 
 pub const CTRLMSG_CLOSE_REASON_LENGTH: usize = 127;
-pub const CTRLMSG_CONNECT_TOKEN_MAGIC: &[u8; 4] = b"TKEN";
+pub const CTRLMSG_TOKEN_MAGIC: &[u8; 4] = b"TKEN";
 pub const CHUNK_FLAGS_BITS: u32 = 2;
 pub const CHUNK_SIZE_BITS: u32 = 10;
 pub const PACKET_FLAGS_BITS: u32 = 4;
@@ -308,8 +308,8 @@ fn has_token_heuristic(control: bool, num_chunks: u8, payload: &[u8]) -> bool {
     let payload_end_heuristic = if control {
         let (&control, payload) = unwrap_or_return!(payload.split_first(), false);
         match control {
-            CTRLMSG_CONNECT => {
-                if payload.len() < 4 || &payload[0..4] != CTRLMSG_CONNECT_TOKEN_MAGIC {
+            CTRLMSG_CONNECT | CTRLMSG_CONNECTACCEPT => {
+                if payload.len() < 4 || &payload[0..4] != CTRLMSG_TOKEN_MAGIC {
                     return false;
                 }
                 1 + 4
@@ -475,18 +475,16 @@ impl<'a> Packet<'a> {
 
             let (&control, payload) = unwrap_or_return!(payload.split_first(),
                                                         Err(ControlMissing));
-            if control != CTRLMSG_CLOSE && control != CTRLMSG_CONNECT && payload.len() != 0 {
-                warn.warn(Warning::ControlExcessData);
-            }
-            if control == CTRLMSG_CONNECT {
-                if token.is_some() {
-                    if !payload.starts_with(CTRLMSG_CONNECT_TOKEN_MAGIC) {
+            // check for excess data
+            match control {
+                CTRLMSG_CONNECT | CTRLMSG_CONNECTACCEPT => if token.is_some() {
+                    if !payload.starts_with(CTRLMSG_TOKEN_MAGIC) {
                         warn.warn(Warning::ControlConnectMissingTokenMagic);
                         if !payload.is_empty() {
                             warn.warn(Warning::ControlExcessData);
                         }
                     } else {
-                        if payload.len() > CTRLMSG_CONNECT_TOKEN_MAGIC.len() {
+                        if payload.len() > CTRLMSG_TOKEN_MAGIC.len() {
                             warn.warn(Warning::ControlExcessData);
                         }
                     }
@@ -494,6 +492,10 @@ impl<'a> Packet<'a> {
                     if !payload.is_empty() {
                         warn.warn(Warning::ControlExcessData);
                     }
+                }
+                CTRLMSG_CLOSE => {}, // handled later
+                _ => if payload.len() != 0 {
+                    warn.warn(Warning::ControlExcessData);
                 }
             }
             let control = match control {
@@ -657,8 +659,8 @@ impl<'a> ControlPacket<'a> {
             ControlPacket::Close(..) => CTRLMSG_CLOSE,
         };
         buffer.write(&[magic])?;
-        if matches!(*self, ControlPacket::Connect) && token.is_some() {
-            buffer.write(CTRLMSG_CONNECT_TOKEN_MAGIC)?;
+        if matches!(*self, ControlPacket::Connect | ControlPacket::ConnectAccept) && token.is_some() {
+            buffer.write(CTRLMSG_TOKEN_MAGIC)?;
         }
         match *self {
             ControlPacket::Close(m) => {

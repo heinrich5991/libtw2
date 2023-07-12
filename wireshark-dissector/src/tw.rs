@@ -309,7 +309,7 @@ unsafe fn dissect_impl(
                 ctrl_raw,
             );
             match ctrl {
-                Connect => {
+                Connect | ConnectAccept => {
                     if token.is_some() {
                         field_none!(tree, HF_PACKET_TOKEN_MAGIC, 1, 4,
                             "Magic bytes for DDNet token protocol: \"TKEN\"",
