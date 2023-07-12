@@ -40,6 +40,8 @@ static mut HF_PACKET_REQUEST_RESEND: c_int = -1;
 static mut HF_PACKET_COMPRESSION: c_int = -1;
 static mut HF_PACKET_ACK: c_int = -1;
 static mut HF_PACKET_NUM_CHUNKS: c_int = -1;
+static mut HF_PACKET_TOKEN_MAGIC: c_int = -1;
+static mut HF_PACKET_TOKEN: c_int = -1;
 static mut HF_PACKET_CTRL: c_int = -1;
 static mut HF_PACKET_CTRL_CLOSE_REASON: c_int = -1;
 static mut HF_PACKET_PAYLOAD: c_int = -1;
@@ -83,12 +85,13 @@ unsafe fn dissect_heur_impl(
     let data: &[u8] = &original_buffer;
 
     let mut warnings = Counter::new();
-    let packet = protocol::Packet::read(&mut warnings, data, &mut decompress_buffer).map_err(|_| ())?;
+    let packet = protocol::Packet::read(&mut warnings, data, None, &mut decompress_buffer).map_err(|_| ())?;
     if !warnings.is_empty() {
         return Err(());
     }
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
+            token: _,
             ack: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
@@ -271,10 +274,22 @@ unsafe fn dissect_impl(
     tvb = sys::tvb_new_subset_remaining(tvb, header_size);
 
     let mut buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
-    let packet = protocol::Packet::read(&mut Ignore, data, &mut buffer).map_err(|_| ())?;
+    let packet = protocol::Packet::read(&mut Ignore, data, None, &mut buffer).map_err(|_| ())?;
+
+    if let protocol::Packet::Connected(protocol::ConnectedPacket {
+        token: Some(token),
+        ..
+    }) = packet {
+        let end = data.len().assert_i32() - 3;
+        field_uint!(tree, HF_PACKET_TOKEN, end - 4, 4, u32::from_be_bytes(token.0),
+            "Token: {}",
+            token,
+        );
+    }
 
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
+            token,
             ack: _,
             type_: protocol::ConnectedPacketType::Control(ctrl),
         }) => {
@@ -293,17 +308,28 @@ unsafe fn dissect_impl(
                 ctrl_str,
                 ctrl_raw,
             );
-            if let Close(reason) = ctrl {
-                let reason_cstring = CString::new(reason).unwrap();
-                field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
-                    reason_cstring.as_ptr(),
-                    "Reason: {:?}",
-                    pretty::AlmostString::new(reason),
-                );
+            match ctrl {
+                Connect => {
+                    if token.is_some() {
+                        field_none!(tree, HF_PACKET_TOKEN_MAGIC, 1, 4,
+                            "Magic bytes for DDNet token protocol: \"TKEN\"",
+                        );
+                    }
+                }
+                Close(reason) => {
+                    let reason_cstring = CString::new(reason).unwrap();
+                    field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
+                        reason_cstring.as_ptr(),
+                        "Reason: {:?}",
+                        pretty::AlmostString::new(reason),
+                    );
+                }
+                _ => {}
             }
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, c(ctrl_id));
         },
         protocol::Packet::Connected(protocol::ConnectedPacket {
+            token: _,
             ack: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
@@ -490,6 +516,25 @@ pub unsafe extern "C" fn proto_register() {
                 abbrev: c("tw.packet.num_chunks\0"),
                 type_: sys::FT_UINT8,
                 display: sys::BASE_DEC as c_int,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_PACKET_TOKEN_MAGIC as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: c("Magic bytes for DDNet token protocol\0"),
+                abbrev: c("tw.packet.token_magic\0"),
+                type_: sys::FT_NONE,
+                ..HFRI_DEFAULT
+            },
+        },
+        sys::hf_register_info {
+            p_id: &HF_PACKET_TOKEN as *const _ as *mut _,
+            hfinfo: sys::_header_field_info {
+                name: c("Token\0"),
+                abbrev: c("tw.packet.token\0"),
+                type_: sys::FT_UINT32,
+                display: sys::BASE_HEX as c_int,
                 ..HFRI_DEFAULT
             },
         },

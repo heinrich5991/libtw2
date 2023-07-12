@@ -116,6 +116,12 @@ impl fmt::Debug for Token {
     }
 }
 
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
 impl<'a> Packet<'a> {
     fn needs_decompression(packet: &[u8]) -> bool {
         if packet.len() > MAX_PACKETSIZE {

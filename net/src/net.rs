@@ -25,6 +25,7 @@ pub use connection::Error;
 
 pub trait Callback<A: Address> {
     type Error;
+    fn secure_random(&mut self, buffer: &mut [u8]);
     fn send(&mut self, addr: A, data: &[u8]) -> Result<(), Self::Error>;
     fn time(&mut self) -> Timestamp;
 }
@@ -70,18 +71,25 @@ impl fmt::Display for PeerId {
     }
 }
 
-const CONNECT_PACKET: &'static [u8; 4] = b"\x10\x00\x00\x01";
+const CONNECT_PACKET: &'static [u8; 12] = b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff";
+const CONNECT_PACKET_NO_TOKEN: &'static [u8; 4] = b"\x10\x00\x00\x01";
 
 struct Peer<A: Address> {
     conn: Connection,
     addr: A,
+    /// This flag says whether the incoming connection had indicated token
+    /// support.
+    ///
+    /// DDNet token support is unfortunately kind of hacked in.
+    token: bool,
 }
 
 impl<A: Address> Peer<A> {
-    fn new(addr: A) -> Peer<A> {
+    fn new(addr: A, token: bool) -> Peer<A> {
         Peer {
             conn: Connection::new(),
             addr: addr,
+            token: token,
         }
     }
 }
@@ -98,14 +106,14 @@ impl<A: Address> Peers<A> {
             next_peer_id: PeerId(0),
         }
     }
-    fn new_peer(&mut self, addr: A) -> (PeerId, &mut Peer<A>) {
+    fn new_peer(&mut self, addr: A, token: bool) -> (PeerId, &mut Peer<A>) {
         // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
         let raw_self: *mut Peers<A> = self;
         unsafe {
             loop {
                 let peer_id = self.next_peer_id.get_and_increment();
                 if let peer_map::Entry::Vacant(v) = (*raw_self).peers.entry(peer_id) {
-                    return (peer_id, v.insert(Peer::new(addr)));
+                    return (peer_id, v.insert(Peer::new(addr, token)));
                 }
             }
         }
@@ -186,7 +194,7 @@ impl ConnlessBuilder {
     fn send<A: Address, CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, packet: Packet)
         -> Result<(), Error<CB::Error>>
     {
-        let send_data = match packet.write(&mut [0u8; 0][..], &mut self.buffer[..]) {
+        let send_data = match packet.write(&mut self.buffer[..]) {
             Ok(d) => d,
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
             Err(protocol::Error::TooLongData) => return Err(Error::TooLongData),
@@ -349,6 +357,9 @@ fn wp<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A, pid: PeerId)
 
 impl<'a, A: Address, CB: Callback<A>> connection::Callback for ConnectionCallback<'a, A, CB> {
     type Error = CB::Error;
+    fn secure_random(&mut self, buffer: &mut [u8]) {
+        self.cb.secure_random(buffer)
+    }
     fn send(&mut self, data: &[u8]) -> Result<(), CB::Error> {
         self.cb.send(self.addr, data)
     }
@@ -384,7 +395,7 @@ impl<A: Address> Net<A> {
     pub fn connect<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A)
         -> (PeerId, Result<(), CB::Error>)
     {
-        let (pid, peer) = self.peers.new_peer(addr);
+        let (pid, peer) = self.peers.new_peer(addr, false);
         (pid, peer.conn.connect(&mut cc(cb, peer.addr)))
     }
     pub fn disconnect<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId, reason: &[u8])
@@ -425,8 +436,13 @@ impl<A: Address> Net<A> {
         let peer = &mut self.peers[pid];
         assert!(peer.conn.is_unconnected());
         let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
+        let connect_packet: &[u8] = if peer.token {
+            CONNECT_PACKET
+        } else {
+            CONNECT_PACKET_NO_TOKEN
+        };
         let (mut none, res) =
-            peer.conn.feed(&mut cc(cb, peer.addr), &mut Panic, CONNECT_PACKET, &mut buf);
+            peer.conn.feed(&mut cc(cb, peer.addr), &mut Panic, connect_packet, &mut buf);
         assert!(none.next().is_none());
         res
     }
@@ -467,7 +483,7 @@ impl<A: Address> Net<A> {
             let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), &mut wp(warn, addr, pid), data, &mut buf);
             (ReceivePacket::connected(addr, pid, packet, self), e)
         } else {
-            let packet = match Packet::read(&mut w(warn, addr), data, &mut buf) {
+            let packet = match Packet::read(&mut w(warn, addr), data, None, &mut buf) {
                 Ok(p) => p,
                 Err(e) => {
                     w(warn, addr).warn(connection::Warning::Read(e));
@@ -477,11 +493,13 @@ impl<A: Address> Net<A> {
             if let Packet::Connless(d) = packet {
                 (ReceivePacket::connless(addr, d), Ok(()))
             } else if let Packet::Connected(ConnectedPacket {
+                    token,
                     type_: ConnectedPacketType::Control(ControlPacket::Connect), ..
                 }) = packet
             {
                 if self.accept_connections {
-                    let (pid, _) = self.peers.new_peer(addr);
+                    // TODO: This is vulnerable to IP spoofing.
+                    let (pid, _) = self.peers.new_peer(addr, token.is_some());
                     (ReceivePacket::connect(pid), Ok(()))
                 } else {
                     w(warn, addr).warn(connection::Warning::Unexpected);
@@ -547,6 +565,15 @@ mod test {
         }
         impl Callback<Address> for Cb {
             type Error = Void;
+            fn secure_random(&mut self, buffer: &mut [u8]) {
+                if buffer.len() != 4 {
+                    unimplemented!();
+                }
+                buffer[0] = 0x12;
+                buffer[1] = 0x34;
+                buffer[2] = 0x56;
+                buffer[3] = 0x78;
+            }
             fn send(&mut self, addr: Address, data: &[u8]) -> Result<(), Void> {
                 assert!(self.recipient == addr);
                 self.packets.push_back(data.to_owned());

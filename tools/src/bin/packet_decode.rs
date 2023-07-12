@@ -35,7 +35,7 @@ fn main() {
 
     println!("packet");
     hexdump(&bytes);
-    let p = match Packet::read(&mut Stdout, &bytes, &mut buf) {
+    let p = match Packet::read(&mut Stdout, &bytes, None, &mut buf) {
         Err(e) => {
             println!("ERROR: {:?}", e);
             return;
@@ -58,6 +58,10 @@ fn main() {
         },
         Packet::Connected(cp) => cp,
     };
+
+    if let Some(token) = cp.token {
+        println!("token={}", token);
+    }
 
     let (request_resend, num_chunks, payload) = match cp.type_ {
         ConnectedPacketType::Control(control) => {

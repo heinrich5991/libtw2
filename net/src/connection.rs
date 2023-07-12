@@ -11,6 +11,8 @@ use protocol::ControlPacket;
 use protocol::MAX_PACKETSIZE;
 use protocol::MAX_PAYLOAD;
 use protocol::Packet;
+use protocol::TOKEN_NONE;
+use protocol::Token;
 use protocol;
 use std::cmp;
 use std::collections::VecDeque;
@@ -23,6 +25,7 @@ use warn::Warn;
 
 pub trait Callback {
     type Error;
+    fn secure_random(&mut self, buffer: &mut [u8]);
     fn send(&mut self, buffer: &[u8]) -> Result<(), Self::Error>;
     fn time(&mut self) -> Timestamp;
 }
@@ -52,6 +55,7 @@ impl<CE> Error<CE> {
 pub enum Warning {
     Packet(protocol::Warning),
     Read(protocol::PacketReadError),
+    TokenMismatch,
     Unexpected,
 }
 
@@ -87,7 +91,7 @@ pub struct Connection {
 enum State {
     Unconnected,
     Connecting,
-    Pending,
+    Pending(PendingState),
     Online(OnlineState),
     Disconnected,
 }
@@ -97,6 +101,15 @@ impl State {
         match *self {
             State::Online(ref mut s) => s,
             _ => panic!("state not online"),
+        }
+    }
+    pub fn token(&self) -> Option<&Option<Token>> {
+        match *self {
+            State::Unconnected => None,
+            State::Connecting => None,
+            State::Pending(ref pending) => Some(&pending.token),
+            State::Online(ref online) => Some(&online.token),
+            State::Disconnected => None,
         }
     }
 }
@@ -253,7 +266,25 @@ pub enum ReceiveChunk<'a> {
 }
 
 #[derive(Clone, Debug)]
+struct PendingState {
+    // `token`, if present, is included in every message from and to the peer
+    // in order to protect against IP spoofing.
+    token: Option<Token>,
+}
+
+impl PendingState {
+    fn new(token: Option<Token>) -> PendingState {
+        PendingState {
+            token: token,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct OnlineState {
+    // `token`, if present, is included in every message from and to the peer
+    // in order to protect against IP spoofing.
+    token: Option<Token>,
     // `ack` is the vital chunk from the peer we want to acknowledge.
     ack: Sequence,
     // `sequence` is the vital chunk from us that the peer acknowledged.
@@ -269,8 +300,9 @@ struct OnlineState {
 }
 
 impl OnlineState {
-    fn new() -> OnlineState {
+    fn new(token: Option<Token>) -> OnlineState {
         OnlineState {
+            token: token,
             ack: Sequence::new(),
             sequence: Sequence::new(),
             request_resend: false,
@@ -293,6 +325,7 @@ impl OnlineState {
             return Ok(());
         }
         let result = builder.send(cb, Packet::Connected(ConnectedPacket {
+            token: self.token,
             ack: self.ack.to_u16(),
             type_: ConnectedPacketType::Chunks(
                 self.request_resend,
@@ -389,21 +422,19 @@ impl Sequence {
 }
 
 struct PacketBuilder {
-    compression_buffer: [u8; MAX_PACKETSIZE],
     buffer: [u8; MAX_PACKETSIZE],
 }
 
 impl PacketBuilder {
     fn new() -> PacketBuilder {
         PacketBuilder {
-            compression_buffer: [0; MAX_PACKETSIZE],
             buffer: [0; MAX_PACKETSIZE],
         }
     }
     fn send<CB: Callback>(&mut self, cb: &mut CB, packet: Packet)
         -> Result<(), Error<CB::Error>>
     {
-        let data = match packet.write(&mut self.compression_buffer[..], &mut self.buffer[..]) {
+        let data = match packet.write(&mut self.buffer[..]) {
             Ok(d) => d,
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
             Err(protocol::Error::TooLongData) => return Err(Error::TooLongData),
@@ -549,7 +580,16 @@ impl Connection {
             State::Online(ref mut online) => online.ack.to_u16(),
             _ => 0,
         };
+        let token = match self.state {
+            State::Unconnected => unreachable!(),
+            // Signal support for the token protocol.
+            State::Connecting => Some(TOKEN_NONE),
+            State::Pending(ref pending) => pending.token,
+            State::Online(ref online) => online.token,
+            State::Disconnected => unreachable!(),
+        };
         self.builder.send(cb, Packet::Connected(ConnectedPacket {
+            token: token,
             ack: ack,
             type_: ConnectedPacketType::Control(control),
         })).map_err(|e| e.unwrap_callback())
@@ -577,7 +617,7 @@ impl Connection {
     fn tick_action<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         let control = match self.state {
             State::Connecting => ControlPacket::Connect,
-            State::Pending => ControlPacket::ConnectAccept,
+            State::Pending(_) => ControlPacket::ConnectAccept,
             State::Online(ref mut online) => {
                 if online.can_send() {
                     // TODO: Warn if this happens on reliable networks.
@@ -613,7 +653,8 @@ impl Connection {
             use protocol::ConnectedPacketType::*;
             use protocol::ControlPacket::*;
 
-            let packet = match Packet::read(&mut w(warn), data, &mut buffer) {
+            let token_hint = self.state.token().map(|t| t.is_some());
+            let packet = match Packet::read(&mut w(warn), data, token_hint, &mut buffer) {
                 Ok(p) => p,
                 Err(e) => {
                     warn.warn(Warning::Read(e));
@@ -625,7 +666,17 @@ impl Connection {
                 Packet::Connless(data) => return (ReceivePacket::connless(data), Ok(())),
                 Packet::Connected(c) => c,
             };
-            let ConnectedPacket { ack, type_ } = connected;
+            let ConnectedPacket { token, ack, type_ } = connected;
+
+            // If we're in a state where we know whether the other side uses
+            // tokens and which token they use, make sure it matches.
+            if let Some(&expected_token) = self.state.token() {
+                if token != expected_token {
+                    warn.warn(Warning::TokenMismatch);
+                    return none;
+                }
+            }
+
             // TODO: Check ack for sanity.
             if let State::Online(ref mut online) = self.state {
                 online.ack_chunks(Sequence::from_u16(ack));
@@ -634,8 +685,8 @@ impl Connection {
             match type_ {
                 Chunks(request_resend, num_chunks, chunks) => {
                     let _ = num_chunks;
-                    if let State::Pending = self.state {
-                        self.state = State::Online(OnlineState::new());
+                    if let State::Pending(ref pending) = self.state {
+                        self.state = State::Online(OnlineState::new(pending.token));
                     }
                     let result;
                     if request_resend {
@@ -651,7 +702,7 @@ impl Connection {
                         State::Online(ref mut online) => {
                             return (ReceivePacket::connected(warn, online, num_chunks, chunks), result);
                         }
-                        State::Pending => unreachable!(),
+                        State::Pending(_) => unreachable!(),
                         // WARN: packet received while not online.
                         _ => return none,
                     }
@@ -659,7 +710,13 @@ impl Connection {
                 Control(KeepAlive) => return none,
                 Control(Connect) => {
                     if let State::Unconnected = self.state {
-                        self.state = State::Pending;
+                        let new_token = match token {
+                            None => None,
+                            Some(TOKEN_NONE) => Some(Token::random(|b| cb.secure_random(b))),
+                            // Ignore invalid tokens.
+                            Some(_) => return none,
+                        };
+                        self.state = State::Pending(PendingState::new(new_token));
                         // Fall through to tick.
                     } else {
                         return none;
@@ -667,7 +724,7 @@ impl Connection {
                 }
                 Control(ConnectAccept) => {
                     if let State::Connecting = self.state {
-                        self.state = State::Online(OnlineState::new());
+                        self.state = State::Online(OnlineState::new(token));
                         return (ReceivePacket::ready(), self.send_control(cb, ControlPacket::Accept));
                     } else {
                         return none;
@@ -722,11 +779,15 @@ mod test {
     }
 
     #[test]
-    fn establish_connection() {
+    fn establish_connection_no_token() {
         struct Cb(VecDeque<Vec<u8>>);
         impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
         impl Callback for Cb {
             type Error = Void;
+            fn secure_random(&mut self, buffer: &mut [u8]) {
+                let _ = buffer;
+                unimplemented!();
+            }
             fn send(&mut self, data: &[u8]) -> Result<(), Void> {
                 self.0.push_back(data.to_owned());
                 Ok(())
@@ -748,7 +809,9 @@ mod test {
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
-        assert!(&packet == b"\x10\x00\x00\x01");
+        assert!(&packet == b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff");
+        // Simulate that the token protocol is not supported.
+        let packet = *b"\x10\x00\x00\x01";
 
         // ConnectAccept
         assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
@@ -789,6 +852,91 @@ mod test {
         let packet = cb.0.pop_front().unwrap();
         hexdump(&packet);
         assert!(&packet == b"\x10\x01\x00\x0442\0");
+
+        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]);
+
+        client.reset();
+        server.reset();
+    }
+
+    #[test]
+    fn establish_connection() {
+        struct Cb(VecDeque<Vec<u8>>);
+        impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
+        impl Callback for Cb {
+            type Error = Void;
+            fn secure_random(&mut self, buffer: &mut [u8]) {
+                if buffer.len() != 4 {
+                    unimplemented!();
+                }
+                buffer[0] = 0x12;
+                buffer[1] = 0x34;
+                buffer[2] = 0x56;
+                buffer[3] = 0x78;
+            }
+            fn send(&mut self, data: &[u8]) -> Result<(), Void> {
+                self.0.push_back(data.to_owned());
+                Ok(())
+            }
+            fn time(&mut self) -> Timestamp {
+                Timestamp::from_secs_since_epoch(0)
+            }
+        }
+        let mut buffer = [0; protocol::MAX_PACKETSIZE];
+        let mut cb = Cb::new();
+        let cb = &mut cb;
+        println!("");
+
+        let mut client = Connection::new();
+        let mut server = Connection::new();
+
+        // Connect
+        client.connect(cb).void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff");
+
+        // ConnectAccept
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x02\x12\x34\x56\x78");
+
+        // Accept
+        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Ready]);
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x03\x12\x34\x56\x78");
+
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(cb.0.is_empty());
+
+        // Send
+        client.send(cb, b"\x42", true).unwrap();
+        assert!(cb.0.is_empty());
+
+        // Flush
+        client.flush(cb).void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42\x12\x34\x56\x78");
+
+        // Receive
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Connected(b"\x42", true)]);
+        assert!(cb.0.is_empty());
+
+        // Disconnect
+        server.disconnect(cb, b"42").void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x01\x00\x0442\0\x12\x34\x56\x78");
 
         assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
                 == &[ReceiveChunk::Disconnect(b"42")]);

@@ -21,6 +21,8 @@ use mio::net::UdpSocket;
 use net2::UdpBuilder;
 use net::Timestamp;
 use net::net::Callback;
+use rand::RngCore as _;
+use rand::thread_rng;
 use std::error;
 use std::fmt;
 use std::io;
@@ -268,6 +270,9 @@ impl Socket {
 
 impl Callback<Addr> for Socket {
     type Error = io::Error;
+    fn secure_random(&mut self, buffer: &mut [u8]) {
+        thread_rng().fill_bytes(buffer)
+    }
     fn send(&mut self, addr: Addr, data: &[u8]) -> Result<(), io::Error> {
         if self.loss() {
             return Ok(());

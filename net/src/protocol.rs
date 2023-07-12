@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::with_buffer;
@@ -7,7 +8,9 @@ use common::pretty;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
 use std::cmp;
+use std::io::Write as _;
 use std::fmt;
+use std::str;
 use warn::Ignore;
 use warn::Warn;
 
@@ -16,12 +19,13 @@ pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
 pub const HEADER_SIZE: usize = 3;
 pub const MAX_PACKETSIZE: usize = 1400;
 pub const PADDING_SIZE_CONNLESS: usize = 3;
+pub const TOKEN_SIZE: usize = 4;
 
 // For connectionless packets, this is obvious (MAX_PACKETSIZE - HEADER_SIZE -
 // PADDING_SIZE_CONNLESS). For packets sent in a connection context, you also
 // get a chunk header which replaces the connless padding (it's also 3 bytes
-// long).
-pub const MAX_PAYLOAD: usize = 1394;
+// long), but here, we get a 4-byte token as well.
+pub const MAX_PAYLOAD: usize = 1390;
 
 pub const PACKETFLAG_CONTROL:        u8 = 1 << 0;
 pub const PACKETFLAG_CONNLESS:       u8 = 1 << 1;
@@ -37,7 +41,11 @@ pub const CTRLMSG_CONNECTACCEPT: u8 = 2;
 pub const CTRLMSG_ACCEPT:        u8 = 3;
 pub const CTRLMSG_CLOSE:         u8 = 4;
 
+pub const TOKEN_NONE:     Token = Token([0xff, 0xff, 0xff, 0xff]);
+pub const TOKEN_RESERVED: Token = Token([0x00, 0x00, 0x00, 0x00]);
+
 pub const CTRLMSG_CLOSE_REASON_LENGTH: usize = 127;
+pub const CTRLMSG_CONNECT_TOKEN_MAGIC: &[u8; 4] = b"TKEN";
 pub const CHUNK_FLAGS_BITS: u32 = 2;
 pub const CHUNK_SIZE_BITS: u32 = 10;
 pub const PACKET_FLAGS_BITS: u32 = 4;
@@ -72,6 +80,7 @@ pub enum Warning {
     ChunksNumChunks,
     ChunksUnknownData,
     ConnlessPadding,
+    ControlConnectMissingTokenMagic,
     ControlExcessData,
     ControlFlags,
     ControlNulTermination,
@@ -84,6 +93,7 @@ pub enum PacketReadError {
     Compression,
     ControlMissing,
     ShortConnless,
+    TokenMissing,
     TooLong,
     TooShort,
     UnknownControl,
@@ -111,9 +121,37 @@ impl<'a> fmt::Debug for ControlPacket<'a> {
     }
 }
 
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Token(pub [u8; TOKEN_SIZE]);
+
+impl fmt::Debug for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:08x}", u32::from_be_bytes(self.0))
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl Token {
+    pub fn random<F: FnMut(&mut [u8])>(mut f: F) -> Token {
+        loop {
+            let mut token = TOKEN_NONE;
+            f(&mut token.0);
+            if token != TOKEN_NONE && token != TOKEN_RESERVED {
+                return token;
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct ConnectedPacket<'a> {
     pub ack: u16, // u10
+    pub token: Option<Token>,
     pub type_: ConnectedPacketType<'a>,
 }
 
@@ -172,10 +210,6 @@ impl<'a> ChunksIter<'a> {
                     warn.warn(Warning::ChunksNumChunks);
                 }
             }
-            return None;
-        }
-        if self.data.len() == 4 && self.num_remaining_chunks == 0 {
-            // DDNet token.
             return None;
         }
         let (header, sequence, chunk_data_and_rest) = unwrap_or_return!(
@@ -270,7 +304,69 @@ fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B)
     with_buffer(buffer, |b| inner(bytes, b))
 }
 
+fn has_token_heuristic(control: bool, num_chunks: u8, payload: &[u8]) -> bool {
+    let payload_end_heuristic = if control {
+        let (&control, payload) = unwrap_or_return!(payload.split_first(), false);
+        match control {
+            CTRLMSG_CONNECT => {
+                if payload.len() < 4 || &payload[0..4] != CTRLMSG_CONNECT_TOKEN_MAGIC {
+                    return false;
+                }
+                1 + 4
+            }
+            CTRLMSG_CLOSE => {
+                let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
+                // 4-byte payloads are ambiguous. It might either be a 3-byte
+                // reason with nul byte or a 0-byte reason with a 4-byte token.
+                //
+                // Heuristically, we check whether it can realistically be a
+                // 3-byte reason with nul byte, by checking whether it decodes
+                // as UTF-8. This gives a probability 2650112 / 256**4 ≈
+                // 0.0006 of a false-positive.
+                //
+                // ```
+                // >>> def d(s):
+                // ...     try:
+                // ...         s.decode("utf-8")
+                // ...         return True
+                // ...     except UnicodeDecodeError:
+                // ...         return False
+                // ...
+                // >>> sum(d(i.to_bytes(3, 'big')) for i in range(256**3))
+                // 2650112
+                // ```
+                if payload.len() == 4 && (nul != 3 || str::from_utf8(&payload[0..3]).is_err()) {
+                    return true;
+                }
+                1 + nul + 1
+            }
+            _ => 1,
+        }
+    } else {
+        let mut chunks_iter = ChunksIter::new(payload, num_chunks);
+        for _ in 0..num_chunks {
+            if chunks_iter.next_warn(&mut Ignore).is_none() {
+                return false;
+            }
+        }
+        chunks_iter.pos()
+    };
+    payload_end_heuristic + TOKEN_SIZE <= payload.len()
+}
+
 impl<'a> Packet<'a> {
+    pub fn is_connect(packet: &[u8]) -> bool {
+        if packet.len() > MAX_PACKETSIZE {
+            return false;
+        }
+        let (header, payload) = unwrap_or_return!(
+            PacketHeaderPacked::from_byte_slice(packet),
+            false
+        );
+        let header = header.unpack_warn(&mut Ignore);
+        header.flags & !PACKETFLAG_REQUEST_RESEND == PACKETFLAG_CONTROL &&
+            payload.first().copied() == Some(CTRLMSG_CONNECT)
+    }
     fn needs_decompression(packet: &[u8]) -> bool {
         if packet.len() > MAX_PACKETSIZE {
             return false;
@@ -285,23 +381,29 @@ impl<'a> Packet<'a> {
     }
     /// Parse a packet.
     ///
+    /// `token_hint` tells the decoder whether to expect a DDNet 0.6-style
+    /// token. If you call this as part of an existing connection, pass
+    /// `Some(bool)` to tell whether this connection uses the token. If you
+    /// call this on a packet not associated to a connection, use `None`.
+    ///
     /// `buffer` needs to have at least size `MAX_PAYLOAD`.
-    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B)
+    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], token_hint: Option<bool>, buffer: B)
         -> Result<Packet<'b>, PacketReadError>
         where B: Buffer<'b>,
               W: Warn<Warning>,
     {
-        with_buffer(buffer, |b| Packet::read_impl(warn, bytes, Some(b)))
+        with_buffer(buffer, |b| Packet::read_impl(warn, bytes, token_hint, Some(b)))
     }
-    pub fn read_panic_on_decompression<'b, W>(warn: &mut W, bytes: &'b [u8])
+    pub fn read_panic_on_decompression<'b, W>(warn: &mut W, bytes: &'b [u8], token_hint: Option<bool>)
         -> Result<Packet<'b>, PacketReadError>
         where W: Warn<Warning>,
     {
-        Packet::read_impl(warn, bytes, None)
+        Packet::read_impl(warn, bytes, token_hint, None)
     }
     fn read_impl<'d, 's, W>(
         warn: &mut W,
         bytes: &'d [u8],
+        token_hint: Option<bool>,
         buffer: Option<BufferRef<'d, 's>>,
     ) -> Result<Packet<'d>, PacketReadError>
         where W: Warn<Warning>,
@@ -338,11 +440,28 @@ impl<'a> Packet<'a> {
             payload
         };
 
-        if payload.len() > MAX_PAYLOAD {
+        if payload.len() > MAX_PAYLOAD + TOKEN_SIZE {
             return Err(Compression);
         }
 
         let ack = header.ack;
+
+        let has_token = token_hint.unwrap_or_else(|| {
+            let control = header.flags & PACKETFLAG_CONTROL != 0;
+            has_token_heuristic(control, header.num_chunks, payload)
+        });
+
+        let (payload, token) = if has_token {
+            if payload.len() < TOKEN_SIZE {
+                return Err(TokenMissing);
+            }
+            let (payload, t_bytes) = payload.split_at(payload.len() - TOKEN_SIZE);
+            let token = Token([t_bytes[0], t_bytes[1], t_bytes[2], t_bytes[3]]);
+            (payload, Some(token))
+        } else {
+            (payload, None)
+        };
+
         let type_ = if header.flags & PACKETFLAG_CONTROL != 0 {
             if header.num_chunks != 0 {
                 warn.warn(Warning::ControlNumChunks);
@@ -356,8 +475,26 @@ impl<'a> Packet<'a> {
 
             let (&control, payload) = unwrap_or_return!(payload.split_first(),
                                                         Err(ControlMissing));
-            if control != CTRLMSG_CLOSE && payload.len() != 0 {
+            if control != CTRLMSG_CLOSE && control != CTRLMSG_CONNECT && payload.len() != 0 {
                 warn.warn(Warning::ControlExcessData);
+            }
+            if control == CTRLMSG_CONNECT {
+                if token.is_some() {
+                    if !payload.starts_with(CTRLMSG_CONNECT_TOKEN_MAGIC) {
+                        warn.warn(Warning::ControlConnectMissingTokenMagic);
+                        if !payload.is_empty() {
+                            warn.warn(Warning::ControlExcessData);
+                        }
+                    } else {
+                        if payload.len() > CTRLMSG_CONNECT_TOKEN_MAGIC.len() {
+                            warn.warn(Warning::ControlExcessData);
+                        }
+                    }
+                } else {
+                    if !payload.is_empty() {
+                        warn.warn(Warning::ControlExcessData);
+                    }
+                }
             }
             let control = match control {
                 CTRLMSG_KEEPALIVE => ControlPacket::KeepAlive,
@@ -392,6 +529,7 @@ impl<'a> Packet<'a> {
         };
 
         Ok(Packet::Connected(ConnectedPacket {
+            token: token,
             ack: ack,
             type_: type_,
         }))
@@ -441,17 +579,11 @@ impl<'a> Packet<'a> {
         Ok(buffer.initialized())
     }
 
-    pub fn write<'b, 'c, B1: Buffer<'b>, B2: Buffer<'c>>(&self,
-                                                         compression_buffer: B1,
-                                                         buffer: B2)
-        -> Result<&'c [u8], Error>
-    {
+    pub fn write<'b, B: Buffer<'b>>(&self, buffer: B) -> Result<&'b [u8], Error> {
         match *self {
             Packet::Connected(ref p) =>
-                with_buffer(compression_buffer, |cb|
-                    with_buffer(buffer, |b|
-                        p.write_impl(cb, b)
-                    )
+                with_buffer(buffer, |b|
+                    p.write_impl(b)
                 ),
             Packet::Connless(ref d) => write_connless_packet(d, buffer),
         }
@@ -459,26 +591,26 @@ impl<'a> Packet<'a> {
 }
 
 impl<'a> ConnectedPacket<'a> {
-    pub fn write<'b, 'c, B1: Buffer<'b>, B2: Buffer<'c>>(&self,
-                                                         compression_buffer: B1,
-                                                         buffer: B2)
-        -> Result<&'c [u8], Error>
-    {
-        with_buffer(compression_buffer, |cb|
-            with_buffer(buffer, |b|
-                self.write_impl(cb, b)
-            )
+    pub fn write<'b, B: Buffer<'b>>(&self, buffer: B) -> Result<&'b [u8], Error> {
+        with_buffer(buffer, |b|
+            self.write_impl(b)
         )
     }
 
-    fn write_impl<'d1, 's1, 'd2, 's2>(&self,
-                                      mut compression_buffer: BufferRef<'d1, 's1>,
-                                      mut buffer: BufferRef<'d2, 's2>)
-        -> Result<&'d2 [u8], Error>
+    fn write_impl<'d, 's>(&self, mut buffer: BufferRef<'d, 's>)
+        -> Result<&'d [u8], Error>
     {
         match self.type_ {
             ConnectedPacketType::Chunks(request_resend, num_chunks, payload) => {
-                assert!(compression_buffer.remaining() >= MAX_PAYLOAD);
+                let mut token_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
+                let payload: &[u8] = if let Some(token) = self.token {
+                    token_buffer.write(payload).unwrap();
+                    token_buffer.write(&token.0).unwrap();
+                    &token_buffer
+                } else {
+                    payload
+                };
+                let mut compression_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
                 let mut compression = 0;
                 let comp_result = HUFFMAN.compress(payload, &mut compression_buffer);
                 if comp_result.map(|s| s.len() < payload.len()).unwrap_or(false) {
@@ -495,21 +627,21 @@ impl<'a> ConnectedPacket<'a> {
                     num_chunks: num_chunks,
                 }.pack().as_bytes())?;
                 buffer.write(if compression != 0 {
-                    compression_buffer.initialized()
+                    &compression_buffer
                 } else {
                     payload
                 })?;
                 Ok(buffer.initialized())
             }
             ConnectedPacketType::Control(c) => {
-                c.write(self.ack, buffer)
+                c.write(self.token, self.ack, buffer)
             }
         }
     }
 }
 
 impl<'a> ControlPacket<'a> {
-    fn write<'d, 's>(&self, ack: u16, mut buffer: BufferRef<'d, 's>)
+    fn write<'d, 's>(&self, token: Option<Token>, ack: u16, mut buffer: BufferRef<'d, 's>)
         -> Result<&'d [u8], Error>
     {
         buffer.write(PacketHeader {
@@ -525,6 +657,9 @@ impl<'a> ControlPacket<'a> {
             ControlPacket::Close(..) => CTRLMSG_CLOSE,
         };
         buffer.write(&[magic])?;
+        if matches!(*self, ControlPacket::Connect) && token.is_some() {
+            buffer.write(CTRLMSG_CONNECT_TOKEN_MAGIC)?;
+        }
         match *self {
             ControlPacket::Close(m) => {
                 assert!(m.iter().all(|&b| b != 0));
@@ -532,6 +667,9 @@ impl<'a> ControlPacket<'a> {
                 buffer.write(&[0])?;
             },
             _ => {},
+        }
+        if let Some(token) = token {
+            buffer.write(&token.0)?;
         }
         let result = buffer.initialized();
         assert!(result.len() <= MAX_PACKETSIZE);
@@ -717,10 +855,8 @@ mod test {
     use super::Packet;
     use super::PacketHeader;
     use super::PacketHeaderPacked;
-    use super::PacketReadError::*;
     use super::PacketReadError;
     use super::SEQUENCE_BITS;
-    use super::Warning::*;
     use super::Warning;
     use warn::Ignore;
     use warn::Panic;
@@ -734,69 +870,50 @@ mod test {
         }
     }
 
-    fn assert_warnings(input: &[u8], warnings: &[Warning]) {
-        let mut vec = vec![];
+    fn collect_warnings(
+        token_hint: Option<bool>,
+        input: &[u8],
+        strip_chunks_no_chunks: bool,
+    ) -> Vec<Warning> {
+        let mut result = vec![];
         let mut buffer = Vec::with_capacity(4096);
-        let packet = Packet::read(&mut WarnVec(&mut vec), input, &mut buffer).unwrap();
+        let packet = Packet::read(&mut WarnVec(&mut result), input, token_hint, &mut buffer).unwrap();
         if let Packet::Connected(ConnectedPacket {
             type_: ConnectedPacketType::Chunks(_, num_chunks, chunk_data),
             ..
         }) = packet {
             let mut chunks = ChunksIter::new(chunk_data, num_chunks);
-            while let Some(_) = chunks.next_warn(&mut WarnVec(&mut vec)) { }
+            while let Some(_) = chunks.next_warn(&mut WarnVec(&mut result)) { }
         }
-        if warnings != &[ChunksNoChunks] {
-            vec.retain(|w| *w != ChunksNoChunks);
+        if strip_chunks_no_chunks {
+            result.retain(|w| *w != Warning::ChunksNoChunks);
         }
-        assert_eq!(vec, warnings);
+        result
     }
 
-    fn assert_warn(input: &[u8], warning: Warning) {
-        assert_warnings(input, &[warning]);
+    fn assert_warnings(has_token: bool, skip_heur: bool, input: &[u8], warnings: &[Warning]) {
+        let strip = warnings != &[Warning::ChunksNoChunks];
+        assert_eq!(collect_warnings(Some(has_token), input, strip), warnings);
+        if !skip_heur {
+            assert_eq!(collect_warnings(None, input, strip), warnings);
+        }
     }
 
-    fn assert_no_warn(input: &[u8]) {
-        assert_warnings(input, &[]);
+    pub fn assert_warn(has_token: bool, skip_heur: bool, input: &[u8], warning: Warning) {
+        assert_warnings(has_token, skip_heur, input, &[warning]);
     }
 
-    fn assert_err(input: &[u8], error: PacketReadError) {
-        let mut buffer= Vec::with_capacity(4096);
-        assert_eq!(Packet::read(&mut Panic, input, &mut buffer).unwrap_err(), error);
+    pub fn assert_no_warn(has_token: bool, skip_heur: bool, input: &[u8]) {
+        assert_warnings(has_token, skip_heur, input, &[]);
     }
 
-    #[test] fn w_chp() { assert_warn(b"\x00\x00\x01\x00\xf0", ChunkHeaderPadding) }
-    #[test] fn w_chs1() { assert_warn(b"\x00\x00\x01\x40\x20\x00", ChunkHeaderSequence) }
-    #[test] fn w_chs2() { assert_warn(b"\x00\x00\x01\x40\x10\x00", ChunkHeaderSequence) }
-    #[test] fn w_chs3() { assert_no_warn(b"\x00\x00\x01\x40\x70\xcf") }
-    #[test] fn w_cud1() { assert_warn(b"\x00\x00\x00\xff", ChunksUnknownData) }
-    #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00", ChunksUnknownData) }
-    #[test] fn w_cud3() { assert_no_warn(b"\x00\x00\x01\x00\x00") }
-    #[test] fn w_cud4_ddnet() { assert_no_warn(b"\x00\x00\x01\x00\x00\x12\x34\x45\x67") }
-    #[test] fn w_cnc1() { assert_warn(b"\x00\x00\x01", ChunksNumChunks) }
-    #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00", ChunksNumChunks) }
-    #[test] fn w_cnc_() { assert_warn(b"\x00\x00\x00", ChunksNoChunks) }
-    #[test] fn w_cp1() { assert_warn(b"xe\x01\x02\x03\x04", ConnlessPadding) }
-    #[test] fn w_cp2() { assert_warn(b"\xff\xff\xff\xff\xff\xfe", ConnlessPadding) }
-    #[test] fn w_cp3() { assert_warn(b"\x7f\xff\xff\xff\xff\xff", ConnlessPadding) }
-    #[test] fn w_cp4() { assert_no_warn(b"\xff\xff\xff\xff\xff\xff") }
-    #[test] fn w_ced1() { assert_warn(b"\x10\x00\x00\x00\x00", ControlExcessData) }
-    #[test] fn w_ced2() { assert_warn(b"\x10\x00\x00\x04\x00\x00", ControlExcessData) }
-    #[test] fn w_cf1() { assert_warn(b"\x90\x00\x00\x15\x37", ControlFlags) }
-    #[test] fn w_cf2() { assert_warn(b"\x50\x00\x00\x00", ControlFlags) }
-    #[test] fn w_cnt1() { assert_warn(b"\x10\x00\x00\x04\x01", ControlNulTermination) }
-    #[test] fn w_cnt2() { assert_no_warn(b"\x10\x00\x00\x04") }
-    #[test] fn w_cnc() { assert_warn(b"\x10\x00\xff\x00", ControlNumChunks) }
-    #[test] fn w_php1() { assert_warn(b"\x08\x00\x00", PacketHeaderPadding) }
-    #[test] fn w_php2() { assert_warn(b"\x04\x00\x00", PacketHeaderPadding) }
-
-    #[test] fn e_cm() { assert_err(b"\x10\x00\x00", ControlMissing) }
-    #[test] fn e_sc() { assert_err(b"\xff\xff\xff", ShortConnless) }
-    #[test] fn e_tl() { assert_err(&[0; MAX_PACKETSIZE+1], TooLong) }
-    #[test] fn e_ts1() { assert_err(b"\x00\x00", TooShort) }
-    #[test] fn e_ts2() { assert_err(b"", TooShort) }
-    #[test] fn e_uc1() { assert_err(b"\x10\x00\x00\x05", UnknownControl) }
-    #[test] fn e_uc2() { assert_err(b"\x10\x00\x00\xff", UnknownControl) }
-    #[test] fn e_c() { assert_err(b"\x80\x00\x00", Compression) }
+    pub fn assert_err(has_token: bool, skip_heur: bool, input: &[u8], error: PacketReadError) {
+        let mut buffer = Vec::with_capacity(4096);
+        assert_eq!(Packet::read(&mut Panic, input, Some(has_token), &mut buffer).unwrap_err(), error);
+        if !skip_heur {
+            assert_eq!(Packet::read(&mut Panic, input, None, &mut buffer).unwrap_err(), error);
+        }
+    }
 
     quickcheck! {
         fn packet_header_roundtrip(flags: u8, ack: u16, num_chunks: u8) -> bool {
@@ -844,7 +961,150 @@ mod test {
 
         fn packet_read_no_panic(data: Vec<u8>) -> bool {
             let mut buffer = [0; MAX_PACKETSIZE];
-            let _ = Packet::read(&mut Ignore, &data, &mut buffer[..]);
+            let _ = Packet::read(&mut Ignore, &data, None, &mut buffer[..]);
+            true
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_no_token {
+    use super::MAX_PACKETSIZE;
+    use super::Packet;
+    use super::PacketReadError::*;
+    use super::PacketReadError;
+    use super::Warning::*;
+    use super::Warning;
+    use warn::Ignore;
+
+    fn assert_warn(input: &[u8], warning: Warning) {
+        super::test::assert_warn(false, false, input, warning);
+    }
+
+    fn assert_no_warn(input: &[u8]) {
+        super::test::assert_no_warn(false, false, input);
+    }
+
+    fn assert_err(input: &[u8], error: PacketReadError) {
+        super::test::assert_err(false, false, input, error);
+    }
+
+    #[test] fn w_chp() { assert_warn(b"\x00\x00\x01\x00\xf0", ChunkHeaderPadding) }
+    #[test] fn w_chs1() { assert_warn(b"\x00\x00\x01\x40\x20\x00", ChunkHeaderSequence) }
+    #[test] fn w_chs2() { assert_warn(b"\x00\x00\x01\x40\x10\x00", ChunkHeaderSequence) }
+    #[test] fn w_chs3() { assert_no_warn(b"\x00\x00\x01\x40\x70\xcf") }
+    #[test] fn w_cud1() { assert_warn(b"\x00\x00\x00\xff", ChunksUnknownData) }
+    #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00", ChunksUnknownData) }
+    #[test] fn w_cud3() { assert_no_warn(b"\x00\x00\x01\x00\x00") }
+    #[test] fn w_cnc1() { assert_warn(b"\x00\x00\x01", ChunksNumChunks) }
+    #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00", ChunksNumChunks) }
+    #[test] fn w_cnc_() { assert_warn(b"\x00\x00\x00", ChunksNoChunks) }
+    #[test] fn w_cp1() { assert_warn(b"xe\x01\x02\x03\x04", ConnlessPadding) }
+    #[test] fn w_cp2() { assert_warn(b"\xff\xff\xff\xff\xff\xfe", ConnlessPadding) }
+    #[test] fn w_cp3() { assert_warn(b"\x7f\xff\xff\xff\xff\xff", ConnlessPadding) }
+    #[test] fn w_cp4() { assert_no_warn(b"\xff\xff\xff\xff\xff\xff") }
+    #[test] fn w_ced1() { assert_warn(b"\x10\x00\x00\x00\x00", ControlExcessData) }
+    #[test] fn w_ced2() { assert_warn(b"\x10\x00\x00\x04\x00\x00", ControlExcessData) }
+    #[test] fn w_cf1() { assert_warn(b"\x90\x00\x00\x15\x37", ControlFlags) }
+    #[test] fn w_cf2() { assert_warn(b"\x50\x00\x00\x00", ControlFlags) }
+    #[test] fn w_cnt1() { assert_warn(b"\x10\x00\x00\x04\x01", ControlNulTermination) }
+    #[test] fn w_cnt2() { assert_no_warn(b"\x10\x00\x00\x04") }
+    #[test] fn w_cnc() { assert_warn(b"\x10\x00\xff\x00", ControlNumChunks) }
+    #[test] fn w_php1() { assert_warn(b"\x08\x00\x00", PacketHeaderPadding) }
+    #[test] fn w_php2() { assert_warn(b"\x04\x00\x00", PacketHeaderPadding) }
+
+    #[test] fn e_cm() { assert_err(b"\x10\x00\x00", ControlMissing) }
+    #[test] fn e_sc() { assert_err(b"\xff\xff\xff", ShortConnless) }
+    #[test] fn e_tl() { assert_err(&[0; MAX_PACKETSIZE+1], TooLong) }
+    #[test] fn e_ts1() { assert_err(b"\x00\x00", TooShort) }
+    #[test] fn e_ts2() { assert_err(b"", TooShort) }
+    #[test] fn e_uc1() { assert_err(b"\x10\x00\x00\x05", UnknownControl) }
+    #[test] fn e_uc2() { assert_err(b"\x10\x00\x00\xff", UnknownControl) }
+    #[test] fn e_c() { assert_err(b"\x80\x00\x00", Compression) }
+
+    quickcheck! {
+        fn packet_read_no_panic(data: Vec<u8>) -> bool {
+            let mut buffer = [0; MAX_PACKETSIZE];
+            let _ = Packet::read(&mut Ignore, &data, Some(false), &mut buffer[..]);
+            true
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_token {
+    use super::MAX_PACKETSIZE;
+    use super::Packet;
+    use super::PacketReadError::*;
+    use super::PacketReadError;
+    use super::Warning::*;
+    use super::Warning;
+    use warn::Ignore;
+
+    fn assert_warn(input: &[u8], warning: Warning) {
+        super::test::assert_warn(true, false, input, warning);
+    }
+
+    fn assert_warn_no_heur(input: &[u8], warning: Warning) {
+        super::test::assert_warn(true, true, input, warning);
+    }
+
+    fn assert_no_warn(input: &[u8]) {
+        super::test::assert_no_warn(true, false, input);
+    }
+
+    fn assert_no_warn_no_heur(input: &[u8]) {
+        super::test::assert_no_warn(true, true, input);
+    }
+
+    fn assert_err(input: &[u8], error: PacketReadError) {
+        super::test::assert_err(true, false, input, error);
+    }
+
+    fn assert_err_no_heur(input: &[u8], error: PacketReadError) {
+        super::test::assert_err(true, true, input, error);
+    }
+
+    #[test] fn w_chp() { assert_warn(b"\x00\x00\x01\x00\xf0\x12\x34\x56\x78", ChunkHeaderPadding) }
+    #[test] fn w_chs1() { assert_warn(b"\x00\x00\x01\x40\x20\x00\x12\x34\x56\x78", ChunkHeaderSequence) }
+    #[test] fn w_chs2() { assert_warn(b"\x00\x00\x01\x40\x10\x00\x12\x34\x56\x78", ChunkHeaderSequence) }
+    #[test] fn w_chs3() { assert_no_warn(b"\x00\x00\x01\x40\x70\xcf\x12\x34\x56\x78") }
+    #[test] fn w_cud1() { assert_warn(b"\x00\x00\x00\xff\x12\x34\x56\x78", ChunksUnknownData) }
+    #[test] fn w_cud2() { assert_warn(b"\x00\x00\x01\x00\x00\x00\x12\x34\x56\x78", ChunksUnknownData) }
+    #[test] fn w_cud3() { assert_no_warn(b"\x00\x00\x01\x00\x00\x12\x34\x56\x78") }
+    #[test] fn w_cnc1() { assert_warn_no_heur(b"\x00\x00\x01\x12\x34\x56\x78", ChunksNumChunks) }
+    #[test] fn w_cnc2() { assert_warn(b"\x00\x00\x00\x00\x00\x12\x34\x56\x78", ChunksNumChunks) }
+    #[test] fn w_cnc_() { assert_warn(b"\x00\x00\x00\x12\x34\x56\x78", ChunksNoChunks) }
+    #[test] fn w_cp1() { assert_warn(b"xe\x01\x02\x03\x04\x12\x34\x56\x78", ConnlessPadding) }
+    #[test] fn w_cp2() { assert_warn(b"\xff\xff\xff\xff\xff\xfe\x12\x34\x56\x78", ConnlessPadding) }
+    #[test] fn w_cp3() { assert_warn(b"\x7f\xff\xff\xff\xff\xff\x12\x34\x56\x78", ConnlessPadding) }
+    #[test] fn w_cp4() { assert_no_warn(b"\xff\xff\xff\xff\xff\xff\x12\x34\x56\x78") }
+    #[test] fn w_ced1() { assert_warn(b"\x10\x00\x00\x00\x00\x12\x34\x56\x78", ControlExcessData) }
+    #[test] fn w_ced2() { assert_warn(b"\x10\x00\x00\x04\x00\x00\x12\x34\x56\x78", ControlExcessData) }
+    #[test] fn w_cf1() { assert_warn(b"\x90\x00\x00\xb9\x3c\xd2\x85\x6b\x53\xdc\x00", ControlFlags) }
+    #[test] fn w_cf2() { assert_warn(b"\x50\x00\x00\x00\x12\x34\x56\x78", ControlFlags) }
+    #[test] fn w_cnt1() { assert_warn(b"\x10\x00\x00\x04\x01\x12\x34\x56\x78", ControlNulTermination) }
+    #[test] fn w_cnt2() { assert_no_warn_no_heur(b"\x10\x00\x00\x04\x12\x34\x56\x78") }
+    #[test] fn w_cnc() { assert_warn(b"\x10\x00\xff\x00\x12\x34\x56\x78", ControlNumChunks) }
+    #[test] fn w_php1() { assert_warn(b"\x08\x00\x00\x12\x34\x56\x78", PacketHeaderPadding) }
+    #[test] fn w_php2() { assert_warn(b"\x04\x00\x00\x12\x34\x56\x78", PacketHeaderPadding) }
+
+    #[test] fn e_cm() { assert_err_no_heur(b"\x10\x00\x00\x12\x34\x56\x78", ControlMissing) }
+    #[test] fn e_sc() { assert_err(b"\xff\xff\xff", ShortConnless) }
+    #[test] fn e_tl() { assert_err(&[0; MAX_PACKETSIZE+1], TooLong) }
+    #[test] fn e_tm1() { assert_err_no_heur(b"\x00\x00\x00", TokenMissing) }
+    #[test] fn e_tm2() { assert_err_no_heur(b"\x00\x00\x00\x12", TokenMissing) }
+    #[test] fn e_tm3() { assert_err_no_heur(b"\x00\x00\x00\x12\x34\x56", TokenMissing) }
+    #[test] fn e_ts1() { assert_err(b"\x00\x00", TooShort) }
+    #[test] fn e_ts2() { assert_err(b"", TooShort) }
+    #[test] fn e_uc1() { assert_err(b"\x10\x00\x00\x05\x12\x34\x56\x78", UnknownControl) }
+    #[test] fn e_uc2() { assert_err(b"\x10\x00\x00\xff\x12\x34\x56\x78", UnknownControl) }
+    #[test] fn e_c() { assert_err(b"\x80\x00\x00", Compression) }
+
+    quickcheck! {
+        fn packet_read_no_panic(data: Vec<u8>) -> bool {
+            let mut buffer = [0; MAX_PACKETSIZE];
+            let _ = Packet::read(&mut Ignore, &data, Some(true), &mut buffer[..]);
             true
         }
     }
