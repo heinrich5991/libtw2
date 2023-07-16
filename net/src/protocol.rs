@@ -440,7 +440,7 @@ impl<'a> Packet<'a> {
             payload
         };
 
-        if payload.len() > MAX_PAYLOAD + TOKEN_SIZE {
+        if payload.len() > MAX_PACKETSIZE - HEADER_SIZE {
             return Err(Compression);
         }
 

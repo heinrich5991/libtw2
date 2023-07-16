@@ -194,7 +194,7 @@ impl<'a> Packet<'a> {
             payload
         };
 
-        if payload.len() > MAX_PAYLOAD {
+        if payload.len() > MAX_PACKETSIZE - HEADER_SIZE {
             return Err(Compression);
         }
 
