@@ -62,7 +62,9 @@ pub struct Flag {
 }
 #[derive(Debug)]
 pub struct Message {
+    pub id: FieldId,
     pub name: Interned,
+    pub identifier: Interned,
     pub members: Vec<Member>,
 }
 #[derive(Debug)]
@@ -518,7 +520,9 @@ impl Message {
         let name = intern(&format!("{}.{}", sys_prefix, m.name.snake()));
         let prefix = intern(&format!("{}.{}", prefix, name));
         Ok(Message {
+            id: Default::default(),
             name,
+            identifier: prefix,
             members: m.members.into_iter().map(
                 |member| Member::from_gamenet(context, prefix, member)
             ).collect::<Result<_, _>>()?,
@@ -528,7 +532,9 @@ impl Message {
         let name = intern(&format!("connless.{}", m.name.snake()));
         let prefix = intern(&format!("{}.{}", prefix, name));
         Ok(Message {
+            id: Default::default(),
             name,
+            identifier: prefix,
             members: m.members.into_iter().map(
                 |member| Member::from_gamenet(context, prefix, member)
             ).collect::<Result<_, _>>()?,
@@ -538,6 +544,15 @@ impl Message {
         FH: FnMut(sys::hf_register_info),
         FT: FnMut(*mut c_int),
     {
+        h(sys::hf_register_info {
+            p_id: self.id.as_ptr(),
+            hfinfo: sys::_header_field_info {
+                name: self.name.c(),
+                abbrev: self.identifier.c(),
+                type_: sys::FT_NONE,
+                ..HFRI_DEFAULT
+            },
+        });
         for m in &self.members {
             m.field_register_info(h, t);
         }
@@ -548,6 +563,10 @@ impl Message {
         tvb: *mut sys::tvbuff_t,
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
+        let item = sys::proto_tree_add_none_format(tree, self.id.get(), tvb, 0, 0, c("\0"));
+        if !item.is_null() {
+            (*(*item).finfo).flags |= sys::FI_HIDDEN;
+        }
         for m in &self.members {
             m.type_.dissect(m.description, tree, tvb, p)?;
         }

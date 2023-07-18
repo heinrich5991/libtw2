@@ -38,17 +38,18 @@ bindgen \
 	--allowlist-var '^COL_INFO$' \
 	--allowlist-var '^ENC_BIG_ENDIAN$' \
 	--allowlist-var '^ENC_NA$' \
+	--allowlist-var '^FI_HIDDEN$' \
 	--no-prepend-enum-name \
 	--opaque-type 'GByteArray' \
 	--opaque-type 'GHashTable' \
 	--opaque-type 'GRegex' \
 	--opaque-type 'GSList' \
+	--opaque-type '_item_label_t' \
 	--opaque-type 'address' \
 	--opaque-type 'epan_column_info' \
 	--opaque-type 'epan_session' \
 	--opaque-type 'frame_data' \
-	--opaque-type 'proto_item' \
-	--opaque-type 'proto_tree' \
+	--opaque-type 'fvalue_t' \
 	--opaque-type 'tvbuff_t' \
 	--opaque-type 'wmem_allocator_t' \
 	--opaque-type 'wmem_list_t' \

@@ -83,6 +83,7 @@ where
 }
 pub const ENC_BIG_ENDIAN: u32 = 0;
 pub const ENC_NA: u32 = 0;
+pub const FI_HIDDEN: u32 = 1;
 pub type __uint64_t = u64;
 pub type __time_t = i64;
 pub type size_t = usize;
@@ -1814,6 +1815,7 @@ pub const FT_FCWWN: ftenum = 44;
 pub const FT_STRINGZTRUNC: ftenum = 45;
 pub const FT_NUM_TYPES: ftenum = 46;
 pub type ftenum = ::std::os::raw::c_uint;
+pub type fvalue_t = [u64; 5usize];
 #[doc = "< none"]
 pub const BASE_NONE: field_display_e = 0;
 #[doc = "< decimal [integer, float]"]
@@ -2079,10 +2081,352 @@ fn bindgen_test_layout_hf_register_info() {
         )
     );
 }
+#[doc = " string representation, if one of the proto_tree_add_..._format() functions used"]
+#[repr(C)]
+#[repr(align(1))]
+pub struct _item_label_t {
+    pub _bindgen_opaque_blob: [u8; 240usize],
+}
+#[test]
+fn bindgen_test_layout__item_label_t() {
+    assert_eq!(
+        ::std::mem::size_of::<_item_label_t>(),
+        240usize,
+        concat!("Size of: ", stringify!(_item_label_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<_item_label_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(_item_label_t))
+    );
+}
+#[doc = " string representation, if one of the proto_tree_add_..._format() functions used"]
+pub type item_label_t = _item_label_t;
+#[doc = " Contains the field information for the proto_item."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct field_info {
+    #[doc = "< pointer to registered field information"]
+    pub hfinfo: *mut header_field_info,
+    #[doc = "< current start of data in field_info.ds_tvb"]
+    pub start: gint,
+    #[doc = "< current data length of item in field_info.ds_tvb"]
+    pub length: gint,
+    #[doc = "< start of appendix data"]
+    pub appendix_start: gint,
+    #[doc = "< length of appendix data"]
+    pub appendix_length: gint,
+    #[doc = "< one of ETT_ or -1"]
+    pub tree_type: gint,
+    #[doc = "< bitfield like FI_GENERATED, ..."]
+    pub flags: guint32,
+    #[doc = "< string for GUI tree"]
+    pub rep: *mut item_label_t,
+    #[doc = "< data source tvbuff"]
+    pub ds_tvb: *mut tvbuff_t,
+    pub value: fvalue_t,
+    #[doc = "< Hierarchical layer number, for all protocols in the tree."]
+    pub total_layer_num: ::std::os::raw::c_int,
+    #[doc = "< Protocol layer number, so 1st, 2nd, 3rd, ... for protocol X."]
+    pub proto_layer_num: ::std::os::raw::c_int,
+}
+#[test]
+fn bindgen_test_layout_field_info() {
+    assert_eq!(
+        ::std::mem::size_of::<field_info>(),
+        96usize,
+        concat!("Size of: ", stringify!(field_info))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<field_info>(),
+        8usize,
+        concat!("Alignment of ", stringify!(field_info))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).hfinfo as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(hfinfo)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).start as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(start)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).length as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(length)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).appendix_start as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(appendix_start)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).appendix_length as *const _ as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(appendix_length)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).tree_type as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(tree_type)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).flags as *const _ as usize },
+        28usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(flags)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).rep as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(rep)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).ds_tvb as *const _ as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(ds_tvb)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).value as *const _ as usize },
+        48usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(value)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).total_layer_num as *const _ as usize },
+        88usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(total_layer_num)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<field_info>())).proto_layer_num as *const _ as usize },
+        92usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(field_info),
+            "::",
+            stringify!(proto_layer_num)
+        )
+    );
+}
+#[doc = " One of these exists for the entire protocol tree. Each proto_node"]
+#[doc = " in the protocol tree points to the same copy."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct tree_data_t {
+    pub interesting_hfids: *mut GHashTable,
+    pub visible: gboolean,
+    pub fake_protocols: gboolean,
+    pub count: guint,
+    pub pinfo: *mut _packet_info,
+}
+#[test]
+fn bindgen_test_layout_tree_data_t() {
+    assert_eq!(
+        ::std::mem::size_of::<tree_data_t>(),
+        32usize,
+        concat!("Size of: ", stringify!(tree_data_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<tree_data_t>(),
+        8usize,
+        concat!("Alignment of ", stringify!(tree_data_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<tree_data_t>())).interesting_hfids as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(tree_data_t),
+            "::",
+            stringify!(interesting_hfids)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<tree_data_t>())).visible as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(tree_data_t),
+            "::",
+            stringify!(visible)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<tree_data_t>())).fake_protocols as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(tree_data_t),
+            "::",
+            stringify!(fake_protocols)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<tree_data_t>())).count as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(tree_data_t),
+            "::",
+            stringify!(count)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<tree_data_t>())).pinfo as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(tree_data_t),
+            "::",
+            stringify!(pinfo)
+        )
+    );
+}
 #[doc = " Each proto_tree, proto_item is one of these."]
-pub type proto_tree = [u64; 6usize];
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct _proto_node {
+    pub first_child: *mut _proto_node,
+    pub last_child: *mut _proto_node,
+    pub next: *mut _proto_node,
+    pub parent: *mut _proto_node,
+    pub finfo: *mut field_info,
+    pub tree_data: *mut tree_data_t,
+}
+#[test]
+fn bindgen_test_layout__proto_node() {
+    assert_eq!(
+        ::std::mem::size_of::<_proto_node>(),
+        48usize,
+        concat!("Size of: ", stringify!(_proto_node))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<_proto_node>(),
+        8usize,
+        concat!("Alignment of ", stringify!(_proto_node))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).first_child as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(first_child)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).last_child as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(last_child)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).next as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(next)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).parent as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(parent)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).finfo as *const _ as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(finfo)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<_proto_node>())).tree_data as *const _ as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(_proto_node),
+            "::",
+            stringify!(tree_data)
+        )
+    );
+}
 #[doc = " Each proto_tree, proto_item is one of these."]
-pub type proto_item = [u64; 6usize];
+pub type proto_node = _proto_node;
+#[doc = " Each proto_tree, proto_item is one of these."]
+pub type proto_tree = proto_node;
+#[doc = " Each proto_tree, proto_item is one of these."]
+pub type proto_item = proto_node;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct proto_plugin {
