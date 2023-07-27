@@ -7,7 +7,7 @@ This repository hosts some third-party Teeworlds/DDNet libraries and tooling,
 written in Rust. Additionally, it has some programming language independent
 **documentation** of some Teeworlds/DDNet protocols, in the [docs] directory.
 
-The highlight are probably 
+The highlights are probably 
 - [docs](docs). The documentation.
 - [wireshark-dissector](wireshark-dissector). A working Wireshark dissector for
   Teeworlds 0.6, Teeworlds 0.7 and DDNet.
