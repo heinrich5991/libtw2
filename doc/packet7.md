@@ -53,3 +53,6 @@ NOTE: In `packet7_header_connless`, `version` must be set to 1.
         [ 8] sequence
 
         FFss ssss  SSss ssss  SSSS SSSS
+
+Unlike the `chunk_header_vital` in the Teeworlds 0.6/DDNet protocol, the
+sequence field does not have overlapping bits.
