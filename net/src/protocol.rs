@@ -355,7 +355,7 @@ fn has_token_heuristic(control: bool, num_chunks: u8, payload: &[u8]) -> bool {
 }
 
 impl<'a> Packet<'a> {
-    pub fn is_connect(packet: &[u8]) -> bool {
+    pub fn is_initial(packet: &[u8]) -> bool {
         if packet.len() > MAX_PACKETSIZE {
             return false;
         }
@@ -364,8 +364,9 @@ impl<'a> Packet<'a> {
             false
         );
         let header = header.unpack_warn(&mut Ignore);
+        let ctrl = payload.first().copied();
         header.flags & !PACKETFLAG_REQUEST_RESEND == PACKETFLAG_CONTROL &&
-            payload.first().copied() == Some(CTRLMSG_CONNECT)
+            (ctrl == Some(CTRLMSG_CONNECT) || ctrl == Some(CTRLMSG_ACCEPT))
     }
     fn needs_decompression(packet: &[u8]) -> bool {
         if packet.len() > MAX_PACKETSIZE {

@@ -468,6 +468,15 @@ impl Connection {
             builder: PacketBuilder::new(),
         }
     }
+    pub fn new_accept_token<CB: Callback>(cb: &mut CB, token: Token) -> Connection {
+        let mut result = Connection {
+            state: State::Online(OnlineState::new(Some(token))),
+            send: Timeout::inactive(),
+            builder: PacketBuilder::new(),
+        };
+        result.send.set(cb, Duration::from_millis(500));
+        result
+    }
     pub fn reset(&mut self) {
         assert_matches!(self.state, State::Disconnected);
         *self = Connection::new();
@@ -915,6 +924,94 @@ mod test {
 
         assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
         assert!(cb.0.is_empty());
+
+        // Send
+        client.send(cb, b"\x42", true).unwrap();
+        assert!(cb.0.is_empty());
+
+        // Flush
+        client.flush(cb).void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42\x12\x34\x56\x78");
+
+        // Receive
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Connected(b"\x42", true)]);
+        assert!(cb.0.is_empty());
+
+        // Disconnect
+        server.disconnect(cb, b"42").void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x01\x00\x0442\0\x12\x34\x56\x78");
+
+        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]);
+
+        client.reset();
+        server.reset();
+    }
+
+    #[test]
+    fn establish_connection_anti_ip_addr_spoofing() {
+        struct Cb(VecDeque<Vec<u8>>);
+        impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
+        impl Callback for Cb {
+            type Error = Void;
+            fn secure_random(&mut self, buffer: &mut [u8]) {
+                if buffer.len() != 4 {
+                    unimplemented!();
+                }
+                buffer[0] = 0x12;
+                buffer[1] = 0x34;
+                buffer[2] = 0x56;
+                buffer[3] = 0x78;
+            }
+            fn send(&mut self, data: &[u8]) -> Result<(), Void> {
+                self.0.push_back(data.to_owned());
+                Ok(())
+            }
+            fn time(&mut self) -> Timestamp {
+                Timestamp::from_secs_since_epoch(0)
+            }
+        }
+        let mut buffer = [0; protocol::MAX_PACKETSIZE];
+        let mut cb = Cb::new();
+        let cb = &mut cb;
+        println!("");
+
+        let mut client = Connection::new();
+        let mut server = Connection::new();
+
+        // Connect
+        client.connect(cb).void_unwrap();
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff");
+
+        // ConnectAccept
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x02TKEN\x12\x34\x56\x78");
+
+        // Accept
+        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
+                == &[ReceiveChunk::Ready]);
+        let packet = cb.0.pop_front().unwrap();
+        assert!(cb.0.is_empty());
+        hexdump(&packet);
+        assert!(&packet == b"\x10\x00\x00\x03\x12\x34\x56\x78");
+
+        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(cb.0.is_empty());
+
+        let token = protocol::Token([0x12, 0x34, 0x56, 0x78]);
+        let mut server = Connection::new_accept_token(cb, token);
 
         // Send
         client.send(cb, b"\x42", true).unwrap();
