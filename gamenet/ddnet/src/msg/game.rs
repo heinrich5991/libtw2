@@ -44,7 +44,7 @@ pub const SV_CHAT: i32 = 3;
 pub const SV_KILL_MSG: i32 = 4;
 pub const SV_SOUND_GLOBAL: i32 = 5;
 pub const SV_TUNE_PARAMS: i32 = 6;
-pub const SV_EXTRA_PROJECTILE: i32 = 7;
+pub const UNUSED: i32 = 7;
 pub const SV_READY_TO_ENTER: i32 = 8;
 pub const SV_WEAPON_PICKUP: i32 = 9;
 pub const SV_EMOTICON: i32 = 10;
@@ -66,7 +66,7 @@ pub const CL_CALL_VOTE: i32 = 25;
 pub const CL_IS_DDNET_LEGACY: i32 = 26;
 pub const SV_DDRACE_TIME_LEGACY: i32 = 27;
 pub const SV_RECORD_LEGACY: i32 = 28;
-pub const UNUSED: i32 = 29;
+pub const UNUSED2: i32 = 29;
 pub const SV_TEAMS_STATE_LEGACY: i32 = 30;
 pub const CL_SHOW_OTHERS_LEGACY: i32 = 31;
 pub const SV_MY_OWN_MESSAGE: Uuid = Uuid::from_u128(0x1231e484_f607_3722_a89a_bd85db46f5d2);
@@ -75,6 +75,7 @@ pub const CL_SHOW_OTHERS: Uuid = Uuid::from_u128(0x7f264cdd_71a2_3962_bbce_0f94b
 pub const SV_TEAMS_STATE: Uuid = Uuid::from_u128(0xa091961a_95e8_3744_bb60_5eac9bd563c6);
 pub const SV_DDRACE_TIME: Uuid = Uuid::from_u128(0x5dde8b3c_6f6f_37ac_a72a_bb341fe76de5);
 pub const SV_RECORD: Uuid = Uuid::from_u128(0x804f149f_9b53_3b0a_897f_59663a1c4eb9);
+pub const SV_KILL_MSG_TEAM: Uuid = Uuid::from_u128(0xee610b6f_909f_311e_93f7_11a95f55a086);
 
 #[derive(Clone, Copy)]
 pub enum Game<'a> {
@@ -84,7 +85,7 @@ pub enum Game<'a> {
     SvKillMsg(SvKillMsg),
     SvSoundGlobal(SvSoundGlobal),
     SvTuneParams(SvTuneParams),
-    SvExtraProjectile(SvExtraProjectile),
+    Unused(Unused),
     SvReadyToEnter(SvReadyToEnter),
     SvWeaponPickup(SvWeaponPickup),
     SvEmoticon(SvEmoticon),
@@ -106,7 +107,7 @@ pub enum Game<'a> {
     ClIsDdnetLegacy(ClIsDdnetLegacy),
     SvDdraceTimeLegacy(SvDdraceTimeLegacy),
     SvRecordLegacy(SvRecordLegacy),
-    Unused(Unused),
+    Unused2(Unused2),
     SvTeamsStateLegacy(SvTeamsStateLegacy),
     ClShowOthersLegacy(ClShowOthersLegacy),
     SvMyOwnMessage(SvMyOwnMessage),
@@ -115,6 +116,7 @@ pub enum Game<'a> {
     SvTeamsState(SvTeamsState),
     SvDdraceTime(SvDdraceTime),
     SvRecord(SvRecord),
+    SvKillMsgTeam(SvKillMsgTeam),
 }
 
 impl<'a> Game<'a> {
@@ -127,7 +129,7 @@ impl<'a> Game<'a> {
             Ordinal(SV_KILL_MSG) => Game::SvKillMsg(SvKillMsg::decode(warn, _p)?),
             Ordinal(SV_SOUND_GLOBAL) => Game::SvSoundGlobal(SvSoundGlobal::decode(warn, _p)?),
             Ordinal(SV_TUNE_PARAMS) => Game::SvTuneParams(SvTuneParams::decode(warn, _p)?),
-            Ordinal(SV_EXTRA_PROJECTILE) => Game::SvExtraProjectile(SvExtraProjectile::decode(warn, _p)?),
+            Ordinal(UNUSED) => Game::Unused(Unused::decode(warn, _p)?),
             Ordinal(SV_READY_TO_ENTER) => Game::SvReadyToEnter(SvReadyToEnter::decode(warn, _p)?),
             Ordinal(SV_WEAPON_PICKUP) => Game::SvWeaponPickup(SvWeaponPickup::decode(warn, _p)?),
             Ordinal(SV_EMOTICON) => Game::SvEmoticon(SvEmoticon::decode(warn, _p)?),
@@ -149,7 +151,7 @@ impl<'a> Game<'a> {
             Ordinal(CL_IS_DDNET_LEGACY) => Game::ClIsDdnetLegacy(ClIsDdnetLegacy::decode(warn, _p)?),
             Ordinal(SV_DDRACE_TIME_LEGACY) => Game::SvDdraceTimeLegacy(SvDdraceTimeLegacy::decode(warn, _p)?),
             Ordinal(SV_RECORD_LEGACY) => Game::SvRecordLegacy(SvRecordLegacy::decode(warn, _p)?),
-            Ordinal(UNUSED) => Game::Unused(Unused::decode(warn, _p)?),
+            Ordinal(UNUSED2) => Game::Unused2(Unused2::decode(warn, _p)?),
             Ordinal(SV_TEAMS_STATE_LEGACY) => Game::SvTeamsStateLegacy(SvTeamsStateLegacy::decode(warn, _p)?),
             Ordinal(CL_SHOW_OTHERS_LEGACY) => Game::ClShowOthersLegacy(ClShowOthersLegacy::decode(warn, _p)?),
             Uuid(SV_MY_OWN_MESSAGE) => Game::SvMyOwnMessage(SvMyOwnMessage::decode(warn, _p)?),
@@ -158,6 +160,7 @@ impl<'a> Game<'a> {
             Uuid(SV_TEAMS_STATE) => Game::SvTeamsState(SvTeamsState::decode(warn, _p)?),
             Uuid(SV_DDRACE_TIME) => Game::SvDdraceTime(SvDdraceTime::decode(warn, _p)?),
             Uuid(SV_RECORD) => Game::SvRecord(SvRecord::decode(warn, _p)?),
+            Uuid(SV_KILL_MSG_TEAM) => Game::SvKillMsgTeam(SvKillMsgTeam::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -169,7 +172,7 @@ impl<'a> Game<'a> {
             Game::SvKillMsg(_) => MessageId::from(SV_KILL_MSG),
             Game::SvSoundGlobal(_) => MessageId::from(SV_SOUND_GLOBAL),
             Game::SvTuneParams(_) => MessageId::from(SV_TUNE_PARAMS),
-            Game::SvExtraProjectile(_) => MessageId::from(SV_EXTRA_PROJECTILE),
+            Game::Unused(_) => MessageId::from(UNUSED),
             Game::SvReadyToEnter(_) => MessageId::from(SV_READY_TO_ENTER),
             Game::SvWeaponPickup(_) => MessageId::from(SV_WEAPON_PICKUP),
             Game::SvEmoticon(_) => MessageId::from(SV_EMOTICON),
@@ -191,7 +194,7 @@ impl<'a> Game<'a> {
             Game::ClIsDdnetLegacy(_) => MessageId::from(CL_IS_DDNET_LEGACY),
             Game::SvDdraceTimeLegacy(_) => MessageId::from(SV_DDRACE_TIME_LEGACY),
             Game::SvRecordLegacy(_) => MessageId::from(SV_RECORD_LEGACY),
-            Game::Unused(_) => MessageId::from(UNUSED),
+            Game::Unused2(_) => MessageId::from(UNUSED2),
             Game::SvTeamsStateLegacy(_) => MessageId::from(SV_TEAMS_STATE_LEGACY),
             Game::ClShowOthersLegacy(_) => MessageId::from(CL_SHOW_OTHERS_LEGACY),
             Game::SvMyOwnMessage(_) => MessageId::from(SV_MY_OWN_MESSAGE),
@@ -200,6 +203,7 @@ impl<'a> Game<'a> {
             Game::SvTeamsState(_) => MessageId::from(SV_TEAMS_STATE),
             Game::SvDdraceTime(_) => MessageId::from(SV_DDRACE_TIME),
             Game::SvRecord(_) => MessageId::from(SV_RECORD),
+            Game::SvKillMsgTeam(_) => MessageId::from(SV_KILL_MSG_TEAM),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -210,7 +214,7 @@ impl<'a> Game<'a> {
             Game::SvKillMsg(ref i) => i.encode(p),
             Game::SvSoundGlobal(ref i) => i.encode(p),
             Game::SvTuneParams(ref i) => i.encode(p),
-            Game::SvExtraProjectile(ref i) => i.encode(p),
+            Game::Unused(ref i) => i.encode(p),
             Game::SvReadyToEnter(ref i) => i.encode(p),
             Game::SvWeaponPickup(ref i) => i.encode(p),
             Game::SvEmoticon(ref i) => i.encode(p),
@@ -232,7 +236,7 @@ impl<'a> Game<'a> {
             Game::ClIsDdnetLegacy(ref i) => i.encode(p),
             Game::SvDdraceTimeLegacy(ref i) => i.encode(p),
             Game::SvRecordLegacy(ref i) => i.encode(p),
-            Game::Unused(ref i) => i.encode(p),
+            Game::Unused2(ref i) => i.encode(p),
             Game::SvTeamsStateLegacy(ref i) => i.encode(p),
             Game::ClShowOthersLegacy(ref i) => i.encode(p),
             Game::SvMyOwnMessage(ref i) => i.encode(p),
@@ -241,6 +245,7 @@ impl<'a> Game<'a> {
             Game::SvTeamsState(ref i) => i.encode(p),
             Game::SvDdraceTime(ref i) => i.encode(p),
             Game::SvRecord(ref i) => i.encode(p),
+            Game::SvKillMsgTeam(ref i) => i.encode(p),
         }
     }
 }
@@ -254,7 +259,7 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::SvKillMsg(ref i) => i.fmt(f),
             Game::SvSoundGlobal(ref i) => i.fmt(f),
             Game::SvTuneParams(ref i) => i.fmt(f),
-            Game::SvExtraProjectile(ref i) => i.fmt(f),
+            Game::Unused(ref i) => i.fmt(f),
             Game::SvReadyToEnter(ref i) => i.fmt(f),
             Game::SvWeaponPickup(ref i) => i.fmt(f),
             Game::SvEmoticon(ref i) => i.fmt(f),
@@ -276,7 +281,7 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::ClIsDdnetLegacy(ref i) => i.fmt(f),
             Game::SvDdraceTimeLegacy(ref i) => i.fmt(f),
             Game::SvRecordLegacy(ref i) => i.fmt(f),
-            Game::Unused(ref i) => i.fmt(f),
+            Game::Unused2(ref i) => i.fmt(f),
             Game::SvTeamsStateLegacy(ref i) => i.fmt(f),
             Game::ClShowOthersLegacy(ref i) => i.fmt(f),
             Game::SvMyOwnMessage(ref i) => i.fmt(f),
@@ -285,6 +290,7 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::SvTeamsState(ref i) => i.fmt(f),
             Game::SvDdraceTime(ref i) => i.fmt(f),
             Game::SvRecord(ref i) => i.fmt(f),
+            Game::SvKillMsgTeam(ref i) => i.fmt(f),
         }
     }
 }
@@ -325,9 +331,9 @@ impl<'a> From<SvTuneParams> for Game<'a> {
     }
 }
 
-impl<'a> From<SvExtraProjectile> for Game<'a> {
-    fn from(i: SvExtraProjectile) -> Game<'a> {
-        Game::SvExtraProjectile(i)
+impl<'a> From<Unused> for Game<'a> {
+    fn from(i: Unused) -> Game<'a> {
+        Game::Unused(i)
     }
 }
 
@@ -457,9 +463,9 @@ impl<'a> From<SvRecordLegacy> for Game<'a> {
     }
 }
 
-impl<'a> From<Unused> for Game<'a> {
-    fn from(i: Unused) -> Game<'a> {
-        Game::Unused(i)
+impl<'a> From<Unused2> for Game<'a> {
+    fn from(i: Unused2) -> Game<'a> {
+        Game::Unused2(i)
     }
 }
 
@@ -508,6 +514,12 @@ impl<'a> From<SvDdraceTime> for Game<'a> {
 impl<'a> From<SvRecord> for Game<'a> {
     fn from(i: SvRecord) -> Game<'a> {
         Game::SvRecord(i)
+    }
+}
+
+impl<'a> From<SvKillMsgTeam> for Game<'a> {
+    fn from(i: SvKillMsgTeam) -> Game<'a> {
+        Game::SvKillMsgTeam(i)
     }
 }
 #[derive(Clone, Copy)]
@@ -587,12 +599,12 @@ pub struct SvTuneParams {
     pub laser_fire_delay: TuneParam,
     pub ninja_fire_delay: TuneParam,
     pub hammer_hit_fire_delay: TuneParam,
+    pub ground_elasticity_x: TuneParam,
+    pub ground_elasticity_y: TuneParam,
 }
 
 #[derive(Clone, Copy)]
-pub struct SvExtraProjectile {
-    pub projectile: ::snap_obj::Projectile,
-}
+pub struct Unused;
 
 #[derive(Clone, Copy)]
 pub struct SvReadyToEnter;
@@ -719,7 +731,7 @@ pub struct SvRecordLegacy {
 }
 
 #[derive(Clone, Copy)]
-pub struct Unused;
+pub struct Unused2;
 
 #[derive(Clone, Copy)]
 pub struct SvTeamsStateLegacy;
@@ -759,6 +771,12 @@ pub struct SvDdraceTime {
 pub struct SvRecord {
     pub server_time_best: i32,
     pub player_time_best: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvKillMsgTeam {
+    pub team: i32,
+    pub first: i32,
 }
 
 impl<'a> SvMotd<'a> {
@@ -935,6 +953,8 @@ impl SvTuneParams {
             laser_fire_delay: TuneParam(_p.read_int(warn)?),
             ninja_fire_delay: TuneParam(_p.read_int(warn)?),
             hammer_hit_fire_delay: TuneParam(_p.read_int(warn)?),
+            ground_elasticity_x: TuneParam(_p.read_int(warn)?),
+            ground_elasticity_y: TuneParam(_p.read_int(warn)?),
         });
         _p.finish(warn);
         result
@@ -985,6 +1005,8 @@ impl SvTuneParams {
         _p.write_int(self.laser_fire_delay.0)?;
         _p.write_int(self.ninja_fire_delay.0)?;
         _p.write_int(self.hammer_hit_fire_delay.0)?;
+        _p.write_int(self.ground_elasticity_x.0)?;
+        _p.write_int(self.ground_elasticity_y.0)?;
         Ok(_p.written())
     }
 }
@@ -1036,27 +1058,25 @@ impl fmt::Debug for SvTuneParams {
             .field("laser_fire_delay", &self.laser_fire_delay)
             .field("ninja_fire_delay", &self.ninja_fire_delay)
             .field("hammer_hit_fire_delay", &self.hammer_hit_fire_delay)
+            .field("ground_elasticity_x", &self.ground_elasticity_x)
+            .field("ground_elasticity_y", &self.ground_elasticity_y)
             .finish()
     }
 }
 
-impl SvExtraProjectile {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvExtraProjectile, Error> {
-        let result = Ok(SvExtraProjectile {
-            projectile: ::snap_obj::Projectile::decode_msg(warn, _p)?,
-        });
+impl Unused {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Unused, Error> {
+        let result = Ok(Unused);
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        with_packer(&mut _p, |p| self.projectile.encode_msg(p))?;
         Ok(_p.written())
     }
 }
-impl fmt::Debug for SvExtraProjectile {
+impl fmt::Debug for Unused {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("SvExtraProjectile")
-            .field("projectile", &self.projectile)
+        f.debug_struct("Unused")
             .finish()
     }
 }
@@ -1610,9 +1630,9 @@ impl fmt::Debug for SvRecordLegacy {
     }
 }
 
-impl Unused {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Unused, Error> {
-        let result = Ok(Unused);
+impl Unused2 {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Unused2, Error> {
+        let result = Ok(Unused2);
         _p.finish(warn);
         result
     }
@@ -1620,9 +1640,9 @@ impl Unused {
         Ok(_p.written())
     }
 }
-impl fmt::Debug for Unused {
+impl fmt::Debug for Unused2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Unused")
+        f.debug_struct("Unused2")
             .finish()
     }
 }
@@ -1797,6 +1817,32 @@ impl fmt::Debug for SvRecord {
         f.debug_struct("SvRecord")
             .field("server_time_best", &self.server_time_best)
             .field("player_time_best", &self.player_time_best)
+            .finish()
+    }
+}
+
+impl SvKillMsgTeam {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvKillMsgTeam, Error> {
+        let result = Ok(SvKillMsgTeam {
+            team: in_range(_p.read_int(warn)?, 0, 63)?,
+            first: in_range(_p.read_int(warn)?, -1, 63)?,
+        });
+        _p.finish(warn);
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(0 <= self.team && self.team <= 63);
+        assert!(-1 <= self.first && self.first <= 63);
+        _p.write_int(self.team)?;
+        _p.write_int(self.first)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvKillMsgTeam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvKillMsgTeam")
+            .field("team", &self.team)
+            .field("first", &self.first)
             .finish()
     }
 }

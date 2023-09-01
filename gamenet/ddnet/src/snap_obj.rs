@@ -101,20 +101,26 @@ pub const EXPLAYERFLAG_AFK: i32 = 1 << 0;
 pub const EXPLAYERFLAG_PAUSED: i32 = 1 << 1;
 pub const EXPLAYERFLAG_SPEC: i32 = 1 << 2;
 
-pub const PROJECTILEFLAG_CLIENTID_BIT0: i32 = 1 << 0;
-pub const PROJECTILEFLAG_CLIENTID_BIT1: i32 = 1 << 1;
-pub const PROJECTILEFLAG_CLIENTID_BIT2: i32 = 1 << 2;
-pub const PROJECTILEFLAG_CLIENTID_BIT3: i32 = 1 << 3;
-pub const PROJECTILEFLAG_CLIENTID_BIT4: i32 = 1 << 4;
-pub const PROJECTILEFLAG_CLIENTID_BIT5: i32 = 1 << 5;
-pub const PROJECTILEFLAG_CLIENTID_BIT6: i32 = 1 << 6;
-pub const PROJECTILEFLAG_CLIENTID_BIT7: i32 = 1 << 7;
-pub const PROJECTILEFLAG_NO_OWNER: i32 = 1 << 8;
-pub const PROJECTILEFLAG_IS_DDNET: i32 = 1 << 9;
-pub const PROJECTILEFLAG_BOUNCE_HORIZONTAL: i32 = 1 << 10;
-pub const PROJECTILEFLAG_BOUNCE_VERTICAL: i32 = 1 << 11;
-pub const PROJECTILEFLAG_EXPLOSIVE: i32 = 1 << 12;
-pub const PROJECTILEFLAG_FREEZE: i32 = 1 << 13;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT0: i32 = 1 << 0;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT1: i32 = 1 << 1;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT2: i32 = 1 << 2;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT3: i32 = 1 << 3;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT4: i32 = 1 << 4;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT5: i32 = 1 << 5;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT6: i32 = 1 << 6;
+pub const LEGACYPROJECTILEFLAG_CLIENTID_BIT7: i32 = 1 << 7;
+pub const LEGACYPROJECTILEFLAG_NO_OWNER: i32 = 1 << 8;
+pub const LEGACYPROJECTILEFLAG_IS_DDNET: i32 = 1 << 9;
+pub const LEGACYPROJECTILEFLAG_BOUNCE_HORIZONTAL: i32 = 1 << 10;
+pub const LEGACYPROJECTILEFLAG_BOUNCE_VERTICAL: i32 = 1 << 11;
+pub const LEGACYPROJECTILEFLAG_EXPLOSIVE: i32 = 1 << 12;
+pub const LEGACYPROJECTILEFLAG_FREEZE: i32 = 1 << 13;
+
+pub const PROJECTILEFLAG_BOUNCE_HORIZONTAL: i32 = 1 << 0;
+pub const PROJECTILEFLAG_BOUNCE_VERTICAL: i32 = 1 << 1;
+pub const PROJECTILEFLAG_EXPLOSIVE: i32 = 1 << 2;
+pub const PROJECTILEFLAG_FREEZE: i32 = 1 << 3;
+pub const PROJECTILEFLAG_NORMALIZE_VEL: i32 = 1 << 4;
 
 pub const PLAYER_INPUT: u16 = 1;
 pub const PROJECTILE: u16 = 2;
@@ -132,8 +138,10 @@ pub const MY_OWN_OBJECT: Uuid = Uuid::from_u128(0x0dc77a02_bfee_3a53_ac8e_0bb024
 pub const DDNET_CHARACTER: Uuid = Uuid::from_u128(0x76ce455b_f9eb_3a48_add7_e04b941d045c);
 pub const DDNET_PLAYER: Uuid = Uuid::from_u128(0x22ca938d_1380_3e2b_9e7b_d2558ea6be11);
 pub const GAME_INFO_EX: Uuid = Uuid::from_u128(0x933dea6a_da79_30ea_a98f_8af03689a945);
-pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x0e6db85c_2b61_386f_bbf2_d0d0471b9272);
+pub const DDRACE_PROJECTILE: Uuid = Uuid::from_u128(0x0e6db85c_2b61_386f_bbf2_d0d0471b9272);
 pub const DDNET_LASER: Uuid = Uuid::from_u128(0x29de68a2_6928_31b8_8360_a2307e0d844f);
+pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x6550fbce_f317_3b31_8ffe_d2b37f3ab40e);
+pub const DDNET_PICKUP: Uuid = Uuid::from_u128(0xea5e4a51_58fb_3684_96e4_e0d267f4ca65);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -165,8 +173,10 @@ pub enum SnapObj {
     DdnetCharacter(DdnetCharacter),
     DdnetPlayer(DdnetPlayer),
     GameInfoEx(GameInfoEx),
-    DdnetProjectile(DdnetProjectile),
+    DdraceProjectile(DdraceProjectile),
     DdnetLaser(DdnetLaser),
+    DdnetProjectile(DdnetProjectile),
+    DdnetPickup(DdnetPickup),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -201,8 +211,10 @@ impl SnapObj {
             Uuid(DDNET_CHARACTER) => SnapObj::DdnetCharacter(DdnetCharacter::decode(warn, _p)?),
             Uuid(DDNET_PLAYER) => SnapObj::DdnetPlayer(DdnetPlayer::decode(warn, _p)?),
             Uuid(GAME_INFO_EX) => SnapObj::GameInfoEx(GameInfoEx::decode(warn, _p)?),
-            Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
+            Uuid(DDRACE_PROJECTILE) => SnapObj::DdraceProjectile(DdraceProjectile::decode(warn, _p)?),
             Uuid(DDNET_LASER) => SnapObj::DdnetLaser(DdnetLaser::decode(warn, _p)?),
+            Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
+            Uuid(DDNET_PICKUP) => SnapObj::DdnetPickup(DdnetPickup::decode(warn, _p)?),
             Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
             Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
             Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
@@ -236,8 +248,10 @@ impl SnapObj {
             SnapObj::DdnetCharacter(_) => TypeId::from(DDNET_CHARACTER),
             SnapObj::DdnetPlayer(_) => TypeId::from(DDNET_PLAYER),
             SnapObj::GameInfoEx(_) => TypeId::from(GAME_INFO_EX),
-            SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
+            SnapObj::DdraceProjectile(_) => TypeId::from(DDRACE_PROJECTILE),
             SnapObj::DdnetLaser(_) => TypeId::from(DDNET_LASER),
+            SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
+            SnapObj::DdnetPickup(_) => TypeId::from(DDNET_PICKUP),
             SnapObj::Common(_) => TypeId::from(COMMON),
             SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
             SnapObj::Spawn(_) => TypeId::from(SPAWN),
@@ -270,8 +284,10 @@ impl SnapObj {
             SnapObj::DdnetCharacter(ref i) => i.encode(),
             SnapObj::DdnetPlayer(ref i) => i.encode(),
             SnapObj::GameInfoEx(ref i) => i.encode(),
-            SnapObj::DdnetProjectile(ref i) => i.encode(),
+            SnapObj::DdraceProjectile(ref i) => i.encode(),
             SnapObj::DdnetLaser(ref i) => i.encode(),
+            SnapObj::DdnetProjectile(ref i) => i.encode(),
+            SnapObj::DdnetPickup(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -307,8 +323,10 @@ impl fmt::Debug for SnapObj {
             SnapObj::DdnetCharacter(ref i) => i.fmt(f),
             SnapObj::DdnetPlayer(ref i) => i.fmt(f),
             SnapObj::GameInfoEx(ref i) => i.fmt(f),
-            SnapObj::DdnetProjectile(ref i) => i.fmt(f),
+            SnapObj::DdraceProjectile(ref i) => i.fmt(f),
             SnapObj::DdnetLaser(ref i) => i.fmt(f),
+            SnapObj::DdnetProjectile(ref i) => i.fmt(f),
+            SnapObj::DdnetPickup(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -421,15 +439,27 @@ impl From<GameInfoEx> for SnapObj {
     }
 }
 
-impl From<DdnetProjectile> for SnapObj {
-    fn from(i: DdnetProjectile) -> SnapObj {
-        SnapObj::DdnetProjectile(i)
+impl From<DdraceProjectile> for SnapObj {
+    fn from(i: DdraceProjectile) -> SnapObj {
+        SnapObj::DdraceProjectile(i)
     }
 }
 
 impl From<DdnetLaser> for SnapObj {
     fn from(i: DdnetLaser) -> SnapObj {
         SnapObj::DdnetLaser(i)
+    }
+}
+
+impl From<DdnetProjectile> for SnapObj {
+    fn from(i: DdnetProjectile) -> SnapObj {
+        SnapObj::DdnetProjectile(i)
+    }
+}
+
+impl From<DdnetPickup> for SnapObj {
+    fn from(i: DdnetPickup) -> SnapObj {
+        SnapObj::DdnetPickup(i)
     }
 }
 
@@ -681,7 +711,7 @@ pub struct GameInfoEx {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DdnetProjectile {
+pub struct DdraceProjectile {
     pub x: i32,
     pub y: i32,
     pub angle: i32,
@@ -700,6 +730,33 @@ pub struct DdnetLaser {
     pub start_tick: ::snap_obj::Tick,
     pub owner: i32,
     pub type_: i32,
+    pub switch_number: i32,
+    pub subtype: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetProjectile {
+    pub x: i32,
+    pub y: i32,
+    pub vel_x: i32,
+    pub vel_y: i32,
+    pub type_: enums::Weapon,
+    pub start_tick: ::snap_obj::Tick,
+    pub owner: i32,
+    pub switch_number: i32,
+    pub tune_zone: i32,
+    pub flags: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetPickup {
+    pub x: i32,
+    pub y: i32,
+    pub type_: i32,
+    pub subtype: i32,
+    pub switch_number: i32,
 }
 
 #[repr(C)]
@@ -887,29 +944,6 @@ impl Projectile {
     }
     pub fn encode(&self) -> &[i32] {
         unsafe { slice::transmute(from_ref(self)) }
-    }
-}
-impl Projectile {
-    pub fn decode_msg<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Projectile, Error> {
-        let result = Ok(Projectile {
-            x: _p.read_int(warn)?,
-            y: _p.read_int(warn)?,
-            vel_x: _p.read_int(warn)?,
-            vel_y: _p.read_int(warn)?,
-            type_: enums::Weapon::from_i32(_p.read_int(warn)?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int(warn)?),
-        });
-        _p.finish(warn);
-        result
-    }
-    pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_int(self.x)?;
-        _p.write_int(self.y)?;
-        _p.write_int(self.vel_x)?;
-        _p.write_int(self.vel_y)?;
-        _p.write_int(self.type_.to_i32())?;
-        _p.write_int(self.start_tick.0)?;
-        Ok(_p.written())
     }
 }
 
@@ -1408,9 +1442,9 @@ impl GameInfoEx {
     }
 }
 
-impl fmt::Debug for DdnetProjectile {
+impl fmt::Debug for DdraceProjectile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DdnetProjectile")
+        f.debug_struct("DdraceProjectile")
             .field("x", &self.x)
             .field("y", &self.y)
             .field("angle", &self.angle)
@@ -1420,14 +1454,14 @@ impl fmt::Debug for DdnetProjectile {
             .finish()
     }
 }
-impl DdnetProjectile {
-    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
+impl DdraceProjectile {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdraceProjectile, Error> {
         let result = Self::decode_inner(p)?;
         p.finish(warn);
         Ok(result)
     }
-    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
-        Ok(DdnetProjectile {
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdraceProjectile, Error> {
+        Ok(DdraceProjectile {
             x: _p.read_int()?,
             y: _p.read_int()?,
             angle: _p.read_int()?,
@@ -1451,6 +1485,8 @@ impl fmt::Debug for DdnetLaser {
             .field("start_tick", &self.start_tick)
             .field("owner", &self.owner)
             .field("type_", &self.type_)
+            .field("switch_number", &self.switch_number)
+            .field("subtype", &self.subtype)
             .finish()
     }
 }
@@ -1469,10 +1505,87 @@ impl DdnetLaser {
             start_tick: ::snap_obj::Tick(_p.read_int()?),
             owner: in_range(_p.read_int()?, -1, 63)?,
             type_: _p.read_int()?,
+            switch_number: _p.read_int()?,
+            subtype: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.owner && self.owner <= 63);
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetProjectile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetProjectile")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("vel_x", &self.vel_x)
+            .field("vel_y", &self.vel_y)
+            .field("type_", &self.type_)
+            .field("start_tick", &self.start_tick)
+            .field("owner", &self.owner)
+            .field("switch_number", &self.switch_number)
+            .field("tune_zone", &self.tune_zone)
+            .field("flags", &self.flags)
+            .finish()
+    }
+}
+impl DdnetProjectile {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetProjectile, Error> {
+        Ok(DdnetProjectile {
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            vel_x: _p.read_int()?,
+            vel_y: _p.read_int()?,
+            type_: enums::Weapon::from_i32(_p.read_int()?)?,
+            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            owner: in_range(_p.read_int()?, -1, 63)?,
+            switch_number: _p.read_int()?,
+            tune_zone: _p.read_int()?,
+            flags: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(-1 <= self.owner && self.owner <= 63);
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetPickup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetPickup")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("type_", &self.type_)
+            .field("subtype", &self.subtype)
+            .field("switch_number", &self.switch_number)
+            .finish()
+    }
+}
+impl DdnetPickup {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetPickup, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetPickup, Error> {
+        Ok(DdnetPickup {
+            x: _p.read_int()?,
+            y: _p.read_int()?,
+            type_: positive(_p.read_int()?)?,
+            subtype: positive(_p.read_int()?)?,
+            switch_number: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(self.type_ >= 0);
+        assert!(self.subtype >= 0);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }

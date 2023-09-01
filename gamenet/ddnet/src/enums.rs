@@ -7,7 +7,7 @@ pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
 pub const VERSION: &'static str = "0.6 626fce9a778df4d4";
-pub const DDNET_VERSION: i32 = 16072;
+pub const DDNET_VERSION: i32 = 17021;
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
@@ -136,6 +136,9 @@ pub const LASERTYPE_RIFLE: i32 = 0;
 pub const LASERTYPE_SHOTGUN: i32 = 1;
 pub const LASERTYPE_DOOR: i32 = 2;
 pub const LASERTYPE_FREEZE: i32 = 3;
+pub const LASERTYPE_DRAGGER: i32 = 4;
+pub const LASERTYPE_GUN: i32 = 5;
+pub const LASERTYPE_PLASMA: i32 = 6;
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
@@ -144,6 +147,41 @@ pub enum Lasertype {
     Shotgun,
     Door,
     Freeze,
+    Dragger,
+    Gun,
+    Plasma,
+}
+
+pub const LASERDRAGGERTYPE_WEAK: i32 = 0;
+pub const LASERDRAGGERTYPE_WEAK_NW: i32 = 1;
+pub const LASERDRAGGERTYPE_NORMAL: i32 = 2;
+pub const LASERDRAGGERTYPE_NORMAL_NW: i32 = 3;
+pub const LASERDRAGGERTYPE_STRONG: i32 = 4;
+pub const LASERDRAGGERTYPE_STRONG_NW: i32 = 5;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Laserdraggertype {
+    Weak,
+    WeakNw,
+    Normal,
+    NormalNw,
+    Strong,
+    StrongNw,
+}
+
+pub const LASERGUNTYPE_UNFREEZE: i32 = 0;
+pub const LASERGUNTYPE_EXPLOSIVE: i32 = 1;
+pub const LASERGUNTYPE_FREEZE: i32 = 2;
+pub const LASERGUNTYPE_EXPFREEZE: i32 = 3;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Laserguntype {
+    Unfreeze,
+    Explosive,
+    Freeze,
+    Expfreeze,
 }
 
 pub const WEAPON_HAMMER: i32 = 0;
@@ -432,6 +470,9 @@ impl Lasertype {
             LASERTYPE_SHOTGUN => Shotgun,
             LASERTYPE_DOOR => Door,
             LASERTYPE_FREEZE => Freeze,
+            LASERTYPE_DRAGGER => Dragger,
+            LASERTYPE_GUN => Gun,
+            LASERTYPE_PLASMA => Plasma,
             _ => return Err(IntOutOfRange),
         })
     }
@@ -442,6 +483,57 @@ impl Lasertype {
             Shotgun => LASERTYPE_SHOTGUN,
             Door => LASERTYPE_DOOR,
             Freeze => LASERTYPE_FREEZE,
+            Dragger => LASERTYPE_DRAGGER,
+            Gun => LASERTYPE_GUN,
+            Plasma => LASERTYPE_PLASMA,
+        }
+    }
+}
+
+impl Laserdraggertype {
+    pub fn from_i32(i: i32) -> Result<Laserdraggertype, IntOutOfRange> {
+        use self::Laserdraggertype::*;
+        Ok(match i {
+            LASERDRAGGERTYPE_WEAK => Weak,
+            LASERDRAGGERTYPE_WEAK_NW => WeakNw,
+            LASERDRAGGERTYPE_NORMAL => Normal,
+            LASERDRAGGERTYPE_NORMAL_NW => NormalNw,
+            LASERDRAGGERTYPE_STRONG => Strong,
+            LASERDRAGGERTYPE_STRONG_NW => StrongNw,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Laserdraggertype::*;
+        match self {
+            Weak => LASERDRAGGERTYPE_WEAK,
+            WeakNw => LASERDRAGGERTYPE_WEAK_NW,
+            Normal => LASERDRAGGERTYPE_NORMAL,
+            NormalNw => LASERDRAGGERTYPE_NORMAL_NW,
+            Strong => LASERDRAGGERTYPE_STRONG,
+            StrongNw => LASERDRAGGERTYPE_STRONG_NW,
+        }
+    }
+}
+
+impl Laserguntype {
+    pub fn from_i32(i: i32) -> Result<Laserguntype, IntOutOfRange> {
+        use self::Laserguntype::*;
+        Ok(match i {
+            LASERGUNTYPE_UNFREEZE => Unfreeze,
+            LASERGUNTYPE_EXPLOSIVE => Explosive,
+            LASERGUNTYPE_FREEZE => Freeze,
+            LASERGUNTYPE_EXPFREEZE => Expfreeze,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Laserguntype::*;
+        match self {
+            Unfreeze => LASERGUNTYPE_UNFREEZE,
+            Explosive => LASERGUNTYPE_EXPLOSIVE,
+            Freeze => LASERGUNTYPE_FREEZE,
+            Expfreeze => LASERGUNTYPE_EXPFREEZE,
         }
     }
 }

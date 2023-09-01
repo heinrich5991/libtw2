@@ -62,6 +62,10 @@ SYSTEM_MSGS_DDNET_16_2 = SYSTEM_MSGS_DDNET_15_2_5 + [
     ("checksum-error@ddnet.tw", "checksum_error", "vital", "u:id i:error"),
 ]
 
+SYSTEM_MSGS_DDNET_17_2_1 = SYSTEM_MSGS_DDNET_16_2 + [
+    ("redirect@ddnet.org", "redirect", "vital", "i:port"),
+]
+
 SYSTEM_MSGS_0_7 = [
     ( 1, "info", "vital", "s:version s?:password i?:client_version"),
     ( 2, "map_change", "vital", "s:name i:crc i:size i:num_response_chunks_per_request i:chunk_size h:sha256"),
@@ -141,5 +145,6 @@ SYSTEM_MSGS = {
     "ddnet-15.2.5": make_msgs(SYSTEM_MSGS_DDNET_15_2_5),
     "ddnet-16.2": make_msgs(SYSTEM_MSGS_DDNET_16_2),
     "ddnet-16.7.2": make_msgs(SYSTEM_MSGS_DDNET_16_2),
+    "ddnet-17.2.1": make_msgs(SYSTEM_MSGS_DDNET_16_2),
     "0.7": make_msgs(SYSTEM_MSGS_0_7),
 }
