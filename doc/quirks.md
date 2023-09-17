@@ -8,3 +8,6 @@
 - The client wants to receive the last snapshot part last, otherwise the
   resulting delta is too long.
 - CCharacterCore has unused fields `m_HookDx`, `m_HookDy`
+- The packet payload can be empty. This happens when chunks from the peer are
+  lost, a resend of these is requested but no new chunks to the peer are queued
+  yet.
