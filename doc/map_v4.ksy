@@ -34,8 +34,9 @@ seq:
     repeat: expr
     repeat-expr: header.num_data
 types:
-  # data_items needs to be zero sized for ._io
-  # otherwise the data gets consumed
+  # the dummy type is zero-sized. it leaves data streams complete and doesn't consume them, when instanciated
+  # later parsing is only possible with data streams that have unparsed data in them
+  # data_items and envelope points are not directly parsed, but only afterwards in instances, because they require more context
   dummy: {}
   header:
     seq:
@@ -504,4 +505,4 @@ enums:
   sound_source_shape:
     0: rectangle
     1: circle
-    
+ 
