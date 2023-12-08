@@ -117,7 +117,9 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                 Some(map_sha256),
                 header.map_crc,
                 demo::DemoKind::Server,
+                0,   // Length
                 b"", // Timestamp
+                &[], // Map data
             )
             .map_err(|err| err.to_string())?;
         } else {
@@ -128,7 +130,9 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                 None,
                 header.map_crc,
                 demo::DemoKind::Server,
+                0,   // Length
                 b"", // Timestamp
+                &[], // Map data
             )
             .map_err(|err| err.to_string())?;
         }

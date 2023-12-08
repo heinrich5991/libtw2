@@ -104,7 +104,7 @@ impl Header {
     }
 }
 
-#[derive(BinRead, BinWrite, Debug)]
+#[derive(BinRead, BinWrite, Debug, Copy, Clone)]
 pub enum DemoKind {
     #[brw(magic = b"client\0\0")]
     Client,

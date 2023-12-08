@@ -57,17 +57,19 @@ impl Writer {
         map_sha256: Option<Sha256>,
         map_crc: u32,
         kind: DemoKind,
+        length: i32,
         timestamp: &[u8],
+        map: &[u8],
     ) -> Result<Writer, WriteError> {
         let mut writer = Writer {
             file: Box::new(file),
             header: Header {
                 net_version: CappedString::from_raw(net_version),
                 map_name: CappedString::from_raw(map_name),
-                map_size: 0,
+                map_size: map.len().assert_i32(),
                 map_crc: map_crc,
                 kind: kind,
-                length: Default::default(),
+                length,
                 timestamp: CappedString::from_raw(timestamp),
             },
             prev_tick: None,
@@ -83,6 +85,7 @@ impl Writer {
         if let Some(sha256) = map_sha256 {
             MapSha256::new(sha256).write_le(&mut writer.file)?;
         }
+        map.write(&mut writer.file)?;
         Ok(writer)
     }
     fn write_header(&mut self, ddnet: bool) -> Result<(), WriteError> {

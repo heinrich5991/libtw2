@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use binrw::BinRead;
+use common::digest::Sha256;
 use common::num::Cast;
 use huffman;
 use huffman::instances::TEEWORLDS as HUFFMAN;
@@ -9,10 +10,10 @@ use thiserror::Error;
 use warn::wrap;
 use warn::Warn;
 
-use crate::format;
 use crate::format::TickMarker;
 use crate::format::Warning;
 use crate::format::MAX_SNAPSHOT_SIZE;
+use crate::{format, DemoKind};
 
 #[derive(Error, Debug)]
 #[error(transparent)]
@@ -88,11 +89,23 @@ impl Reader {
     pub fn map_crc(&self) -> u32 {
         self.start.header.map_crc
     }
+    pub fn demo_kind(&self) -> DemoKind {
+        self.start.header.kind
+    }
+    pub fn length(&self) -> i32 {
+        self.start.header.length
+    }
     pub fn timestamp(&self) -> &[u8] {
         self.start.header.timestamp.raw()
     }
     pub fn timeline_markers(&self) -> &[i32] {
         self.start.timeline_markers.markers()
+    }
+    pub fn sha_256(&self) -> Option<Sha256> {
+        self.start
+            .map_sha256
+            .as_ref()
+            .map(|sha| Sha256(sha.sha_256))
     }
     pub fn read_chunk<W>(&mut self, warn: &mut W) -> Result<Option<format::RawChunk>, ReadError>
     where
