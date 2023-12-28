@@ -136,12 +136,8 @@ impl DemoReader {
         }
     }
 
-    pub fn map_data(&self) -> Option<&[u8]> {
-        if self.raw.map_data().is_empty() {
-            None
-        } else {
-            Some(self.raw.map_data())
-        }
+    pub fn inner(&self) -> &reader::Reader {
+        &self.raw
     }
 }
 

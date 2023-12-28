@@ -211,7 +211,7 @@ const CHUNKSIZE_ONEBYTEFOLLOWS: u8 = 0b0001_1110;
 const CHUNKSIZE_TWOBYTESFOLLOW: u8 = 0b0001_1111;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum DataKind {
+pub(crate) enum DataKind {
     Snapshot,
     Message,
     SnapshotDelta,
@@ -219,13 +219,13 @@ pub enum DataKind {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum TickMarker {
+pub(crate) enum TickMarker {
     Delta(u8),
     Absolute(i32),
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum ChunkHeader {
+pub(crate) enum ChunkHeader {
     Tick { marker: TickMarker, keyframe: bool },
     Data { kind: DataKind, size: u16 },
 }

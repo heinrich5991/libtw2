@@ -89,7 +89,7 @@ impl Reader {
     pub fn map_crc(&self) -> u32 {
         self.start.header.map_crc
     }
-    pub fn demo_kind(&self) -> DemoKind {
+    pub fn kind(&self) -> DemoKind {
         self.start.header.kind
     }
     pub fn length(&self) -> i32 {
@@ -101,7 +101,7 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[i32] {
         self.start.timeline_markers.markers()
     }
-    pub fn sha_256(&self) -> Option<Sha256> {
+    pub fn map_sha256(&self) -> Option<Sha256> {
         self.start
             .map_sha256
             .as_ref()

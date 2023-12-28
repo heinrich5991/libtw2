@@ -19,6 +19,7 @@ mod writer;
 
 pub use format::DemoKind;
 pub use format::RawChunk;
+pub use format::Version;
 pub use format::Warning;
 pub use reader::ReadError;
 pub use reader::Reader;
