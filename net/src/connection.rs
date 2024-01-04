@@ -1,24 +1,24 @@
-use Timeout;
-use Timestamp;
 use arrayvec::ArrayVec;
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
+use protocol;
 use protocol::ChunksIter;
 use protocol::ConnectedPacket;
 use protocol::ConnectedPacketType;
 use protocol::ControlPacket;
+use protocol::Packet;
+use protocol::Token;
 use protocol::MAX_PACKETSIZE;
 use protocol::MAX_PAYLOAD;
-use protocol::Packet;
 use protocol::TOKEN_NONE;
-use protocol::Token;
-use protocol;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
 use std::time::Duration;
 use warn::Warn;
+use Timeout;
+use Timestamp;
 
 // TODO: Implement receive timeout.
 // TODO: Don't allow for unbounded backlog of vital messages.
@@ -128,7 +128,11 @@ impl ResendChunk {
             sequence: sequence,
             data: data.iter().cloned().collect(),
         };
-        assert!(result.data.len() == data.len(), "overlong resend packet {}", data.len());
+        assert!(
+            result.data.len() == data.len(),
+            "overlong resend packet {}",
+            data.len()
+        );
         result.start_timeout(cb);
         result
     }
@@ -165,9 +169,14 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
     }
-    fn connected<W>(warn: &mut W, online: &mut OnlineState, num_chunks: u8, data: &'a [u8])
-        -> ReceivePacket<'a>
-        where W: Warn<Warning>,
+    fn connected<W>(
+        warn: &mut W,
+        online: &mut OnlineState,
+        num_chunks: u8,
+        data: &'a [u8],
+    ) -> ReceivePacket<'a>
+    where
+        W: Warn<Warning>,
     {
         let chunks_iter = ChunksIter::new(data, num_chunks);
         let ack = online.ack.clone();
@@ -175,9 +184,7 @@ impl<'a> ReceivePacket<'a> {
         while let Some(c) = iter.next_warn(&mut w(warn)) {
             if let Some((sequence, resend)) = c.vital {
                 let _ = resend;
-                if online.ack.update(Sequence::from_u16(sequence))
-                    != SequenceOrdering::Current
-                {
+                if online.ack.update(Sequence::from_u16(sequence)) != SequenceOrdering::Current {
                     online.request_resend = true;
                 }
             }
@@ -210,13 +217,10 @@ impl<'a> Iterator for ReceivePacket<'a> {
     fn next(&mut self) -> Option<ReceiveChunk<'a>> {
         match self.type_ {
             ReceivePacketType::None => None,
-            ReceivePacketType::Ready(ref mut once) =>
-                once.next().map(|()| ReceiveChunk::Ready),
-            ReceivePacketType::Connless(ref mut once) =>
-                once.next().map(ReceiveChunk::Connless),
+            ReceivePacketType::Ready(ref mut once) => once.next().map(|()| ReceiveChunk::Ready),
+            ReceivePacketType::Connless(ref mut once) => once.next().map(ReceiveChunk::Connless),
             ReceivePacketType::Connected(ref mut chunks) => chunks.next(),
-            ReceivePacketType::Close(ref mut once) =>
-                once.next().map(ReceiveChunk::Disconnect),
+            ReceivePacketType::Close(ref mut once) => once.next().map(ReceiveChunk::Disconnect),
         }
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -225,7 +229,7 @@ impl<'a> Iterator for ReceivePacket<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for ReceivePacket<'a> { }
+impl<'a> ExactSizeIterator for ReceivePacket<'a> {}
 
 #[derive(Clone)]
 struct ReceiveChunks<'a> {
@@ -239,9 +243,7 @@ impl<'a> Iterator for ReceiveChunks<'a> {
         self.chunks.next().and_then(|c| {
             if let Some((sequence, resend)) = c.vital {
                 let _ = resend;
-                if self.ack.update(Sequence::from_u16(sequence))
-                    != SequenceOrdering::Current
-                {
+                if self.ack.update(Sequence::from_u16(sequence)) != SequenceOrdering::Current {
                     return self.next();
                 }
             }
@@ -254,7 +256,7 @@ impl<'a> Iterator for ReceiveChunks<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for ReceiveChunks<'a> { }
+impl<'a> ExactSizeIterator for ReceiveChunks<'a> {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ReceiveChunk<'a> {
@@ -274,9 +276,7 @@ struct PendingState {
 
 impl PendingState {
     fn new(token: Option<Token>) -> PendingState {
-        PendingState {
-            token: token,
-        }
+        PendingState { token: token }
     }
 }
 
@@ -315,24 +315,34 @@ impl OnlineState {
         self.packet.num_chunks != 0 || self.request_resend
     }
     fn ack_chunks(&mut self, ack: Sequence) {
-        let index = self.resend_queue.iter().position(|chunk| chunk.sequence == ack);
+        let index = self
+            .resend_queue
+            .iter()
+            .position(|chunk| chunk.sequence == ack);
         index.map(|i| self.resend_queue.truncate(i));
     }
-    fn flush<CB: Callback>(&mut self, cb: &mut CB, builder: &mut PacketBuilder)
-        -> Result<(), CB::Error>
-    {
+    fn flush<CB: Callback>(
+        &mut self,
+        cb: &mut CB,
+        builder: &mut PacketBuilder,
+    ) -> Result<(), CB::Error> {
         if !self.can_send() {
             return Ok(());
         }
-        let result = builder.send(cb, Packet::Connected(ConnectedPacket {
-            token: self.token,
-            ack: self.ack.to_u16(),
-            type_: ConnectedPacketType::Chunks(
-                self.request_resend,
-                self.packet.num_chunks,
-                &self.packet.data,
-            ),
-        })).map_err(|e| e.unwrap_callback());
+        let result = builder
+            .send(
+                cb,
+                Packet::Connected(ConnectedPacket {
+                    token: self.token,
+                    ack: self.ack.to_u16(),
+                    type_: ConnectedPacketType::Chunks(
+                        self.request_resend,
+                        self.packet.num_chunks,
+                        &self.packet.data,
+                    ),
+                }),
+            )
+            .map_err(|e| e.unwrap_callback());
         self.request_resend = false;
         self.packet.clear();
         self.packet_nonvital.clear();
@@ -384,9 +394,7 @@ impl Sequence {
     }
     fn from_u16(seq: u16) -> Sequence {
         assert!(seq < protocol::SEQUENCE_MODULUS);
-        Sequence {
-            seq: seq,
-        }
+        Sequence { seq: seq }
     }
     fn to_u16(self) -> u16 {
         self.seq
@@ -431,9 +439,7 @@ impl PacketBuilder {
             buffer: [0; MAX_PACKETSIZE],
         }
     }
-    fn send<CB: Callback>(&mut self, cb: &mut CB, packet: Packet)
-        -> Result<(), Error<CB::Error>>
-    {
+    fn send<CB: Callback>(&mut self, cb: &mut CB, packet: Packet) -> Result<(), Error<CB::Error>> {
         let data = match packet.write(&mut self.buffer[..]) {
             Ok(d) => d,
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
@@ -444,14 +450,12 @@ impl PacketBuilder {
     }
 }
 
-struct WarnCallback<'a, W: Warn<Warning>+'a> {
+struct WarnCallback<'a, W: Warn<Warning> + 'a> {
     warn: &'a mut W,
 }
 
 fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<W> {
-    WarnCallback {
-        warn: warn,
-    }
+    WarnCallback { warn: warn }
 }
 
 impl<'a, W: Warn<Warning>> Warn<protocol::Warning> for WarnCallback<'a, W> {
@@ -487,11 +491,14 @@ impl Connection {
     pub fn needs_tick(&self) -> Timeout {
         match self.state {
             State::Unconnected | State::Disconnected => return Timeout::inactive(),
-            _ => {},
+            _ => {}
         }
         let resends = match self.state {
-            State::Online(ref online) =>
-                online.resend_queue.back().map(|r| r.next_send).unwrap_or_default(),
+            State::Online(ref online) => online
+                .resend_queue
+                .back()
+                .map(|r| r.next_send)
+                .unwrap_or_default(),
             _ => Timeout::inactive(),
         };
         cmp::min(self.send, resends)
@@ -502,13 +509,21 @@ impl Connection {
         self.tick_action(cb)?;
         Ok(())
     }
-    pub fn disconnect<CB: Callback>(&mut self, cb: &mut CB, reason: &[u8])
-        -> Result<(), CB::Error>
-    {
+    pub fn disconnect<CB: Callback>(
+        &mut self,
+        cb: &mut CB,
+        reason: &[u8],
+    ) -> Result<(), CB::Error> {
         if let State::Disconnected = self.state {
-            assert!(false, "Can't call disconnect on an already disconnected connection");
+            assert!(
+                false,
+                "Can't call disconnect on an already disconnected connection"
+            );
         }
-        assert!(reason.iter().all(|&b| b != 0), "reason must not contain NULs");
+        assert!(
+            reason.iter().all(|&b| b != 0),
+            "reason must not contain NULs"
+        );
         let result = self.send_control(cb, ControlPacket::Close(reason));
         self.state = State::Disconnected;
         result
@@ -549,7 +564,9 @@ impl Connection {
         let online = self.state.assert_online();
         let vital = if vital {
             let sequence = online.sequence.next();
-            online.resend_queue.push_front(ResendChunk::new(cb, sequence, buffer));
+            online
+                .resend_queue
+                .push_front(ResendChunk::new(cb, sequence, buffer));
             Some((sequence.to_u16(), false))
         } else {
             None
@@ -559,9 +576,12 @@ impl Connection {
         }
         online.packet.write_chunk(buffer, vital)
     }
-    pub fn send<CB: Callback>(&mut self, cb: &mut CB, buffer: &[u8], vital: bool)
-        -> Result<(), Error<CB::Error>>
-    {
+    pub fn send<CB: Callback>(
+        &mut self,
+        cb: &mut CB,
+        buffer: &[u8],
+        vital: bool,
+    ) -> Result<(), Error<CB::Error>> {
         let result;
         {
             let online = self.state.assert_online();
@@ -577,14 +597,20 @@ impl Connection {
         self.queue(cb, buffer, vital);
         result
     }
-    pub fn send_connless<CB: Callback>(&mut self, cb: &mut CB, data: &[u8])
-        -> Result<(), Error<CB::Error>>
-    {
+    pub fn send_connless<CB: Callback>(
+        &mut self,
+        cb: &mut CB,
+        data: &[u8],
+    ) -> Result<(), Error<CB::Error>> {
         self.state.assert_online();
         self.send.set(cb, Duration::from_millis(500));
         self.builder.send(cb, Packet::Connless(data))
     }
-    fn send_control<CB: Callback>(&mut self, cb: &mut CB, control: ControlPacket) -> Result<(), CB::Error> {
+    fn send_control<CB: Callback>(
+        &mut self,
+        cb: &mut CB,
+        control: ControlPacket,
+    ) -> Result<(), CB::Error> {
         let ack = match self.state {
             State::Online(ref mut online) => online.ack.to_u16(),
             _ => 0,
@@ -597,19 +623,24 @@ impl Connection {
             State::Online(ref online) => online.token,
             State::Disconnected => unreachable!(),
         };
-        self.builder.send(cb, Packet::Connected(ConnectedPacket {
-            token: token,
-            ack: ack,
-            type_: ConnectedPacketType::Control(control),
-        })).map_err(|e| e.unwrap_callback())
+        self.builder
+            .send(
+                cb,
+                Packet::Connected(ConnectedPacket {
+                    token: token,
+                    ack: ack,
+                    type_: ConnectedPacketType::Control(control),
+                }),
+            )
+            .map_err(|e| e.unwrap_callback())
     }
-    pub fn tick<CB: Callback>(&mut self, cb: &mut CB)
-        -> Result<(), CB::Error>
-    {
+    pub fn tick<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
         let do_resend = match self.state {
             State::Online(ref online) => {
                 // WARN?
-                online.resend_queue.back()
+                online
+                    .resend_queue
+                    .back()
                     .map(|c| c.next_send.has_triggered_level(cb))
                     .unwrap_or(false)
             }
@@ -634,7 +665,7 @@ impl Connection {
                     return online.flush(cb, &mut self.builder);
                 }
                 ControlPacket::KeepAlive
-            },
+            }
             _ => return Ok(()),
         };
         self.send.set(cb, Duration::from_millis(500));
@@ -643,19 +674,31 @@ impl Connection {
     /// Notifies the connection of incoming data.
     ///
     /// `buffer` must have at least size `MAX_PAYLOAD`.
-    pub fn feed<'a, B, CB, W>(&mut self, cb: &mut CB, warn: &mut W, data: &'a [u8], buf: B)
-        -> (ReceivePacket<'a>, Result<(), CB::Error>)
-        where B: Buffer<'a>,
-              CB: Callback,
-              W: Warn<Warning>,
+    pub fn feed<'a, B, CB, W>(
+        &mut self,
+        cb: &mut CB,
+        warn: &mut W,
+        data: &'a [u8],
+        buf: B,
+    ) -> (ReceivePacket<'a>, Result<(), CB::Error>)
+    where
+        B: Buffer<'a>,
+        CB: Callback,
+        W: Warn<Warning>,
     {
         with_buffer(buf, |b| self.feed_impl(cb, warn, data, b))
     }
 
-    pub fn feed_impl<'d, 's, CB, W>(&mut self, cb: &mut CB, warn: &mut W, data: &'d [u8], mut buffer: BufferRef<'d, 's>)
-        -> (ReceivePacket<'d>, Result<(), CB::Error>)
-        where CB: Callback,
-              W: Warn<Warning>,
+    pub fn feed_impl<'d, 's, CB, W>(
+        &mut self,
+        cb: &mut CB,
+        warn: &mut W,
+        data: &'d [u8],
+        mut buffer: BufferRef<'d, 's>,
+    ) -> (ReceivePacket<'d>, Result<(), CB::Error>)
+    where
+        CB: Callback,
+        W: Warn<Warning>,
     {
         let none = (ReceivePacket::none(), Ok(()));
         {
@@ -709,7 +752,10 @@ impl Connection {
                     }
                     match self.state {
                         State::Online(ref mut online) => {
-                            return (ReceivePacket::connected(warn, online, num_chunks, chunks), result);
+                            return (
+                                ReceivePacket::connected(warn, online, num_chunks, chunks),
+                                result,
+                            );
                         }
                         State::Pending(_) => unreachable!(),
                         // WARN: packet received while not online.
@@ -734,7 +780,10 @@ impl Connection {
                 Control(ConnectAccept) => {
                     if let State::Connecting = self.state {
                         self.state = State::Online(OnlineState::new(token));
-                        return (ReceivePacket::ready(), self.send_control(cb, ControlPacket::Accept));
+                        return (
+                            ReceivePacket::ready(),
+                            self.send_control(cb, ControlPacket::Accept),
+                        );
                     } else {
                         return none;
                     }
@@ -753,19 +802,19 @@ impl Connection {
 
 #[cfg(test)]
 mod test {
-    use Timestamp;
-    use hexdump::hexdump;
-    use itertools::Itertools;
-    use protocol;
-    use std::collections::VecDeque;
     use super::Callback;
     use super::Connection;
     use super::ReceiveChunk;
     use super::Sequence;
     use super::SequenceOrdering;
+    use hexdump::hexdump;
+    use itertools::Itertools;
+    use protocol;
+    use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
     use warn::Panic;
+    use Timestamp;
 
     #[test]
     fn sequence_compare() {
@@ -790,7 +839,11 @@ mod test {
     #[test]
     fn establish_connection_no_token() {
         struct Cb(VecDeque<Vec<u8>>);
-        impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
+        impl Cb {
+            fn new() -> Cb {
+                Cb(VecDeque::new())
+            }
+        }
         impl Callback for Cb {
             type Error = Void;
             fn secure_random(&mut self, buffer: &mut [u8]) {
@@ -823,21 +876,34 @@ mod test {
         let packet = *b"\x10\x00\x00\x01";
 
         // ConnectAccept
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x02");
 
         // Accept
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Ready]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Ready]
+        );
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x03");
 
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         assert!(cb.0.is_empty());
 
         // Send
@@ -852,8 +918,13 @@ mod test {
         assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42");
 
         // Receive
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Connected(b"\x42", true)]);
+        assert!(
+            server
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Connected(b"\x42", true)]
+        );
         assert!(cb.0.is_empty());
 
         // Disconnect
@@ -862,8 +933,13 @@ mod test {
         hexdump(&packet);
         assert!(&packet == b"\x10\x01\x00\x0442\0");
 
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Disconnect(b"42")]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]
+        );
 
         client.reset();
         server.reset();
@@ -872,7 +948,11 @@ mod test {
     #[test]
     fn establish_connection() {
         struct Cb(VecDeque<Vec<u8>>);
-        impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
+        impl Cb {
+            fn new() -> Cb {
+                Cb(VecDeque::new())
+            }
+        }
         impl Callback for Cb {
             type Error = Void;
             fn secure_random(&mut self, buffer: &mut [u8]) {
@@ -908,21 +988,34 @@ mod test {
         assert!(&packet == b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff");
 
         // ConnectAccept
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x02TKEN\x12\x34\x56\x78");
 
         // Accept
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Ready]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Ready]
+        );
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x03\x12\x34\x56\x78");
 
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         assert!(cb.0.is_empty());
 
         // Send
@@ -937,8 +1030,13 @@ mod test {
         assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42\x12\x34\x56\x78");
 
         // Receive
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Connected(b"\x42", true)]);
+        assert!(
+            server
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Connected(b"\x42", true)]
+        );
         assert!(cb.0.is_empty());
 
         // Disconnect
@@ -947,8 +1045,13 @@ mod test {
         hexdump(&packet);
         assert!(&packet == b"\x10\x01\x00\x0442\0\x12\x34\x56\x78");
 
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Disconnect(b"42")]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]
+        );
 
         client.reset();
         server.reset();
@@ -957,7 +1060,11 @@ mod test {
     #[test]
     fn establish_connection_anti_ip_addr_spoofing() {
         struct Cb(VecDeque<Vec<u8>>);
-        impl Cb { fn new() -> Cb { Cb(VecDeque::new()) } }
+        impl Cb {
+            fn new() -> Cb {
+                Cb(VecDeque::new())
+            }
+        }
         impl Callback for Cb {
             type Error = Void;
             fn secure_random(&mut self, buffer: &mut [u8]) {
@@ -993,21 +1100,34 @@ mod test {
         assert!(&packet == b"\x10\x00\x00\x01TKEN\xff\xff\xff\xff");
 
         // ConnectAccept
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x02TKEN\x12\x34\x56\x78");
 
         // Accept
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Ready]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Ready]
+        );
         let packet = cb.0.pop_front().unwrap();
         assert!(cb.0.is_empty());
         hexdump(&packet);
         assert!(&packet == b"\x10\x00\x00\x03\x12\x34\x56\x78");
 
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(server
+            .feed(cb, &mut Panic, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         assert!(cb.0.is_empty());
 
         let token = protocol::Token([0x12, 0x34, 0x56, 0x78]);
@@ -1025,8 +1145,13 @@ mod test {
         assert!(&packet == b"\x00\x00\x01\x40\x01\x01\x42\x12\x34\x56\x78");
 
         // Receive
-        assert!(server.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Connected(b"\x42", true)]);
+        assert!(
+            server
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Connected(b"\x42", true)]
+        );
         assert!(cb.0.is_empty());
 
         // Disconnect
@@ -1035,8 +1160,13 @@ mod test {
         hexdump(&packet);
         assert!(&packet == b"\x10\x01\x00\x0442\0\x12\x34\x56\x78");
 
-        assert!(client.feed(cb, &mut Panic, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ReceiveChunk::Disconnect(b"42")]);
+        assert!(
+            client
+                .feed(cb, &mut Panic, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ReceiveChunk::Disconnect(b"42")]
+        );
 
         client.reset();
         server.reset();

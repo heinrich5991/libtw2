@@ -8,8 +8,8 @@ extern crate tools;
 use common::num::Cast;
 use map::reader;
 use std::cmp;
-use std::collections::HashMap;
 use std::collections::hash_map;
+use std::collections::HashMap;
 use std::path::Path;
 
 struct Stats {
@@ -105,16 +105,28 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
 
         for i in group.layer_indices {
             let layer = map.layer(i)?;
-            let tilemap = if let reader::LayerType::Tilemap(t) = layer.t { t } else { continue; };
-            let normal = if let Some(n) = tilemap.type_.to_normal() { n } else { continue };
-            let image_index = if let Some(i) = normal.image { i } else { continue };
+            let tilemap = if let reader::LayerType::Tilemap(t) = layer.t {
+                t
+            } else {
+                continue;
+            };
+            let normal = if let Some(n) = tilemap.type_.to_normal() {
+                n
+            } else {
+                continue;
+            };
+            let image_index = if let Some(i) = normal.image {
+                i
+            } else {
+                continue;
+            };
             let process_this_layer = match images.entry(image_index) {
                 hash_map::Entry::Occupied(o) => *o.into_mut(),
                 hash_map::Entry::Vacant(v) => {
                     let image = map.image(image_index)?;
                     let name = map.image_name(image.name)?;
                     *v.insert(name == b"jungle_doodads")
-                },
+                }
             };
 
             if !process_this_layer {
@@ -124,11 +136,11 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
 
             let tiles = map.layer_tiles(tilemap.tiles(normal.data))?;
 
-            for y in 0..tilemap.height+1 {
+            for y in 0..tilemap.height + 1 {
                 let above_y = cmp::max(y, 1) - 1;
                 let below_y = cmp::min(y + 1, tilemap.height - 1);
                 let y = cmp::min(y, tilemap.height - 1);
-                for x in 0..tilemap.width+1 {
+                for x in 0..tilemap.width + 1 {
                     let left_x = cmp::max(x, 1) - 1;
                     let x = cmp::min(x, tilemap.width - 1);
 
@@ -184,7 +196,7 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
     Ok(())
 }
 
-fn print_stats(_: &Stats) { }
+fn print_stats(_: &Stats) {}
 
 fn main() {
     tools::map_stats::stats(process, print_stats);

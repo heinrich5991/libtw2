@@ -14,10 +14,10 @@ extern crate warn;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use gamenet_ddnet::msg::Game as GameDdnet;
 use gamenet_ddnet::msg::game as game_ddnet;
-use gamenet_teeworlds_0_7::msg::Game as Game7;
+use gamenet_ddnet::msg::Game as GameDdnet;
 use gamenet_teeworlds_0_7::msg::game as game7;
+use gamenet_teeworlds_0_7::msg::Game as Game7;
 use packer::Unpacker;
 use std::path::Path;
 use std::process;
@@ -32,10 +32,10 @@ use warn::Ignore;
 
 #[allow(unused)]
 struct Info {
-    name: ArrayVec<[u8; 4*4-1]>,
-    clan: ArrayVec<[u8; 3*4-1]>,
+    name: ArrayVec<[u8; 4 * 4 - 1]>,
+    clan: ArrayVec<[u8; 3 * 4 - 1]>,
     country: i32,
-    skin: ArrayVec<[u8; 6*4-1]>,
+    skin: ArrayVec<[u8; 6 * 4 - 1]>,
     use_custom_color: bool,
     color_body: i32,
     color_feet: i32,
@@ -94,23 +94,23 @@ fn process(path: &Path) -> Result<(), Error> {
             Item::TickStart(t) => {
                 assert!(tick.is_none());
                 tick = Some(t);
-            },
+            }
             Item::TickEnd(t) => {
                 assert_eq!(tick, Some(t));
                 tick = None;
-            },
+            }
             Item::Join(i) => {
                 println!("{} player_join cid={}", tick.expect("in tick"), i.cid);
-            },
+            }
             Item::Drop(i) => {
                 println!("{} player_drop cid={}", tick.expect("in tick"), i.cid);
-            },
+            }
             Item::Joinver6(jv) => {
                 ver7.insert(jv.cid.assert_usize(), false);
-            },
+            }
             Item::Joinver7(jv) => {
                 ver7.insert(jv.cid.assert_usize(), true);
-            },
+            }
             Item::Message(msg) => {
                 let mut p = Unpacker::new(msg.msg);
                 let mut info: Option<Info> = None;
@@ -119,11 +119,11 @@ fn process(path: &Path) -> Result<(), Error> {
                         match m {
                             GameDdnet::ClStartInfo(i) => {
                                 info = Some(i.into());
-                            },
+                            }
                             GameDdnet::ClChangeInfo(i) => {
                                 info = Some(i.into());
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                     }
                 } else {
@@ -131,36 +131,69 @@ fn process(path: &Path) -> Result<(), Error> {
                         match m {
                             Game7::ClStartInfo(i) => {
                                 info = Some(i.into());
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                     }
                 }
                 if let Some(i) = info {
-                    if supplied_infos.get(msg.cid.assert_usize()).map(|prev| prev.name != i.name).unwrap_or(true) {
-                        println!("{} player_name cid={} name={:?}", tick.expect("in tick"), msg.cid, pretty::AlmostString::new(&i.name));
+                    if supplied_infos
+                        .get(msg.cid.assert_usize())
+                        .map(|prev| prev.name != i.name)
+                        .unwrap_or(true)
+                    {
+                        println!(
+                            "{} player_name cid={} name={:?}",
+                            tick.expect("in tick"),
+                            msg.cid,
+                            pretty::AlmostString::new(&i.name)
+                        );
                     }
                     supplied_infos.insert(msg.cid.assert_usize(), i);
                 }
             }
             Item::PlayerTeam(i) => {
-                println!("{} player_team team={} cid={}", tick.expect("in tick"), i.team, i.cid);
-            },
+                println!(
+                    "{} player_team team={} cid={}",
+                    tick.expect("in tick"),
+                    i.team,
+                    i.cid
+                );
+            }
             Item::TeamLoadSuccess(i) => {
-                let game_uuid = i.save.split(|&b| b == b'\n').nth(1)
+                let game_uuid = i
+                    .save
+                    .split(|&b| b == b'\n')
+                    .nth(1)
                     .and_then(|tee| tee.split(|&b| b == b'\t').nth(100))
                     .and_then(|game_uuid| str::from_utf8(game_uuid).ok())
                     .and_then(|game_uuid| Uuid::parse_str(game_uuid).ok());
                 if let Some(u) = game_uuid {
-                    println!("{} team_load team={} uuid={} prev_game_uuid={}", tick.expect("in tick"), i.team, i.save_uuid, u);
+                    println!(
+                        "{} team_load team={} uuid={} prev_game_uuid={}",
+                        tick.expect("in tick"),
+                        i.team,
+                        i.save_uuid,
+                        u
+                    );
                 } else {
-                    println!("{} team_load team={} uuid={}", tick.expect("in tick"), i.team, i.save_uuid);
+                    println!(
+                        "{} team_load team={} uuid={}",
+                        tick.expect("in tick"),
+                        i.team,
+                        i.save_uuid
+                    );
                 }
-            },
+            }
             Item::TeamSaveSuccess(i) => {
-                println!("{} team_save team={} uuid={}", tick.expect("in tick"), i.team, i.save_uuid);
-            },
-            _ => {},
+                println!(
+                    "{} team_save team={} uuid={}",
+                    tick.expect("in tick"),
+                    i.team,
+                    i.save_uuid
+                );
+            }
+            _ => {}
         }
     }
     assert!(tick.is_none());
@@ -174,18 +207,21 @@ fn main() {
     logger::init();
 
     let matches = App::new("Teehistorian reader")
-        .about("Reads teehistorian file and dumps its contents in a human-readable\
-                text stream")
-        .arg(Arg::with_name("TEEHISTORIAN")
-            .help("Sets the teehistorian file to dump")
-            .required(true)
+        .about(
+            "Reads teehistorian file and dumps its contents in a human-readable\
+                text stream",
+        )
+        .arg(
+            Arg::with_name("TEEHISTORIAN")
+                .help("Sets the teehistorian file to dump")
+                .required(true),
         )
         .get_matches();
 
     let path = Path::new(matches.value_of_os("TEEHISTORIAN").unwrap());
 
     match process(path) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!("{}: {:?}", path.display(), err);
             process::exit(1);

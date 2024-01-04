@@ -8,14 +8,14 @@ extern crate common;
 extern crate itertools;
 
 use arrayvec::ArrayVec;
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
 use common::num::Cast;
 use itertools::Itertools;
 use std::error;
-use std::fmt::Write;
 use std::fmt;
+use std::fmt::Write;
 use std::slice;
 
 /// Compresses some bytes using the Teeworlds-specific Huffman code into a
@@ -25,9 +25,10 @@ use std::slice;
 ///
 /// Returns an error if the given buffer does not have enough capacity for the
 /// compressed bytes.
-pub fn compress_into<'a, B: Buffer<'a>>(input: &[u8], buffer: B)
-    -> Result<&'a [u8], buffer::CapacityError>
-{
+pub fn compress_into<'a, B: Buffer<'a>>(
+    input: &[u8],
+    buffer: B,
+) -> Result<&'a [u8], buffer::CapacityError> {
     instances::TEEWORLDS.compress(input, buffer)
 }
 
@@ -43,9 +44,10 @@ pub fn compress(input: &[u8]) -> Vec<u8> {
 ///
 /// Returns an error if the given bytes aren't a valid compression, or if the
 /// given buffer does not have enough capacity for the uncompressed bytes.
-pub fn decompress_into<'a, B: Buffer<'a>>(input: &[u8], buffer: B)
-    -> Result<&'a [u8], DecompressionError>
-{
+pub fn decompress_into<'a, B: Buffer<'a>>(
+    input: &[u8],
+    buffer: B,
+) -> Result<&'a [u8], DecompressionError> {
     instances::TEEWORLDS.decompress(input, buffer)
 }
 
@@ -92,7 +94,8 @@ impl fmt::Display for DecompressionError {
         match self {
             Capacity(_) => "output buffer too small",
             InvalidInput => "input is not a valid huffman compression",
-        }.fmt(f)
+        }
+        .fmt(f)
     }
 }
 
@@ -210,14 +213,21 @@ impl Huffman {
         Huffman::from_frequencies_array(array)
     }
     pub fn from_frequencies_array(frequencies: &[u32; 256]) -> Huffman {
-        let mut frequencies: ArrayVec<[_; 512]> = frequencies.iter()
-            .cloned().enumerate().map(|(i, f)| {
-                Frequency { frequency: f, node_idx: i.assert_u16() }
-            }).collect();
-        frequencies.push(Frequency { frequency: 1, node_idx: EOF });
+        let mut frequencies: ArrayVec<[_; 512]> = frequencies
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(i, f)| Frequency {
+                frequency: f,
+                node_idx: i.assert_u16(),
+            })
+            .collect();
+        frequencies.push(Frequency {
+            frequency: 1,
+            node_idx: EOF,
+        });
 
-        let mut nodes: ArrayVec<[_; 1024]> =
-            (0..NUM_SYMBOLS).map(|_| NODE_SENTINEL).collect();
+        let mut nodes: ArrayVec<[_; 1024]> = (0..NUM_SYMBOLS).map(|_| NODE_SENTINEL).collect();
 
         while frequencies.len() > 1 {
             // Sort in reverse (upper to lower)!
@@ -228,7 +238,9 @@ impl Huffman {
             let freq2 = frequencies.pop().unwrap();
 
             // Combine the nodes into one.
-            let node = Node { children: [freq1.node_idx, freq2.node_idx] };
+            let node = Node {
+                children: [freq1.node_idx, freq2.node_idx],
+            };
             let node_idx = nodes.len().assert_u16();
             let node_freq = Frequency {
                 frequency: freq1.frequency.saturating_add(freq2.frequency),
@@ -276,16 +288,21 @@ impl Huffman {
             nodes[top.usize()] = SymbolRepr {
                 bits: bits,
                 num_bits: stack.len().assert_u8(),
-            }.to_node();
+            }
+            .to_node();
         }
 
-        let mut result = Huffman { nodes: [NODE_SENTINEL; NUM_NODES] };
+        let mut result = Huffman {
+            nodes: [NODE_SENTINEL; NUM_NODES],
+        };
         assert!(result.nodes.iter_mut().set_from(nodes.iter().cloned()) == NUM_NODES);
         result
     }
     fn compressed_bit_len(&self, input: &[u8]) -> usize {
-        input.iter().map(|&b| self.symbol_bit_length(b.u16()))
-         .fold(0, |s, a| s + a.usize())
+        input
+            .iter()
+            .map(|&b| self.symbol_bit_length(b.u16()))
+            .fold(0, |s, a| s + a.usize())
             + self.symbol_bit_length(EOF).usize()
     }
     pub fn compressed_len(&self, input: &[u8]) -> usize {
@@ -299,9 +316,11 @@ impl Huffman {
     pub fn compressed_len_bug(&self, input: &[u8]) -> usize {
         self.compressed_bit_len(input) / 8 + 1
     }
-    pub fn compress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
-        -> Result<&'a [u8], buffer::CapacityError>
-    {
+    pub fn compress<'a, B: Buffer<'a>>(
+        &self,
+        input: &[u8],
+        buffer: B,
+    ) -> Result<&'a [u8], buffer::CapacityError> {
         with_buffer(buffer, |b| self.compress_impl(input, b, false))
     }
     pub fn compress_into_vec(&self, input: &[u8]) -> Vec<u8> {
@@ -311,24 +330,33 @@ impl Huffman {
         result.shrink_to_fit();
         result
     }
-    pub fn compress_bug<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
-        -> Result<&'a [u8], buffer::CapacityError>
-    {
+    pub fn compress_bug<'a, B: Buffer<'a>>(
+        &self,
+        input: &[u8],
+        buffer: B,
+    ) -> Result<&'a [u8], buffer::CapacityError> {
         with_buffer(buffer, |b| self.compress_impl(input, b, true))
     }
-    fn compress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>, bug: bool)
-        -> Result<&'d [u8], buffer::CapacityError>
-    {
+    fn compress_impl<'d, 's>(
+        &self,
+        input: &[u8],
+        mut buffer: BufferRef<'d, 's>,
+        bug: bool,
+    ) -> Result<&'d [u8], buffer::CapacityError> {
         unsafe {
-            let len = self.compress_impl_unsafe(input, buffer.uninitialized_mut(), bug)
-                           .map_err(|()| buffer::CapacityError)?;
+            let len = self
+                .compress_impl_unsafe(input, buffer.uninitialized_mut(), bug)
+                .map_err(|()| buffer::CapacityError)?;
             buffer.advance(len);
             Ok(buffer.initialized())
         }
     }
-    fn compress_impl_unsafe(&self, input: &[u8], buffer: &mut [u8], bug: bool)
-        -> Result<usize, ()>
-    {
+    fn compress_impl_unsafe(
+        &self,
+        input: &[u8],
+        buffer: &mut [u8],
+        bug: bool,
+    ) -> Result<usize, ()> {
         let mut len = 0;
         let mut output = buffer.into_iter();
         let mut output_byte = 0;
@@ -360,38 +388,40 @@ impl Huffman {
         Ok(len)
     }
 
-    pub fn decompress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
-        -> Result<&'a [u8], DecompressionError>
-    {
+    pub fn decompress<'a, B: Buffer<'a>>(
+        &self,
+        input: &[u8],
+        buffer: B,
+    ) -> Result<&'a [u8], DecompressionError> {
         with_buffer(buffer, |b| self.decompress_impl(input, b))
     }
     pub fn decompress_into_vec(&self, input: &[u8]) -> Result<Vec<u8>, InvalidInput> {
         // At most one output byte per input bit.
         let mut result = Vec::with_capacity(input.len() * 8);
         match self.decompress(input, &mut result) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(DecompressionError::InvalidInput) => return Err(InvalidInput),
             // If the buffer does not suffice, it means we have a runaway
             // decompression.
-            Err(DecompressionError::Capacity(buffer::CapacityError)) =>
-                return Err(InvalidInput),
+            Err(DecompressionError::Capacity(buffer::CapacityError)) => return Err(InvalidInput),
         }
         result.shrink_to_fit();
         Ok(result)
     }
-    fn decompress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>)
-        -> Result<&'d [u8], DecompressionError>
-    {
+    fn decompress_impl<'d, 's>(
+        &self,
+        input: &[u8],
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], DecompressionError> {
         unsafe {
-            let len = self.decompress_unsafe(input, buffer.uninitialized_mut())
-                           .map_err(|()| DecompressionError::Capacity(buffer::CapacityError))?;
+            let len = self
+                .decompress_unsafe(input, buffer.uninitialized_mut())
+                .map_err(|()| DecompressionError::Capacity(buffer::CapacityError))?;
             buffer.advance(len);
             Ok(buffer.initialized())
         }
     }
-    fn decompress_unsafe(&self, input: &[u8], buffer: &mut [u8])
-        -> Result<usize, ()>
-    {
+    fn decompress_unsafe(&self, input: &[u8], buffer: &mut [u8]) -> Result<usize, ()> {
         let mut len = 0;
         {
             let mut input = input.into_iter();
@@ -429,7 +459,9 @@ impl Huffman {
         }
     }
     pub fn repr(&self) -> Repr {
-        Repr { repr: &self.nodes[..NUM_SYMBOLS.usize()] }
+        Repr {
+            repr: &self.nodes[..NUM_SYMBOLS.usize()],
+        }
     }
 }
 
@@ -459,10 +491,12 @@ impl Node {
 impl SymbolRepr {
     fn to_node(self) -> Node {
         assert!(self.bits >> 24 == 0);
-        Node { children: [
-            (self.num_bits as u16) << 8 | (self.bits >> 16) as u16,
-            self.bits as u16
-        ] }
+        Node {
+            children: [
+                (self.num_bits as u16) << 8 | (self.bits >> 16) as u16,
+                self.bits as u16,
+            ],
+        }
     }
     pub fn num_bits(self) -> u32 {
         self.num_bits.u32()

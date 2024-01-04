@@ -1,25 +1,25 @@
-use Connection;
-use Timeout;
-use Timestamp;
 use arrayvec::ArrayVec;
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
-use connection::ReceiveChunk;
-use connection;
-use collections::PeerMap;
 use collections::peer_map;
+use collections::PeerMap;
+use connection;
+use connection::ReceiveChunk;
+use protocol;
 use protocol::ConnectedPacket;
 use protocol::ConnectedPacketType;
 use protocol::ControlPacket;
 use protocol::Packet;
-use protocol;
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
 use warn::Panic;
 use warn::Warn;
+use Connection;
+use Timeout;
+use Timestamp;
 
 pub use connection::Error;
 
@@ -45,8 +45,8 @@ impl<A: Address> Warning<A> {
     }
 }
 
-pub trait Address: Copy + Eq + Hash + Ord { }
-impl<A: Copy + Eq + Hash + Ord> Address for A { }
+pub trait Address: Copy + Eq + Hash + Ord {}
+impl<A: Copy + Eq + Hash + Ord> Address for A {}
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PeerId(pub u32);
@@ -191,9 +191,12 @@ impl ConnlessBuilder {
             buffer: [0; protocol::MAX_PACKETSIZE],
         }
     }
-    fn send<A: Address, CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, packet: Packet)
-        -> Result<(), Error<CB::Error>>
-    {
+    fn send<A: Address, CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        addr: A,
+        packet: Packet,
+    ) -> Result<(), Error<CB::Error>> {
         let send_data = match packet.write(&mut self.buffer[..]) {
             Ok(d) => d,
             Err(protocol::Error::Capacity(_)) => unreachable!("too short buffer provided"),
@@ -218,8 +221,8 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
         match self.type_ {
             ReceivePacketType::None => None,
             Connect(ref mut once) => once.next().map(|pid| ChunkOrEvent::Connect(pid)),
-            Connected(addr, pid, ref mut receive_packet) => receive_packet.next().map(|chunk| {
-                match chunk {
+            Connected(addr, pid, ref mut receive_packet) => {
+                receive_packet.next().map(|chunk| match chunk {
                     ReceiveChunk::Connless(d) => ChunkOrEvent::Connless(ConnlessChunk {
                         addr: addr,
                         pid: Some(pid),
@@ -232,8 +235,8 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
                     }),
                     ReceiveChunk::Ready => ChunkOrEvent::Ready(pid),
                     ReceiveChunk::Disconnect(r) => ChunkOrEvent::Disconnect(pid, r),
-                }
-            }),
+                })
+            }
             Connless(addr, ref mut once) => once.next().map(|data| {
                 ChunkOrEvent::Connless(ConnlessChunk {
                     addr: addr,
@@ -249,7 +252,7 @@ impl<'a, A: Address> Iterator for ReceivePacket<'a, A> {
     }
 }
 
-impl<'a, A: Address> ExactSizeIterator for ReceivePacket<'a, A> { }
+impl<'a, A: Address> ExactSizeIterator for ReceivePacket<'a, A> {}
 
 impl<'a, A: Address> ReceivePacket<'a, A> {
     fn none() -> ReceivePacket<'a, A> {
@@ -262,9 +265,12 @@ impl<'a, A: Address> ReceivePacket<'a, A> {
             type_: ReceivePacketType::Connect(iter::once(pid)),
         }
     }
-    fn connected(addr: A, pid: PeerId, receive_packet: connection::ReceivePacket<'a>, net: &mut Net<A>)
-        -> ReceivePacket<'a, A>
-    {
+    fn connected(
+        addr: A,
+        pid: PeerId,
+        receive_packet: connection::ReceivePacket<'a>,
+        net: &mut Net<A>,
+    ) -> ReceivePacket<'a, A> {
         for chunk in receive_packet.clone() {
             if let ReceiveChunk::Disconnect(..) = chunk {
                 net.peers.remove_peer(pid);
@@ -296,17 +302,14 @@ pub struct Net<A: Address> {
     accept_connections: bool,
 }
 
-struct ConnectionCallback<'a, A: Address, CB: Callback<A>+'a> {
+struct ConnectionCallback<'a, A: Address, CB: Callback<A> + 'a> {
     cb: &'a mut CB,
     addr: A,
 }
 
 // Create `ConnectionCallback`.
 fn cc<A: Address, CB: Callback<A>>(cb: &mut CB, addr: A) -> ConnectionCallback<A, CB> {
-    ConnectionCallback {
-        cb: cb,
-        addr: addr,
-    }
+    ConnectionCallback { cb: cb, addr: addr }
 }
 
 impl<'a, A: Address, W: Warn<Warning<A>>> Warn<connection::Warning> for WarnCallback<'a, A, W> {
@@ -317,11 +320,14 @@ impl<'a, A: Address, W: Warn<Warning<A>>> Warn<connection::Warning> for WarnCall
 
 impl<'a, A: Address, W: Warn<Warning<A>>> Warn<protocol::Warning> for WarnCallback<'a, A, W> {
     fn warn(&mut self, warning: protocol::Warning) {
-        self.warn.warn(Warning::Connless(self.addr, connection::Warning::Packet(warning)))
+        self.warn.warn(Warning::Connless(
+            self.addr,
+            connection::Warning::Packet(warning),
+        ))
     }
 }
 
-struct WarnCallback<'a, A: Address, W: Warn<Warning<A>>+'a> {
+struct WarnCallback<'a, A: Address, W: Warn<Warning<A>> + 'a> {
     warn: &'a mut W,
     addr: A,
 }
@@ -339,15 +345,17 @@ impl<'a, A: Address, W: Warn<Warning<A>>> Warn<connection::Warning> for WarnPeer
     }
 }
 
-struct WarnPeerCallback<'a, A: Address, W: Warn<Warning<A>>+'a> {
+struct WarnPeerCallback<'a, A: Address, W: Warn<Warning<A>> + 'a> {
     warn: &'a mut W,
     addr: A,
     pid: PeerId,
 }
 
-fn wp<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A, pid: PeerId)
-    -> WarnPeerCallback<A, W>
-{
+fn wp<A: Address, W: Warn<Warning<A>>>(
+    warn: &mut W,
+    addr: A,
+    pid: PeerId,
+) -> WarnPeerCallback<A, W> {
     WarnPeerCallback {
         warn: warn,
         addr: addr,
@@ -383,7 +391,11 @@ impl<A: Address> Net<A> {
         Net::new(false)
     }
     pub fn needs_tick(&self) -> Timeout {
-        self.peers.iter().map(|(_, p)| p.conn.needs_tick()).min().unwrap_or_default()
+        self.peers
+            .iter()
+            .map(|(_, p)| p.conn.needs_tick())
+            .min()
+            .unwrap_or_default()
     }
     pub fn is_receive_chunk_still_valid(&self, chunk: &mut ChunkOrEvent<A>) -> bool {
         if let ChunkOrEvent::Chunk(Chunk { pid, .. }) = *chunk {
@@ -392,15 +404,20 @@ impl<A: Address> Net<A> {
             true
         }
     }
-    pub fn connect<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A)
-        -> (PeerId, Result<(), CB::Error>)
-    {
+    pub fn connect<CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        addr: A,
+    ) -> (PeerId, Result<(), CB::Error>) {
         let (pid, peer) = self.peers.new_peer(addr, false);
         (pid, peer.conn.connect(&mut cc(cb, peer.addr)))
     }
-    pub fn disconnect<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId, reason: &[u8])
-        -> Result<(), CB::Error>
-    {
+    pub fn disconnect<CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        pid: PeerId,
+        reason: &[u8],
+    ) -> Result<(), CB::Error> {
         let result;
         {
             let peer = &mut self.peers[pid];
@@ -410,29 +427,31 @@ impl<A: Address> Net<A> {
         self.peers.remove_peer(pid);
         result
     }
-    pub fn send_connless<CB: Callback<A>>(&mut self, cb: &mut CB, addr: A, data: &[u8])
-        -> Result<(), Error<CB::Error>>
-    {
+    pub fn send_connless<CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        addr: A,
+        data: &[u8],
+    ) -> Result<(), Error<CB::Error>> {
         self.builder.send(cb, addr, Packet::Connless(data))
     }
-    pub fn send<CB: Callback<A>>(&mut self, cb: &mut CB, chunk: Chunk)
-        -> Result<(), Error<CB::Error>>
-    {
+    pub fn send<CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        chunk: Chunk,
+    ) -> Result<(), Error<CB::Error>> {
         let peer = &mut self.peers[chunk.pid];
-        peer.conn.send(&mut cc(cb, peer.addr), chunk.data, chunk.vital)
+        peer.conn
+            .send(&mut cc(cb, peer.addr), chunk.data, chunk.vital)
     }
-    pub fn flush<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId)
-        -> Result<(), CB::Error>
-    {
+    pub fn flush<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId) -> Result<(), CB::Error> {
         let peer = &mut self.peers[pid];
         peer.conn.flush(&mut cc(cb, peer.addr))
     }
     pub fn ignore(&mut self, pid: PeerId) {
         self.peers.remove_peer(pid);
     }
-    pub fn accept<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId)
-        -> Result<(), CB::Error>
-    {
+    pub fn accept<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId) -> Result<(), CB::Error> {
         let peer = &mut self.peers[pid];
         assert!(peer.conn.is_unconnected());
         let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
@@ -442,13 +461,17 @@ impl<A: Address> Net<A> {
             CONNECT_PACKET_NO_TOKEN
         };
         let (mut none, res) =
-            peer.conn.feed(&mut cc(cb, peer.addr), &mut Panic, connect_packet, &mut buf);
+            peer.conn
+                .feed(&mut cc(cb, peer.addr), &mut Panic, connect_packet, &mut buf);
         assert!(none.next().is_none());
         res
     }
-    pub fn reject<CB: Callback<A>>(&mut self, cb: &mut CB, pid: PeerId, reason: &[u8])
-        -> Result<(), CB::Error>
-    {
+    pub fn reject<CB: Callback<A>>(
+        &mut self,
+        cb: &mut CB,
+        pid: PeerId,
+        reason: &[u8],
+    ) -> Result<(), CB::Error> {
         let result;
         {
             let peer = &mut self.peers[pid];
@@ -458,29 +481,46 @@ impl<A: Address> Net<A> {
         self.peers.remove_peer(pid);
         result
     }
-    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB)
-        -> Tick<A, CB>
-    {
+    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB) -> Tick<A, CB> {
         Tick {
             iter_mut: self.peers.iter_mut(),
             cb: cb,
         }
     }
-    pub fn feed<'a, CB, B, W>(&mut self, cb: &mut CB, warn: &mut W, addr: A, data: &'a [u8], buf: B)
-        -> (ReceivePacket<'a, A>, Result<(), CB::Error>)
-        where CB: Callback<A>,
-              B: Buffer<'a>,
-              W: Warn<Warning<A>>,
+    pub fn feed<'a, CB, B, W>(
+        &mut self,
+        cb: &mut CB,
+        warn: &mut W,
+        addr: A,
+        data: &'a [u8],
+        buf: B,
+    ) -> (ReceivePacket<'a, A>, Result<(), CB::Error>)
+    where
+        CB: Callback<A>,
+        B: Buffer<'a>,
+        W: Warn<Warning<A>>,
     {
         with_buffer(buf, |b| self.feed_impl(cb, warn, addr, data, b))
     }
-    fn feed_impl<'d, 's, CB, W>(&mut self, cb: &mut CB, warn: &mut W, addr: A, data: &'d [u8], mut buf: BufferRef<'d, 's>)
-        -> (ReceivePacket<'d, A>, Result<(), CB::Error>)
-        where CB: Callback<A>,
-              W: Warn<Warning<A>>,
+    fn feed_impl<'d, 's, CB, W>(
+        &mut self,
+        cb: &mut CB,
+        warn: &mut W,
+        addr: A,
+        data: &'d [u8],
+        mut buf: BufferRef<'d, 's>,
+    ) -> (ReceivePacket<'d, A>, Result<(), CB::Error>)
+    where
+        CB: Callback<A>,
+        W: Warn<Warning<A>>,
     {
         if let Some(pid) = self.peers.pid_from_addr(addr) {
-            let (packet, e) = self.peers[pid].conn.feed(&mut cc(cb, addr), &mut wp(warn, addr, pid), data, &mut buf);
+            let (packet, e) = self.peers[pid].conn.feed(
+                &mut cc(cb, addr),
+                &mut wp(warn, addr, pid),
+                data,
+                &mut buf,
+            );
             (ReceivePacket::connected(addr, pid, packet, self), e)
         } else {
             let packet = match Packet::read(&mut w(warn, addr), data, None, &mut buf) {
@@ -493,9 +533,10 @@ impl<A: Address> Net<A> {
             if let Packet::Connless(d) = packet {
                 (ReceivePacket::connless(addr, d), Ok(()))
             } else if let Packet::Connected(ConnectedPacket {
-                    token,
-                    type_: ConnectedPacketType::Control(ControlPacket::Connect), ..
-                }) = packet
+                token,
+                type_: ConnectedPacketType::Control(ControlPacket::Connect),
+                ..
+            }) = packet
             {
                 if self.accept_connections {
                     // TODO: This is vulnerable to IP spoofing.
@@ -513,17 +554,17 @@ impl<A: Address> Net<A> {
     }
 }
 
-pub struct Tick<'a, A: Address+'a, CB: Callback<A>+'a> {
+pub struct Tick<'a, A: Address + 'a, CB: Callback<A> + 'a> {
     iter_mut: peer_map::IterMut<'a, Peer<A>>,
     cb: &'a mut CB,
 }
 
-impl<'a, A: Address+'a, CB: Callback<A>+'a> Iterator for Tick<'a, A, CB> {
+impl<'a, A: Address + 'a, CB: Callback<A> + 'a> Iterator for Tick<'a, A, CB> {
     type Item = CB::Error;
     fn next(&mut self) -> Option<CB::Error> {
         while let Some((_, p)) = self.iter_mut.next() {
             match p.conn.tick(&mut cc(self.cb, p.addr)) {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(e) => return Some(e),
             }
         }
@@ -533,16 +574,16 @@ impl<'a, A: Address+'a, CB: Callback<A>+'a> Iterator for Tick<'a, A, CB> {
 
 #[cfg(test)]
 mod test {
-    use Timestamp;
-    use itertools::Itertools;
-    use protocol;
-    use std::collections::VecDeque;
     use super::Callback;
     use super::ChunkOrEvent;
     use super::Net;
+    use itertools::Itertools;
+    use protocol;
+    use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
     use warn::Panic;
+    use Timestamp;
 
     #[test]
     fn establish_connection() {
@@ -600,7 +641,10 @@ mod test {
         cb.recipient = Address::Client;
         let s_pid;
         {
-            let p = net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.collect_vec();
+            let p = net
+                .feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..])
+                .0
+                .collect_vec();
             assert!(p.len() == 1);
             if let ChunkOrEvent::Connect(s) = p[0] {
                 s_pid = s;
@@ -617,13 +661,21 @@ mod test {
 
         // Accept
         cb.recipient = Address::Server;
-        assert!(net.feed(cb, &mut Panic, Address::Server, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ChunkOrEvent::Ready(c_pid)]);
+        assert!(
+            net.feed(cb, &mut Panic, Address::Server, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ChunkOrEvent::Ready(c_pid)]
+        );
         let packet = cb.packets.pop_front().unwrap();
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.next().is_none());
+        assert!(net
+            .feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..])
+            .0
+            .next()
+            .is_none());
         assert!(cb.packets.is_empty());
 
         // Disconnect
@@ -633,8 +685,12 @@ mod test {
         assert!(cb.packets.is_empty());
 
         cb.recipient = Address::Client;
-        assert!(net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..]).0.collect_vec()
-                == &[ChunkOrEvent::Disconnect(s_pid, b"foobar")]);
+        assert!(
+            net.feed(cb, &mut Panic, Address::Client, &packet, &mut buffer[..])
+                .0
+                .collect_vec()
+                == &[ChunkOrEvent::Disconnect(s_pid, b"foobar")]
+        );
         assert!(cb.packets.is_empty());
     }
 }

@@ -16,13 +16,13 @@ pub fn as_mut_i32_slice<T: OnlyI32>(x: &mut [T]) -> &mut [i32] {
 }
 
 pub unsafe fn from_little_endian<T>(buffer: &mut [T]) {
-    if cfg!(target_endian="big") {
+    if cfg!(target_endian = "big") {
         swap_endian(buffer);
     }
 }
 
 pub unsafe fn to_little_endian<T>(buffer: &mut [T]) {
-    if cfg!(target_endian="big") {
+    if cfg!(target_endian = "big") {
         swap_endian(buffer);
     }
 }
@@ -47,8 +47,12 @@ pub trait CallbackNewExt {
     fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(), CallbackReadError>;
     unsafe fn read_exact_raw<T>(&mut self, buffer: &mut [T]) -> Result<(), CallbackReadError>;
     fn read_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T]) -> Result<usize, CallbackError>;
-    fn read_exact_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T]) -> Result<(), CallbackReadError>;
-    fn read_exact_le_i32s_owned<T: OnlyI32>(&mut self, count: usize) -> Result<Vec<T>, CallbackReadError>;
+    fn read_exact_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T])
+        -> Result<(), CallbackReadError>;
+    fn read_exact_le_i32s_owned<T: OnlyI32>(
+        &mut self,
+        count: usize,
+    ) -> Result<Vec<T>, CallbackReadError>;
 }
 
 impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
@@ -68,15 +72,25 @@ impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
         unsafe { from_little_endian(&mut as_mut_i32_slice(buffer)[..read_i32s]) };
         Ok(read)
     }
-    fn read_exact_le_i32s<T: OnlyI32>(&mut self, buffer: &mut [T]) -> Result<(), CallbackReadError> {
+    fn read_exact_le_i32s<T: OnlyI32>(
+        &mut self,
+        buffer: &mut [T],
+    ) -> Result<(), CallbackReadError> {
         unsafe { self.read_exact_raw(buffer) }?;
-        unsafe { from_little_endian(as_mut_i32_slice(buffer)); }
+        unsafe {
+            from_little_endian(as_mut_i32_slice(buffer));
+        }
         Ok(())
     }
-    fn read_exact_le_i32s_owned<T: OnlyI32>(&mut self, count: usize) -> Result<Vec<T>, CallbackReadError> {
+    fn read_exact_le_i32s_owned<T: OnlyI32>(
+        &mut self,
+        count: usize,
+    ) -> Result<Vec<T>, CallbackReadError> {
         let mut result = Vec::with_capacity(count);
         // Safe because T: OnlyI32 is POD.
-        unsafe { result.set_len(count); }
+        unsafe {
+            result.set_len(count);
+        }
         self.read_exact_le_i32s(&mut result)?;
         Ok(result)
     }
@@ -84,7 +98,11 @@ impl<'a> CallbackNewExt for &'a mut dyn CallbackNew {
 
 pub trait CallbackReadDataExt {
     fn seek_read_exact(&mut self, offset: u32, buffer: &mut [u8]) -> Result<(), CallbackReadError>;
-    fn seek_read_exact_owned(&mut self, offset: u32, count: usize) -> Result<Vec<u8>, CallbackReadError>;
+    fn seek_read_exact_owned(
+        &mut self,
+        offset: u32,
+        count: usize,
+    ) -> Result<Vec<u8>, CallbackReadError>;
 }
 
 impl<'a> CallbackReadDataExt for &'a mut dyn CallbackReadData {
@@ -95,10 +113,16 @@ impl<'a> CallbackReadDataExt for &'a mut dyn CallbackReadData {
         }
         Ok(())
     }
-    fn seek_read_exact_owned(&mut self, offset: u32, count: usize) -> Result<Vec<u8>, CallbackReadError> {
+    fn seek_read_exact_owned(
+        &mut self,
+        offset: u32,
+        count: usize,
+    ) -> Result<Vec<u8>, CallbackReadError> {
         let mut result = Vec::with_capacity(count);
         // Safe because `u8` is POD.
-        unsafe { result.set_len(count); }
+        unsafe {
+            result.set_len(count);
+        }
         self.seek_read_exact(offset, &mut result)?;
         Ok(result)
     }

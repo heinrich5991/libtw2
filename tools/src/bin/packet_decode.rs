@@ -9,8 +9,8 @@ extern crate warn;
 
 use arrayvec::ArrayVec;
 use buffer::ReadBuffer;
-use gamenet::msg::Connless;
 use gamenet::msg;
+use gamenet::msg::Connless;
 use hexdump::hexdump;
 use net::protocol::ChunksIter;
 use net::protocol::ConnectedPacketType;
@@ -20,14 +20,16 @@ use std::io;
 use tools::unhexdump::Unhexdump;
 use tools::warn_stdout::Stdout;
 
-
 fn main() {
     let mut un = Unhexdump::new();
     let mut buf: ArrayVec<[u8; 4096]> = ArrayVec::new();
     let stdin = io::stdin();
     let mut stdin = stdin.lock();
 
-    while { buf.clear(); stdin.read_buffer(&mut buf).unwrap().len() != 0 } {
+    while {
+        buf.clear();
+        stdin.read_buffer(&mut buf).unwrap().len() != 0
+    } {
         un.feed(&buf).unwrap();
     }
 
@@ -39,7 +41,7 @@ fn main() {
         Err(e) => {
             println!("ERROR: {:?}", e);
             return;
-        },
+        }
         Ok(p) => p,
     };
 
@@ -50,12 +52,12 @@ fn main() {
                 Err(e) => {
                     println!("ERROR: {:?}", e);
                     return;
-                },
+                }
                 Ok(m) => m,
             };
             println!("{:?}", msg);
             return;
-        },
+        }
         Packet::Connected(cp) => cp,
     };
 
@@ -68,10 +70,13 @@ fn main() {
             println!("control ack={}", cp.ack);
             println!("{:?}", control);
             return;
-        },
+        }
         ConnectedPacketType::Chunks(r, n, p) => (r, n, p),
     };
-    println!("chunks ack={} request_resend={} num_chunks={}", cp.ack, request_resend, num_chunks);
+    println!(
+        "chunks ack={} request_resend={} num_chunks={}",
+        cp.ack, request_resend, num_chunks
+    );
     hexdump(payload);
     let mut i = 0;
     let mut chunks_iter = ChunksIter::new(payload, num_chunks);
@@ -87,7 +92,9 @@ fn main() {
         };
 
         match chunk.vital {
-            Some((sequence, resend)) => println!("vital=true sequence={} resend={}", sequence, resend),
+            Some((sequence, resend)) => {
+                println!("vital=true sequence={} resend={}", sequence, resend)
+            }
             None => println!("vital=false"),
         }
         hexdump(chunk.data);
@@ -96,7 +103,7 @@ fn main() {
             Err(e) => {
                 println!("ERROR: {:?}", e);
                 continue;
-            },
+            }
             Ok(m) => m,
         };
 

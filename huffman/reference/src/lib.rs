@@ -1,12 +1,12 @@
 extern crate buffer;
 extern crate common;
 extern crate huffman;
-extern crate libc;
 extern crate huffman_reference_sys as sys;
+extern crate libc;
 
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
 use common::num::Cast;
 
 pub struct Huffman {
@@ -25,17 +25,23 @@ impl Huffman {
         let mut result = Huffman { huffman: huffman };
         // Implicit assumption that `c_uint == u32`. Screams when it breaks, so
         // it's fine.
-        unsafe { sys::huffman_init(result.inner_huffman_mut(), frequencies); }
+        unsafe {
+            sys::huffman_init(result.inner_huffman_mut(), frequencies);
+        }
         result
     }
-    pub fn compress<'a, B: Buffer<'a>>(&self, input: &[u8], buffer: B)
-        -> Result<&'a [u8], buffer::CapacityError>
-    {
+    pub fn compress<'a, B: Buffer<'a>>(
+        &self,
+        input: &[u8],
+        buffer: B,
+    ) -> Result<&'a [u8], buffer::CapacityError> {
         with_buffer(buffer, |b| self.compress_impl(input, b))
     }
-    fn compress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>)
-        -> Result<&'d [u8], buffer::CapacityError>
-    {
+    fn compress_impl<'d, 's>(
+        &self,
+        input: &[u8],
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], buffer::CapacityError> {
         let result_len = unsafe {
             sys::huffman_compress(
                 self.inner_huffman(),
@@ -46,18 +52,25 @@ impl Huffman {
             )
         };
         match result_len.try_usize() {
-            Some(l) => unsafe { buffer.advance(l); Ok(buffer.initialized()) },
+            Some(l) => unsafe {
+                buffer.advance(l);
+                Ok(buffer.initialized())
+            },
             None => Err(buffer::CapacityError),
         }
     }
-    pub fn decompress<'a, B: Buffer<'a>>(&self, input: &'a [u8], buffer: B)
-        -> Result<&'a [u8], huffman::DecompressionError>
-    {
+    pub fn decompress<'a, B: Buffer<'a>>(
+        &self,
+        input: &'a [u8],
+        buffer: B,
+    ) -> Result<&'a [u8], huffman::DecompressionError> {
         with_buffer(buffer, |b| self.decompress_impl(input, b))
     }
-    fn decompress_impl<'d, 's>(&self, input: &[u8], mut buffer: BufferRef<'d, 's>)
-        -> Result<&'d [u8], huffman::DecompressionError>
-    {
+    fn decompress_impl<'d, 's>(
+        &self,
+        input: &[u8],
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], huffman::DecompressionError> {
         let result_len = unsafe {
             sys::huffman_decompress(
                 self.inner_huffman(),
@@ -68,7 +81,10 @@ impl Huffman {
             )
         };
         match result_len.try_usize() {
-            Some(l) => unsafe { buffer.advance(l); Ok(buffer.initialized()) },
+            Some(l) => unsafe {
+                buffer.advance(l);
+                Ok(buffer.initialized())
+            },
             None => Err(huffman::DecompressionError::Capacity(buffer::CapacityError)),
         }
     }

@@ -12,22 +12,22 @@ extern crate warn;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use gamenet::msg::Game;
 use gamenet::msg::game;
+use gamenet::msg::Game;
 use packer::Unpacker;
 use std::path::Path;
 use std::process;
+use teehistorian::format::item::INPUT_LEN;
 use teehistorian::Buffer;
 use teehistorian::Error;
 use teehistorian::Input;
 use teehistorian::Item;
 use teehistorian::Reader;
-use teehistorian::format::item::INPUT_LEN;
 use vec_map::VecMap;
 use warn::Ignore;
 
 struct Info {
-    name: ArrayVec<[u8; 4*4-1]>,
+    name: ArrayVec<[u8; 4 * 4 - 1]>,
 }
 
 impl<'a> From<game::ClChangeInfo<'a>> for Info {
@@ -67,11 +67,11 @@ fn process(path: &Path) -> Result<(), Error> {
             Item::TickStart(t) => {
                 assert!(tick.is_none());
                 tick = Some(t);
-            },
+            }
             Item::TickEnd(t) => {
                 assert_eq!(tick, Some(t));
                 tick = None;
-            },
+            }
             Item::Input(Input { cid, input }) => {
                 let name = pretty::AlmostString::new(&infos[cid.assert_usize()].name);
                 let tick = tick.expect("in tick");
@@ -84,7 +84,14 @@ fn process(path: &Path) -> Result<(), Error> {
                         let dt = tick - prev_input.tick;
                         if dt != 0 {
                             let cps = clicks / dt;
-                            println!("name={:?} dt={} df={} cps={}.{}", name, dt, df, cps / 10, cps % 10);
+                            println!(
+                                "name={:?} dt={} df={} cps={}.{}",
+                                name,
+                                dt,
+                                df,
+                                cps / 10,
+                                cps % 10
+                            );
                         } else {
                             println!("name={:?} dt={} df={} cps=nan", name, dt, df);
                         }
@@ -93,26 +100,29 @@ fn process(path: &Path) -> Result<(), Error> {
                         //println!("weird fire name={:?} t={} f={}", name, tick, input[FIRE]);
                     }
                 }
-                inputs.insert(cid.assert_usize(), PrevInput {
-                    tick: tick,
-                    input: input,
-                });
-            },
+                inputs.insert(
+                    cid.assert_usize(),
+                    PrevInput {
+                        tick: tick,
+                        input: input,
+                    },
+                );
+            }
             Item::Message(msg) => {
                 let mut p = Unpacker::new(msg.msg);
                 if let Ok(m) = Game::decode(&mut Ignore, &mut p) {
                     match m {
                         Game::ClStartInfo(i) => {
                             infos.insert(msg.cid.assert_usize(), i.into());
-                        },
+                        }
                         Game::ClChangeInfo(i) => {
                             infos.insert(msg.cid.assert_usize(), i.into());
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
                 }
             }
-            _ => {},
+            _ => {}
         }
     }
     assert!(tick.is_none());
@@ -127,16 +137,17 @@ fn main() {
 
     let matches = App::new("Teehistorian odd input checker")
         .about("Reads teehistorian file and checks for odd inputs")
-        .arg(Arg::with_name("TEEHISTORIAN")
-            .help("Sets the teehistorian file to search")
-            .required(true)
+        .arg(
+            Arg::with_name("TEEHISTORIAN")
+                .help("Sets the teehistorian file to search")
+                .required(true),
         )
         .get_matches();
 
     let path = Path::new(matches.value_of_os("TEEHISTORIAN").unwrap());
 
     match process(path) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!("{}: {:?}", path.display(), err);
             process::exit(1);

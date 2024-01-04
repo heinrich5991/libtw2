@@ -19,6 +19,6 @@ pub use raw::Version;
 mod bitmagic;
 pub mod buffer;
 mod file;
-pub mod raw;
 pub mod format;
+pub mod raw;
 mod writer;

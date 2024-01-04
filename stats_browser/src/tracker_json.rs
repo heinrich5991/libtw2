@@ -1,7 +1,6 @@
-use StatsBrowserCb;
-use arrayvec::ArrayString;
 use addr::ProtocolVersion;
 use addr::ServerAddr;
+use arrayvec::ArrayString;
 use csv;
 use ipnet::Ipv4Net;
 use serverbrowse::protocol::ClientInfo;
@@ -11,8 +10,8 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
-use std::fs::File;
 use std::fs;
+use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
 use std::mem;
@@ -23,8 +22,10 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
+use StatsBrowserCb;
 
 mod json {
+    use super::Timestamp;
     use addr;
     use arrayvec::ArrayString;
     use serverbrowse::protocol;
@@ -32,7 +33,6 @@ mod json {
     use std::convert::TryFrom;
     use std::convert::TryInto;
     use std::fmt::Write;
-    use super::Timestamp;
     use uuid::Uuid;
 
     #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -89,7 +89,8 @@ mod json {
     }
 
     impl serde::Serialize for Addr {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
             S: serde::Serializer,
         {
             let mut result: ArrayString<[u8; 64]> = ArrayString::new();
@@ -126,9 +127,7 @@ mod json {
                 passworded: i.flags & protocol::SERVERINFO_FLAG_PASSWORDED != 0,
                 game_type: i.game_type,
                 name: i.name,
-                map: MapInfo {
-                    name: i.map,
-                },
+                map: MapInfo { name: i.map },
                 version: i.version,
                 clients: Vec::new(),
             };
@@ -194,9 +193,11 @@ const PROTOCOL_VERSIONS_PRIORITY: &'static [ProtocolVersion] = &[
 ];
 
 impl Tracker {
-    pub fn new(filename: String, locations_filename: Option<String>, secret_seed: Option<Uuid>)
-        -> Tracker
-    {
+    pub fn new(
+        filename: String,
+        locations_filename: Option<String>,
+        secret_seed: Option<Uuid>,
+    ) -> Tracker {
         let locations: Result<Vec<_>, _>;
         if let Some(l) = locations_filename {
             let mut locations_reader = csv::Reader::from_path(l).unwrap();
@@ -244,8 +245,7 @@ impl Tracker {
         loop {
             {
                 let servers = self.servers.lock().unwrap();
-                let mut addresses: Vec<_> = servers.keys()
-                    .map(|a| a.addr).collect();
+                let mut addresses: Vec<_> = servers.keys().map(|a| a.addr).collect();
                 addresses.sort_unstable();
                 addresses.dedup();
 
@@ -260,21 +260,30 @@ impl Tracker {
                     for &version in PROTOCOL_VERSIONS_PRIORITY {
                         let server_addr = ServerAddr::new(version, addr);
                         if let Some(e) = servers.get(&server_addr) {
-                            assert!(dump.addresses.insert(json::Addr(server_addr), json::AddrInfo {
-                                kind: json::EntryKind::Backcompat,
-                                ping_time: e.ping_time,
-                                location: e.location,
-                                secret,
-                            }).is_none());
+                            assert!(dump
+                                .addresses
+                                .insert(
+                                    json::Addr(server_addr),
+                                    json::AddrInfo {
+                                        kind: json::EntryKind::Backcompat,
+                                        ping_time: e.ping_time,
+                                        location: e.location,
+                                        secret,
+                                    }
+                                )
+                                .is_none());
                             entry = Some(e);
                         }
                     }
                     let entry = entry.unwrap();
                     if let Some(i) = &entry.info {
-                        dump.servers.insert(secret, json::Server {
-                            info_serial: entry.ping_time,
-                            info: i,
-                        });
+                        dump.servers.insert(
+                            secret,
+                            json::Server {
+                                info_serial: entry.ping_time,
+                                info: i,
+                            },
+                        );
                     }
                 }
 
@@ -305,18 +314,18 @@ impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
         let info = json::ServerInfo::try_from(info).ok();
-        assert!(servers.insert(addr, ServerEntry {
-            location: self.lookup_location(addr),
-            info,
-            ping_time: self.timekeeper.now(),
-        }).is_none());
+        assert!(servers
+            .insert(
+                addr,
+                ServerEntry {
+                    location: self.lookup_location(addr),
+                    info,
+                    ping_time: self.timekeeper.now(),
+                }
+            )
+            .is_none());
     }
-    fn on_server_change(
-        &mut self,
-        addr: ServerAddr,
-        _old: &ServerInfo,
-        new: &ServerInfo,
-    ) {
+    fn on_server_change(&mut self, addr: ServerAddr, _old: &ServerInfo, new: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
         let server = servers.get_mut(&addr).unwrap();
         server.info = json::ServerInfo::try_from(new).ok();

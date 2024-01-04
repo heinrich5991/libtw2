@@ -1,5 +1,5 @@
-use common::MapIterator;
 use common::num::Cast;
+use common::MapIterator;
 use hexdump::hexdump_iter;
 use hexdump::sanitize_byte;
 use itertools::Itertools;
@@ -8,14 +8,14 @@ use std::mem;
 use std::ops;
 use zlib;
 
-use bitmagic::CallbackNewExt;
-use bitmagic::CallbackReadDataExt;
 use bitmagic::relative_size_of;
 use bitmagic::relative_size_of_mult;
 use bitmagic::transmute_slice;
+use bitmagic::CallbackNewExt;
+use bitmagic::CallbackReadDataExt;
+use format;
 use format::ItemView;
 use format::OnlyI32;
-use format;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub enum Version {
@@ -97,15 +97,25 @@ pub struct Reader {
 
 impl Reader {
     pub fn new(cb: &mut dyn CallbackNew) -> Result<Reader, Error> {
-        fn read_i32s<T: OnlyI32>(mut cb: &mut dyn CallbackNew, len: usize) -> Result<Vec<T>,Error> {
-            cb.read_exact_le_i32s_owned::<T>(len).map_err(|e| e.on_eof(format::Error::TooShort))
+        fn read_i32s<T: OnlyI32>(
+            mut cb: &mut dyn CallbackNew,
+            len: usize,
+        ) -> Result<Vec<T>, Error> {
+            cb.read_exact_le_i32s_owned::<T>(len)
+                .map_err(|e| e.on_eof(format::Error::TooShort))
         }
 
         let header = format::Header::read(cb)?;
         let header_check = header.check_size_and_swaplen()?;
         let version = match header.hv.version {
             3 => Version::V3,
-            4 => if !header_check.crude_version { Version::V4 } else { Version::V4Crude },
+            4 => {
+                if !header_check.crude_version {
+                    Version::V4
+                } else {
+                    Version::V4Crude
+                }
+            }
             _ => unreachable!(), // Should have been caught earlier, in Header::read().
         };
         let item_types_raw = read_i32s(cb, header.hr.num_item_types as usize)?;
@@ -118,14 +128,21 @@ impl Reader {
         };
 
         // Possible failure of relative_size_of_mult should have been caught in Header::read().
-        let items_raw = read_i32s(cb, relative_size_of_mult::<u8,i32>(header.hr.size_items as usize))?;
+        let items_raw = read_i32s(
+            cb,
+            relative_size_of_mult::<u8, i32>(header.hr.size_items as usize),
+        )?;
 
         cb.set_seek_base()?;
 
-        cb.ensure_filesize(header_check.expected_size)?.map_err(|()| {
-            error!("file is not long enough, wanted {}", header_check.expected_size);
-            format::Error::TooShort
-        })?;
+        cb.ensure_filesize(header_check.expected_size)?
+            .map_err(|()| {
+                error!(
+                    "file is not long enough, wanted {}",
+                    header_check.expected_size
+                );
+                format::Error::TooShort
+            })?;
 
         let result = Reader {
             header: header,
@@ -172,7 +189,10 @@ impl Reader {
                 previous = Some((i, t.type_id));
             }
             if expected_start != self.header.hr.num_items {
-                error!("last item_type does not contain last item, item_type={}", self.header.hr.num_item_types - 1);
+                error!(
+                    "last item_type does not contain last item, item_type={}",
+                    self.header.hr.num_item_types - 1
+                );
                 return Err(format::Error::Malformed);
             }
         }
@@ -180,31 +200,51 @@ impl Reader {
             let mut offset = 0;
             for i in 0..self.header.hr.num_items as usize {
                 if self.item_offsets[i] < 0 {
-                    error!("invalid item offset (negative), item={} offset={}", i, self.item_offsets[i]);
+                    error!(
+                        "invalid item offset (negative), item={} offset={}",
+                        i, self.item_offsets[i]
+                    );
                     return Err(format::Error::Malformed);
                 }
                 if offset != self.item_offsets[i] as usize {
-                    error!("invalid item offset, item={} offset={} wanted={}", i, self.item_offsets[i], offset);
+                    error!(
+                        "invalid item offset, item={} offset={} wanted={}",
+                        i, self.item_offsets[i], offset
+                    );
                     return Err(format::Error::Malformed);
                 }
                 offset += mem::size_of::<format::ItemHeader>();
                 if offset > self.header.hr.size_items as usize {
-                    error!("item header out of bounds, item={} offset={} size_items={}", i, offset, self.header.hr.size_items);
+                    error!(
+                        "item header out of bounds, item={} offset={} size_items={}",
+                        i, offset, self.header.hr.size_items
+                    );
                     return Err(format::Error::Malformed);
                 }
                 let item_header = self.item_header(i);
                 if item_header.size < 0 {
-                    error!("item has negative size, item={} size={}", i, item_header.size);
+                    error!(
+                        "item has negative size, item={} size={}",
+                        i, item_header.size
+                    );
                     return Err(format::Error::Malformed);
                 }
                 offset += item_header.size as usize;
                 if offset > self.header.hr.size_items as usize {
-                    error!("item out of bounds, item={} size={} size_items={}", i, item_header.size, self.header.hr.size_items);
+                    error!(
+                        "item out of bounds, item={} size={} size_items={}",
+                        i, item_header.size, self.header.hr.size_items
+                    );
                     return Err(format::Error::Malformed);
                 }
             }
             if offset != self.header.hr.size_items as usize {
-                error!("last item not large enough, item={} offset={} size_items={}", self.header.hr.num_items - 1, offset, self.header.hr.size_items);
+                error!(
+                    "last item not large enough, item={} offset={} size_items={}",
+                    self.header.hr.num_items - 1,
+                    offset,
+                    self.header.hr.size_items
+                );
                 return Err(format::Error::Malformed);
             }
         }
@@ -213,7 +253,10 @@ impl Reader {
             for i in 0..self.header.hr.num_data as usize {
                 if let Some(ref uds) = self.uncomp_data_sizes {
                     if uds[i] < 0 {
-                        error!("invalid data's uncompressed size, data={} uncomp_data_size={}", i, uds[i]);
+                        error!(
+                            "invalid data's uncompressed size, data={} uncomp_data_size={}",
+                            i, uds[i]
+                        );
                         return Err(format::Error::Malformed);
                     }
                 }
@@ -245,13 +288,13 @@ impl Reader {
     }
     fn item_header(&self, index: usize) -> &format::ItemHeader {
         let slice = &self.items_raw
-            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].assert_usize())..]
-            [..relative_size_of::<format::ItemHeader,i32>()];
+            [relative_size_of_mult::<u8, i32>(self.item_offsets[index].assert_usize())..]
+            [..relative_size_of::<format::ItemHeader, i32>()];
         // TODO: Find out why paranthesis are necessary.
         //
         // This operation is safe because both `i32` and `format::ItemHeader`
         // are POD.
-        &(unsafe { transmute_slice::<i32,format::ItemHeader>(slice) })[0]
+        &(unsafe { transmute_slice::<i32, format::ItemHeader>(slice) })[0]
     }
     fn data_size_file(&self, index: usize) -> usize {
         let start = self.data_offsets[index] as usize;
@@ -266,9 +309,15 @@ impl Reader {
     pub fn version(&self) -> Version {
         self.version
     }
-    pub fn read_data<'a>(&self, mut cb: &'a mut dyn CallbackReadData, index: usize) -> Result<(), Error> {
+    pub fn read_data<'a>(
+        &self,
+        mut cb: &'a mut dyn CallbackReadData,
+        index: usize,
+    ) -> Result<(), Error> {
         let raw_data_len = self.data_size_file(index);
-        let raw_data = cb.seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len).map_err(|e| e.on_eof(format::Error::TooShort))?;
+        let raw_data = cb
+            .seek_read_exact_owned(self.data_offsets[index] as u32, raw_data_len)
+            .map_err(|e| e.on_eof(format::Error::TooShort))?;
 
         if let Some(ref uds) = self.uncomp_data_sizes {
             let data_len = uds[index] as usize;
@@ -276,11 +325,12 @@ impl Reader {
             let data = cb.data_buffer();
 
             match zlib::uncompress(data, &raw_data) {
-                Ok(len) if len == data_len => {
-                    Ok(())
-                }
+                Ok(len) if len == data_len => Ok(()),
                 Ok(len) => {
-                    error!("decompression error: wrong size, data={} size={} wanted={}", index, data_len, len);
+                    error!(
+                        "decompression error: wrong size, data={} size={} wanted={}",
+                        index, data_len, len
+                    );
                     Err(format::Error::CompressionWrongSize.into())
                 }
                 Err(e) => {
@@ -299,9 +349,9 @@ impl Reader {
     pub fn item(&self, index: usize) -> ItemView {
         let item_header = self.item_header(index);
         let data = &self.items_raw
-            [relative_size_of_mult::<u8,i32>(self.item_offsets[index].assert_usize())..]
-            [relative_size_of::<format::ItemHeader,i32>()..]
-            [..relative_size_of_mult::<u8,i32>(item_header.size.assert_usize())];
+            [relative_size_of_mult::<u8, i32>(self.item_offsets[index].assert_usize())..]
+            [relative_size_of::<format::ItemHeader, i32>()..]
+            [..relative_size_of_mult::<u8, i32>(item_header.size.assert_usize())];
         ItemView {
             type_id: item_header.type_id(),
             id: item_header.id(),
@@ -320,7 +370,7 @@ impl Reader {
                 let start = t.start.assert_usize();
                 let num = t.num.assert_usize();
                 // Overflow check was in Reader::check().
-                return start..start+num;
+                return start..start + num;
             }
         }
         0..0
@@ -343,7 +393,7 @@ impl Reader {
 
     pub fn debug_dump(&self, cb: &mut dyn CallbackReadData) -> Result<(), Error> {
         if !log_enabled!(log::LogLevel::Debug) {
-            return Ok(())
+            return Ok(());
         }
         debug!("DATAFILE");
         debug!("header: {:?}", self.header);
@@ -354,14 +404,19 @@ impl Reader {
                 debug!("  item id={}", item.id);
                 for &data in item.data {
                     #[cfg_attr(feature = "cargo-clippy", allow(identity_op))]
-                    fn i32_to_bytes(input: i32) -> [u8; 4] { [
-                        (((input >> 24) & 0xff) - 0x80) as u8,
-                        (((input >> 16) & 0xff) - 0x80) as u8,
-                        (((input >>  8) & 0xff) - 0x80) as u8,
-                        (((input >>  0) & 0xff) - 0x80) as u8,
-                    ] }
+                    fn i32_to_bytes(input: i32) -> [u8; 4] {
+                        [
+                            (((input >> 24) & 0xff) - 0x80) as u8,
+                            (((input >> 16) & 0xff) - 0x80) as u8,
+                            (((input >> 8) & 0xff) - 0x80) as u8,
+                            (((input >> 0) & 0xff) - 0x80) as u8,
+                        ]
+                    }
                     let bytes = i32_to_bytes(data);
-                    debug!("    {:08x} {:11} {}{}{}{}", data, data,
+                    debug!(
+                        "    {:08x} {:11} {}{}{}{}",
+                        data,
+                        data,
                         sanitize_byte(bytes[0]),
                         sanitize_byte(bytes[1]),
                         sanitize_byte(bytes[2]),
@@ -406,4 +461,4 @@ impl Reader {
 
 pub type Items<'a> = MapIterator<ItemView<'a>, &'a Reader, ops::Range<usize>>;
 pub type ItemTypes<'a> = MapIterator<u16, &'a Reader, ops::Range<usize>>;
-pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>,&'a Reader,ops::Range<usize>>;
+pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>, &'a Reader, ops::Range<usize>>;

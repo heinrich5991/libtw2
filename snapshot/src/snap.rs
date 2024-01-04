@@ -1,28 +1,28 @@
 use buffer::CapacityError;
 use common::num::Cast;
-use format::DeltaHeader;
-use format::Item;
-use format::Warning;
 use format::key;
 use format::key_to_id;
 use format::key_to_type_id;
+use format::DeltaHeader;
+use format::Item;
+use format::Warning;
 use gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
 use gamenet::msg::system;
+use packer;
+use packer::with_packer;
 use packer::Packer;
 use packer::Unpacker;
-use packer::with_packer;
-use packer;
 use std::cmp;
+use std::collections::hash_map;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::hash_map;
 use std::fmt;
 use std::iter;
 use std::mem;
 use std::ops;
 use to_usize;
-use warn::Warn;
 use warn::wrap;
+use warn::Warn;
 
 // TODO: Actually obey this the same way as Teeworlds does.
 pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB
@@ -74,9 +74,7 @@ impl From<packer::UnexpectedEnd> for Error {
     }
 }
 
-fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32])
-    -> Result<(), Error>
-{
+fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32]) -> Result<(), Error> {
     assert!(delta.len() == out.len());
     match in_ {
         Some(in_) => {
@@ -100,7 +98,7 @@ fn create_delta(from: Option<&[i32]>, to: &[i32], out: &mut [i32]) {
             for i in 0..out.len() {
                 out[i] = to[i].wrapping_sub(from[i]);
             }
-        },
+        }
         None => out.copy_from_slice(to),
     }
 }
@@ -124,7 +122,9 @@ impl Snap {
         &self.buf[to_usize(offset)]
     }
     pub fn item(&self, type_id: u16, id: u16) -> Option<&[i32]> {
-        self.offsets.get(&key(type_id, id)).map(|o| &self.buf[to_usize(o.clone())])
+        self.offsets
+            .get(&key(type_id, id))
+            .map(|o| &self.buf[to_usize(o.clone())])
     }
     pub fn items(&self) -> Items {
         Items {
@@ -132,9 +132,11 @@ impl Snap {
             iter: self.offsets.iter(),
         }
     }
-    fn prepare_item_vacant<'a>(entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>, buf: &mut Vec<i32>, size: usize)
-        -> Result<&'a mut ops::Range<u32>, TooLongSnap>
-    {
+    fn prepare_item_vacant<'a>(
+        entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>,
+        buf: &mut Vec<i32>,
+        size: usize,
+    ) -> Result<&'a mut ops::Range<u32>, TooLongSnap> {
         let offset = buf.len();
         if offset + size > MAX_SNAPSHOT_SIZE {
             return Err(TooLongSnap);
@@ -144,18 +146,22 @@ impl Snap {
         buf.extend(iter::repeat(0).take(size));
         Ok(entry.insert(start..end))
     }
-    fn prepare_item(&mut self, type_id: u16, id: u16, size: usize)
-        -> Result<&mut [i32], Error>
-    {
+    fn prepare_item(&mut self, type_id: u16, id: u16, size: usize) -> Result<&mut [i32], Error> {
         let offset = match self.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(o) => o.into_mut(),
             hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
-        }.clone();
+        }
+        .clone();
         Ok(&mut self.buf[to_usize(offset)])
     }
-    pub fn read_with_delta<W>(&mut self, warn: &mut W, from: &Snap, delta: &Delta)
-        -> Result<(), Error>
-        where W: Warn<Warning>,
+    pub fn read_with_delta<W>(
+        &mut self,
+        warn: &mut W,
+        from: &Snap,
+        delta: &Delta,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
     {
         self.clear();
 
@@ -183,16 +189,22 @@ impl Snap {
         }
         Ok(())
     }
-    pub fn write<'d, 's>(&self, buf: &mut Vec<i32>, mut p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
+    pub fn write<'d, 's>(
+        &self,
+        buf: &mut Vec<i32>,
+        mut p: Packer<'d, 's>,
+    ) -> Result<&'d [u8], CapacityError> {
         let keys = buf;
         keys.clear();
         keys.extend(self.offsets.keys().cloned());
         keys.sort_unstable_by_key(|&k| k as u32);
-        let data_size = self.buf.len()
-            .checked_add(self.offsets.len()).expect("snap size overflow")
-            .checked_mul(mem::size_of::<i32>()).expect("snap size overflow")
+        let data_size = self
+            .buf
+            .len()
+            .checked_add(self.offsets.len())
+            .expect("snap size overflow")
+            .checked_mul(mem::size_of::<i32>())
+            .expect("snap size overflow")
             .assert_i32();
         p.write_int(data_size)?;
         let num_items = self.offsets.len().assert_i32();
@@ -203,9 +215,13 @@ impl Snap {
             p.write_int(offset)?;
             let key_offset = self.offsets[&key].clone();
             offset = offset
-                .checked_add((key_offset.end - key_offset.start + 1).usize()
-                             .checked_mul(mem::size_of::<i32>())
-                             .expect("item size overflow").assert_i32())
+                .checked_add(
+                    (key_offset.end - key_offset.start + 1)
+                        .usize()
+                        .checked_mul(mem::size_of::<i32>())
+                        .expect("item size overflow")
+                        .assert_i32(),
+                )
                 .expect("offset overflow");
         }
         for &key in &*keys {
@@ -221,9 +237,7 @@ impl Snap {
     }
     pub fn recycle(mut self) -> Builder {
         self.clear();
-        Builder {
-            snap: self,
-        }
+        Builder { snap: self }
     }
 }
 
@@ -235,9 +249,9 @@ pub struct Items<'a> {
 impl<'a> Iterator for Items<'a> {
     type Item = Item<'a>;
     fn next(&mut self) -> Option<Item<'a>> {
-        self.iter.next().map(|(&k, o)| {
-            Item::from_key(k, self.snap.item_from_offset(o.clone()))
-        })
+        self.iter
+            .next()
+            .map(|(&k, o)| Item::from_key(k, self.snap.item_from_offset(o.clone())))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
@@ -252,9 +266,12 @@ impl<'a> ExactSizeIterator for Items<'a> {
 
 impl fmt::Debug for Snap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_map().entries(self.items().map(
-            |Item { type_id, id, data }| ((type_id, id), data)
-        )).finish()
+        f.debug_map()
+            .entries(
+                self.items()
+                    .map(|Item { type_id, id, data }| ((type_id, id), data)),
+            )
+            .finish()
     }
 }
 
@@ -297,15 +314,22 @@ impl Delta {
             create_delta(from_data, data, out_delta);
         }
     }
-    pub fn write<'d, 's, O>(&self, object_size: O, mut p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-        where O: FnMut(u16) -> Option<u32>,
+    pub fn write<'d, 's, O>(
+        &self,
+        object_size: O,
+        mut p: Packer<'d, 's>,
+    ) -> Result<&'d [u8], CapacityError>
+    where
+        O: FnMut(u16) -> Option<u32>,
     {
         let mut object_size = object_size;
-        with_packer(&mut p, |p| DeltaHeader {
-            num_deleted_items: self.deleted_items.len().assert_i32(),
-            num_updated_items: self.updated_items.len().assert_i32()
-        }.encode(p))?;
+        with_packer(&mut p, |p| {
+            DeltaHeader {
+                num_deleted_items: self.deleted_items.len().assert_i32(),
+                num_updated_items: self.updated_items.len().assert_i32(),
+            }
+            .encode(p)
+        })?;
         for &key in &self.deleted_items {
             p.write_int(key)?;
         }
@@ -326,13 +350,21 @@ impl Delta {
         Ok(p.written())
     }
 
-    pub fn read<W, O>(&mut self, warn: &mut W, object_size: O, p: &mut Unpacker)
-        -> Result<(), Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    pub fn read<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        p: &mut Unpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
-        fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, warn: &mut W, e: Error)
-            -> Result<i32, Error> {
+        fn read_int_err<W: Warn<Warning>>(
+            p: &mut Unpacker,
+            warn: &mut W,
+            e: Error,
+        ) -> Result<i32, Error> {
             p.read_int(wrap(warn)).map_err(|_| e)
         }
 
@@ -343,7 +375,8 @@ impl Delta {
         let header = DeltaHeader::decode(warn, p)?;
 
         for _ in 0..header.num_deleted_items {
-            self.deleted_items.insert(read_int_err(p, warn, Error::DeletedItemsUnpacking)?);
+            self.deleted_items
+                .insert(read_int_err(p, warn, Error::DeletedItemsUnpacking)?);
         }
         if header.num_deleted_items.assert_usize() != self.deleted_items.len() {
             warn.warn(Warning::DuplicateDelete);
@@ -368,11 +401,16 @@ impl Delta {
             let start = self.buf.len().try_u32().ok_or(Error::TooLongDiff)?;
             let end = start.checked_add(size).ok_or(Error::TooLongDiff)?;
             for _ in 0..size {
-                self.buf.push(read_int_err(p, warn, Error::ItemDiffsUnpacking)?);
+                self.buf
+                    .push(read_int_err(p, warn, Error::ItemDiffsUnpacking)?);
             }
 
             // In case of conflict, take later update (as the original code does).
-            if self.updated_items.insert(key(type_id, id), start..end).is_some() {
+            if self
+                .updated_items
+                .insert(key(type_id, id), start..end)
+                .is_some()
+            {
                 warn.warn(Warning::DuplicateUpdate);
             }
 
@@ -399,15 +437,14 @@ impl Builder {
     pub fn new() -> Builder {
         Default::default()
     }
-    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32])
-        -> Result<(), BuilderError>
-    {
+    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
         let offset = match self.snap.offsets.entry(key(type_id, id)) {
             hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
             hash_map::Entry::Vacant(v) => {
                 Snap::prepare_item_vacant(v, &mut self.snap.buf, data.len())?
             }
-        }.clone();
+        }
+        .clone();
         self.snap.buf[to_usize(offset)].copy_from_slice(data);
         Ok(())
     }
@@ -422,7 +459,9 @@ pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaC
         delta_tick: tick - delta_tick,
         crc: crc,
         cur_part: if !data.is_empty() { 0 } else { -1 },
-        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE as usize - 1) / MAX_SNAPSHOT_PACKSIZE as usize).assert_i32(),
+        num_parts: ((data.len() + MAX_SNAPSHOT_PACKSIZE as usize - 1)
+            / MAX_SNAPSHOT_PACKSIZE as usize)
+            .assert_i32(),
         data: data,
     }
 }
@@ -474,7 +513,10 @@ impl<'a> Iterator for DeltaChunks<'a> {
         } else {
             let index = self.cur_part.assert_usize();
             let start = MAX_SNAPSHOT_PACKSIZE as usize * index;
-            let end = cmp::min(MAX_SNAPSHOT_PACKSIZE as usize * (index + 1), self.data.len());
+            let end = cmp::min(
+                MAX_SNAPSHOT_PACKSIZE as usize * (index + 1),
+                self.data.len(),
+            );
             SnapMsg::Snap(system::Snap {
                 tick: self.tick,
                 delta_tick: self.delta_tick,

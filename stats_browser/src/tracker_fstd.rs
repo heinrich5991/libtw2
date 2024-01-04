@@ -66,23 +66,26 @@ impl Tracker {
         false
     }
     fn on_player_new(&mut self, addr: LogAddr, info: &ClientInfo) {
-        if player_ignore(addr, info) { return; }
+        if player_ignore(addr, info) {
+            return;
+        }
         print_player_new(addr, info);
         self.player_count += 1;
     }
 
     fn on_player_change(&mut self, addr: LogAddr, old: &ClientInfo, new: &ClientInfo) {
-        if player_ignore(addr, old) || player_ignore(addr, new) { return; }
-        if old.clan != new.clan
-            || old.is_player != new.is_player
-            || old.country != new.country
-        {
+        if player_ignore(addr, old) || player_ignore(addr, new) {
+            return;
+        }
+        if old.clan != new.clan || old.is_player != new.is_player || old.country != new.country {
             print_player_change(addr, old, new);
         }
     }
 
     fn on_player_remove(&mut self, addr: LogAddr, last: &ClientInfo) {
-        if player_ignore(addr, last) { return; }
+        if player_ignore(addr, last) {
+            return;
+        }
         print_player_remove(addr, last);
         self.player_count -= 1;
     }
@@ -103,23 +106,21 @@ impl Tracker {
                     self.on_player_remove(addr, old);
                     maybe_old = iter_old.next();
                 }
-                (Some(old), Some(new)) => {
-                    match Ord::cmp(&*old.name, &*new.name) {
-                        Ordering::Less => {
-                            self.on_player_remove(addr, old);
-                            maybe_old = iter_old.next();
-                        }
-                        Ordering::Equal => {
-                            self.on_player_change(addr, old, new);
-                            maybe_old = iter_old.next();
-                            maybe_new = iter_new.next();
-                        }
-                        Ordering::Greater => {
-                            self.on_player_new(addr, new);
-                            maybe_new = iter_new.next();
-                        }
+                (Some(old), Some(new)) => match Ord::cmp(&*old.name, &*new.name) {
+                    Ordering::Less => {
+                        self.on_player_remove(addr, old);
+                        maybe_old = iter_old.next();
                     }
-                }
+                    Ordering::Equal => {
+                        self.on_player_change(addr, old, new);
+                        maybe_old = iter_old.next();
+                        maybe_new = iter_new.next();
+                    }
+                    Ordering::Greater => {
+                        self.on_player_new(addr, new);
+                        maybe_new = iter_new.next();
+                    }
+                },
             }
         }
     }
@@ -128,7 +129,9 @@ impl Tracker {
 impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
         let addr = LogAddr::new(addr, info);
-        if Tracker::server_ignore(addr) { return; }
+        if Tracker::server_ignore(addr) {
+            return;
+        }
         print_server_new(addr, info);
         self.diff_players(addr, &[], &info.clients);
         self.server_count += 1;
@@ -142,7 +145,9 @@ impl StatsBrowserCb for Tracker {
             self.on_server_new(addr, new);
         }
         let addr = LogAddr::new(addr, old);
-        if Tracker::server_ignore(addr) { return; }
+        if Tracker::server_ignore(addr) {
+            return;
+        }
         if old.flags != new.flags
             || old.version != new.version
             || old.game_type != new.game_type
@@ -156,21 +161,22 @@ impl StatsBrowserCb for Tracker {
 
     fn on_server_remove(&mut self, addr: ServerAddr, last: &ServerInfo) {
         let addr = LogAddr::new(addr, last);
-        if Tracker::server_ignore(addr) { return; }
+        if Tracker::server_ignore(addr) {
+            return;
+        }
         self.diff_players(addr, &last.clients, &[]);
         print_server_remove(addr, last);
         self.server_count -= 1;
     }
 }
 
-fn print_iter<'a,I:Iterator<Item=&'a (dyn fmt::Display+'a)>>(command: &str, args: I) {
+fn print_iter<'a, I: Iterator<Item = &'a (dyn fmt::Display + 'a)>>(command: &str, args: I) {
     print!("{}\t{}", rust_time::get_time().sec, command);
     for a in args {
         print!("\t{}", a);
     }
     println!("");
 }
-
 
 fn print(command: &str, args: &[&dyn fmt::Display]) {
     print_iter(command, args.iter().cloned());
@@ -186,18 +192,20 @@ fn print_start() {
 }
 
 fn print_player_new(addr: LogAddr, info: &ClientInfo) {
-    print_server("PLADD", addr, &[
-        &B64(info.name.as_bytes()),
-        &B64(info.clan.as_bytes()),
-        &info.is_player,
-        &info.country,
-    ]);
+    print_server(
+        "PLADD",
+        addr,
+        &[
+            &B64(info.name.as_bytes()),
+            &B64(info.clan.as_bytes()),
+            &info.is_player,
+            &info.country,
+        ],
+    );
 }
 
 fn print_player_remove(addr: LogAddr, info: &ClientInfo) {
-    print_server("PLDEL", addr, &[
-        &B64(info.name.as_bytes()),
-    ]);
+    print_server("PLDEL", addr, &[&B64(info.name.as_bytes())]);
 }
 
 fn print_player_change(addr: LogAddr, old: &ClientInfo, new: &ClientInfo) {
@@ -211,13 +219,17 @@ fn print_server_remove(addr: LogAddr, info: &ServerInfo) {
 }
 
 fn print_server_change_impl(addr: LogAddr, new: bool, info: &ServerInfo) {
-    print_server(if new { "SVADD" } else { "SVCHG" }, addr, &[
-        &info.flags,
-        &B64(info.version.as_bytes()),
-        &B64(info.game_type.as_bytes()),
-        &B64(info.map.as_bytes()),
-        &B64(info.name.as_bytes()),
-    ]);
+    print_server(
+        if new { "SVADD" } else { "SVCHG" },
+        addr,
+        &[
+            &info.flags,
+            &B64(info.version.as_bytes()),
+            &B64(info.game_type.as_bytes()),
+            &B64(info.map.as_bytes()),
+            &B64(info.name.as_bytes()),
+        ],
+    );
 }
 
 fn print_server_new(addr: LogAddr, info: &ServerInfo) {

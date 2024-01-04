@@ -52,8 +52,8 @@ impl fmt::Display for Entity {
 
 #[derive(Default)]
 struct ErrorStats {
-    map_errors: HashMap<map::format::Error,u64>,
-    df_errors: HashMap<df::format::Error,u64>,
+    map_errors: HashMap<map::format::Error, u64>,
+    df_errors: HashMap<df::format::Error, u64>,
     io_errors: Vec<io::Error>,
     ok: u64,
 }
@@ -86,16 +86,18 @@ fn print_error_stats(error_stats: &ErrorStats) {
 }
 
 fn process<D, P>(path: &Path, process_inner: P, stats: &mut D) -> Result<(), map::Error>
-    where P: FnOnce(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
+where
+    P: FnOnce(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
 {
     let reader = df::Reader::open(path)?;
     process_inner(path, reader, stats)
 }
 
 pub fn stats<D, P, S>(mut process_inner: P, summary: S)
-    where D: Default,
-          P: FnMut(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
-          S: FnOnce(&D),
+where
+    D: Default,
+    P: FnMut(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
+    S: FnOnce(&D),
 {
     logger::init();
 

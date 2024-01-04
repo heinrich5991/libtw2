@@ -77,9 +77,7 @@ pub struct NumBytes {
 
 impl NumBytes {
     pub fn new(num: usize) -> NumBytes {
-        NumBytes {
-            num,
-        }
+        NumBytes { num }
     }
 }
 
@@ -93,11 +91,10 @@ impl fmt::Display for NumBytes {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::fmt;
     use super::Bitfield;
+    use std::fmt;
 
     fn assert_fmt<T: fmt::Display>(t: T, expected: &str) {
         assert_eq!(t.to_string(), expected);
@@ -108,7 +105,9 @@ mod test {
         assert_fmt(Bitfield::new(&[], 0), "");
         assert_fmt(Bitfield::new(&[0], 0), ".... ....");
         assert_fmt(Bitfield::new(&[0], 0b1100_1100), "00.. 00..");
-        assert_fmt(Bitfield::new(&[0b10101010; 2], 0b0011_0011_1010_1010),
-            "..10 ..10 1.1. 1.1.");
+        assert_fmt(
+            Bitfield::new(&[0b10101010; 2], 0b0011_0011_1010_1010),
+            "..10 ..10 1.1. 1.1.",
+        );
     }
 }

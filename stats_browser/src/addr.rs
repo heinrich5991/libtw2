@@ -40,10 +40,10 @@ impl Addr {
     pub fn to_socket_addr(self) -> net::SocketAddr {
         let srvbrowse_addr = self.to_srvbrowse_addr();
         match srvbrowse_addr.ip_address {
-            IpAddr::V4(x) =>
-                net::SocketAddr::V4(net::SocketAddrV4::new(x, srvbrowse_addr.port)),
-            IpAddr::V6(x) =>
-                net::SocketAddr::V6(net::SocketAddrV6::new(x, srvbrowse_addr.port, 0, 0)),
+            IpAddr::V4(x) => net::SocketAddr::V4(net::SocketAddrV4::new(x, srvbrowse_addr.port)),
+            IpAddr::V6(x) => {
+                net::SocketAddr::V6(net::SocketAddrV6::new(x, srvbrowse_addr.port, 0, 0))
+            }
         }
     }
     /// Converts a socket address to an `Addr`.
@@ -61,11 +61,17 @@ impl Addr {
                 (ip, a.port())
             }
         };
-        Addr(protocol::Addr { ip_address: ip_addr, port: port })
+        Addr(protocol::Addr {
+            ip_address: ip_addr,
+            port: port,
+        })
     }
     /// Returns the current address, replacing the port with the given one.
     pub fn with_port(&self, port: u16) -> Addr {
-        Addr(protocol::Addr { ip_address: self.0.ip_address, port: port })
+        Addr(protocol::Addr {
+            ip_address: self.0.ip_address,
+            port: port,
+        })
     }
 }
 

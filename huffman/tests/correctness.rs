@@ -22,18 +22,23 @@ fn read_file<T, F: FnMut(String) -> T>(filename: &str, f: F) -> Vec<T> {
 }
 
 fn huffman_default() -> Huffman {
-    let frequencies = read_file("data/frequencies", |l| {
-        u32::from_str_radix(&l, 10).unwrap()
-    });
+    let frequencies = read_file("data/frequencies", |l| u32::from_str_radix(&l, 10).unwrap());
 
     Huffman::from_frequencies(&frequencies)
 }
 
 fn test_cases() -> Vec<(Vec<u8>, Vec<u8>)> {
     read_file("data/test_cases", |l| {
-        let mut v = l.split('#').map(|hex_bytes| {
-            hex_bytes.split(' ').map(|hex| u8::from_str_radix(hex, 16).unwrap()).collect()
-        }).collect_vec().into_iter();
+        let mut v = l
+            .split('#')
+            .map(|hex_bytes| {
+                hex_bytes
+                    .split(' ')
+                    .map(|hex| u8::from_str_radix(hex, 16).unwrap())
+                    .collect()
+            })
+            .collect_vec()
+            .into_iter();
         assert_eq!(v.len(), 2);
         let uncompressed = v.next().unwrap();
         let compressed = v.next().unwrap();
@@ -82,7 +87,10 @@ fn compress() {
     let mut buffer = buffer();
     for (uncompressed, compressed) in test_cases() {
         buffer.clear();
-        fuzzy_match(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed);
+        fuzzy_match(
+            h.compress_bug(&uncompressed, &mut buffer).unwrap(),
+            &compressed,
+        );
     }
 }
 
@@ -93,7 +101,10 @@ fn compress_bug() {
     let mut buffer = buffer();
     for (uncompressed, compressed) in test_cases() {
         buffer.clear();
-        assert_eq!(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed[..]);
+        assert_eq!(
+            h.compress_bug(&uncompressed, &mut buffer).unwrap(),
+            &compressed[..]
+        );
     }
 }
 
@@ -104,7 +115,10 @@ fn decompress() {
     let mut buffer = buffer();
     for (uncompressed, compressed) in test_cases() {
         buffer.clear();
-        assert_eq!(h.compress_bug(&uncompressed, &mut buffer).unwrap(), &compressed[..]);
+        assert_eq!(
+            h.compress_bug(&uncompressed, &mut buffer).unwrap(),
+            &compressed[..]
+        );
     }
 }
 
@@ -113,5 +127,8 @@ fn decompress_extend_stream() {
     let h = huffman_default();
 
     let mut buffer = buffer();
-    assert_eq!(&[0x00, 0x00, 0x00][..], h.decompress(&[0x57, 0xdc], &mut buffer).unwrap());
+    assert_eq!(
+        &[0x00, 0x00, 0x00][..],
+        h.decompress(&[0x57, 0xdc], &mut buffer).unwrap()
+    );
 }

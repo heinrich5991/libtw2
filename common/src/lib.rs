@@ -4,7 +4,8 @@ extern crate quickcheck;
 
 extern crate arrayvec;
 extern crate file_offset;
-#[cfg(feature = "serde")] extern crate serde;
+#[cfg(feature = "serde")]
+extern crate serde;
 
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;

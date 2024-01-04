@@ -1,11 +1,11 @@
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use packer::Unpacker;
 use packer::positive;
-use serde::Serialize;
-use serde::ser::SerializeSeq;
+use packer::Unpacker;
 use serde;
+use serde::ser::SerializeSeq;
+use serde::Serialize;
 use std::fmt;
 use uuid::Uuid;
 use warn::Ignore;
@@ -30,68 +30,55 @@ pub const CONSOLE_COMMAND_MAX_ARGS: usize = 16;
 
 pub const UUID_AUTH_INIT: [u8; 16] = [
     // "60daba5c-52c4-3aeb-b8ba-b2953fb55a17"
-    0x60, 0xda, 0xba, 0x5c, 0x52, 0xc4, 0x3a, 0xeb,
-    0xb8, 0xba, 0xb2, 0x95, 0x3f, 0xb5, 0x5a, 0x17,
+    0x60, 0xda, 0xba, 0x5c, 0x52, 0xc4, 0x3a, 0xeb, 0xb8, 0xba, 0xb2, 0x95, 0x3f, 0xb5, 0x5a, 0x17,
 ];
 pub const UUID_AUTH_LOGIN: [u8; 16] = [
     // "37ecd3b8-9218-3bb9-a71b-a935b86f6a81"
-    0x37, 0xec, 0xd3, 0xb8, 0x92, 0x18, 0x3b, 0xb9,
-    0xa7, 0x1b, 0xa9, 0x35, 0xb8, 0x6f, 0x6a, 0x81,
+    0x37, 0xec, 0xd3, 0xb8, 0x92, 0x18, 0x3b, 0xb9, 0xa7, 0x1b, 0xa9, 0x35, 0xb8, 0x6f, 0x6a, 0x81,
 ];
 pub const UUID_AUTH_LOGOUT: [u8; 16] = [
     // "d4f5abe8-edd2-3fb9-abd8-1c8bb84f4a63"
-    0xd4, 0xf5, 0xab, 0xe8, 0xed, 0xd2, 0x3f, 0xb9,
-    0xab, 0xd8, 0x1c, 0x8b, 0xb8, 0x4f, 0x4a, 0x63,
+    0xd4, 0xf5, 0xab, 0xe8, 0xed, 0xd2, 0x3f, 0xb9, 0xab, 0xd8, 0x1c, 0x8b, 0xb8, 0x4f, 0x4a, 0x63,
 ];
 pub const UUID_DDNETVER: [u8; 16] = [
     // "1397b63e-ee4e-3919-b86a-b058887fcaf5"
-    0x13, 0x97, 0xb6, 0x3e, 0xee, 0x4e, 0x39, 0x19,
-    0xb8, 0x6a, 0xb0, 0x58, 0x88, 0x7f, 0xca, 0xf5,
+    0x13, 0x97, 0xb6, 0x3e, 0xee, 0x4e, 0x39, 0x19, 0xb8, 0x6a, 0xb0, 0x58, 0x88, 0x7f, 0xca, 0xf5,
 ];
 pub const UUID_DDNETVER_OLD: [u8; 16] = [
     // "41b49541-f26f-325d-8715-9baf4b544ef9"
-    0x41, 0xb4, 0x95, 0x41, 0xf2, 0x6f, 0x32, 0x5d,
-    0x87, 0x15, 0x9b, 0xaf, 0x4b, 0x54, 0x4e, 0xf9,
+    0x41, 0xb4, 0x95, 0x41, 0xf2, 0x6f, 0x32, 0x5d, 0x87, 0x15, 0x9b, 0xaf, 0x4b, 0x54, 0x4e, 0xf9,
 ];
 pub const UUID_JOINVER6: [u8; 16] = [
     // "1899a382-71e3-36da-937d-c9de6bb95b1d"
-    0x18, 0x99, 0xa3, 0x82, 0x71, 0xe3, 0x36, 0xda,
-    0x93, 0x7d, 0xc9, 0xde, 0x6b, 0xb9, 0x5b, 0x1d,
+    0x18, 0x99, 0xa3, 0x82, 0x71, 0xe3, 0x36, 0xda, 0x93, 0x7d, 0xc9, 0xde, 0x6b, 0xb9, 0x5b, 0x1d,
 ];
 pub const UUID_JOINVER7: [u8; 16] = [
     // "59239b05-0540-318d-bea4-9aa1e80e7d2b"
-    0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d,
-    0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
+    0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d, 0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
 ];
 pub const UUID_PLAYER_TEAM: [u8; 16] = [
     // "a111c04e-1ea8-38e0-90b1-d7f993ca0da9"
-    0xa1, 0x11, 0xc0, 0x4e, 0x1e, 0xa8, 0x38, 0xe0,
-    0x90, 0xb1, 0xd7, 0xf9, 0x93, 0xca, 0x0d, 0xa9,
+    0xa1, 0x11, 0xc0, 0x4e, 0x1e, 0xa8, 0x38, 0xe0, 0x90, 0xb1, 0xd7, 0xf9, 0x93, 0xca, 0x0d, 0xa9,
 ];
 pub const UUID_TEAM_LOAD_FAILURE: [u8; 16] = [
     // "ef8905a2-c695-3591-a1cd-53d2015992dd"
-    0xef, 0x89, 0x05, 0xa2, 0xc6, 0x95, 0x35, 0x91,
-    0xa1, 0xcd, 0x53, 0xd2, 0x01, 0x59, 0x92, 0xdd,
+    0xef, 0x89, 0x05, 0xa2, 0xc6, 0x95, 0x35, 0x91, 0xa1, 0xcd, 0x53, 0xd2, 0x01, 0x59, 0x92, 0xdd,
 ];
 pub const UUID_TEAM_LOAD_SUCCESS: [u8; 16] = [
     // "e05408d3-a313-33df-9eb3-ddb990ab954a"
-    0xe0, 0x54, 0x08, 0xd3, 0xa3, 0x13, 0x33, 0xdf,
-    0x9e, 0xb3, 0xdd, 0xb9, 0x90, 0xab, 0x95, 0x4a,
+    0xe0, 0x54, 0x08, 0xd3, 0xa3, 0x13, 0x33, 0xdf, 0x9e, 0xb3, 0xdd, 0xb9, 0x90, 0xab, 0x95, 0x4a,
 ];
 pub const UUID_TEAM_PRACTICE: [u8; 16] = [
     // "5792834e-81d1-34c9-a29b-b5ff25dac3bc"
-    0x57, 0x92, 0x83, 0x4e, 0x81, 0xd1, 0x34, 0xc9,
-    0xa2, 0x9b, 0xb5, 0xff, 0x25, 0xda, 0xc3, 0xbc,
+    0x57, 0x92, 0x83, 0x4e, 0x81, 0xd1, 0x34, 0xc9, 0xa2, 0x9b, 0xb5, 0xff, 0x25, 0xda, 0xc3, 0xbc,
 ];
 pub const UUID_TEAM_SAVE_FAILURE: [u8; 16] = [
     // "b29901d5-1244-3bd0-bbde-23d04b1f7ba9"
-    0xb2, 0x99, 0x01, 0xd5, 0x12, 0x44, 0x3b, 0xd0,
-    0xbb, 0xde, 0x23, 0xd0, 0x4b, 0x1f, 0x7b, 0xa9,
+    0xb2, 0x99, 0x01, 0xd5, 0x12, 0x44, 0x3b, 0xd0, 0xbb, 0xde, 0x23, 0xd0, 0x4b, 0x1f, 0x7b, 0xa9,
 ];
 pub const UUID_TEAM_SAVE_SUCCESS: [u8; 16] = [
     // "4560c756-da29-3036-81d4-90a50f0182cd"
-    0x45, 0x60, 0xc7, 0x56, 0xda, 0x29, 0x30, 0x36,
-    0x81, 0xd4, 0x90, 0xa5, 0x0f, 0x01, 0x82, 0xcd,
+    0x45, 0x60, 0xc7, 0x56, 0xda, 0x29, 0x30, 0x36, 0x81, 0xd4, 0x90, 0xa5, 0x0f, 0x01, 0x82, 0xcd,
 ];
 
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
@@ -137,9 +124,7 @@ impl From<MaybeEnd<UnknownType>> for MaybeEnd<Error> {
 }
 
 impl Kind {
-    pub fn decode(p: &mut Unpacker, version: Version)
-        -> Result<Kind, MaybeEnd<UnknownType>>
-    {
+    pub fn decode(p: &mut Unpacker, version: Version) -> Result<Kind, MaybeEnd<UnknownType>> {
         Ok(match p.read_int(&mut Ignore)? {
             i if i >= 0 => Kind::PlayerDiff(i),
             FINISH => Kind::Finish,
@@ -156,9 +141,7 @@ impl Kind {
             x => return Err(UnknownType(x).into()),
         })
     }
-    pub fn decode_rest<'a>(&self, p: &mut Unpacker<'a>)
-        -> Result<Item<'a>, MaybeEnd<Error>>
-    {
+    pub fn decode_rest<'a>(&self, p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
         Ok(match *self {
             Kind::PlayerDiff(cid) => PlayerDiff::decode(cid, p)?.into(),
             Kind::Finish => Finish::decode(p)?.into(),
@@ -185,14 +168,15 @@ impl Kind {
 }
 
 fn serialize_str_lossy<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>
-    where S: serde::Serializer,
+where
+    S: serde::Serializer,
 {
     String::from_utf8_lossy(bytes).serialize(s)
 }
 
-fn serialize_str_slice_lossy<S>(bytess: &ArrayVec<[&[u8]; 16]>, s: S)
-    -> Result<S::Ok, S::Error>
-    where S: serde::Serializer,
+fn serialize_str_slice_lossy<S>(bytess: &ArrayVec<[&[u8]; 16]>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
 {
     let mut seq = s.serialize_seq(Some(bytess.len()))?;
     for &bytes in bytess {
@@ -406,9 +390,7 @@ impl From<Error> for MaybeEnd<Error> {
 }
 
 impl<'a> Item<'a> {
-    pub fn decode(p: &mut Unpacker<'a>, version: Version)
-        -> Result<Item<'a>, MaybeEnd<Error>>
-    {
+    pub fn decode(p: &mut Unpacker<'a>, version: Version) -> Result<Item<'a>, MaybeEnd<Error>> {
         Kind::decode(p, version)?.decode_rest(p)
     }
     pub fn decode_ex(p: &mut Unpacker<'a>) -> Result<Item<'a>, MaybeEnd<Error>> {
@@ -431,7 +413,8 @@ impl<'a> Item<'a> {
             _ => UnknownEx {
                 uuid: uuid,
                 data: data,
-            }.into(),
+            }
+            .into(),
         })
     }
     pub fn cid(&self) -> Option<i32> {
@@ -486,7 +469,7 @@ impl TickSkip {
         Ok(TickSkip {
             dt: positive(_p.read_int(&mut Ignore)?)
                 .map_err(|_| Error::NegativeDt)?
-                .assert_u32()
+                .assert_u32(),
         })
     }
 }
@@ -503,9 +486,7 @@ impl PlayerNew {
 
 impl PlayerOld {
     fn decode(cid: i32, _p: &mut Unpacker) -> Result<PlayerOld, MaybeEnd<Error>> {
-        Ok(PlayerOld {
-            cid: cid,
-        })
+        Ok(PlayerOld { cid: cid })
     }
 }
 
@@ -553,7 +534,7 @@ impl<'a> Message<'a> {
     fn decode(_p: &mut Unpacker<'a>) -> Result<Message<'a>, MaybeEnd<Error>> {
         Ok(Message {
             cid: _p.read_int(&mut Ignore)?,
-            msg: _p.read_data(&mut Ignore)?
+            msg: _p.read_data(&mut Ignore)?,
         })
     }
 }
@@ -570,7 +551,7 @@ impl<'a> Drop<'a> {
     fn decode(_p: &mut Unpacker<'a>) -> Result<Drop<'a>, MaybeEnd<Error>> {
         Ok(Drop {
             cid: _p.read_int(&mut Ignore)?,
-            reason: _p.read_string()?
+            reason: _p.read_string()?,
         })
     }
 }
@@ -580,11 +561,11 @@ impl<'a> ConsoleCommand<'a> {
         let cid = _p.read_int(&mut Ignore)?;
         let flag_mask = _p.read_int(&mut Ignore)? as u32;
         let cmd = _p.read_string()?;
-        let num_args = positive(_p.read_int(&mut Ignore)?)
-            .map_err(|_| Error::NegativeNumArgs)?;
+        let num_args = positive(_p.read_int(&mut Ignore)?).map_err(|_| Error::NegativeNumArgs)?;
         let mut args = ArrayVec::new();
         for _ in 0..num_args {
-            args.try_push(_p.read_string()?).map_err(|_| Error::NumArgsTooLarge)?;
+            args.try_push(_p.read_string()?)
+                .map_err(|_| Error::NumArgsTooLarge)?;
         }
         Ok(ConsoleCommand {
             cid: cid,
@@ -800,7 +781,10 @@ impl<'a> fmt::Debug for Ddnetver<'a> {
             .field("cid", &self.cid)
             .field("connection_id", &self.connection_id)
             .field("ddnet_version", &self.ddnet_version)
-            .field("ddnet_version_str", &pretty::AlmostString::new(&self.ddnet_version_str))
+            .field(
+                "ddnet_version_str",
+                &pretty::AlmostString::new(&self.ddnet_version_str),
+            )
             .finish()
     }
 }

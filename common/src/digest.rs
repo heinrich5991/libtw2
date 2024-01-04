@@ -10,9 +10,7 @@ pub struct InvalidSliceLength;
 pub struct Sha256(pub [u8; 32]);
 
 impl Sha256 {
-    pub fn from_slice(bytes: &[u8])
-        -> Result<Sha256, InvalidSliceLength>
-    {
+    pub fn from_slice(bytes: &[u8]) -> Result<Sha256, InvalidSliceLength> {
         let mut result = [0; 32];
         if bytes.len() != result.len() {
             return Err(InvalidSliceLength);
@@ -65,12 +63,19 @@ impl FromStr for Sha256 {
         let mut result = [0; 32];
         // I just want to get string slices with two characters each. :(
         // Sorry for this monstrosity.
-        let starts = v.char_indices().map(|(i, _)| i).chain(iter::once(v.len())).step_by(2);
-        let ends = { let mut e = starts.clone(); e.next(); e };
+        let starts = v
+            .char_indices()
+            .map(|(i, _)| i)
+            .chain(iter::once(v.len()))
+            .step_by(2);
+        let ends = {
+            let mut e = starts.clone();
+            e.next();
+            e
+        };
         for (i, (s, e)) in starts.zip(ends).enumerate() {
-            result[i] = u8::from_str_radix(&v[s..e], 16).map_err(|_| {
-                Sha256FromStrError::NonHexChar
-            })?;
+            result[i] =
+                u8::from_str_radix(&v[s..e], 16).map_err(|_| Sha256FromStrError::NonHexChar)?;
         }
         Ok(Sha256(result))
     }
@@ -84,7 +89,8 @@ mod serialize {
 
     impl serde::Serialize for Sha256 {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where S: serde::Serializer,
+        where
+            S: serde::Serializer,
         {
             serializer.serialize_str(&format!("{}", self))
         }
@@ -109,7 +115,8 @@ mod serialize {
 
     impl<'de> serde::Deserialize<'de> for Sha256 {
         fn deserialize<D>(deserializer: D) -> Result<Sha256, D::Error>
-            where D: serde::de::Deserializer<'de>,
+        where
+            D: serde::de::Deserializer<'de>,
         {
             deserializer.deserialize_str(HexSha256Visitor)
         }

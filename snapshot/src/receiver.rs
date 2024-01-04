@@ -54,7 +54,9 @@ impl DeltaReceiver {
         self.current = None;
     }
     fn can_receive(&self, tick: i32) -> bool {
-        self.current.as_ref().map(|c| c.tick <= tick)
+        self.current
+            .as_ref()
+            .map(|c| c.tick <= tick)
             .or(self.previous_tick.map(|t| t < tick))
             .unwrap_or(true)
     }
@@ -67,14 +69,23 @@ impl DeltaReceiver {
         self.current = None;
         self.previous_tick = Some(tick);
     }
-    pub fn snap_empty<W>(&mut self, warn: &mut W, snap: system::SnapEmpty)
-        -> Result<Option<ReceivedDelta>, Error>
-        where W: Warn<Warning>,
+    pub fn snap_empty<W>(
+        &mut self,
+        warn: &mut W,
+        snap: system::SnapEmpty,
+    ) -> Result<Option<ReceivedDelta>, Error>
+    where
+        W: Warn<Warning>,
     {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
-        if self.current.as_ref().map(|c| c.tick == snap.tick).unwrap_or(false) {
+        if self
+            .current
+            .as_ref()
+            .map(|c| c.tick == snap.tick)
+            .unwrap_or(false)
+        {
             warn.warn(Warning::DuplicateSnap);
         }
         self.init_delta();
@@ -85,14 +96,23 @@ impl DeltaReceiver {
             data_and_crc: None,
         }))
     }
-    pub fn snap_single<W>(&mut self, warn: &mut W, snap: system::SnapSingle)
-        -> Result<Option<ReceivedDelta>, Error>
-        where W: Warn<Warning>,
+    pub fn snap_single<W>(
+        &mut self,
+        warn: &mut W,
+        snap: system::SnapSingle,
+    ) -> Result<Option<ReceivedDelta>, Error>
+    where
+        W: Warn<Warning>,
     {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
-        if self.current.as_ref().map(|c| c.tick == snap.tick).unwrap_or(false) {
+        if self
+            .current
+            .as_ref()
+            .map(|c| c.tick == snap.tick)
+            .unwrap_or(false)
+        {
             warn.warn(Warning::DuplicateSnap);
         }
         self.init_delta();
@@ -104,9 +124,13 @@ impl DeltaReceiver {
             data_and_crc: Some((&self.result, snap.crc)),
         }))
     }
-    pub fn snap<W>(&mut self, warn: &mut W, snap: system::Snap)
-        -> Result<Option<ReceivedDelta>, Error>
-        where W: Warn<Warning>,
+    pub fn snap<W>(
+        &mut self,
+        warn: &mut W,
+        snap: system::Snap,
+    ) -> Result<Option<ReceivedDelta>, Error>
+    where
+        W: Warn<Warning>,
     {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
@@ -117,7 +141,12 @@ impl DeltaReceiver {
         if !(0 <= snap.part && snap.part < snap.num_parts) {
             return Err(Error::InvalidPart);
         }
-        if self.current.as_ref().map(|c| c.tick != snap.tick).unwrap_or(false) {
+        if self
+            .current
+            .as_ref()
+            .map(|c| c.tick != snap.tick)
+            .unwrap_or(false)
+        {
             self.current = None;
         }
         if let None = self.current {
@@ -166,7 +195,8 @@ impl DeltaReceiver {
         self.finish_delta(tick);
         self.result.reserve(self.receive_buf.len());
         for range in self.parts.values() {
-            self.result.extend(&self.receive_buf[to_usize(range.clone())]);
+            self.result
+                .extend(&self.receive_buf[to_usize(range.clone())]);
         }
 
         Ok(Some(ReceivedDelta {
@@ -179,66 +209,84 @@ impl DeltaReceiver {
 
 #[cfg(test)]
 mod test {
+    use super::DeltaReceiver;
+    use super::Error;
+    use super::ReceivedDelta;
     use common::num::Cast;
     use gamenet::msg::system::Snap;
     use gamenet::msg::system::SnapEmpty;
     use gamenet::msg::system::SnapSingle;
-    use super::DeltaReceiver;
-    use super::Error;
-    use super::ReceivedDelta;
     use warn::Panic;
 
     #[test]
     fn old() {
         let mut receiver = DeltaReceiver::new();
         {
-            let result = receiver.snap_empty(&mut Panic, SnapEmpty {
-                tick: 1,
-                delta_tick: 2,
-            }).unwrap();
+            let result = receiver
+                .snap_empty(
+                    &mut Panic,
+                    SnapEmpty {
+                        tick: 1,
+                        delta_tick: 2,
+                    },
+                )
+                .unwrap();
 
-            assert_eq!(result, Some(ReceivedDelta {
-                delta_tick: -1,
-                tick: 1,
-                data_and_crc: None,
-            }));
+            assert_eq!(
+                result,
+                Some(ReceivedDelta {
+                    delta_tick: -1,
+                    tick: 1,
+                    data_and_crc: None,
+                })
+            );
         }
 
-        assert_eq!(receiver.snap_single(&mut Panic, SnapSingle {
-            tick: 0,
-            delta_tick: 0,
-            data: b"123",
-            crc: 0,
-        }).unwrap_err(), Error::OldDelta);
+        assert_eq!(
+            receiver
+                .snap_single(
+                    &mut Panic,
+                    SnapSingle {
+                        tick: 0,
+                        delta_tick: 0,
+                        data: b"123",
+                        crc: 0,
+                    }
+                )
+                .unwrap_err(),
+            Error::OldDelta
+        );
     }
 
     #[test]
     fn reorder() {
         let mut receiver = DeltaReceiver::new();
-        let chunks: &[(i32, &[u8])] = &[
-            (3, b"3"),
-            (2, b"2"),
-            (4, b"4_"),
-            (1, b"1__"),
-            (0, b"0"),
-        ];
+        let chunks: &[(i32, &[u8])] = &[(3, b"3"), (2, b"2"), (4, b"4_"), (1, b"1__"), (0, b"0")];
         for &(i, c) in chunks {
-            let result = receiver.snap(&mut Panic, Snap {
-                tick: 2,
-                delta_tick: 1,
-                num_parts: chunks.len().assert_i32(),
-                part: i,
-                crc: 3,
-                data: c,
-            }).unwrap();
+            let result = receiver
+                .snap(
+                    &mut Panic,
+                    Snap {
+                        tick: 2,
+                        delta_tick: 1,
+                        num_parts: chunks.len().assert_i32(),
+                        part: i,
+                        crc: 3,
+                        data: c,
+                    },
+                )
+                .unwrap();
             if i != 0 {
                 assert_eq!(result, None);
             } else {
-                assert_eq!(result, Some(ReceivedDelta {
-                    delta_tick: 1,
-                    tick: 2,
-                    data_and_crc: Some((b"01__234_", 3)),
-                }));
+                assert_eq!(
+                    result,
+                    Some(ReceivedDelta {
+                        delta_tick: 1,
+                        tick: 2,
+                        data_and_crc: Some((b"01__234_", 3)),
+                    })
+                );
             }
         }
     }

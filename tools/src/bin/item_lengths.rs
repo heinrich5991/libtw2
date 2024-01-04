@@ -52,16 +52,23 @@ impl fmt::Debug for WeirdItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let t = self.type_id;
         match self.type_ {
-            WeirdItemType::Empty =>
-                write!(f, "empty type_id={}", self.type_id),
-            WeirdItemType::UnknownVersion(v, l) =>
-                write!(f, "unknown_version type_id={} version={} len={}", t, v, l),
-            WeirdItemType::WrongSize(v, l, e) =>
-                write!(f, "wrong_size type_id={} version={} len={} expected_len={}", t, v, l, e),
-            WeirdItemType::UnknownItemType(v, l) =>
-                write!(f, "unknown_item_type type_id={} version={} len={}", t, v, l),
-            WeirdItemType::UnknownLayerType(t, v, l) =>
-                write!(f, "unknown_layer_type layer_type={} version={} len={}", t, v, l),
+            WeirdItemType::Empty => write!(f, "empty type_id={}", self.type_id),
+            WeirdItemType::UnknownVersion(v, l) => {
+                write!(f, "unknown_version type_id={} version={} len={}", t, v, l)
+            }
+            WeirdItemType::WrongSize(v, l, e) => write!(
+                f,
+                "wrong_size type_id={} version={} len={} expected_len={}",
+                t, v, l, e
+            ),
+            WeirdItemType::UnknownItemType(v, l) => {
+                write!(f, "unknown_item_type type_id={} version={} len={}", t, v, l)
+            }
+            WeirdItemType::UnknownLayerType(t, v, l) => write!(
+                f,
+                "unknown_layer_type layer_type={} version={} len={}",
+                t, v, l
+            ),
         }
     }
 }
@@ -79,23 +86,32 @@ enum WeirdItemType {
     UnknownLayerType(i32, i32, usize),
 }
 
-fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
-    -> Result<(), map::Error>
-{
+fn process(
+    _: &Path,
+    dfr: df::Reader,
+    results: &mut HashMap<WeirdItem, u64>,
+) -> Result<(), map::Error> {
     let mut env_version = None;
 
     macro_rules! register {
-        ($e:expr) => { *results.entry($e).or_insert(0) += 1 };
+        ($e:expr) => {
+            *results.entry($e).or_insert(0) += 1
+        };
     }
 
     for item in dfr.items() {
         let item: df::ItemView = item;
 
-        fn check<T:MapItem>(results: &mut HashMap<WeirdItem,u64>, type_id: u16, slice: &[i32]) {
-            if T::version() == slice[0] && !T::ignore_version()
-                && slice.len() != T::sum_len()
-            {
-                *results.entry(WeirdItem::wrong_size(type_id, slice[0], slice.len(), T::sum_len())).or_insert(0) += 1;
+        fn check<T: MapItem>(results: &mut HashMap<WeirdItem, u64>, type_id: u16, slice: &[i32]) {
+            if T::version() == slice[0] && !T::ignore_version() && slice.len() != T::sum_len() {
+                *results
+                    .entry(WeirdItem::wrong_size(
+                        type_id,
+                        slice[0],
+                        slice.len(),
+                        T::sum_len(),
+                    ))
+                    .or_insert(0) += 1;
             }
         }
 
@@ -112,56 +128,89 @@ fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
         match item.type_id {
             MAP_ITEMTYPE_VERSION => {
                 if version != 1 {
-                    register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                    register!(WeirdItem::unknown_version(
+                        item.type_id,
+                        version,
+                        item.data.len()
+                    ));
                     continue;
                 }
                 check::<MapItemCommonV0>(results, item.type_id, item.data);
-            },
+            }
             MAP_ITEMTYPE_INFO => {
                 if version != 1 {
-                    register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                    register!(WeirdItem::unknown_version(
+                        item.type_id,
+                        version,
+                        item.data.len()
+                    ));
                     continue;
                 }
                 check::<MapItemInfoV1>(results, item.type_id, item.data);
-            },
+            }
             MAP_ITEMTYPE_IMAGE => {
                 if !(1 <= version && version <= 2) {
-                    register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                    register!(WeirdItem::unknown_version(
+                        item.type_id,
+                        version,
+                        item.data.len()
+                    ));
                     continue;
                 }
                 check::<MapItemImageV1>(results, item.type_id, item.data);
                 check::<MapItemImageV2>(results, item.type_id, item.data);
-            },
+            }
             MAP_ITEMTYPE_ENVELOPE => {
                 if !(1 <= version && version <= 2) {
-                    register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                    register!(WeirdItem::unknown_version(
+                        item.type_id,
+                        version,
+                        item.data.len()
+                    ));
                     continue;
                 }
-                if version == 1 && item.data.len() != MapItemEnvelopeV1::sum_len()
+                if version == 1
+                    && item.data.len() != MapItemEnvelopeV1::sum_len()
                     && item.data.len() != MapItemEnvelopeV1Legacy::sum_len()
                 {
-                    register!(WeirdItem::wrong_size(item.type_id, version, item.data.len(), MapItemEnvelopeV1::sum_len()));
+                    register!(WeirdItem::wrong_size(
+                        item.type_id,
+                        version,
+                        item.data.len(),
+                        MapItemEnvelopeV1::sum_len()
+                    ));
                 }
                 check::<MapItemEnvelopeV2>(results, item.type_id, item.data);
                 if let Ok(Some(c)) = MapItemCommonV0::from_slice(item.data) {
                     match env_version {
                         None => env_version = Some(c.version),
-                        Some(v) if v == c.version => {},
-                        Some(v) => panic!("differing versions for envpoints, v1={} v2={}", v, c.version),
+                        Some(v) if v == c.version => {}
+                        Some(v) => panic!(
+                            "differing versions for envpoints, v1={} v2={}",
+                            v, c.version
+                        ),
                     }
                 }
-            },
+            }
             MAP_ITEMTYPE_GROUP => {
                 if !(1 <= version && version <= 3) {
-                    register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                    register!(WeirdItem::unknown_version(
+                        item.type_id,
+                        version,
+                        item.data.len()
+                    ));
                     continue;
                 }
                 check::<MapItemGroupV1>(results, item.type_id, item.data);
                 check::<MapItemGroupV2>(results, item.type_id, item.data);
                 check::<MapItemGroupV3>(results, item.type_id, item.data);
-            },
+            }
             MAP_ITEMTYPE_LAYER => {
-                register!(WeirdItem::unknown_version(item.type_id, version, item.data.len()));
+                register!(WeirdItem::unknown_version(
+                    item.type_id,
+                    version,
+                    item.data.len()
+                ));
                 if let Ok(Some((layer, rest))) = MapItemLayerV1::from_slice_rest(item.data) {
                     match layer.type_ {
                         MAP_ITEMTYPE_LAYER_V1_TILEMAP => {
@@ -185,17 +234,25 @@ fn process(_: &Path, dfr: df::Reader, results: &mut HashMap<WeirdItem, u64>)
                             check::<MapItemLayerV1QuadsV2>(results, 102, rest);
                         }
                         _ => {
-                            register!(WeirdItem::unknown_layer_type(layer.type_, rest[0], rest.len()));
+                            register!(WeirdItem::unknown_layer_type(
+                                layer.type_,
+                                rest[0],
+                                rest.len()
+                            ));
                         }
                     }
                 }
-            },
+            }
             MAP_ITEMTYPE_ENVPOINTS => {
                 // Not validated.
-            },
+            }
             _ => {
-                register!(WeirdItem::unknown_item_type(item.type_id, version, item.data.len()));
-            },
+                register!(WeirdItem::unknown_item_type(
+                    item.type_id,
+                    version,
+                    item.data.len()
+                ));
+            }
         }
     }
     Ok(())

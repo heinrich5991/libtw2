@@ -1,11 +1,11 @@
 use std::mem;
 
-use bitmagic::CallbackNewExt;
 use bitmagic::as_mut_i32_slice;
 use bitmagic::to_little_endian;
+use bitmagic::CallbackNewExt;
 use common::num::Cast;
-use raw::CallbackNew;
 use raw;
+use raw::CallbackNew;
 use std::slice;
 use zlib;
 
@@ -65,13 +65,13 @@ pub struct ItemHeader {
 
 // A struct may only implement OnlyI32 if it consists entirely of tightly
 // packed i32 and does not have a destructor.
-pub unsafe trait OnlyI32: Copy { }
-unsafe impl OnlyI32 for i32 { }
-unsafe impl OnlyI32 for Header { }
-unsafe impl OnlyI32 for HeaderVersion { }
-unsafe impl OnlyI32 for HeaderRest { }
-unsafe impl OnlyI32 for ItemType { }
-unsafe impl OnlyI32 for ItemHeader { }
+pub unsafe trait OnlyI32: Copy {}
+unsafe impl OnlyI32 for i32 {}
+unsafe impl OnlyI32 for Header {}
+unsafe impl OnlyI32 for HeaderVersion {}
+unsafe impl OnlyI32 for HeaderRest {}
+unsafe impl OnlyI32 for ItemType {}
+unsafe impl OnlyI32 for ItemHeader {}
 
 pub static MAGIC: [u8; 4] = *b"DATA";
 pub static MAGIC_BIGENDIAN: [u8; 4] = *b"ATAD";
@@ -103,7 +103,9 @@ impl Header {
         {
             let slice = as_mut_i32_slice(slice::from_mut(&mut result));
             // Revert endian conversion for magic field.
-            unsafe { to_little_endian(&mut slice[..1]); }
+            unsafe {
+                to_little_endian(&mut slice[..1]);
+            }
         }
         result.hv.check()?;
         if read < mem::size_of_val(&result) {
@@ -113,7 +115,7 @@ impl Header {
         debug!("read header={:?}", result);
         Ok(result)
     }
-    pub fn check_size_and_swaplen(&self) -> Result<HeaderCheckResult,Error> {
+    pub fn check_size_and_swaplen(&self) -> Result<HeaderCheckResult, Error> {
         let expected_total_size = self.calculate_total_size()?;
         let expected_size0 = self.calculate_size_field(expected_total_size, false);
         let expected_size1 = self.calculate_size_field(expected_total_size, true);
@@ -121,14 +123,20 @@ impl Header {
         let expected_swaplen1 = self.calculate_swaplen_field(expected_total_size, true);
 
         if self.hr.size != expected_size0 && self.hr.size != expected_size1 {
-            error!("size does not match expected size, size={} expected0={} expected1={}", self.hr.size, expected_size0, expected_size1);
+            error!(
+                "size does not match expected size, size={} expected0={} expected1={}",
+                self.hr.size, expected_size0, expected_size1
+            );
         } else if self.hr.swaplen != expected_swaplen0 && self.hr.swaplen != expected_swaplen1 {
-            error!("swaplen does not match expected swaplen, swaplen={} expected0={} expected1={}", self.hr.swaplen, expected_swaplen0, expected_swaplen1);
+            error!(
+                "swaplen does not match expected swaplen, swaplen={} expected0={} expected1={}",
+                self.hr.swaplen, expected_swaplen0, expected_swaplen1
+            );
         } else {
             return Ok(HeaderCheckResult {
                 expected_size: expected_total_size.assert_u32(),
                 crude_version: self.hr.size != expected_size0,
-            })
+            });
         }
         Err(Error::MalformedHeader)
     }
@@ -146,12 +154,16 @@ impl Header {
     fn calculate_swaplen_field(&self, total_size: i32, crude_version: bool) -> i32 {
         self.calculate_size_field(total_size, crude_version) - self.hr.size_data
     }
-    fn calculate_total_size(&self) -> Result<i32,Error> {
+    fn calculate_total_size(&self) -> Result<i32, Error> {
         // These two functions are just used to make the lines in this function
         // shorter. `u` converts an `i32` to an `u64`, and `s` returns the size
         // of the type as `u64`.
-        fn u(val: i32) -> u64 { val.assert_u64() }
-        fn s<T>() -> u64 { mem::size_of::<T>().u64() }
+        fn u(val: i32) -> u64 {
+            val.assert_u64()
+        }
+        fn s<T>() -> u64 {
+            mem::size_of::<T>().u64()
+        }
 
         let result: u64
             // The whole computation won't overflow because we're multiplying
@@ -169,33 +181,36 @@ impl Header {
 }
 
 impl HeaderVersion {
-    pub fn check(&self) -> Result<(),Error> {
-        Err(
-            if self.magic != MAGIC && self.magic != MAGIC_BIGENDIAN {
-                error!("wrong datafile signature, magic={:08x}",
-                    ((self.magic[0] as u32) << 24)
+    pub fn check(&self) -> Result<(), Error> {
+        Err(if self.magic != MAGIC && self.magic != MAGIC_BIGENDIAN {
+            error!(
+                "wrong datafile signature, magic={:08x}",
+                ((self.magic[0] as u32) << 24)
                     | ((self.magic[1] as u32) << 16)
                     | ((self.magic[2] as u32) << 8)
-                    | (self.magic[3] as u32));
-                Error::WrongMagic(self.magic)
-            } else if self.version != VERSION3 && self.version != VERSION4 {
-                error!("unsupported datafile version, version={}", self.version);
-                Error::UnsupportedVersion(self.version)
-            } else {
-                return Ok(());
-            }
-        )
+                    | (self.magic[3] as u32)
+            );
+            Error::WrongMagic(self.magic)
+        } else if self.version != VERSION3 && self.version != VERSION4 {
+            error!("unsupported datafile version, version={}", self.version);
+            Error::UnsupportedVersion(self.version)
+        } else {
+            return Ok(());
+        })
     }
 }
 
 impl HeaderRest {
-    pub fn check(&self) -> Result<(),Error> {
+    pub fn check(&self) -> Result<(), Error> {
         if self.size < 0 {
             error!("size is negative, size={}", self.size);
         } else if self.swaplen < 0 {
             error!("swaplen is negative, swaplen={}", self.swaplen);
         } else if self.num_item_types < 0 {
-            error!("num_item_types is negative, num_item_types={}", self.num_item_types);
+            error!(
+                "num_item_types is negative, num_item_types={}",
+                self.num_item_types
+            );
         } else if self.num_items < 0 {
             error!("num_items is negative, num_items={}", self.num_items);
         } else if self.num_data < 0 {
@@ -205,10 +220,13 @@ impl HeaderRest {
         } else if self.size_data < 0 {
             error!("size_data is negative, size_data={}", self.size_data);
         } else if self.size_items as u32 % mem::size_of::<i32>() as u32 != 0 {
-            error!("size_items not divisible by 4, size_items={}", self.size_items);
+            error!(
+                "size_items not divisible by 4, size_items={}",
+                self.size_items
+            );
         // TODO: make various check about size, swaplen (non-critical)
         } else {
-            return Ok(())
+            return Ok(());
         }
         Err(Error::MalformedHeader)
     }
@@ -216,7 +234,10 @@ impl HeaderRest {
 
 impl ItemHeader {
     pub fn new(type_id: u16, id: u16, size: i32) -> ItemHeader {
-        let mut result = ItemHeader { type_id_and_id: 0, size: size };
+        let mut result = ItemHeader {
+            type_id_and_id: 0,
+            size: size,
+        };
         result.set_type_id_and_id(type_id, id);
         result
     }

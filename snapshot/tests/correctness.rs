@@ -6,8 +6,8 @@ extern crate warn;
 
 use buffer::CapacityError;
 use gamenet::snap_obj::obj_size;
-use packer::Unpacker;
 use packer::with_packer;
+use packer::Unpacker;
 use snapshot::snap::Delta;
 use snapshot::snap::Snap;
 use warn::Panic;
@@ -32,9 +32,12 @@ fn simple() {
             p.write_int(d)?;
         }
         Ok(p.written())
-    }).unwrap();
+    })
+    .unwrap();
 
-    delta.read(&mut Panic, obj_size, &mut Unpacker::new(&buf)).unwrap();
+    delta
+        .read(&mut Panic, obj_size, &mut Unpacker::new(&buf))
+        .unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), FIRST_CRC);
@@ -48,9 +51,12 @@ fn simple() {
             p.write_int(d)?;
         }
         Ok(p.written())
-    }).unwrap();
+    })
+    .unwrap();
 
-    delta.read(&mut Panic, obj_size, &mut Unpacker::new(&buf)).unwrap();
+    delta
+        .read(&mut Panic, obj_size, &mut Unpacker::new(&buf))
+        .unwrap();
     snap.read_with_delta(&mut Panic, &prev, &delta).unwrap();
     println!("{:?}", snap);
     assert_eq!(snap.crc(), SECOND_CRC);

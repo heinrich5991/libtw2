@@ -40,9 +40,14 @@ impl Sub<Time> for Time {
     fn sub(self, rhs: Time) -> Duration {
         let (Time(left), Time(right)) = (self, rhs);
         Duration(
-            right.checked_sub(left).map(|x| x.try_i64().expect("Overflow while converting to i64"))
-            .or_else(|| left.checked_sub(right).map(|x| -x.try_i64().expect("Overflow while converting to i64")))
-            .expect("Overflow while subtracting")
+            right
+                .checked_sub(left)
+                .map(|x| x.try_i64().expect("Overflow while converting to i64"))
+                .or_else(|| {
+                    left.checked_sub(right)
+                        .map(|x| -x.try_i64().expect("Overflow while converting to i64"))
+                })
+                .expect("Overflow while subtracting"),
         )
     }
 }
@@ -66,7 +71,10 @@ pub struct Timed<T> {
 impl<T> Timed<T> {
     /// Creates a new `Timed` with the specified data and time.
     pub fn new(data: T, time: Time) -> Timed<T> {
-        Timed { data: data, time: time }
+        Timed {
+            data: data,
+            time: time,
+        }
     }
 }
 
@@ -96,7 +104,7 @@ impl Limit {
         }
     }
     /// Tries to acquire the `Limit` at a specific time. See `acquire` documentation.
-    pub fn acquire_at(&mut self, time: Time) -> Result<(),()> {
+    pub fn acquire_at(&mut self, time: Time) -> Result<(), ()> {
         if time >= self.reset {
             self.remaining = self.max;
             self.reset = time + self.duration;
@@ -111,7 +119,7 @@ impl Limit {
     /// Tries to acquire the `Limit` and consumes on action if it is within the limit.
     ///
     /// Returns `Ok(())` on success, `Err(())` on failure.
-    pub fn acquire(&mut self) -> Result<(),()> {
+    pub fn acquire(&mut self) -> Result<(), ()> {
         self.acquire_at(Time::now())
     }
 }

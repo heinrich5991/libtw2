@@ -1,5 +1,5 @@
-use linear_map::LinearMap;
 use linear_map;
+use linear_map::LinearMap;
 use net::PeerId;
 use std::fmt;
 use std::iter::FromIterator;
@@ -62,7 +62,9 @@ impl<T> PeerMap<T> {
         self.map.insert(pid, value)
     }
     pub fn remove(&mut self, pid: PeerId) {
-        self.map.remove(&pid).unwrap_or_else(|| panic!("invalid pid"));
+        self.map
+            .remove(&pid)
+            .unwrap_or_else(|| panic!("invalid pid"));
     }
     pub fn get(&self, pid: PeerId) -> Option<&T> {
         self.map.get(&pid)
@@ -95,7 +97,10 @@ impl<T> ops::IndexMut<PeerId> for PeerMap<T> {
 }
 
 impl<T> FromIterator<(PeerId, T)> for PeerMap<T> {
-    fn from_iter<I>(iter: I) -> PeerMap<T> where I: IntoIterator<Item=(PeerId, T)> {
+    fn from_iter<I>(iter: I) -> PeerMap<T>
+    where
+        I: IntoIterator<Item = (PeerId, T)>,
+    {
         PeerMap {
             map: FromIterator::from_iter(iter),
         }
@@ -103,7 +108,10 @@ impl<T> FromIterator<(PeerId, T)> for PeerMap<T> {
 }
 
 impl<T> Extend<(PeerId, T)> for PeerMap<T> {
-    fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item=(PeerId, T)> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (PeerId, T)>,
+    {
         self.map.extend(iter)
     }
 }

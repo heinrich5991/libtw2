@@ -2,19 +2,19 @@ use common::digest::Sha256;
 use common::io::ReadExt;
 use common::num::Cast;
 use std::fs::File;
+use std::io;
 use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::io;
 use std::path::Path;
 use warn::Warn;
 
-use format::Warning;
 use format;
-use raw::Callback;
+use format::Warning;
 use raw;
+use raw::Callback;
 use writer;
 
 #[derive(Debug)]
@@ -61,9 +61,7 @@ pub struct Reader {
 }
 
 impl Reader {
-    fn new_impl<W: Warn<Warning>>(warn: &mut W, file: File)
-        -> Result<Reader, Error>
-    {
+    fn new_impl<W: Warn<Warning>>(warn: &mut W, file: File) -> Result<Reader, Error> {
         let mut callback_data = CallbackData {
             file: BufReader::new(file),
         };
@@ -73,17 +71,17 @@ impl Reader {
             raw: raw,
         })
     }
-    pub fn new<W: Warn<Warning>>(warn: &mut W, file: File)
-        -> Result<Reader, Error>
-    {
+    pub fn new<W: Warn<Warning>>(warn: &mut W, file: File) -> Result<Reader, Error> {
         Reader::new_impl(warn, file)
     }
     pub fn open<W, P>(warn: &mut W, path: P) -> Result<Reader, Error>
-        where W: Warn<Warning>,
-              P: AsRef<Path>,
+    where
+        W: Warn<Warning>,
+        P: AsRef<Path>,
     {
         fn inner<W>(warn: &mut W, path: &Path) -> Result<Reader, Error>
-            where W: Warn<Warning>,
+        where
+            W: Warn<Warning>,
         {
             Reader::new_impl(warn, File::open(path)?)
         }
@@ -110,9 +108,9 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[format::Tick] {
         self.raw.timeline_markers()
     }
-    pub fn read_chunk<'a, W>(&'a mut self, warn: &mut W)
-        -> Result<Option<format::Chunk<'a>>, Error>
-        where W: Warn<Warning>,
+    pub fn read_chunk<'a, W>(&'a mut self, warn: &mut W) -> Result<Option<format::Chunk<'a>>, Error>
+    where
+        W: Warn<Warning>,
     {
         Ok(self.raw.read_chunk(warn, &mut self.callback_data)?)
     }
@@ -124,7 +122,9 @@ impl Callback for CallbackData {
         self.file.read_retry(buffer)
     }
     fn skip(&mut self, num_bytes: u32) -> io::Result<()> {
-        self.file.seek(SeekFrom::Current(num_bytes.i64())).map(|_| ())
+        self.file
+            .seek(SeekFrom::Current(num_bytes.i64()))
+            .map(|_| ())
     }
 }
 
@@ -183,7 +183,15 @@ impl Writer {
         type_: &[u8],
         timestamp: &[u8],
     ) -> io::Result<Writer> {
-        Self::new_impl(file, net_version, map_name, Some(map_sha256), map_crc, type_, timestamp)
+        Self::new_impl(
+            file,
+            net_version,
+            map_name,
+            Some(map_sha256),
+            map_crc,
+            type_,
+            timestamp,
+        )
     }
     pub fn create<P: AsRef<Path>>(
         path: P,
@@ -211,7 +219,14 @@ impl Writer {
                 timestamp,
             )
         }
-        inner(path.as_ref(), net_version, map_name, map_crc, type_, timestamp)
+        inner(
+            path.as_ref(),
+            net_version,
+            map_name,
+            map_crc,
+            type_,
+            timestamp,
+        )
     }
     pub fn create_ddnet<P: AsRef<Path>>(
         path: P,
@@ -241,7 +256,15 @@ impl Writer {
                 timestamp,
             )
         }
-        inner(path.as_ref(), net_version, map_name, map_sha256, map_crc, type_, timestamp)
+        inner(
+            path.as_ref(),
+            net_version,
+            map_name,
+            map_sha256,
+            map_crc,
+            type_,
+            timestamp,
+        )
     }
     pub fn write_chunk(&mut self, chunk: format::Chunk) -> io::Result<()> {
         self.raw.write_chunk(&mut self.callback_data, chunk)
@@ -253,7 +276,8 @@ impl Writer {
         self.raw.write_snapshot(&mut self.callback_data, snapshot)
     }
     pub fn write_snapshot_delta(&mut self, delta: &[u8]) -> io::Result<()> {
-        self.raw.write_snapshot_delta(&mut self.callback_data, delta)
+        self.raw
+            .write_snapshot_delta(&mut self.callback_data, delta)
     }
     pub fn write_message(&mut self, msg: &[u8]) -> io::Result<()> {
         self.raw.write_message(&mut self.callback_data, msg)

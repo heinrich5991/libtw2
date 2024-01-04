@@ -1,28 +1,30 @@
 extern crate buffer;
-#[macro_use] extern crate common;
+#[macro_use]
+extern crate common;
 extern crate hexdump;
 extern crate itertools;
 extern crate libc;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate mio;
 extern crate net;
 extern crate net2;
 extern crate rand;
 
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
+use mio::net::UdpSocket;
 use mio::Ready;
 use mio::Token;
-use mio::net::UdpSocket;
-use net2::UdpBuilder;
-use net::Timestamp;
 use net::net::Callback;
-use rand::RngCore as _;
+use net::Timestamp;
+use net2::UdpBuilder;
 use rand::thread_rng;
+use rand::RngCore as _;
 use std::error;
 use std::fmt;
 use std::io;
@@ -30,8 +32,8 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::net::SocketAddr;
-use std::str::FromStr;
 use std::str;
+use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -46,7 +48,8 @@ impl fmt::Display for Direction {
         match *self {
             Direction::Send => "->",
             Direction::Receive => "<-",
-        }.fmt(f)
+        }
+        .fmt(f)
     }
 }
 
@@ -114,9 +117,7 @@ impl error::Error for AddressFamilyNotSupported {}
 
 impl fmt::Display for AddressFamilyNotSupported {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(
-            "destination address family (IPv4 or IPv6) not supported on this system"
-        )
+        f.write_str("destination address family (IPv4 or IPv6) not supported on this system")
     }
 }
 
@@ -140,8 +141,7 @@ fn udp_socket(bindaddr: &SocketAddr) -> io::Result<Option<UdpSocket>> {
         SocketAddr::V6(..) => builder = UdpBuilder::new_v6(),
     }
     let builder = match builder {
-        Err(ref e) if e.raw_os_error() == Some(libc::EAFNOSUPPORT) =>
-            return Ok(None), // Address family not supported.
+        Err(ref e) if e.raw_os_error() == Some(libc::EAFNOSUPPORT) => return Ok(None), // Address family not supported.
         b => b?,
     };
     if let SocketAddr::V6(..) = *bindaddr {
@@ -187,13 +187,19 @@ impl Socket {
         let v6 = udp_socket(&SocketAddr::new(addr_v6, port))?;
 
         if v4.is_none() && v6.is_none() {
-            return Err(io::Error::new(io::ErrorKind::Other,
-                                      NoAddressFamiliesSupported(())));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                NoAddressFamiliesSupported(()),
+            ));
         }
 
         let mut poll = mio::Poll::new()?;
-        v4.as_ref().map(|v4| register(&mut poll, 4, &v4)).unwrap_or(Ok(()))?;
-        v6.as_ref().map(|v6| register(&mut poll, 6, &v6)).unwrap_or(Ok(()))?;
+        v4.as_ref()
+            .map(|v4| register(&mut poll, 4, &v4))
+            .unwrap_or(Ok(()))?;
+        v6.as_ref()
+            .map(|v6| register(&mut poll, 6, &v6))
+            .unwrap_or(Ok(()))?;
         Ok(Socket {
             start: Instant::now(),
             time_cached: Timestamp::from_secs_since_epoch(0),
@@ -209,14 +215,16 @@ impl Socket {
     fn loss(&self) -> bool {
         self.loss_rate != 0.0 && rand::random::<f32>() < self.loss_rate
     }
-    pub fn receive<'a, B: Buffer<'a>>(&mut self, buf: B)
-        -> Option<Result<(Addr, &'a [u8]), io::Error>>
-    {
+    pub fn receive<'a, B: Buffer<'a>>(
+        &mut self,
+        buf: B,
+    ) -> Option<Result<(Addr, &'a [u8]), io::Error>> {
         with_buffer(buf, |b| self.receive_impl(b))
     }
-    fn receive_impl<'d, 's>(&mut self, mut buf: BufferRef<'d, 's>)
-        -> Option<Result<(Addr, &'d [u8]), io::Error>>
-    {
+    fn receive_impl<'d, 's>(
+        &mut self,
+        mut buf: BufferRef<'d, 's>,
+    ) -> Option<Result<(Addr, &'d [u8]), io::Error>> {
         let mut result = None;
         {
             let buf_slice = unsafe { buf.uninitialized_mut() };
@@ -288,11 +296,18 @@ impl Callback<Addr> for Socket {
         if let Some(ref s) = *maybe_socket {
             socket = s;
         } else {
-            return Err(io::Error::new(io::ErrorKind::Other,
-                                      AddressFamilyNotSupported(())));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                AddressFamilyNotSupported(()),
+            ));
         }
         non_block(socket.send_to(data, &sock_addr))
-            .unwrap_or_else(|| Err(io::Error::new(io::ErrorKind::WouldBlock, "write would block")))
+            .unwrap_or_else(|| {
+                Err(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "write would block",
+                ))
+            })
             .map(|s| assert!(data.len() == s))
         // TODO: Check for these errors and decide what to do with them
         // EHOSTUNREACH

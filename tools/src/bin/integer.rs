@@ -7,24 +7,27 @@ extern crate tools;
 use arrayvec::ArrayVec;
 use clap::App;
 use clap::Arg;
-use packer::Unpacker;
 use packer::with_packer;
+use packer::Unpacker;
 use tools::unhexdump::Unhexdump;
 use tools::warn_stdout::Stdout;
 
 fn main() {
     let matches = App::new("Teeworlds variable-length integer encoding")
-        .about("Takes an integer and writes out its Teeworlds variable-length\
-                or vice versa")
-        .arg(Arg::with_name("decode")
-            .short("d")
-            .long("decode")
-            .help("Decode a hexdump instead, hexdump must be enclosed in pipes,\
-                   sorry :(") // TODO
+        .about(
+            "Takes an integer and writes out its Teeworlds variable-length\
+                or vice versa",
         )
-        .arg(Arg::with_name("INTEGER")
-            .help("The integer to de-/encode")
-            .required(true)
+        .arg(
+            Arg::with_name("decode").short("d").long("decode").help(
+                "Decode a hexdump instead, hexdump must be enclosed in pipes,\
+                   sorry :(",
+            ), // TODO
+        )
+        .arg(
+            Arg::with_name("INTEGER")
+                .help("The integer to de-/encode")
+                .required(true),
         )
         .get_matches();
     let integer = matches.value_of("INTEGER").unwrap();

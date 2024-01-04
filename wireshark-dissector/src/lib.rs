@@ -29,9 +29,9 @@ mod test {
     }
 }
 
-use intern::Interned;
-use intern::intern;
 use gamenet_spec::Identifier;
+use intern::intern;
+use intern::Interned;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;

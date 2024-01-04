@@ -24,9 +24,7 @@ pub struct ClientsData<'a> {
 
 impl<'a> ClientsData<'a> {
     pub fn from_bytes(bytes: &[u8]) -> ClientsData {
-        ClientsData {
-            inner: bytes,
-        }
+        ClientsData { inner: bytes }
     }
     pub fn as_bytes(&self) -> &[u8] {
         self.inner
@@ -52,14 +50,10 @@ impl AddrPackedSliceExt for [AddrPacked] {
             warn.warn(ExcessData);
         }
         let actual_len = bytes.len() - remainder;
-        unsafe {
-            slice::transmute(&bytes[..actual_len])
-        }
+        unsafe { slice::transmute(&bytes[..actual_len]) }
     }
     fn as_bytes(&self) -> &[u8] {
-        unsafe {
-            slice::transmute(self)
-        }
+        unsafe { slice::transmute(self) }
     }
 }
 
@@ -123,12 +117,20 @@ impl From<Uuid> for MessageId {
 pub trait Protocol<'a> {
     type System;
     type Game;
-    fn decode_system<W>(warn: &mut W, id: MessageId, p: &mut Unpacker<'a>)
-        -> Result<Self::System, Error>
-        where W: Warn<Warning>;
-    fn decode_game<W>(warn: &mut W, id: MessageId, p: &mut Unpacker<'a>)
-        -> Result<Self::Game, Error>
-        where W: Warn<Warning>;
+    fn decode_system<W>(
+        warn: &mut W,
+        id: MessageId,
+        p: &mut Unpacker<'a>,
+    ) -> Result<Self::System, Error>
+    where
+        W: Warn<Warning>;
+    fn decode_game<W>(
+        warn: &mut W,
+        id: MessageId,
+        p: &mut Unpacker<'a>,
+    ) -> Result<Self::Game, Error>
+    where
+        W: Warn<Warning>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -150,9 +152,12 @@ impl<S, G> SystemOrGame<S, G> {
 }
 
 impl SystemOrGame<MessageId, MessageId> {
-    pub fn decode_id<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
-        -> Result<SystemOrGame<MessageId, MessageId>, Error>
-        where W: Warn<Warning>
+    pub fn decode_id<'a, W>(
+        warn: &mut W,
+        p: &mut Unpacker<'a>,
+    ) -> Result<SystemOrGame<MessageId, MessageId>, Error>
+    where
+        W: Warn<Warning>,
     {
         let id = p.read_int(warn)?;
         let sys = id & 1 != 0;
@@ -174,11 +179,12 @@ impl SystemOrGame<MessageId, MessageId> {
             SystemOrGame::Game(msg) => msg,
         }
     }
-    pub fn encode_id<'d, 's>(self, mut p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
+    pub fn encode_id<'d, 's>(self, mut p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         let iid = match self.internal_id() {
-            MessageId::Ordinal(i) => { assert!(i != 0); i as u32 },
+            MessageId::Ordinal(i) => {
+                assert!(i != 0);
+                i as u32
+            }
             MessageId::Uuid(_) => 0,
         };
         assert!((iid & (1 << 31)) == 0);
@@ -191,16 +197,18 @@ impl SystemOrGame<MessageId, MessageId> {
     }
 }
 
-pub fn decode<'a, W, P>(warn: &mut W, _proto: P, p: &mut Unpacker<'a>)
-    -> Result<SystemOrGame<P::System, P::Game>, Error>
-    where W: Warn<Warning>,
-          P: Protocol<'a>,
+pub fn decode<'a, W, P>(
+    warn: &mut W,
+    _proto: P,
+    p: &mut Unpacker<'a>,
+) -> Result<SystemOrGame<P::System, P::Game>, Error>
+where
+    W: Warn<Warning>,
+    P: Protocol<'a>,
 {
     let msg_id = SystemOrGame::decode_id(warn, p)?;
     Ok(match msg_id {
-        SystemOrGame::System(msg_id) =>
-            SystemOrGame::System(P::decode_system(warn, msg_id, p)?),
-        SystemOrGame::Game(msg_id) =>
-            SystemOrGame::Game(P::decode_game(warn, msg_id, p)?),
+        SystemOrGame::System(msg_id) => SystemOrGame::System(P::decode_system(warn, msg_id, p)?),
+        SystemOrGame::Game(msg_id) => SystemOrGame::Game(P::decode_game(warn, msg_id, p)?),
     })
 }

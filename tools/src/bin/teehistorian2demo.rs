@@ -1,6 +1,6 @@
 extern crate arrayvec;
-extern crate common;
 extern crate clap;
+extern crate common;
 extern crate demo;
 extern crate gamenet_ddnet;
 extern crate gamenet_teeworlds_0_7;
@@ -17,22 +17,22 @@ use common::num::Cast;
 use demo::Writer;
 use gamenet_ddnet::enums::Emote;
 use gamenet_ddnet::enums::Team;
-use gamenet_ddnet::enums::VERSION;
 use gamenet_ddnet::enums::Weapon;
-use gamenet_ddnet::msg::Game as GameDdnet;
+use gamenet_ddnet::enums::VERSION;
 use gamenet_ddnet::msg::game as game_ddnet;
-use gamenet_ddnet::snap_obj::PlayerInput;
+use gamenet_ddnet::msg::Game as GameDdnet;
 use gamenet_ddnet::snap_obj;
-use gamenet_teeworlds_0_7::msg::Game as Game7;
+use gamenet_ddnet::snap_obj::PlayerInput;
 use gamenet_teeworlds_0_7::msg::game as game7;
-use packer::IntUnpacker;
-use packer::Unpacker;
+use gamenet_teeworlds_0_7::msg::Game as Game7;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
-use snapshot::snap::MAX_SNAPSHOT_SIZE;
+use packer::IntUnpacker;
+use packer::Unpacker;
 use snapshot::snap;
+use snapshot::snap::MAX_SNAPSHOT_SIZE;
 use std::ffi::OsString;
 use std::path::Path;
 use std::process;
@@ -48,10 +48,10 @@ use world::vec2;
 const TICKS_PER_SECOND: i32 = 50;
 
 struct Info {
-    name: ArrayVec<[u8; 4*4-1]>,
-    clan: ArrayVec<[u8; 3*4-1]>,
+    name: ArrayVec<[u8; 4 * 4 - 1]>,
+    clan: ArrayVec<[u8; 3 * 4 - 1]>,
     country: i32,
-    skin: ArrayVec<[u8; 6*4-1]>,
+    skin: ArrayVec<[u8; 6 * 4 - 1]>,
     use_custom_color: bool,
     color_body: i32,
     color_feet: i32,
@@ -142,23 +142,25 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
         let mut do_ticks = 0..0;
         match item {
             Item::TickStart(tick) => {
-                do_ticks = last_tick+1..tick;
-            },
+                do_ticks = last_tick + 1..tick;
+            }
             Item::TickEnd(tick) => {
                 last_tick = tick;
-                do_ticks = tick..tick+1;
-            },
+                do_ticks = tick..tick + 1;
+            }
             Item::Input(input) => {
-                if let Ok(pi) = PlayerInput::decode(&mut Ignore, &mut IntUnpacker::new(&input.input)) {
+                if let Ok(pi) =
+                    PlayerInput::decode(&mut Ignore, &mut IntUnpacker::new(&input.input))
+                {
                     inputs.insert(input.cid.assert_usize(), pi);
                 }
-            },
+            }
             Item::Joinver6(jv) => {
                 ver7.insert(jv.cid.assert_usize(), false);
-            },
+            }
             Item::Joinver7(jv) => {
                 ver7.insert(jv.cid.assert_usize(), true);
-            },
+            }
             Item::Message(msg) => {
                 let mut p = Unpacker::new(msg.msg);
                 if !ver7.get(msg.cid.assert_usize()).cloned().unwrap_or(false) {
@@ -166,11 +168,11 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                         match m {
                             GameDdnet::ClStartInfo(i) => {
                                 supplied_infos.insert(msg.cid.assert_usize(), i.into());
-                            },
+                            }
                             GameDdnet::ClChangeInfo(i) => {
                                 supplied_infos.insert(msg.cid.assert_usize(), i.into());
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                     }
                 } else {
@@ -178,13 +180,13 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                         match m {
                             Game7::ClStartInfo(i) => {
                                 supplied_infos.insert(msg.cid.assert_usize(), i.into());
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                     }
                 }
             }
-            _ => {},
+            _ => {}
         }
         for tick in do_ticks {
             for cid in th.cids() {
@@ -245,9 +247,23 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                         emote: Emote::Normal,
                         attack_tick: 0,
                     };
-                    builder.add_item(snap_obj::CLIENT_INFO, cid.assert_u16(), client_info.encode()).unwrap();
-                    builder.add_item(snap_obj::PLAYER_INFO, cid.assert_u16(), player_info.encode()).unwrap();
-                    builder.add_item(snap_obj::CHARACTER, cid.assert_u16(), character.encode()).unwrap();
+                    builder
+                        .add_item(
+                            snap_obj::CLIENT_INFO,
+                            cid.assert_u16(),
+                            client_info.encode(),
+                        )
+                        .unwrap();
+                    builder
+                        .add_item(
+                            snap_obj::PLAYER_INFO,
+                            cid.assert_u16(),
+                            player_info.encode(),
+                        )
+                        .unwrap();
+                    builder
+                        .add_item(snap_obj::CHARACTER, cid.assert_u16(), character.encode())
+                        .unwrap();
 
                     prev_pos.insert(cid.assert_usize(), pos);
                 } else {
@@ -264,7 +280,9 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                 round_num: 0,
                 round_current: 1,
             };
-            builder.add_item(snap_obj::GAME_INFO, 0, game_info.encode()).unwrap();
+            builder
+                .add_item(snap_obj::GAME_INFO, 0, game_info.encode())
+                .unwrap();
             let snap = builder.finish();
 
             encoded.clear();
@@ -275,7 +293,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), Error> {
                     demo.write_snapshot_delta(with_packer(&mut encoded, |p| {
                         delta.write(snap_obj::obj_size, p).unwrap()
                     }))?;
-                },
+                }
                 _ => {
                     demo.write_tick(true, demo::Tick(tick))?;
                     demo.write_snapshot(with_packer(&mut encoded, |p| {
@@ -303,13 +321,12 @@ fn main() {
 
     let matches = App::new("Teehistorian to demo converter")
         .about("Converts teehistorian data to a demo file.")
-        .arg(Arg::with_name("TEEHISTORIAN")
-            .help("Sets the input teehistorian file")
-            .required(true)
+        .arg(
+            Arg::with_name("TEEHISTORIAN")
+                .help("Sets the input teehistorian file")
+                .required(true),
         )
-        .arg(Arg::with_name("DEMO")
-            .help("Sets the output demo file")
-        )
+        .arg(Arg::with_name("DEMO").help("Sets the output demo file"))
         .get_matches();
 
     let mut buffer;
@@ -320,11 +337,11 @@ fn main() {
             buffer = OsString::from(in_);
             buffer.push(".demo");
             Path::new(&buffer)
-        },
+        }
     };
 
     match process(in_, out) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             println!("{}: {:?}", in_.display(), err);
             process::exit(1);

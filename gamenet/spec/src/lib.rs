@@ -159,7 +159,11 @@ pub struct Member {
 fn capitalize_first(s: &str) -> String {
     let mut result = String::new();
     let mut iter = s.char_indices();
-    let first = if let Some((_, c)) = iter.next() { c } else { return result; };
+    let first = if let Some((_, c)) = iter.next() {
+        c
+    } else {
+        return result;
+    };
     for c in first.to_uppercase() {
         result.push(c);
     }

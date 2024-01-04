@@ -4,20 +4,23 @@ extern crate quickcheck;
 
 extern crate arrayvec;
 extern crate buffer;
-#[macro_use] extern crate common;
-#[cfg(feature = "uuid")] extern crate uuid;
+#[macro_use]
+extern crate common;
+#[cfg(feature = "uuid")]
+extern crate uuid;
 extern crate warn;
 
 use arrayvec::ArrayVec;
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::CapacityError;
-use buffer::with_buffer;
 use common::num::Cast;
 use std::iter;
 use std::mem;
 use std::slice;
-#[cfg(feature = "uuid")] use uuid::Uuid;
+#[cfg(feature = "uuid")]
+use uuid::Uuid;
 use warn::Warn;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -57,7 +60,8 @@ pub struct UnexpectedEnd;
 // Padding must be zeroed. The extend bit specifies whether another byte
 // follows.
 fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, UnexpectedEnd>
-    where W: Warn<Warning>
+where
+    W: Warn<Warning>,
 {
     let mut result = 0;
     let mut len = 1;
@@ -91,7 +95,11 @@ fn read_int<W>(warn: &mut W, iter: &mut slice::Iter<u8>) -> Result<i32, Unexpect
 /// Sets the n-th bit of a byte conditionally.
 fn to_bit(b: bool, bit: u32) -> u8 {
     assert!(bit < 8);
-    if b { 1 << bit } else { 0 }
+    if b {
+        1 << bit
+    } else {
+        0
+    }
 }
 
 fn write_int<E, F: FnMut(&[u8]) -> Result<(), E>>(int: i32, f: F) -> Result<(), E> {
@@ -142,9 +150,7 @@ impl<'r, 'd, 's> Buffer<'d> for &'r mut Packer<'d, 's> {
 
 impl<'d, 's> Packer<'d, 's> {
     fn new(buf: BufferRef<'d, 's>) -> Packer<'d, 's> {
-        Packer {
-            buf: buf,
-        }
+        Packer { buf: buf }
     }
     pub fn write_string(&mut self, string: &[u8]) -> Result<(), CapacityError> {
         write_string(string, |b| self.buf.write(b))
@@ -174,7 +180,8 @@ impl<'d, 's> Packer<'d, 's> {
 }
 
 pub fn with_packer<'a, B: Buffer<'a>, F, R>(buf: B, f: F) -> R
-    where F: for<'b> FnOnce(Packer<'a, 'b>) -> R
+where
+    F: for<'b> FnOnce(Packer<'a, 'b>) -> R,
 {
     with_buffer(buf, |b| f(Packer::new(b)))
 }
@@ -197,7 +204,10 @@ impl<'a> Unpacker<'a> {
         Unpacker::new_impl(data, false)
     }
     pub fn new_from_demo(data: &[u8]) -> Unpacker {
-        assert!(data.len() % 4 == 0, "demo data must be padded to a multiple of four bytes");
+        assert!(
+            data.len() % 4 == 0,
+            "demo data must be padded to a multiple of four bytes"
+        );
         Unpacker::new_impl(data, true)
     }
     pub fn is_empty(&self) -> bool {
@@ -217,9 +227,7 @@ impl<'a> Unpacker<'a> {
     pub fn read_int<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<i32, UnexpectedEnd> {
         read_int(warn, &mut self.iter)
     }
-    pub fn read_data<W: Warn<Warning>>(&mut self, warn: &mut W)
-        -> Result<&'a [u8], UnexpectedEnd>
-    {
+    pub fn read_data<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<&'a [u8], UnexpectedEnd> {
         let len = match self.read_int(warn).map(|l| l.try_usize()) {
             Ok(Some(l)) => l,
             _ => return self.error(),
@@ -314,9 +322,10 @@ pub fn to_bool(v: i32) -> Result<bool, IntOutOfRange> {
     Ok(in_range(v, 0, 1)? != 0)
 }
 
-pub fn sanitize<'a, W: Warn<Warning>>(warn: &mut W, v: &'a [u8])
-    -> Result<&'a [u8], ControlCharacters>
-{
+pub fn sanitize<'a, W: Warn<Warning>>(
+    warn: &mut W,
+    v: &'a [u8],
+) -> Result<&'a [u8], ControlCharacters> {
     if v.iter().any(|&b| b < b' ') {
         return Err(ControlCharacters);
     }
@@ -344,7 +353,10 @@ pub fn string_to_ints(result: &mut [i32], string: &[u8]) {
         let v1 = input.next().unwrap_or(0).wrapping_add(0x80);
         let v2 = input.next().unwrap_or(0).wrapping_add(0x80);
         // FIXME: Use .is_empty()
-        let v3 = input.next().unwrap_or(if output.len() != 0 { 0 } else { 0x80 }).wrapping_add(0x80);
+        let v3 = input
+            .next()
+            .unwrap_or(if output.len() != 0 { 0 } else { 0x80 })
+            .wrapping_add(0x80);
         *o = (v0 as i32) << 24 | (v1 as i32) << 16 | (v2 as i32) << 8 | (v3 as i32);
     }
 }
@@ -370,19 +382,23 @@ pub fn ints_to_bytes(result: &mut [u8], input: &[i32]) {
     for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
         output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
         output[1] = (((input >> 16) & 0xff) - 0x80) as u8;
-        output[2] = (((input >>  8) & 0xff) - 0x80) as u8;
-        output[3] = (((input >>  0) & 0xff) - 0x80) as u8;
+        output[2] = (((input >> 8) & 0xff) - 0x80) as u8;
+        output[3] = (((input >> 0) & 0xff) - 0x80) as u8;
     }
 }
 
 pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
-    where W: Warn<WeirdStringTermination>,
+where
+    W: Warn<WeirdStringTermination>,
 {
     if bytes.is_empty() {
         warn.warn(WeirdStringTermination);
         return bytes;
     }
-    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len() - 1);
+    let end = bytes
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(bytes.len() - 1);
     let (string, nuls) = bytes.split_at(end);
     if !nuls.iter().all(|&b| b == 0) {
         warn.warn(WeirdStringTermination);
@@ -390,15 +406,17 @@ pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
     string
 }
 
-pub fn string_to_bytes<'a, B: Buffer<'a>>(buf: B, string: &[u8])
-    -> Result<&'a [u8], CapacityError>
-{
+pub fn string_to_bytes<'a, B: Buffer<'a>>(
+    buf: B,
+    string: &[u8],
+) -> Result<&'a [u8], CapacityError> {
     with_buffer(buf, |buf| string_to_bytes_buffer_ref(buf, string))
 }
 
-fn string_to_bytes_buffer_ref<'d, 's>(mut buf: BufferRef<'d, 's>, string: &[u8])
-    -> Result<&'d [u8], CapacityError>
-{
+fn string_to_bytes_buffer_ref<'d, 's>(
+    mut buf: BufferRef<'d, 's>,
+    string: &[u8],
+) -> Result<&'d [u8], CapacityError> {
     assert!(string.iter().all(|&b| b != 0));
     buf.write(string)?;
     buf.write(&[0])?;

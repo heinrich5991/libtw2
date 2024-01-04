@@ -22,16 +22,17 @@ fn main() {
 
     let matches = App::new("Gamenet spec reader")
         .about("Reads a gamenet spec file and does nothing with it.")
-        .arg(Arg::with_name("SPEC")
-            .help("Sets the gamenet spec file to read")
-            .required(true)
+        .arg(
+            Arg::with_name("SPEC")
+                .help("Sets the gamenet spec file to read")
+                .required(true),
         )
         .get_matches();
 
     let path = Path::new(matches.value_of_os("SPEC").unwrap());
 
     match process(path) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!("{}: {:?}", path.display(), err);
             process::exit(1);

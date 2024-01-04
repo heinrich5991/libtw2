@@ -1,22 +1,22 @@
-use common::MapIterator;
+use common::io::seek_overflow;
 use common::io::FileExt;
 use common::io::ReadExt;
-use common::io::seek_overflow;
 use common::num::Cast;
+use common::MapIterator;
 use std::fs::File;
+use std::io;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::SeekFrom;
-use std::io;
 use std::ops;
 use std::path::Path;
 
-use format::ItemView;
 use format;
+use format::ItemView;
+use raw;
 use raw::CallbackError;
 use raw::CallbackNew;
 use raw::CallbackReadData;
-use raw;
 
 #[derive(Debug)]
 pub enum Error {
@@ -86,8 +86,8 @@ impl Reader {
             seek_base: None,
             error: None,
         };
-        let raw = raw::Reader::new(&mut callback_data_new)
-            .retrieve(&mut callback_data_new.error)?;
+        let raw =
+            raw::Reader::new(&mut callback_data_new).retrieve(&mut callback_data_new.error)?;
         let callback_data = CallbackData {
             file: callback_data_new.file.into_inner(),
             seek_base: callback_data_new.seek_base.unwrap(),
@@ -109,14 +109,17 @@ impl Reader {
         inner(path.as_ref())
     }
     pub fn debug_dump(&mut self) -> Result<(), Error> {
-        Ok(self.raw.debug_dump(&mut self.callback_data)
+        Ok(self
+            .raw
+            .debug_dump(&mut self.callback_data)
             .retrieve(&mut self.callback_data.error)?)
     }
     pub fn version(&self) -> raw::Version {
         self.raw.version()
     }
     pub fn read_data(&mut self, index: usize) -> Result<Vec<u8>, Error> {
-        self.raw.read_data(&mut self.callback_data, index)
+        self.raw
+            .read_data(&mut self.callback_data, index)
             .retrieve(&mut self.callback_data.error)?;
         Ok(self.callback_data.buffer.take().unwrap())
     }
@@ -172,11 +175,13 @@ impl CallbackNew for CallbackDataNew {
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, CallbackError> {
         fn inner(self_: &mut CallbackDataNew, buffer: &mut [u8]) -> io::Result<usize> {
             let r = self_.file.read_retry(buffer)?;
-            self_.cur_datafile_offset =
-                so(self_.cur_datafile_offset.checked_add(r.u64()))?;
+            self_.cur_datafile_offset = so(self_.cur_datafile_offset.checked_add(r.u64()))?;
             Ok(r)
         }
-        inner(self, buffer).map_err(|e| { self.error = Some(e); CallbackError })
+        inner(self, buffer).map_err(|e| {
+            self.error = Some(e);
+            CallbackError
+        })
     }
     fn set_seek_base(&mut self) -> Result<(), CallbackError> {
         self.seek_base = Some(self.cur_datafile_offset);
@@ -185,28 +190,36 @@ impl CallbackNew for CallbackDataNew {
     fn ensure_filesize(&mut self, filesize: u32) -> Result<Result<(), ()>, CallbackError> {
         fn inner(self_: &mut CallbackDataNew, filesize: u32) -> io::Result<Result<(), ()>> {
             let actual = self_.file.get_ref().metadata()?.len();
-            Ok(if actual.checked_sub(self_.datafile_start).unwrap() >= filesize.u64() {
-                Ok(())
-            } else {
-                Err(())
-            })
+            Ok(
+                if actual.checked_sub(self_.datafile_start).unwrap() >= filesize.u64() {
+                    Ok(())
+                } else {
+                    Err(())
+                },
+            )
         }
-        inner(self, filesize).map_err(|e| { self.error = Some(e); CallbackError })
+        inner(self, filesize).map_err(|e| {
+            self.error = Some(e);
+            CallbackError
+        })
     }
 }
 impl CallbackReadData for CallbackData {
     fn seek_read(&mut self, start: u32, buffer: &mut [u8]) -> Result<usize, CallbackError> {
-        fn inner(self_: &mut CallbackData, start: u32, buffer: &mut [u8])
-            -> io::Result<usize>
-        {
+        fn inner(self_: &mut CallbackData, start: u32, buffer: &mut [u8]) -> io::Result<usize> {
             let offset = so(self_.seek_base.checked_add(start.u64()))?;
             self_.file.read_offset_retry(buffer, offset)
         }
-        inner(self, start, buffer).map_err(|e| { self.error = Some(e); CallbackError })
+        inner(self, start, buffer).map_err(|e| {
+            self.error = Some(e);
+            CallbackError
+        })
     }
     fn alloc_data_buffer(&mut self, length: usize) -> Result<(), CallbackError> {
         let mut vec = Vec::with_capacity(length);
-        unsafe { vec.set_len(length); }
+        unsafe {
+            vec.set_len(length);
+        }
         self.buffer = Some(vec);
         Ok(())
     }

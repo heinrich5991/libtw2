@@ -1,14 +1,17 @@
 extern crate arrayvec;
-#[macro_use] extern crate common;
+#[macro_use]
+extern crate common;
 extern crate datafile;
 extern crate event_loop;
 extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate itertools;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate logger;
 extern crate map;
-#[macro_use] extern crate matches;
+#[macro_use]
+extern crate matches;
 extern crate ndarray;
 extern crate packer;
 extern crate snapshot;
@@ -18,10 +21,12 @@ extern crate world;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
-use common::Takeable;
 use common::num::Cast;
 use common::num::CastFloat;
 use common::pretty::AlmostString;
+use common::Takeable;
+use event_loop::collections::PeerMap;
+use event_loop::collections::PeerSet;
 use event_loop::Addr;
 use event_loop::Application;
 use event_loop::Chunk;
@@ -31,52 +36,50 @@ use event_loop::PeerId;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use event_loop::Timestamp;
-use event_loop::collections::PeerMap;
-use event_loop::collections::PeerSet;
-use gamenet::SnapObj;
 use gamenet::enums::Emote;
-use gamenet::enums::MAX_CLIENTS;
 use gamenet::enums::Team;
-use gamenet::enums::VERSION;
 use gamenet::enums::Weapon;
+use gamenet::enums::MAX_CLIENTS;
+use gamenet::enums::VERSION;
+use gamenet::msg;
+use gamenet::msg::connless;
+use gamenet::msg::game;
+use gamenet::msg::game::SV_TUNE_PARAMS_DEFAULT;
+use gamenet::msg::system;
 use gamenet::msg::Connless;
 use gamenet::msg::Game;
 use gamenet::msg::System;
 use gamenet::msg::SystemOrGame;
-use gamenet::msg::connless;
-use gamenet::msg::game::SV_TUNE_PARAMS_DEFAULT;
-use gamenet::msg::game;
-use gamenet::msg::system;
-use gamenet::msg;
+use gamenet::snap_obj;
+use gamenet::snap_obj::obj_size;
 use gamenet::snap_obj::Character;
 use gamenet::snap_obj::ClientInfo;
 use gamenet::snap_obj::GameInfo;
 use gamenet::snap_obj::PlayerInfo;
 use gamenet::snap_obj::Tick;
 use gamenet::snap_obj::TypeId;
-use gamenet::snap_obj::obj_size;
-use gamenet::snap_obj;
+use gamenet::SnapObj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
 use ndarray::Array2;
-use packer::Unpacker;
 use packer::string_to_ints3;
 use packer::string_to_ints4;
 use packer::string_to_ints6;
 use packer::with_packer;
+use packer::Unpacker;
 use snapshot::snap;
 use std::cell::Cell;
-use std::fmt::Write;
 use std::fmt;
+use std::fmt::Write;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
 use world::vec2;
 
 const TICKS_PER_SECOND: u32 = 50;
-const PLAYER_NAME_LENGTH: usize = 16-1; // -1 for null termination
-const MAPDOWNLOAD_CHUNK_SIZE: u64 = 1024-128;
+const PLAYER_NAME_LENGTH: usize = 16 - 1; // -1 for null termination
+const MAPDOWNLOAD_CHUNK_SIZE: u64 = 1024 - 128;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {
@@ -93,7 +96,7 @@ impl<'a, T: fmt::Debug, W: fmt::Debug> warn::Warn<W> for Warn<'a, T> {
     }
 }
 
-fn sends_impl<L: Loop+?Sized>(msg: System, pid: PeerId, vital: bool, loop_: &mut L) {
+fn sends_impl<L: Loop + ?Sized>(msg: System, pid: PeerId, vital: bool, loop_: &mut L) {
     let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
     with_packer(&mut buf, |p| msg.encode(p).unwrap());
     loop_.send(Chunk {
@@ -111,7 +114,7 @@ trait LoopExt: Loop {
         sends_impl(msg.into(), pid, false, self)
     }
     fn sendg<'a, G: Into<Game<'a>>>(&mut self, pid: PeerId, msg: G) {
-        fn inner<L: Loop+?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
+        fn inner<L: Loop + ?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
@@ -123,7 +126,7 @@ trait LoopExt: Loop {
         inner(msg.into(), pid, self)
     }
     fn sendc<'a, C: Into<Connless<'a>>>(&mut self, addr: Addr, msg: C) {
-        fn inner<L: Loop+?Sized>(msg: Connless, addr: Addr, loop_: &mut L) {
+        fn inner<L: Loop + ?Sized>(msg: Connless, addr: Addr, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send_connless(addr, &buf)
@@ -131,7 +134,7 @@ trait LoopExt: Loop {
         inner(msg.into(), addr, self)
     }
 }
-impl<L: Loop> LoopExt for L { }
+impl<L: Loop> LoopExt for L {}
 
 trait SnapBuilderExt {
     fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O);
@@ -160,9 +163,7 @@ impl Default for MapContents {
         let mut file = File::open("dm1.map").unwrap();
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).unwrap();
-        MapContents {
-            contents: contents,
-        }
+        MapContents { contents: contents }
     }
 }
 
@@ -177,7 +178,7 @@ impl MapContents {
         let offset = offset.assert_usize();
         let data;
         if !last {
-            data = &self.contents[offset..offset+MAPDOWNLOAD_CHUNK_SIZE.assert_usize()];
+            data = &self.contents[offset..offset + MAPDOWNLOAD_CHUNK_SIZE.assert_usize()];
         } else {
             data = &self.contents[offset..];
         }
@@ -231,7 +232,10 @@ impl Default for Map {
 impl world::Collision for Map {
     fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
         let (x, y) = (pos.x.round_to_i32(), pos.y.round_to_i32());
-        let (mut tx, mut ty) = ((x as f32 / 32.0).trunc_to_i32(), (y as f32 / 32.0).trunc_to_i32());
+        let (mut tx, mut ty) = (
+            (x as f32 / 32.0).trunc_to_i32(),
+            (y as f32 / 32.0).trunc_to_i32(),
+        );
         if tx < 0 {
             tx = 0;
         }
@@ -367,7 +371,7 @@ impl Player {
     }
 }
 
-struct ServerLoop<'a, L: Loop+'a> {
+struct ServerLoop<'a, L: Loop + 'a> {
     loop_: &'a mut L,
     server: &'a mut Server,
 }
@@ -386,7 +390,8 @@ impl<L: Loop> Application<L> for Server {
         }
     }
     fn on_packet(&mut self, loop_: &mut L, chunk: Chunk) {
-        self.loop_(loop_).on_packet(chunk.pid, chunk.vital, chunk.data);
+        self.loop_(loop_)
+            .on_packet(chunk.pid, chunk.vital, chunk.data);
     }
     fn on_connless_packet(&mut self, loop_: &mut L, chunk: ConnlessChunk) {
         self.loop_(loop_).on_connless_packet(chunk.addr, chunk.data);
@@ -406,8 +411,11 @@ impl Server {
     fn run<L: Loop>() {
         L::accept_connections_on_port(8303).run(Server::default());
     }
-    fn loop_<'a, L: Loop+'a>(&'a mut self, loop_: &'a mut L) -> ServerLoop<'a, L> {
-        ServerLoop { server: self, loop_: loop_ }
+    fn loop_<'a, L: Loop + 'a>(&'a mut self, loop_: &'a mut L) -> ServerLoop<'a, L> {
+        ServerLoop {
+            server: self,
+            loop_: loop_,
+        }
     }
 }
 impl<'a, L: Loop> ServerLoop<'a, L> {
@@ -432,11 +440,14 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             (&SystemInfo, SystemOrGame::System(System::Info(info))) => {
                 if info.version == VERSION.as_bytes() {
                     if info.password == Some(b"foobar") {
-                        self.loop_.sends(pid, system::MapChange {
-                            name: b"dm1",
-                            crc: 0xf2159e6e_u32 as i32,
-                            size: 5805,
-                        });
+                        self.loop_.sends(
+                            pid,
+                            system::MapChange {
+                                name: b"dm1",
+                                crc: 0xf2159e6e_u32 as i32,
+                                size: 5805,
+                            },
+                        );
                         self.loop_.flush(pid);
                         peer.state = SystemReady;
                     } else {
@@ -449,14 +460,18 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                         "Wrong version. Server is running '{}' and client '{}'",
                         AlmostString::new(VERSION.as_bytes()),
                         AlmostString::new(info.version),
-                    ).unwrap_or_else(|_| {
-                        buf.clear();
-                        write!(
+                    )
+                    .unwrap_or_else(|_| {
+                        {
+                            buf.clear();
+                            write!(
                             &mut buf,
                             "Wrong version. Server is running '{}' and client version is too long",
                             AlmostString::new(VERSION.as_bytes())
                         )
-                    }.unwrap());
+                        }
+                        .unwrap()
+                    });
                     self.loop_.disconnect(pid, buf.as_bytes());
                 }
                 processed = true;
@@ -467,9 +482,12 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 }
             }
             (&SystemReady, SystemOrGame::System(System::Ready(system::Ready))) => {
-                self.loop_.sendg(pid, game::SvMotd {
-                    message: b"Hello World!",
-                });
+                self.loop_.sendg(
+                    pid,
+                    game::SvMotd {
+                        message: b"Hello World!",
+                    },
+                );
                 self.loop_.sends(pid, system::ConReady);
                 self.loop_.flush(pid);
                 peer.state = GameInfo;
@@ -490,14 +508,20 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
             }
             (_, SystemOrGame::System(System::RconAuth(..))) => {
-                self.loop_.sends(pid, system::RconLine {
-                    line: b"Wrong password",
-                });
+                self.loop_.sends(
+                    pid,
+                    system::RconLine {
+                        line: b"Wrong password",
+                    },
+                );
                 processed = true;
             }
             (&Ingame(..), SystemOrGame::System(System::Input(input))) => {
                 let ingame = peer.state.assert_ingame();
-                if let Err(e) = ingame.snaps.set_delta_tick(&mut Warn(pid, data), input.ack_snapshot) {
+                if let Err(e) = ingame
+                    .snaps
+                    .set_delta_tick(&mut Warn(pid, data), input.ack_snapshot)
+                {
                     warn!("invalid input tick: {:?} ({})", e, input.ack_snapshot);
                 }
                 // TODO: Teeworlds never ignores old inputs?
@@ -507,15 +531,20 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             (&Ingame(..), SystemOrGame::Game(Game::ClCallVote(call_vote))) => {
                 let error: Option<&[u8]> = match call_vote.type_ {
                     b"kick" => Some(b"Server does not allow voting to kick players"),
-                    b"spectate" => Some(b"Server does not allow voting to move players to spectators"),
+                    b"spectate" => {
+                        Some(b"Server does not allow voting to move players to spectators")
+                    }
                     _ => None,
                 };
                 if let Some(msg) = error {
-                    self.loop_.sendg(pid, game::SvChat {
-                        team: false,
-                        client_id: -1,
-                        message: msg,
-                    });
+                    self.loop_.sendg(
+                        pid,
+                        game::SvChat {
+                            team: false,
+                            client_id: -1,
+                            message: msg,
+                        },
+                    );
                     processed = true;
                 }
             }
@@ -530,21 +559,41 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
 
                 let mut msg: ArrayString<[u8; 64]> = ArrayString::new();
                 if ingame.spectator {
-                    let idx = self.server.players.iter().position(|p| p.pid == pid).unwrap();
+                    let idx = self
+                        .server
+                        .players
+                        .iter()
+                        .position(|p| p.pid == pid)
+                        .unwrap();
                     self.server.players.swap_remove(idx);
                     // Fix usage of AlmostString, sometimes it quotes.
-                    write!(&mut msg, "'{}' joined the spectators", AlmostString::new(&ingame.name)).unwrap();
+                    write!(
+                        &mut msg,
+                        "'{}' joined the spectators",
+                        AlmostString::new(&ingame.name)
+                    )
+                    .unwrap();
                 } else {
-                    self.server.players.push(Player::new(pid, self.server.map.spawn));
-                    write!(&mut msg, "'{}' joined the game", AlmostString::new(&ingame.name)).unwrap();
+                    self.server
+                        .players
+                        .push(Player::new(pid, self.server.map.spawn));
+                    write!(
+                        &mut msg,
+                        "'{}' joined the game",
+                        AlmostString::new(&ingame.name)
+                    )
+                    .unwrap();
                 }
-                self.loop_.sendg(pid, game::SvChat {
-                    team: false,
-                    client_id: -1,
-                    message: msg.as_bytes(),
-                });
+                self.loop_.sendg(
+                    pid,
+                    game::SvChat {
+                        team: false,
+                        client_id: -1,
+                        message: msg.as_bytes(),
+                    },
+                );
             }
-            _ => {},
+            _ => {}
         }
         if !processed {
             warn!("unprocessed message {:?}", msg);
@@ -557,7 +606,7 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 warn!("decode error {:?}:", err);
                 hexdump(LogLevel::Warn, data);
                 return;
-            },
+            }
         };
         let mut processed = false;
         match msg {
@@ -565,30 +614,37 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
                 processed = true;
                 let mut clients_buf: ArrayVec<[u8; 1024]> = Default::default();
                 for (_, peer) in &self.server.peers {
-                    with_packer(&mut clients_buf, |p| connless::Client {
-                        name: peer.state.net_name(),
-                        clan: b"",
-                        country: -1,
-                        score: 0,
-                        is_player: peer.state.net_is_player(),
-                    }.encode(p).unwrap());
+                    with_packer(&mut clients_buf, |p| {
+                        connless::Client {
+                            name: peer.state.net_name(),
+                            clan: b"",
+                            country: -1,
+                            score: 0,
+                            is_player: peer.state.net_is_player(),
+                        }
+                        .encode(p)
+                        .unwrap()
+                    });
                 }
                 // TODO: Send clients. :)
-                self.loop_.sendc(addr, connless::Info {
-                    token: request.token.i32(),
-                    version: VERSION.as_bytes(),
-                    name: b"Rust Teeworlds Server",
-                    game_type: b"DM",
-                    map: b"dm1",
-                    flags: connless::INFO_FLAG_PASSWORD,
-                    num_players: self.server.players.len().assert_i32(),
-                    max_players: MAX_CLIENTS,
-                    num_clients: self.server.peers.len().assert_i32(),
-                    max_clients: MAX_CLIENTS,
-                    clients: msg::ClientsData::from_bytes(&clients_buf),
-                });
-            },
-            _ => {},
+                self.loop_.sendc(
+                    addr,
+                    connless::Info {
+                        token: request.token.i32(),
+                        version: VERSION.as_bytes(),
+                        name: b"Rust Teeworlds Server",
+                        game_type: b"DM",
+                        map: b"dm1",
+                        flags: connless::INFO_FLAG_PASSWORD,
+                        num_players: self.server.players.len().assert_i32(),
+                        max_players: MAX_CLIENTS,
+                        num_clients: self.server.peers.len().assert_i32(),
+                        max_clients: MAX_CLIENTS,
+                        clients: msg::ClientsData::from_bytes(&clients_buf),
+                    },
+                );
+            }
+            _ => {}
         }
         if !processed {
             warn!("unprocessed message {:?}", msg);
@@ -685,53 +741,73 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
             } else {
                 continue;
             }
-            builder.add(0, GameInfo {
-                game_flags: 0,
-                game_state_flags: 0,
-                round_start_tick: Tick(0),
-                warmup_timer: 0,
-                score_limit: 20,
-                time_limit: 0,
-                round_num: 1,
-                round_current: 1,
-            });
+            builder.add(
+                0,
+                GameInfo {
+                    game_flags: 0,
+                    game_state_flags: 0,
+                    round_start_tick: Tick(0),
+                    warmup_timer: 0,
+                    score_limit: 20,
+                    time_limit: 0,
+                    round_num: 1,
+                    round_current: 1,
+                },
+            );
             for (pid, peer) in self.server.peers.iter() {
                 if let PeerState::Ingame(ref ingame) = peer.state {
                     // TODO: Fix ID!
-                    builder.add(pid.0.assert_u16(), ClientInfo {
-                        name: string_to_ints4(&ingame.name),
-                        clan: string_to_ints3(b""),
-                        country: -1,
-                        skin: string_to_ints6(b"default"),
-                        use_custom_color: 0,
-                        color_body: 0,
-                        color_feet: 0,
-                    });
-                    builder.add(pid.0.assert_u16(), PlayerInfo {
-                        local: (snap_pid == pid) as i32,
-                        client_id: pid.0.assert_i32(),
-                        team: if ingame.spectator { Team::Spectators } else { Team::Red },
-                        score: 0,
-                        latency: 20,
-                    });
+                    builder.add(
+                        pid.0.assert_u16(),
+                        ClientInfo {
+                            name: string_to_ints4(&ingame.name),
+                            clan: string_to_ints3(b""),
+                            country: -1,
+                            skin: string_to_ints6(b"default"),
+                            use_custom_color: 0,
+                            color_body: 0,
+                            color_feet: 0,
+                        },
+                    );
+                    builder.add(
+                        pid.0.assert_u16(),
+                        PlayerInfo {
+                            local: (snap_pid == pid) as i32,
+                            client_id: pid.0.assert_i32(),
+                            team: if ingame.spectator {
+                                Team::Spectators
+                            } else {
+                                Team::Red
+                            },
+                            score: 0,
+                            latency: 20,
+                        },
+                    );
                 }
             }
             for player in &self.server.players {
-                builder.add(player.pid.0.assert_u16(), Character {
-                    character_core: player.character.get().to_net(),
-                    player_flags: snap_obj::PLAYERFLAG_PLAYING,
-                    health: 10,
-                    armor: 0,
-                    ammo_count: 10,
-                    weapon: Weapon::Pistol,
-                    emote: Emote::Normal,
-                    attack_tick: 0,
-                });
+                builder.add(
+                    player.pid.0.assert_u16(),
+                    Character {
+                        character_core: player.character.get().to_net(),
+                        player_flags: snap_obj::PLAYERFLAG_PLAYING,
+                        health: 10,
+                        armor: 0,
+                        ammo_count: 10,
+                        weapon: Weapon::Pistol,
+                        emote: Emote::Normal,
+                        attack_tick: 0,
+                    },
+                );
             }
             let snap = builder.finish();
             let crc = snap.crc();
             let game_tick = self.server.game_tick.assert_i32();
-            let delta = self.server.peers[snap_pid].state.assert_ingame().snaps.add_snap(game_tick, snap);
+            let delta = self.server.peers[snap_pid]
+                .state
+                .assert_ingame()
+                .snaps
+                .add_snap(game_tick, snap);
 
             self.server.delta_buffer.clear();
             // TODO: Do this better:

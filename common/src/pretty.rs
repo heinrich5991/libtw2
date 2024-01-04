@@ -9,9 +9,7 @@ pub struct AlmostString([u8]);
 
 impl AlmostString {
     pub fn new(bytes: &[u8]) -> &AlmostString {
-        unsafe {
-            mem::transmute(bytes)
-        }
+        unsafe { mem::transmute(bytes) }
     }
 }
 
@@ -19,9 +17,7 @@ pub struct AlmostStringSlice<'a>([&'a [u8]]);
 
 impl<'a> AlmostStringSlice<'a> {
     pub fn new<'b>(bytes_slice: &'b [&'a [u8]]) -> &'b AlmostStringSlice<'a> {
-        unsafe {
-            mem::transmute(bytes_slice)
-        }
+        unsafe { mem::transmute(bytes_slice) }
     }
 }
 
@@ -29,9 +25,7 @@ pub struct Bytes([u8]);
 
 impl Bytes {
     pub fn new(bytes: &[u8]) -> &Bytes {
-        unsafe {
-            mem::transmute(bytes)
-        }
+        unsafe { mem::transmute(bytes) }
     }
 }
 
@@ -39,9 +33,7 @@ pub struct BytesSlice<'a>([&'a [u8]]);
 
 impl<'a> BytesSlice<'a> {
     pub fn new<'b>(bytes_slice: &'b [&'a [u8]]) -> &'b BytesSlice<'a> {
-        unsafe {
-            mem::transmute(bytes_slice)
-        }
+        unsafe { mem::transmute(bytes_slice) }
     }
 }
 
@@ -58,18 +50,14 @@ impl Byte {
         } else {
             string.extend(ascii::escape_default(byte));
         }
-        Byte {
-            string: string,
-        }
+        Byte { string: string }
     }
 }
 
 impl ops::Deref for Byte {
     type Target = str;
     fn deref(&self) -> &str {
-        unsafe {
-            str::from_utf8_unchecked(&self.string)
-        }
+        unsafe { str::from_utf8_unchecked(&self.string) }
     }
 }
 
@@ -86,7 +74,9 @@ impl fmt::Debug for Bytes {
 
 impl<'a> fmt::Debug for BytesSlice<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_list().entries(self.0.iter().cloned().map(Bytes::new)).finish()
+        f.debug_list()
+            .entries(self.0.iter().cloned().map(Bytes::new))
+            .finish()
     }
 }
 
@@ -112,6 +102,8 @@ impl fmt::Display for AlmostString {
 
 impl<'a> fmt::Debug for AlmostStringSlice<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_list().entries(self.0.iter().cloned().map(AlmostString::new)).finish()
+        f.debug_list()
+            .entries(self.0.iter().cloned().map(AlmostString::new))
+            .finish()
     }
 }

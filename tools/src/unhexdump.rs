@@ -46,18 +46,22 @@ impl Unhexdump {
         for &b in bytes {
             match (self.state, b) {
                 (Before, b'|') => self.state = InsideFirst,
-                (Before, _) => {},
+                (Before, _) => {}
                 (InsideFirst, b'|') => self.state = After,
-                (InsideFirst, b) => if let Some(n) = unhex(b)? {
-                    self.state = InsideSecond(n);
-                },
+                (InsideFirst, b) => {
+                    if let Some(n) = unhex(b)? {
+                        self.state = InsideSecond(n);
+                    }
+                }
                 (InsideSecond(_), b'|') => return Err(Error::OddCharacterCount),
-                (InsideSecond(f), b) => if let Some(n) = unhex(b)? {
-                    self.buf.push((f << 4) | n);
-                    self.state = InsideFirst;
-                },
+                (InsideSecond(f), b) => {
+                    if let Some(n) = unhex(b)? {
+                        self.buf.push((f << 4) | n);
+                        self.state = InsideFirst;
+                    }
+                }
                 (After, b'\n') => self.state = Before,
-                (After, _) => {},
+                (After, _) => {}
             }
         }
         Ok(())

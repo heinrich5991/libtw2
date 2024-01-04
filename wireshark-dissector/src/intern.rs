@@ -1,4 +1,3 @@
-use std::sync::atomic;
 use std::cmp;
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -7,6 +6,7 @@ use std::mem;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str;
+use std::sync::atomic;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Interned(NonNull<u8>);
@@ -65,8 +65,10 @@ impl Interner {
         interned
     }
     pub fn intern_static_with_nul(&mut self, s: &'static str) -> Interned {
-        assert!(s.bytes().rev().next() == Some(0),
-            "static strings for interning have to end in NUL");
+        assert!(
+            s.bytes().rev().next() == Some(0),
+            "static strings for interning have to end in NUL"
+        );
         let s = &s[..s.len() - 1];
         if let Some(&i) = self.lookup.get(s) {
             return i;
@@ -76,10 +78,7 @@ impl Interner {
                 panic!("can't intern strings with embedded NULs: {:?}", s);
             }
         }
-        let interned = Interned(
-            NonNull::new(s.as_bytes().as_ptr() as *mut _)
-                .expect("nonnull")
-        );
+        let interned = Interned(NonNull::new(s.as_bytes().as_ptr() as *mut _).expect("nonnull"));
         assert!(self.lookup.insert(s, interned).is_none());
         interned
     }
@@ -90,9 +89,7 @@ impl Interned {
         self.0.as_ptr() as *mut c_char as *const c_char
     }
     pub fn as_c_str(self) -> &'static CStr {
-        unsafe {
-            CStr::from_ptr(self.c())
-        }
+        unsafe { CStr::from_ptr(self.c()) }
     }
     pub fn as_bytes(self) -> &'static [u8] {
         self.as_c_str().to_bytes()
@@ -101,14 +98,10 @@ impl Interned {
         self.as_c_str().to_bytes_with_nul()
     }
     pub fn as_str(self) -> &'static str {
-        unsafe {
-            str::from_utf8_unchecked(self.as_bytes())
-        }
+        unsafe { str::from_utf8_unchecked(self.as_bytes()) }
     }
     pub fn as_str_with_nul(self) -> &'static str {
-        unsafe {
-            str::from_utf8_unchecked(self.as_bytes_with_nul())
-        }
+        unsafe { str::from_utf8_unchecked(self.as_bytes_with_nul()) }
     }
 }
 impl PartialOrd for Interned {
@@ -147,7 +140,8 @@ pub fn intern_static_with_nul(s: &'static str) -> Interned {
     let result;
     assert!(!INTERNER_IN_USE.swap(true, atomic::Ordering::SeqCst));
     unsafe {
-        result = INTERNER.get_or_insert(Interner::new())
+        result = INTERNER
+            .get_or_insert(Interner::new())
             .intern_static_with_nul(s);
     }
     INTERNER_IN_USE.store(false, atomic::Ordering::SeqCst);

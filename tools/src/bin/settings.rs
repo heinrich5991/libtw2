@@ -9,9 +9,7 @@ use common::pretty;
 use map::format;
 use std::path::Path;
 
-fn process(_: &Path, dfr: df::Reader, _: &mut ())
-    -> Result<(), map::Error>
-{
+fn process(_: &Path, dfr: df::Reader, _: &mut ()) -> Result<(), map::Error> {
     let mut map = map::Reader::from_datafile(dfr);
     let maybe_info = map.info();
     if let Err(format::Error::MissingInfo) = maybe_info {
@@ -27,8 +25,7 @@ fn process(_: &Path, dfr: df::Reader, _: &mut ())
     Ok(())
 }
 
-fn nothing(_: &()) {
-}
+fn nothing(_: &()) {}
 
 fn main() {
     tools::map_stats::stats(process, nothing);

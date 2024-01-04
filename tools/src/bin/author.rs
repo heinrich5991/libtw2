@@ -19,9 +19,7 @@ struct Stats {
     total: u64,
 }
 
-fn process(_: &Path, dfr: df::Reader, stats: &mut Stats)
-    -> Result<(), map::Error>
-{
+fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
     let map = map::Reader::from_datafile(dfr);
     let info = match map.info() {
         Ok(i) => i,
@@ -31,11 +29,21 @@ fn process(_: &Path, dfr: df::Reader, stats: &mut Stats)
         }
         Err(e) => return Err(e.into()),
     };
-    if info.author.is_some() { stats.author += 1; }
-    if info.version.is_some() { stats.version += 1; }
-    if info.credits.is_some() { stats.credits += 1; }
-    if info.license.is_some() { stats.license += 1; }
-    if info.settings.is_some() { stats.settings += 1; }
+    if info.author.is_some() {
+        stats.author += 1;
+    }
+    if info.version.is_some() {
+        stats.version += 1;
+    }
+    if info.credits.is_some() {
+        stats.credits += 1;
+    }
+    if info.license.is_some() {
+        stats.license += 1;
+    }
+    if info.settings.is_some() {
+        stats.settings += 1;
+    }
     stats.info += 1;
     stats.total += 1;
     Ok(())

@@ -1,11 +1,11 @@
 use format;
+use snap;
 use snap::Builder;
 use snap::Delta;
 use snap::Snap;
-use snap;
 use std::collections::VecDeque;
-use warn::Warn;
 use warn::wrap;
+use warn::Warn;
 
 // TODO: Separate server storage from client storage.
 // TODO: Delete snapshots over time.
@@ -75,9 +75,16 @@ impl Storage {
     pub fn ack_tick(&self) -> Option<i32> {
         self.ack_tick
     }
-    pub fn add_delta<W>(&mut self, warn: &mut W, crc: Option<i32>, delta_tick: i32, tick: i32, delta: &Delta)
-        -> Result<&Snap, Error>
-        where W: Warn<Warning>,
+    pub fn add_delta<W>(
+        &mut self,
+        warn: &mut W,
+        crc: Option<i32>,
+        delta_tick: i32,
+        tick: i32,
+        delta: &Delta,
+    ) -> Result<&Snap, Error>
+    where
+        W: Warn<Warning>,
     {
         if self.snaps.front().map(|s| s.tick).unwrap_or(-1) >= tick {
             return Err(Error::OldDelta);
@@ -89,7 +96,10 @@ impl Storage {
                 if let Some(i) = self.snaps.iter().position(|s| s.tick < delta_tick) {
                     let self_free = &mut self.free;
                     // FIXME: Replace with something like `exhaust`.
-                    self.snaps.drain(i..).map(|s| self_free.push(s.snap)).count();
+                    self.snaps
+                        .drain(i..)
+                        .map(|s| self_free.push(s.snap))
+                        .count();
                 }
                 if let Some(d) = self.snaps.back() {
                     if d.tick == delta_tick {
@@ -132,9 +142,9 @@ impl Storage {
     pub fn new_builder(&mut self) -> Builder {
         self.free.pop().unwrap_or_default().recycle()
     }
-    pub fn set_delta_tick<W>(&mut self, warn: &mut W, tick: i32)
-        -> Result<(), UnknownSnap>
-        where W: Warn<WeirdNegativeDeltaTick>,
+    pub fn set_delta_tick<W>(&mut self, warn: &mut W, tick: i32) -> Result<(), UnknownSnap>
+    where
+        W: Warn<WeirdNegativeDeltaTick>,
     {
         if tick < 0 {
             if tick != -1 {
@@ -146,7 +156,10 @@ impl Storage {
         if let Some(i) = self.snaps.iter().position(|s| s.tick < tick) {
             let self_free = &mut self.free;
             // FIXME: Replace with something like `exhaust`.
-            self.snaps.drain(i..).map(|s| self_free.push(s.snap)).count();
+            self.snaps
+                .drain(i..)
+                .map(|s| self_free.push(s.snap))
+                .count();
         }
         if !self.snaps.back().map(|s| s.tick == tick).unwrap_or(false) {
             self.delta_tick = None;
@@ -170,7 +183,8 @@ impl Storage {
             tmp = Snap::empty();
             &tmp
         };
-        self.delta.create(delta_snap, &self.snaps.front().unwrap().snap);
+        self.delta
+            .create(delta_snap, &self.snaps.front().unwrap().snap);
         &self.delta
     }
 }

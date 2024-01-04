@@ -1,11 +1,13 @@
 extern crate arrayvec;
-#[macro_use] extern crate clap;
+#[macro_use]
+extern crate clap;
 extern crate common;
 extern crate event_loop;
 extern crate gamenet_teeworlds_0_6 as gamenet;
 extern crate hexdump;
 extern crate itertools;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate logger;
 extern crate packer;
 extern crate rand;
@@ -20,6 +22,7 @@ use clap::Error;
 use clap::ErrorKind;
 use common::num::Cast;
 use common::pretty;
+use event_loop::collections::PeerMap;
 use event_loop::Addr;
 use event_loop::Application;
 use event_loop::Chunk;
@@ -29,14 +32,10 @@ use event_loop::PeerId;
 use event_loop::SocketLoop;
 use event_loop::Timeout;
 use event_loop::Timestamp;
-use event_loop::collections::PeerMap;
-use gamenet::SnapObj;
+use gamenet::enums;
 use gamenet::enums::Team;
 use gamenet::enums::VERSION;
-use gamenet::enums;
-use gamenet::msg::Game;
-use gamenet::msg::System;
-use gamenet::msg::SystemOrGame;
+use gamenet::msg;
 use gamenet::msg::game::ClCallVote;
 use gamenet::msg::game::ClSetTeam;
 use gamenet::msg::game::ClStartInfo;
@@ -49,24 +48,27 @@ use gamenet::msg::system::MapChange;
 use gamenet::msg::system::MapData;
 use gamenet::msg::system::Ready;
 use gamenet::msg::system::RequestMapData;
-use gamenet::msg;
-use gamenet::snap_obj::PlayerInput;
+use gamenet::msg::Game;
+use gamenet::msg::System;
+use gamenet::msg::SystemOrGame;
 use gamenet::snap_obj::obj_size;
+use gamenet::snap_obj::PlayerInput;
+use gamenet::SnapObj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
+use packer::with_packer;
 use packer::IntUnpacker;
 use packer::Unpacker;
-use packer::with_packer;
-use snapshot::Snap;
 use snapshot::format::Item as SnapItem;
+use snapshot::Snap;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashSet;
 use std::fmt;
 use std::fs;
-use std::io::Write;
 use std::io;
+use std::io::Write;
 use std::mem;
 use std::path::PathBuf;
 use std::str;
@@ -104,8 +106,8 @@ fn check_dummy_map(name: &[u8], crc: u32, size: i32) -> bool {
         return false;
     }
     match (crc, size) {
-        (0xbeae0b9f, 549) => {},
-        (0x6c760ac4, 306) => {},
+        (0xbeae0b9f, 549) => {}
+        (0x6c760ac4, 306) => {}
         _ => warn!("unknown dummy map, crc={}, size={}", crc, size),
     }
     true
@@ -159,7 +161,10 @@ impl Peer {
         result
     }
     fn needs_tick(&self) -> Timeout {
-        cmp::min(Timeout::active(self.progress_timeout), self.state.needs_tick())
+        cmp::min(
+            Timeout::active(self.progress_timeout),
+            self.state.needs_tick(),
+        )
     }
     fn tick<L: Loop>(&mut self, pid: PeerId, config: &Config, loop_: &mut L) {
         // TODO: What happens with peers that are already disconnected?
@@ -184,18 +189,37 @@ impl Peer {
         }
     }
     fn vote<L: Loop>(&mut self, pid: PeerId, config: &Config, loop_: &mut L) -> bool {
-        fn send_vote<L: Loop>(visited_votes: &mut HashSet<Vec<u8>>, vote: &[u8], pid: PeerId, reason: &[u8], loop_: &mut L) {
-            loop_.sendg(pid, ClCallVote {
-                type_: enums::CL_CALL_VOTE_TYPE_OPTION.as_bytes(),
-                value: vote,
-                reason: reason,
-            });
+        fn send_vote<L: Loop>(
+            visited_votes: &mut HashSet<Vec<u8>>,
+            vote: &[u8],
+            pid: PeerId,
+            reason: &[u8],
+            loop_: &mut L,
+        ) {
+            loop_.sendg(
+                pid,
+                ClCallVote {
+                    type_: enums::CL_CALL_VOTE_TYPE_OPTION.as_bytes(),
+                    value: vote,
+                    reason: reason,
+                },
+            );
             visited_votes.insert(vote.to_owned());
         }
         // TODO: This probably has bad performance:
-        self.previous_vote = self.current_votes.difference(&self.visited_votes).cloned().next();
+        self.previous_vote = self
+            .current_votes
+            .difference(&self.visited_votes)
+            .cloned()
+            .next();
         if let Some(ref vote) = self.previous_vote {
-            send_vote(&mut self.visited_votes, vote, pid, config.nick.as_bytes(), loop_);
+            send_vote(
+                &mut self.visited_votes,
+                vote,
+                pid,
+                config.nick.as_bytes(),
+                loop_,
+            );
             info!("voting for {}", pretty::AlmostString::new(vote));
         } else {
             self.previous_vote = None;
@@ -213,7 +237,13 @@ impl Peer {
             if let Some(vote) = self.previous_vote.as_ref() {
                 self.previous_list_vote = Some(vote.to_owned());
                 info!("list-voting for {}", pretty::AlmostString::new(vote));
-                send_vote(&mut self.visited_votes, &vote, pid, config.nick.as_bytes(), loop_);
+                send_vote(
+                    &mut self.visited_votes,
+                    &vote,
+                    pid,
+                    config.nick.as_bytes(),
+                    loop_,
+                );
             } else {
                 return true;
             }
@@ -247,7 +277,11 @@ impl Peer {
         let mut path = PathBuf::new();
         path.push("maps");
         path.push(format!("{}_{:08x}.map", &download.name, download.crc));
-        download.file.persist(&path).map(|_| ()).map_err(|e| e.error)
+        download
+            .file
+            .persist(&path)
+            .map(|_| ())
+            .map_err(|e| e.error)
     }
 }
 
@@ -283,7 +317,7 @@ impl PeerState {
 
 trait LoopExt: Loop {
     fn sends<'a, S: Into<System<'a>>>(&mut self, pid: PeerId, msg: S) {
-        fn inner<L: Loop+?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
+        fn inner<L: Loop + ?Sized>(msg: System, pid: PeerId, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
@@ -295,7 +329,7 @@ trait LoopExt: Loop {
         inner(msg.into(), pid, self)
     }
     fn sendg<'a, G: Into<Game<'a>>>(&mut self, pid: PeerId, msg: G) {
-        fn inner<L: Loop+?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
+        fn inner<L: Loop + ?Sized>(msg: Game, pid: PeerId, loop_: &mut L) {
             let mut buf: ArrayVec<[u8; 2048]> = ArrayVec::new();
             with_packer(&mut buf, |p| msg.encode(p).unwrap());
             loop_.send(Chunk {
@@ -307,14 +341,18 @@ trait LoopExt: Loop {
         inner(msg.into(), pid, self)
     }
 }
-impl<L: Loop> LoopExt for L { }
+impl<L: Loop> LoopExt for L {}
 
 fn num_players(snap: &Snap) -> u32 {
     let mut num_players = 0;
     for item in snap.items() {
-        match SnapObj::decode_obj(&mut WarnSnap(item), item.type_id.into(), &mut IntUnpacker::new(item.data)) {
+        match SnapObj::decode_obj(
+            &mut WarnSnap(item),
+            item.type_id.into(),
+            &mut IntUnpacker::new(item.data),
+        ) {
             Ok(SnapObj::PlayerInfo(..)) => num_players += 1,
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => warn!("item decode error {:?}: {:?}", e, item),
         }
     }
@@ -333,7 +371,7 @@ struct Main {
     config: Config,
 }
 
-struct MainLoop<'a, L: Loop+'a> {
+struct MainLoop<'a, L: Loop + 'a> {
     peers: &'a mut PeerMap<Peer>,
     config: &'a Config,
     loop_: &'a mut L,
@@ -341,7 +379,11 @@ struct MainLoop<'a, L: Loop+'a> {
 
 impl<'a, L: Loop> Application<L> for Main {
     fn needs_tick(&mut self) -> Timeout {
-        self.peers.values().map(|p| p.needs_tick()).min().unwrap_or_default()
+        self.peers
+            .values()
+            .map(|p| p.needs_tick())
+            .min()
+            .unwrap_or_default()
     }
     fn on_tick(&mut self, loop_: &mut L) {
         for (pid, peer) in self.peers.iter_mut() {
@@ -349,10 +391,15 @@ impl<'a, L: Loop> Application<L> for Main {
         }
     }
     fn on_packet(&mut self, loop_: &mut L, chunk: Chunk) {
-        self.loop_(loop_).on_packet(chunk.pid, chunk.vital, chunk.data);
+        self.loop_(loop_)
+            .on_packet(chunk.pid, chunk.vital, chunk.data);
     }
     fn on_connless_packet(&mut self, _: &mut L, chunk: ConnlessChunk) {
-        warn!("connless packet {} {:?}", chunk.addr, pretty::Bytes::new(chunk.data));
+        warn!(
+            "connless packet {} {:?}",
+            chunk.addr,
+            pretty::Bytes::new(chunk.data)
+        );
     }
     fn on_connect(&mut self, _: &mut L, _: PeerId) {
         unreachable!();
@@ -362,7 +409,11 @@ impl<'a, L: Loop> Application<L> for Main {
     }
     fn on_disconnect(&mut self, _: &mut L, pid: PeerId, remote: bool, reason: &[u8]) {
         if remote {
-            error!("disconnected pid={:?} error={}", pid, pretty::AlmostString::new(reason));
+            error!(
+                "disconnected pid={:?} error={}",
+                pid,
+                pretty::AlmostString::new(reason)
+            );
         }
         self.peers.remove(pid);
     }
@@ -383,7 +434,7 @@ impl Main {
         fs::create_dir_all("downloading").unwrap();
         loop_.run(main);
     }
-    fn loop_<'a, L: Loop+'a>(&'a mut self, loop_: &'a mut L) -> MainLoop<'a, L> {
+    fn loop_<'a, L: Loop + 'a>(&'a mut self, loop_: &'a mut L) -> MainLoop<'a, L> {
         MainLoop {
             peers: &mut self.peers,
             config: &self.config,
@@ -408,14 +459,13 @@ impl<'a, L: Loop> MainLoop<'a, L> {
         let mut progress = false;
         match msg {
             SystemOrGame::Game(Game::SvMotd(..))
-                | SystemOrGame::Game(Game::SvKillMsg(..))
-                | SystemOrGame::Game(Game::SvTuneParams(..))
-                | SystemOrGame::Game(Game::SvWeaponPickup(..))
-                | SystemOrGame::System(System::InputTiming(..))
-                | SystemOrGame::Game(Game::SvExtraProjectile(..))
-            => {
+            | SystemOrGame::Game(Game::SvKillMsg(..))
+            | SystemOrGame::Game(Game::SvTuneParams(..))
+            | SystemOrGame::Game(Game::SvWeaponPickup(..))
+            | SystemOrGame::System(System::InputTiming(..))
+            | SystemOrGame::Game(Game::SvExtraProjectile(..)) => {
                 ignored = true;
-            },
+            }
             SystemOrGame::Game(Game::SvChat(chat)) => {
                 if !chat.team && chat.client_id == -1 {
                     ignored = true;
@@ -423,10 +473,13 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                 }
             }
             SystemOrGame::Game(Game::SvBroadcast(broadcast)) => {
-                info!("broadcast: {}", pretty::AlmostString::new(broadcast.message));
+                info!(
+                    "broadcast: {}",
+                    pretty::AlmostString::new(broadcast.message)
+                );
                 ignored = true;
             }
-            _ => {},
+            _ => {}
         }
         {
             let peer = &mut self.peers[pid];
@@ -440,9 +493,9 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                                 return;
                             }
                             match peer.state {
-                                PeerState::MapChange => {},
-                                PeerState::VoteResult(..) => {},
-                                PeerState::ReadyToEnter if peer.dummy_map => {},
+                                PeerState::MapChange => {}
+                                PeerState::VoteResult(..) => {}
+                                PeerState::ReadyToEnter if peer.dummy_map => {}
                                 _ => warn!("map change from state {:?}", peer.state),
                             }
                             peer.dummy_map = check_dummy_map(name, crc as u32, size);
@@ -464,7 +517,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             }
                             if start_download {
                                 info!("download starting");
-                                self.loop_.sends(pid, RequestMapData { chunk: 0, });
+                                self.loop_.sends(pid, RequestMapData { chunk: 0 });
                                 peer.state = PeerState::MapData(crc, 0);
                             } else {
                                 peer.state = PeerState::ConReady;
@@ -476,31 +529,37 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             self.loop_.disconnect(pid, self.config.error.as_bytes());
                             return;
                         }
-                    },
-                    System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_)
-                    => {
+                    }
+                    System::Snap(_) | System::SnapEmpty(_) | System::SnapSingle(_) => {
                         let mut check_num_snaps = true;
                         peer.num_snaps_since_reset += 1;
                         {
                             let res = match *msg {
                                 System::Snap(s) => peer.snaps.snap(&mut Log, obj_size, s),
-                                System::SnapEmpty(s) => peer.snaps.snap_empty(&mut Log, obj_size, s),
-                                System::SnapSingle(s) => peer.snaps.snap_single(&mut Log, obj_size, s),
+                                System::SnapEmpty(s) => {
+                                    peer.snaps.snap_empty(&mut Log, obj_size, s)
+                                }
+                                System::SnapSingle(s) => {
+                                    peer.snaps.snap_single(&mut Log, obj_size, s)
+                                }
                                 _ => unreachable!(),
                             };
                             match res {
                                 Ok(Some(snap)) => {
                                     let num_players = num_players(snap);
                                     if num_players > 1 {
-                                        error!("more than one player ({}) detected, quitting", num_players);
+                                        error!(
+                                            "more than one player ({}) detected, quitting",
+                                            num_players
+                                        );
                                         self.loop_.disconnect(pid, self.config.nick.as_bytes());
                                         return;
                                     }
-                                },
+                                }
                                 Ok(None) => {
                                     peer.num_snaps_since_reset -= 1;
                                     check_num_snaps = false;
-                                },
+                                }
                                 Err(err) => warn!("snapshot error {:?}", err),
                             }
                         }
@@ -511,22 +570,25 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                                 self.loop_.force_flush(pid);
                             }
                             let tick = peer.snaps.ack_tick().unwrap_or(-1);
-                            self.loop_.sends(pid, Input {
-                                ack_snapshot: tick,
-                                intended_tick: tick,
-                                input_size: mem::size_of::<PlayerInput>().assert_i32(),
-                                input: PlayerInput::default(),
-                            });
+                            self.loop_.sends(
+                                pid,
+                                Input {
+                                    ack_snapshot: tick,
+                                    intended_tick: tick,
+                                    input_size: mem::size_of::<PlayerInput>().assert_i32(),
+                                    input: PlayerInput::default(),
+                                },
+                            );
                         }
                         ignored = true;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 SystemOrGame::Game(ref msg) => match *msg {
                     Game::SvVoteClearOptions(..) => {
                         ignored = true;
                         peer.current_votes.clear();
-                    },
+                    }
                     Game::SvVoteOptionListAdd(l) => {
                         ignored = true;
                         // `len` is bounded by the unpacking.
@@ -534,25 +596,30 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         for &desc in l.description.iter().take(len) {
                             peer.current_votes.insert(desc.to_owned());
                         }
-                    },
+                    }
                     Game::SvVoteOptionAdd(SvVoteOptionAdd { description }) => {
                         ignored = true;
                         peer.current_votes.insert(description.to_owned());
-                    },
+                    }
                     Game::SvVoteOptionRemove(SvVoteOptionRemove { description }) => {
                         ignored = true;
                         if !peer.current_votes.remove(description) {
                             warn!("vote option removed even though it didn't exist");
                         }
                     }
-                    _ => {},
-                }
+                    _ => {}
+                },
             }
             match peer.state {
                 PeerState::Connection => unreachable!(),
-                PeerState::MapChange => {}, // Handled above.
+                PeerState::MapChange => {} // Handled above.
                 PeerState::MapData(cur_crc, cur_chunk) => match msg {
-                    SystemOrGame::System(System::MapData(MapData { last, crc, chunk, data })) => {
+                    SystemOrGame::System(System::MapData(MapData {
+                        last,
+                        crc,
+                        chunk,
+                        data,
+                    })) => {
                         if cur_crc == crc && cur_chunk == chunk {
                             let res = peer.write_file(data);
                             if let Err(ref err) = res {
@@ -583,23 +650,26 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         }
                         progress = true;
                     }
-                    _ => {},
+                    _ => {}
                 },
                 PeerState::ConReady => match msg {
                     SystemOrGame::System(System::ConReady(..)) => {
                         progress = true;
-                        self.loop_.sendg(pid, ClStartInfo {
-                            name: self.config.nick.as_bytes(),
-                            clan: self.config.clan.as_bytes(),
-                            country: -1,
-                            skin: b"default",
-                            use_custom_color: false,
-                            color_body: 0,
-                            color_feet: 0,
-                        });
+                        self.loop_.sendg(
+                            pid,
+                            ClStartInfo {
+                                name: self.config.nick.as_bytes(),
+                                clan: self.config.clan.as_bytes(),
+                                country: -1,
+                                skin: b"default",
+                                use_custom_color: false,
+                                color_body: 0,
+                                color_feet: 0,
+                            },
+                        );
                         peer.state = PeerState::ReadyToEnter;
                     }
-                    _ => {},
+                    _ => {}
                 },
                 PeerState::ReadyToEnter => match msg {
                     SystemOrGame::Game(Game::SvReadyToEnter(..)) => {
@@ -607,10 +677,11 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                         self.loop_.sends(pid, EnterGame);
                         self.loop_.sendg(pid, ClSetTeam { team: Team::Red });
                         if peer.vote(pid, &self.config, self.loop_) {
-                            peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
+                            peer.state =
+                                PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
                     }
-                    _ => {},
+                    _ => {}
                 },
                 PeerState::VoteSet(_) => match msg {
                     SystemOrGame::Game(Game::SvChat(chat)) => {
@@ -618,8 +689,11 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             if let Ok(message) = str::from_utf8(chat.message) {
                                 if message.contains("Wait") || message.contains("wait") {
                                     progress = true;
-                                    peer.visited_votes.remove(peer.previous_vote.as_ref().unwrap());
-                                    peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(5));
+                                    peer.visited_votes
+                                        .remove(peer.previous_vote.as_ref().unwrap());
+                                    peer.state = PeerState::VoteResult(
+                                        self.loop_.time() + Duration::from_secs(5),
+                                    );
                                 }
                             }
                         }
@@ -629,30 +703,30 @@ impl<'a, L: Loop> MainLoop<'a, L> {
                             progress = true;
                             peer.state = PeerState::VoteEnd;
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
                 PeerState::VoteEnd => match msg {
                     SystemOrGame::Game(Game::SvVoteSet(vote_set)) => {
                         if vote_set.timeout == 0 {
                             progress = true;
-                            peer.state = PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
+                            peer.state =
+                                PeerState::VoteResult(self.loop_.time() + Duration::from_secs(3));
                         }
-                    },
+                    }
                     SystemOrGame::Game(Game::SvVoteClearOptions(..))
-                        | SystemOrGame::Game(Game::SvVoteOptionAdd(..))
-                        | SystemOrGame::Game(Game::SvVoteOptionListAdd(..))
-                        | SystemOrGame::Game(Game::SvVoteOptionRemove(..))
-                    => {
+                    | SystemOrGame::Game(Game::SvVoteOptionAdd(..))
+                    | SystemOrGame::Game(Game::SvVoteOptionListAdd(..))
+                    | SystemOrGame::Game(Game::SvVoteOptionRemove(..)) => {
                         ignored = true;
                         let prev = peer.previous_vote.as_ref().unwrap();
                         if peer.list_votes.insert(prev.to_owned()) {
                             info!("list vote {}", pretty::AlmostString::new(prev));
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 },
-                PeerState::VoteResult(..) => {},
+                PeerState::VoteResult(..) => {}
             }
             if progress {
                 peer.progress(self.loop_);
@@ -665,10 +739,13 @@ impl<'a, L: Loop> MainLoop<'a, L> {
     }
     fn on_ready(&mut self, pid: PeerId) {
         self.peers[pid].state = PeerState::MapChange;
-        self.loop_.sends(pid, Info {
-            version: VERSION.as_bytes(),
-            password: Some(b""),
-        });
+        self.loop_.sends(
+            pid,
+            Info {
+                version: VERSION.as_bytes(),
+                password: Some(b""),
+            },
+        );
         self.loop_.flush(pid);
     }
 }
@@ -678,25 +755,28 @@ fn main() {
 
     let matches = App::new("Teeworlds server map scraper")
         .about("Tries to download every map from an otherwise empty Teeworlds server.")
-        .arg(Arg::with_name("nick")
-            .help("Sets the nickname sent to servers")
-            .long("nick")
-            .takes_value(true)
-            .value_name("NICK")
-            .default_value("downloader")
+        .arg(
+            Arg::with_name("nick")
+                .help("Sets the nickname sent to servers")
+                .long("nick")
+                .takes_value(true)
+                .value_name("NICK")
+                .default_value("downloader"),
         )
-        .arg(Arg::with_name("clan")
-            .help("Sets the clan name sent to servers")
-            .long("clan")
-            .takes_value(true)
-            .value_name("CLAN")
-            .default_value("")
+        .arg(
+            Arg::with_name("clan")
+                .help("Sets the clan name sent to servers")
+                .long("clan")
+                .takes_value(true)
+                .value_name("CLAN")
+                .default_value(""),
         )
-        .arg(Arg::with_name("server")
-            .help("Server to scrape")
-            .multiple(true)
-            .required(true)
-            .value_name("SERVER")
+        .arg(
+            Arg::with_name("server")
+                .help("Server to scrape")
+                .multiple(true)
+                .required(true)
+                .value_name("SERVER"),
         )
         .get_matches();
 
@@ -705,10 +785,12 @@ fn main() {
     let clan = matches.value_of("clan").unwrap();
 
     if nick.len() >= 15 {
-        Error::with_description("Nick can have at most 15 bytes", ErrorKind::ValueValidation).exit();
+        Error::with_description("Nick can have at most 15 bytes", ErrorKind::ValueValidation)
+            .exit();
     }
     if clan.len() >= 11 {
-        Error::with_description("Clan can have at most 11 bytes", ErrorKind::ValueValidation).exit();
+        Error::with_description("Clan can have at most 11 bytes", ErrorKind::ValueValidation)
+            .exit();
     }
 
     let config = Config {

@@ -2,7 +2,8 @@ extern crate arrayvec;
 extern crate buffer;
 extern crate common;
 extern crate huffman;
-#[macro_use] extern crate matches;
+#[macro_use]
+extern crate matches;
 extern crate packer;
 extern crate uuid;
 extern crate warn;

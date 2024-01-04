@@ -1,16 +1,16 @@
-use Delta;
-use DeltaReceiver;
-use ReceivedDelta;
-use Snap;
-use Storage;
 use format;
 use gamenet::msg::system;
 use packer::Unpacker;
 use receiver;
 use snap;
 use storage;
-use warn::Warn;
 use warn::wrap;
+use warn::Warn;
+use Delta;
+use DeltaReceiver;
+use ReceivedDelta;
+use Snap;
+use Storage;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -85,26 +85,41 @@ impl Manager {
     pub fn ack_tick(&self) -> Option<i32> {
         self.inner.storage.ack_tick()
     }
-    pub fn snap_empty<W, O>(&mut self, warn: &mut W, object_size: O, snap: system::SnapEmpty)
-        -> Result<Option<&Snap>, Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    pub fn snap_empty<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        snap: system::SnapEmpty,
+    ) -> Result<Option<&Snap>, Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
         let res = self.receiver.snap_empty(wrap(warn), snap);
         self.inner.handle_msg(warn, object_size, res)
     }
-    pub fn snap_single<W, O>(&mut self, warn: &mut W, object_size: O, snap: system::SnapSingle)
-        -> Result<Option<&Snap>, Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    pub fn snap_single<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        snap: system::SnapSingle,
+    ) -> Result<Option<&Snap>, Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
         let res = self.receiver.snap_single(wrap(warn), snap);
         self.inner.handle_msg(warn, object_size, res)
     }
-    pub fn snap<W, O>(&mut self, warn: &mut W, object_size: O, snap: system::Snap)
-        -> Result<Option<&Snap>, Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    pub fn snap<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        snap: system::Snap,
+    ) -> Result<Option<&Snap>, Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
         let res = self.receiver.snap(wrap(warn), snap);
         self.inner.handle_msg(warn, object_size, res)
@@ -112,27 +127,44 @@ impl Manager {
 }
 
 impl ManagerInner {
-    fn handle_msg<W, O>(&mut self, warn: &mut W, object_size: O, res: Result<Option<ReceivedDelta>, receiver::Error>)
-        -> Result<Option<&Snap>, Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    fn handle_msg<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        res: Result<Option<ReceivedDelta>, receiver::Error>,
+    ) -> Result<Option<&Snap>, Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
         Ok(match res? {
             Some(delta) => Some(self.add_delta(warn, object_size, delta)?),
             None => None,
         })
     }
-    fn add_delta<W, O>(&mut self, warn: &mut W, object_size: O, delta: ReceivedDelta)
-        -> Result<&Snap, Error>
-        where W: Warn<Warning>,
-              O: FnMut(u16) -> Option<u32>,
+    fn add_delta<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        delta: ReceivedDelta,
+    ) -> Result<&Snap, Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
     {
         let crc = delta.data_and_crc.map(|d| d.1);
         if let Some((data, _)) = delta.data_and_crc {
-            self.temp_delta.read(wrap(warn), object_size, &mut Unpacker::new(data))?;
+            self.temp_delta
+                .read(wrap(warn), object_size, &mut Unpacker::new(data))?;
         } else {
             self.temp_delta.clear();
         }
-        Ok(self.storage.add_delta(wrap(warn), crc, delta.delta_tick, delta.tick, &self.temp_delta)?)
+        Ok(self.storage.add_delta(
+            wrap(warn),
+            crc,
+            delta.delta_tick,
+            delta.tick,
+            &self.temp_delta,
+        )?)
     }
 }

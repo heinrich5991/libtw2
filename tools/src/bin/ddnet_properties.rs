@@ -53,27 +53,27 @@ impl From<rmp::encode::ValueWriteError> for Error {
     }
 }
 
-fn count<'a, I: Iterator<Item=&'a Tile>>(tiles: I, count: &mut [u64; 256]) {
+fn count<'a, I: Iterator<Item = &'a Tile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
 }
-fn tele_count<'a, I: Iterator<Item=&'a TeleTile>>(tiles: I, count: &mut [u64; 256]) {
+fn tele_count<'a, I: Iterator<Item = &'a TeleTile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
 }
-fn speedup_count<'a, I: Iterator<Item=&'a SpeedupTile>>(tiles: I, count: &mut [u64; 256]) {
+fn speedup_count<'a, I: Iterator<Item = &'a SpeedupTile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
 }
-fn switch_count<'a, I: Iterator<Item=&'a SwitchTile>>(tiles: I, count: &mut [u64; 256]) {
+fn switch_count<'a, I: Iterator<Item = &'a SwitchTile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
 }
-fn tune_count<'a, I: Iterator<Item=&'a TuneTile>>(tiles: I, count: &mut [u64; 256]) {
+fn tune_count<'a, I: Iterator<Item = &'a TuneTile>>(tiles: I, count: &mut [u64; 256]) {
     for tile in tiles {
         count[tile.index.usize()] += 1;
     }
@@ -164,7 +164,10 @@ fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     let game_layers = map.game_layers()?;
 
     let mut tiles_count = [0u64; 256];
-    count(map.layer_tiles(game_layers.game())?.iter(), &mut tiles_count);
+    count(
+        map.layer_tiles(game_layers.game())?.iter(),
+        &mut tiles_count,
+    );
     if let Some(f) = game_layers.front() {
         count(map.layer_tiles(f)?.iter(), &mut tiles_count);
     }
@@ -186,9 +189,11 @@ fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     rmp::encode::write_uint(&mut output, game_layers.width.u64())?;
     rmp::encode::write_uint(&mut output, game_layers.height.u64())?;
 
-    let len = tiles_count.iter().enumerate().filter(|&(i, &c)| {
-        c != 0 && tile(i.assert_u8()).is_some()
-    }).count();
+    let len = tiles_count
+        .iter()
+        .enumerate()
+        .filter(|&(i, &c)| c != 0 && tile(i.assert_u8()).is_some())
+        .count();
 
     rmp::encode::write_map_len(&mut output, len.assert_u32())?;
     for (i, &c) in tiles_count.iter().enumerate() {
@@ -211,21 +216,27 @@ fn main() {
     logger::init();
 
     let matches = App::new("DDNet map properties extractor")
-        .about("Reads a map file and reports width/height of the game layer and\
-                some of its contents, in msgpack format.")
-        .arg(Arg::with_name("MAP")
-             .help("Sets the map file to analyse")
-             .required(true))
-        .arg(Arg::with_name("OUTPUT")
-             .help("Sets the msgpack file to output")
-             .required(true))
+        .about(
+            "Reads a map file and reports width/height of the game layer and\
+                some of its contents, in msgpack format.",
+        )
+        .arg(
+            Arg::with_name("MAP")
+                .help("Sets the map file to analyse")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("OUTPUT")
+                .help("Sets the msgpack file to output")
+                .required(true),
+        )
         .get_matches();
 
     let path = Path::new(matches.value_of_os("MAP").unwrap());
     let output_path = Path::new(matches.value_of_os("OUTPUT").unwrap());
 
     match process(path, output_path) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             println!("{}: {:?}", path.display(), err);
             process::exit(1);

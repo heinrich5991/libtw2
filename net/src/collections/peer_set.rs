@@ -1,8 +1,8 @@
+use super::peer_map;
+use super::PeerMap;
 use net::PeerId;
 use std::fmt;
 use std::iter::FromIterator;
-use super::PeerMap;
-use super::peer_map;
 
 #[derive(Clone, Default)]
 pub struct PeerSet {
@@ -53,7 +53,10 @@ impl PeerSet {
 }
 
 impl FromIterator<PeerId> for PeerSet {
-    fn from_iter<I>(iter: I) -> PeerSet where I: IntoIterator<Item=PeerId> {
+    fn from_iter<I>(iter: I) -> PeerSet
+    where
+        I: IntoIterator<Item = PeerId>,
+    {
         PeerSet {
             set: FromIterator::from_iter(iter.into_iter().map(|pid| (pid, ()))),
         }
@@ -61,7 +64,10 @@ impl FromIterator<PeerId> for PeerSet {
 }
 
 impl Extend<PeerId> for PeerSet {
-    fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item=PeerId> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = PeerId>,
+    {
         self.set.extend(iter.into_iter().map(|pid| (pid, ())))
     }
 }

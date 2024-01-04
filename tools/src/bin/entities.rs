@@ -15,9 +15,7 @@ pub struct Stats {
 
 impl Default for Stats {
     fn default() -> Stats {
-        Stats {
-            tiles: [0; 256],
-        }
+        Stats { tiles: [0; 256] }
     }
 }
 

@@ -7,9 +7,9 @@ use std::fmt;
 use addr::Addr;
 use addr::ServerAddr;
 use arrayvec::ArrayVec;
-use rand::distributions::Distribution;
-use rand::distributions;
 use rand;
+use rand::distributions;
+use rand::distributions::Distribution;
 
 /// Describes a master server.
 #[derive(Clone)]
@@ -142,7 +142,6 @@ impl Token {
     }
 }
 
-
 /// Draws a token from a uniform distribution.
 impl Distribution<Token> for distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Token {
@@ -161,8 +160,6 @@ pub struct ServerResponse {
 impl ServerResponse {
     /// Creates a new server response from the received server info.
     pub fn new(info: ServerInfo) -> ServerResponse {
-        ServerResponse {
-            info: info,
-        }
+        ServerResponse { info: info }
     }
 }

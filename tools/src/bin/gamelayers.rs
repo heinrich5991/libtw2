@@ -20,11 +20,21 @@ fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Erro
     let map = map::Reader::from_datafile(dfr);
     let game_layers = map.game_layers()?;
     stats.game += 1;
-    if game_layers.teleport_raw.is_some() { stats.teleport += 1; }
-    if game_layers.speedup_raw.is_some() { stats.speedup += 1; }
-    if game_layers.front_raw.is_some() { stats.front += 1; }
-    if game_layers.switch_raw.is_some() { stats.switch += 1; }
-    if game_layers.tune_raw.is_some() { stats.tune += 1; }
+    if game_layers.teleport_raw.is_some() {
+        stats.teleport += 1;
+    }
+    if game_layers.speedup_raw.is_some() {
+        stats.speedup += 1;
+    }
+    if game_layers.front_raw.is_some() {
+        stats.front += 1;
+    }
+    if game_layers.switch_raw.is_some() {
+        stats.switch += 1;
+    }
+    if game_layers.tune_raw.is_some() {
+        stats.tune += 1;
+    }
     Ok(())
 }
 

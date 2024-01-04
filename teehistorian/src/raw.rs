@@ -7,10 +7,10 @@ use std::ops;
 use vec_map::VecMap;
 
 use bitmagic::CallbackExt;
-use format::MaybeEnd;
-use format::item::INPUT_LEN;
-use format::item;
 use format;
+use format::item;
+use format::item::INPUT_LEN;
+use format::MaybeEnd;
 
 pub use format::Header;
 
@@ -29,9 +29,7 @@ macro_rules! unexp_end {
 
 const BUFFER_SIZE: usize = 8192;
 
-pub fn read_header(data: &[u8])
-    -> Result<Option<(usize, Header)>, format::HeaderError>
-{
+pub fn read_header(data: &[u8]) -> Result<Option<(usize, Header)>, format::HeaderError> {
     let mut p = Unpacker::new(data);
     unexp_end!(format::read_magic(&mut p))?;
     let header = unexp_end!(format::read_header(&mut p))?;
@@ -42,8 +40,7 @@ pub trait Callback {
     type Error;
     /// Return `Ok(None)` on EOF, `Ok(Some(n))` if `n` bytes were successfully
     /// read (might be lower than `buffer.len()`.
-    fn read_at_most(&mut self, buffer: &mut [u8])
-        -> Result<Option<usize>, Self::Error>;
+    fn read_at_most(&mut self, buffer: &mut [u8]) -> Result<Option<usize>, Self::Error>;
 }
 
 #[derive(Debug)]
@@ -139,10 +136,7 @@ impl Pos {
 
 impl fmt::Debug for Pos {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("")
-            .field(&self.x)
-            .field(&self.y)
-            .finish()
+        f.debug_tuple("").field(&self.x).field(&self.y).finish()
     }
 }
 
@@ -170,17 +164,20 @@ impl Reader {
             in_tick: false,
         }
     }
-    pub fn new<'a, CB>(cb: &mut CB, buffer: &'a mut Buffer)
-        -> Result<(Header<'a>, Reader), Error<CB::Error>>
-        where CB: Callback,
+    pub fn new<'a, CB>(
+        cb: &mut CB,
+        buffer: &'a mut Buffer,
+    ) -> Result<(Header<'a>, Reader), Error<CB::Error>>
+    where
+        CB: Callback,
     {
         let header = Reader::new_impl(cb, buffer)?;
         let reader = Reader::from_header(&header)?;
         Ok((header, reader))
     }
-    fn new_impl<'a, CB>(cb: &mut CB, buffer: &'a mut Buffer)
-        -> Result<Header<'a>, Error<CB::Error>>
-        where CB: Callback,
+    fn new_impl<'a, CB>(cb: &mut CB, buffer: &'a mut Buffer) -> Result<Header<'a>, Error<CB::Error>>
+    where
+        CB: Callback,
     {
         loop {
             unsafe {
@@ -201,9 +198,13 @@ impl Reader {
             _ => return Err(format::Error::UnknownVersion),
         })
     }
-    pub fn read<'a, CB>(&mut self, cb: &mut CB, buffer: &'a mut Buffer)
-        -> Result<Option<Item<'a>>, Error<CB::Error>>
-        where CB: Callback,
+    pub fn read<'a, CB>(
+        &mut self,
+        cb: &mut CB,
+        buffer: &'a mut Buffer,
+    ) -> Result<Option<Item<'a>>, Error<CB::Error>>
+    where
+        CB: Callback,
     {
         let item_kind = if let Some(ik) = self.next_item_kind.take() {
             ik
@@ -212,10 +213,7 @@ impl Reader {
         };
 
         // WARN: Detect two consecutive `TickSkip`s.
-        if item_kind != item::Kind::TickSkip &&
-            item_kind != item::Kind::Finish &&
-            !self.in_tick
-        {
+        if item_kind != item::Kind::TickSkip && item_kind != item::Kind::Finish && !self.in_tick {
             self.next_item_kind = Some(item_kind);
             self.in_tick = true;
             return Ok(Some(Item::TickStart(self.tick)));
@@ -224,8 +222,7 @@ impl Reader {
         if let Some(cid) = item_kind.player_cid() {
             if self.prev_player_cid.map(|p| p >= cid).unwrap_or(false) {
                 let old_tick = self.tick;
-                self.tick = old_tick
-                    .checked_add(1).ok_or(format::Error::TickOverflow)?;
+                self.tick = old_tick.checked_add(1).ok_or(format::Error::TickOverflow)?;
                 self.prev_player_cid = None;
                 self.next_item_kind = Some(item_kind);
                 self.in_tick = false;
@@ -246,11 +243,13 @@ impl Reader {
         Ok(Some(match item {
             format::Item::TickSkip(i) => {
                 let old_tick = self.tick;
-                let dt = i.dt.try_i32()
+                let dt = i.dt.try_i32().ok_or(format::Error::TickOverflow)?;
+                self.tick = self
+                    .tick
+                    .checked_add(1)
+                    .ok_or(format::Error::TickOverflow)?
+                    .checked_add(dt)
                     .ok_or(format::Error::TickOverflow)?;
-                self.tick = self.tick
-                    .checked_add(1).ok_or(format::Error::TickOverflow)?
-                    .checked_add(dt).ok_or(format::Error::TickOverflow)?;
                 if self.in_tick {
                     self.in_tick = false;
                     Item::TickEnd(old_tick)
@@ -258,7 +257,7 @@ impl Reader {
                     self.in_tick = true;
                     Item::TickStart(self.tick)
                 }
-            },
+            }
             format::Item::Message(i) => Item::Message(i),
             format::Item::Join(i) => Item::Join(i),
             format::Item::Drop(i) => Item::Drop(i),
@@ -281,7 +280,9 @@ impl Reader {
             format::Item::PlayerDiff(i) => {
                 self.prev_player_cid = Some(i.cid);
                 let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
-                let player = self.players.get_mut(cid)
+                let player = self
+                    .players
+                    .get_mut(cid)
                     .ok_or(format::Error::PlayerDiffWithoutNew)?;
                 let old_pos = *player;
                 *player = player.wrapping_add(Pos { x: i.dx, y: i.dy });
@@ -298,31 +299,47 @@ impl Reader {
                 if self.players.insert(cid, pos).is_some() {
                     return Err(format::Error::PlayerNewDuplicate.into());
                 }
-                Item::PlayerNew(Player { cid: i.cid, pos: pos })
-            },
+                Item::PlayerNew(Player {
+                    cid: i.cid,
+                    pos: pos,
+                })
+            }
             format::Item::PlayerOld(i) => {
                 self.prev_player_cid = Some(i.cid);
                 let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
-                let pos = self.players.remove(cid)
+                let pos = self
+                    .players
+                    .remove(cid)
                     .ok_or(format::Error::PlayerOldWithoutNew)?;
-                Item::PlayerOld(Player { cid: i.cid, pos: pos })
-            },
+                Item::PlayerOld(Player {
+                    cid: i.cid,
+                    pos: pos,
+                })
+            }
             format::Item::InputDiff(i) => {
                 let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
-                let input = self.inputs.get_mut(cid)
+                let input = self
+                    .inputs
+                    .get_mut(cid)
                     .ok_or(format::Error::InputDiffWithoutNew)?;
                 for (i, d) in zip_eq(input.iter_mut(), i.diff.iter()) {
                     *i = i.wrapping_add(*d);
                 }
-                Item::Input(Input { cid: i.cid, input: *input })
-            },
+                Item::Input(Input {
+                    cid: i.cid,
+                    input: *input,
+                })
+            }
             format::Item::InputNew(i) => {
                 let cid = i.cid.try_usize().ok_or(format::Error::InvalidClientId)?;
                 // Input already existing when getting `InputNew` is fine --
                 // it's for a new player.
                 let _ = self.inputs.insert(cid, i.new);
-                Item::Input(Input { cid: i.cid, input: i.new })
-            },
+                Item::Input(Input {
+                    cid: i.cid,
+                    input: i.new,
+                })
+            }
             // WARN: Detect overlong teehistorian files.
             format::Item::Finish(format::item::Finish) => return Ok(None),
         }))
@@ -334,14 +351,12 @@ impl Reader {
         self.inputs.get(cid.assert_usize()).cloned()
     }
     pub fn cids(&self) -> ops::Range<i32> {
-        0..self.max_cid+1
+        0..self.max_cid + 1
     }
 }
 
 impl Buffer {
-    fn read_more<CB: Callback>(&mut self, cb: &mut CB)
-        -> Result<(), Error<CB::Error>>
-    {
+    fn read_more<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), Error<CB::Error>> {
         if self.buffer.len() != self.buffer.capacity() {
             if cb.read_buffer(&mut self.buffer).wrap()?.is_some() {
                 Ok(())
@@ -354,18 +369,19 @@ impl Buffer {
                 self.offset = 0;
             } else {
                 let len = self.buffer.len();
-                self.buffer.reserve(if len < BUFFER_SIZE {
-                    BUFFER_SIZE
-                } else {
-                    len
-                });
+                self.buffer
+                    .reserve(if len < BUFFER_SIZE { BUFFER_SIZE } else { len });
             }
             self.read_more(cb)
         }
     }
-    fn read_kind<CB>(&mut self, cb: &mut CB, version: format::Version)
-        -> Result<item::Kind, Error<CB::Error>>
-        where CB: Callback,
+    fn read_kind<CB>(
+        &mut self,
+        cb: &mut CB,
+        version: format::Version,
+    ) -> Result<item::Kind, Error<CB::Error>>
+    where
+        CB: Callback,
     {
         loop {
             let maybe_item_kind;
@@ -379,15 +395,19 @@ impl Buffer {
                 Ok(x) => {
                     self.offset += num_bytes_read;
                     return Ok(x);
-                },
+                }
                 Err(MaybeEnd::Err(x)) => return Err(x.into()),
                 Err(MaybeEnd::UnexpectedEnd) => self.read_more(cb)?,
             }
         }
     }
-    fn read_item<'a, CB>(&'a mut self, cb: &mut CB, kind: item::Kind)
-        -> Result<format::Item<'a>, Error<CB::Error>>
-        where CB: Callback,
+    fn read_item<'a, CB>(
+        &'a mut self,
+        cb: &mut CB,
+        kind: item::Kind,
+    ) -> Result<format::Item<'a>, Error<CB::Error>>
+    where
+        CB: Callback,
     {
         // FIXME(rust-lang/rfcs#811): Work around missing non-lexical borrows.
         let raw_self: *mut Buffer = self;
@@ -398,7 +418,7 @@ impl Buffer {
                     Ok(x) => {
                         self.offset += p.num_bytes_read();
                         return Ok(x);
-                    },
+                    }
                     Err(MaybeEnd::Err(x)) => return Err(x.into()),
                     Err(MaybeEnd::UnexpectedEnd) => self.read_more(cb)?,
                 }
@@ -461,25 +481,22 @@ impl<'a> fmt::Debug for Item<'a> {
         match *self {
             Item::TickStart(ref i) => f.debug_tuple("TickStart").field(&i).finish(),
             Item::TickEnd(ref i) => f.debug_tuple("TickEnd").field(&i).finish(),
-            Item::PlayerNew(ref i) => {
-                f.debug_struct("PlayerNew")
-                    .field("cid", &i.cid)
-                    .field("pos", &i.pos)
-                    .finish()
-            },
-            Item::PlayerChange(ref i) => {
-                f.debug_struct("PlayerChange")
-                    .field("cid", &i.cid)
-                    .field("pos", &i.pos)
-                    .field("old_pos", &i.old_pos)
-                    .finish()
-            },
-            Item::PlayerOld(ref i) => {
-                f.debug_struct("PlayerOld")
-                    .field("cid", &i.cid)
-                    .field("pos", &i.pos)
-                    .finish()
-            },
+            Item::PlayerNew(ref i) => f
+                .debug_struct("PlayerNew")
+                .field("cid", &i.cid)
+                .field("pos", &i.pos)
+                .finish(),
+            Item::PlayerChange(ref i) => f
+                .debug_struct("PlayerChange")
+                .field("cid", &i.cid)
+                .field("pos", &i.pos)
+                .field("old_pos", &i.old_pos)
+                .finish(),
+            Item::PlayerOld(ref i) => f
+                .debug_struct("PlayerOld")
+                .field("cid", &i.cid)
+                .field("pos", &i.pos)
+                .finish(),
             Item::Input(ref i) => i.fmt(f),
             Item::Message(ref i) => i.fmt(f),
             Item::Join(ref i) => i.fmt(f),

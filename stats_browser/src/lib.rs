@@ -4,14 +4,17 @@ extern crate arrayvec;
 extern crate base64 as base64_dep;
 extern crate csv;
 extern crate ipnet;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate rand;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate time as rust_time;
 extern crate uuid;
 
-#[macro_use] extern crate common;
+#[macro_use]
+extern crate common;
 extern crate serverbrowse;
 
 pub use stats_browser::StatsBrowser;

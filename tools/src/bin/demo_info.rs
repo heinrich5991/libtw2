@@ -96,13 +96,14 @@ fn print_error_stats(error_stats: &ErrorStats) {
     println!("ok: {}", error_stats.ok);
 }
 
-fn process<W: Warn<Warning>>(warn: &mut W, path: &Path)
-    -> Result<(), Error>
-{
+fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
     let mut reader = demo::Reader::open(warn::wrap(warn), path)?;
     println!("{}", path.display());
     println!("version: {:?}", reader.version());
-    println!("net_version: {}", String::from_utf8_lossy(reader.net_version()));
+    println!(
+        "net_version: {}",
+        String::from_utf8_lossy(reader.net_version())
+    );
     println!("map_name: {}", String::from_utf8_lossy(reader.map_name()));
     println!("map_size: {}", reader.map_size());
     println!("map_crc: {:x}", reader.map_crc());
@@ -112,7 +113,7 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path)
             demo::Chunk::Message(bytes) => {
                 let mut u = packer::Unpacker::new_from_demo(bytes);
                 println!("message {:?}", Game::decode(warn::wrap(warn), &mut u)?);
-            },
+            }
             demo::Chunk::Tick(_, demo::Tick(t)) => println!("tick={}", t),
             demo::Chunk::Snapshot(_) => println!("snapshot"),
             demo::Chunk::SnapshotDelta(_) => println!("snapshot_delta"),
@@ -133,10 +134,13 @@ fn main() {
     for arg in args {
         have_args = true;
         let path = Path::new(&arg);
-        match process(warn::closure(&mut |w| {
-            println!("{}: {:?}", path.display(), w);
-            update_warning_stats(&mut error_stats, w);
-        }), path) {
+        match process(
+            warn::closure(&mut |w| {
+                println!("{}: {:?}", path.display(), w);
+                update_warning_stats(&mut error_stats, w);
+            }),
+            path,
+        ) {
             Ok(()) => error_stats.ok += 1,
             Err(err) => {
                 println!("{}: {:?}", path.display(), err);

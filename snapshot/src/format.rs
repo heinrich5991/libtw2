@@ -1,10 +1,10 @@
 use buffer::CapacityError;
+use packer;
 use packer::Packer;
 use packer::Unpacker;
-use packer;
 use snap::Error;
-use warn::Warn;
 use warn::wrap;
+use warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
@@ -62,9 +62,7 @@ pub struct DeltaHeader {
 }
 
 impl DeltaHeader {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker)
-        -> Result<DeltaHeader, Error>
-    {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<DeltaHeader, Error> {
         let result = DeltaHeader {
             num_deleted_items: packer::positive(p.read_int(wrap(warn))?)?,
             num_updated_items: packer::positive(p.read_int(wrap(warn))?)?,
@@ -74,9 +72,7 @@ impl DeltaHeader {
         }
         Ok(result)
     }
-    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>)
-        -> Result<&'d [u8], CapacityError>
-    {
+    pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         p.write_int(self.num_deleted_items)?;
         p.write_int(self.num_updated_items)?;
         p.write_int(0)?;

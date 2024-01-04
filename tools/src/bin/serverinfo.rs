@@ -16,12 +16,17 @@ const BUFSIZE: usize = 2048;
 fn do_(socket: UdpSocket, addr: SocketAddr) {
     let mut buf = [0; BUFSIZE];
 
-    socket.send_to(&browse_protocol::request_info_6(0), addr).unwrap();
+    socket
+        .send_to(&browse_protocol::request_info_6(0), addr)
+        .unwrap();
 
     loop {
         let (len, from) = socket.recv_from(&mut buf).unwrap();
         if from != addr {
-            error!("received response from non-peer, wanted={} got={}", addr, from);
+            error!(
+                "received response from non-peer, wanted={} got={}",
+                addr, from
+            );
             continue;
         }
 
@@ -29,10 +34,10 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
             Some(Response::Info6(x)) => {
                 println!("{:?}", x.parse().unwrap());
                 break;
-            },
+            }
             _ => {
                 error!("received non-info response from peer");
-            },
+            }
         }
     }
 }

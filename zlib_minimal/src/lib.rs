@@ -6,8 +6,8 @@
 extern crate libc;
 extern crate libz_sys as raw;
 
-use std::fmt;
 use libc::c_ulong;
+use std::fmt;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Error {
@@ -60,9 +60,14 @@ impl fmt::Debug for Error {
 pub fn uncompress(dest: &mut [u8], src: &[u8]) -> Result<usize, Error> {
     let mut output_size = dest.len() as c_ulong;
     Error::from_raw(unsafe {
-        raw::uncompress(dest.as_mut_ptr(), &mut output_size,
-                        src.as_ptr(), src.len() as c_ulong)
-    }).map(|()| output_size as usize)
+        raw::uncompress(
+            dest.as_mut_ptr(),
+            &mut output_size,
+            src.as_ptr(),
+            src.len() as c_ulong,
+        )
+    })
+    .map(|()| output_size as usize)
 }
 
 /// The wrapper for zlib's `compress` function.
@@ -73,9 +78,14 @@ pub fn uncompress(dest: &mut [u8], src: &[u8]) -> Result<usize, Error> {
 pub fn compress(dest: &mut [u8], src: &[u8]) -> Result<usize, Error> {
     let mut output_size = dest.len() as c_ulong;
     Error::from_raw(unsafe {
-        raw::compress(dest.as_mut_ptr(), &mut output_size,
-                      src.as_ptr(), src.len() as c_ulong)
-    }).map(|()| output_size as usize)
+        raw::compress(
+            dest.as_mut_ptr(),
+            &mut output_size,
+            src.as_ptr(),
+            src.len() as c_ulong,
+        )
+    })
+    .map(|()| output_size as usize)
 }
 
 /// The wrapper for zlib's `compressBound` function.
@@ -90,10 +100,14 @@ pub fn compress_vec(source: &[u8]) -> Result<Vec<u8>, Error> {
     let mut dest = Vec::with_capacity(upper_bound);
 
     // u8 has no destructor, this is safe
-    unsafe { dest.set_len(upper_bound); }
+    unsafe {
+        dest.set_len(upper_bound);
+    }
 
     let output_length = compress(&mut dest, source)?;
-    unsafe { dest.set_len(output_length); }
+    unsafe {
+        dest.set_len(output_length);
+    }
 
     Ok(dest)
 }

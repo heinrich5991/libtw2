@@ -1,9 +1,9 @@
 use common::num::Cast;
+use std::collections::hash_map;
+use std::collections::hash_map::Entry;
+use std::collections::vec_deque;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::collections::hash_map::Entry;
-use std::collections::hash_map;
-use std::collections::vec_deque;
 use std::default::Default;
 use std::iter;
 
@@ -14,7 +14,7 @@ use time::Timed;
 #[derive(Clone)]
 pub struct TimedWorkQueue<T> {
     now_queue: VecDeque<T>,
-    other_queues: HashMap<u64,VecDeque<Timed<T>>>,
+    other_queues: HashMap<u64, VecDeque<Timed<T>>>,
 }
 
 impl<T> TimedWorkQueue<T> {
@@ -31,7 +31,9 @@ impl<T> TimedWorkQueue<T> {
         }
     }
     fn duration_to_key(dur: Duration) -> u64 {
-        dur.milliseconds().try_u64().expect("Expected positive duration")
+        dur.milliseconds()
+            .try_u64()
+            .expect("Expected positive duration")
     }
     pub fn push(&mut self, dur: Duration, data: T) {
         let dur_k = TimedWorkQueue::<T>::duration_to_key(dur);
@@ -60,10 +62,14 @@ impl<T> TimedWorkQueue<T> {
         None
     }
     pub fn iter_now(&self) -> IterNow<T> {
-        IterNow { iter: self.now_queue.iter() }
+        IterNow {
+            iter: self.now_queue.iter(),
+        }
     }
     pub fn iter_other(&self) -> IterOther<T> {
-        fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<T> { vec_deque.iter() }
+        fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<T> {
+            vec_deque.iter()
+        }
         let map_fn: fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>> = ringbuf_iter;
         let mut iters = self.other_queues.values().map(map_fn);
         let first = iters.next();
@@ -74,15 +80,15 @@ impl<T> TimedWorkQueue<T> {
     }
 }
 
-pub struct IterNow<'a,T:'a> {
-    iter: vec_deque::Iter<'a,T>,
+pub struct IterNow<'a, T: 'a> {
+    iter: vec_deque::Iter<'a, T>,
 }
 
-pub struct IterOther<'a,T:'a> {
-    iter: Option<vec_deque::Iter<'a,Timed<T>>>,
+pub struct IterOther<'a, T: 'a> {
+    iter: Option<vec_deque::Iter<'a, Timed<T>>>,
     iters: iter::Map<
-        hash_map::Values<'a,u64,VecDeque<Timed<T>>>,
-        fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>
+        hash_map::Values<'a, u64, VecDeque<Timed<T>>>,
+        fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>>,
     >,
 }
 
@@ -96,21 +102,27 @@ impl<T> Default for TimedWorkQueue<T> {
     }
 }
 
-impl<'a,T> Clone for IterNow<'a,T> {
-    fn clone(&self) -> IterNow<'a,T> {
-        IterNow { iter: self.iter.clone() }
+impl<'a, T> Clone for IterNow<'a, T> {
+    fn clone(&self) -> IterNow<'a, T> {
+        IterNow {
+            iter: self.iter.clone(),
+        }
     }
 }
 
-impl<'a,T> Iterator for IterNow<'a,T> {
+impl<'a, T> Iterator for IterNow<'a, T> {
     type Item = &'a T;
-    fn next(&mut self) -> Option<&'a T> { self.iter.next() }
-    fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
+    fn next(&mut self) -> Option<&'a T> {
+        self.iter.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
 }
 
-impl<'a,T> ExactSizeIterator for IterNow<'a,T> { }
+impl<'a, T> ExactSizeIterator for IterNow<'a, T> {}
 
-impl<'a,T> Iterator for IterOther<'a,T> {
+impl<'a, T> Iterator for IterOther<'a, T> {
     type Item = &'a Timed<T>;
     fn next(&mut self) -> Option<&'a Timed<T>> {
         loop {
@@ -130,7 +142,10 @@ impl<'a,T> Iterator for IterOther<'a,T> {
     // TODO: implement `size_hint`
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, _upper) = match self.iter {
-            Some(ref i) => { let (l, u) = i.size_hint(); (l, u.unwrap()) },
+            Some(ref i) => {
+                let (l, u) = i.size_hint();
+                (l, u.unwrap())
+            }
             None => return (0, Some(0)),
         };
         (lower, None)

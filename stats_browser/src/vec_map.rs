@@ -10,8 +10,12 @@ pub trait Index: Copy {
 }
 
 impl Index for usize {
-    fn to_usize(self) -> usize { self }
-    fn from_usize(val: usize) -> usize { val }
+    fn to_usize(self) -> usize {
+        self
+    }
+    fn from_usize(val: usize) -> usize {
+        val
+    }
 }
 
 #[derive(Clone)]
@@ -42,7 +46,10 @@ impl<I: Index, T> ops::IndexMut<I> for VecMap<I, T> {
     }
 }
 
-pub type Iter<'a, I, T> = iter::FilterMap<iter::Enumerate<slice::Iter<'a, Option<T>>>, fn((usize, &Option<T>)) -> Option<(I, &T)>>;
+pub type Iter<'a, I, T> = iter::FilterMap<
+    iter::Enumerate<slice::Iter<'a, Option<T>>>,
+    fn((usize, &Option<T>)) -> Option<(I, &T)>,
+>;
 impl<I: Index, T> VecMap<I, T> {
     pub fn push(&mut self, element: T) -> I {
         let index = self.vec.len();
@@ -54,6 +61,9 @@ impl<I: Index, T> VecMap<I, T> {
             let elem = unwrap_or_return!(elem.as_ref(), None);
             Some((Index::from_usize(idx), elem))
         }
-        self.vec.iter().enumerate().filter_map(indexify_filter::<I, T>)
+        self.vec
+            .iter()
+            .enumerate()
+            .filter_map(indexify_filter::<I, T>)
     }
 }

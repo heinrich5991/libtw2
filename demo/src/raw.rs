@@ -1,20 +1,20 @@
 use arrayvec::ArrayVec;
-use buffer::Buffer;
-use buffer::with_buffer;
 use buffer;
+use buffer::with_buffer;
+use buffer::Buffer;
 use common::num::Cast;
 use common::num::LeI32;
-use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
-use packer::Unpacker;
+use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer;
-use warn::Warn;
+use packer::Unpacker;
 use warn;
+use warn::Warn;
 
 use bitmagic::CallbackExt;
-use format::MAX_SNAPSHOT_SIZE;
-use format::Warning;
 use format;
+use format::Warning;
+use format::MAX_SNAPSHOT_SIZE;
 
 fn huffman_error(e: huffman::DecompressionError) -> format::Error {
     use huffman::DecompressionError::*;
@@ -119,8 +119,9 @@ pub struct Reader {
 
 impl Reader {
     pub fn new<W, CB>(warn: &mut W, cb: &mut CB) -> Result<Reader, Error<CB::Error>>
-        where W: Warn<Warning>,
-              CB: Callback,
+    where
+        W: Warn<Warning>,
+        CB: Callback,
     {
         let header_version: format::HeaderVersionPacked =
             cb.read_raw().on_eof(format::Error::TooShortHeaderVersion)?;
@@ -128,14 +129,14 @@ impl Reader {
         let version = header_version.version;
         let version_byte = version.to_u8();
         match version {
-            format::Version::V4 | format::Version::V5 | format::Version::V6Ddnet => {},
+            format::Version::V4 | format::Version::V5 | format::Version::V6Ddnet => {}
             _ => return Err(format::Error::UnknownVersion(version_byte).into()),
         }
-        let header: format::HeaderPacked =
-            cb.read_raw().on_eof(format::Error::TooShortHeader)?;
+        let header: format::HeaderPacked = cb.read_raw().on_eof(format::Error::TooShortHeader)?;
         let header = header.unpack(warn)?;
-        let timeline_markers: format::TimelineMarkersPacked =
-            cb.read_raw().on_eof(format::Error::TooShortTimelineMarkers)?;
+        let timeline_markers: format::TimelineMarkersPacked = cb
+            .read_raw()
+            .on_eof(format::Error::TooShortTimelineMarkers)?;
         let timeline_markers = timeline_markers.unpack(warn)?;
         if version == format::Version::V6Ddnet {
             cb.skip(48).wrap()?;
@@ -175,12 +176,19 @@ impl Reader {
     pub fn timeline_markers(&self) -> &[format::Tick] {
         &self.i.timeline_markers.timeline_markers
     }
-    pub fn read_chunk<'a, W, CB>(&'a mut self, warn: &mut W, cb: &mut CB)
-        -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
-        where W: Warn<Warning>,
-              CB: Callback,
+    pub fn read_chunk<'a, W, CB>(
+        &'a mut self,
+        warn: &mut W,
+        cb: &mut CB,
+    ) -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+    where
+        W: Warn<Warning>,
+        CB: Callback,
     {
-        assert!(!self.error_encountered, "reading new chunks isn't supported after errors");
+        assert!(
+            !self.error_encountered,
+            "reading new chunks isn't supported after errors"
+        );
         let result = self.i.read_chunk(warn, cb);
         if let Err(_) = result {
             self.error_encountered = true;
@@ -190,10 +198,14 @@ impl Reader {
 }
 
 impl Inner {
-    pub fn read_chunk<'a, W, CB>(&'a mut self, warn: &mut W, cb: &mut CB)
-        -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
-        where W: Warn<Warning>,
-              CB: Callback,
+    pub fn read_chunk<'a, W, CB>(
+        &'a mut self,
+        warn: &mut W,
+        cb: &mut CB,
+    ) -> Result<Option<format::Chunk<'a>>, Error<CB::Error>>
+    where
+        W: Warn<Warning>,
+        CB: Callback,
     {
         use format::Chunk;
         use format::ChunkHeader;
@@ -237,14 +249,16 @@ impl Inner {
                     }
                 }
                 self.buffer2.clear();
-                HUFFMAN.decompress(&self.buffer1, &mut self.buffer2)
+                HUFFMAN
+                    .decompress(&self.buffer1, &mut self.buffer2)
                     .map_err(huffman_error)?;
                 if !matches!(type_, ChunkType::Snapshot | ChunkType::SnapshotDelta) {
                     self.buffer1.clear();
                     let mut u = Unpacker::new(&self.buffer2);
                     with_buffer(&mut self.buffer1, |mut buf| -> Result<(), format::Error> {
                         while !u.is_empty() {
-                            let i = u.read_int(&mut warn::rev_map(warn, packer_warning))
+                            let i = u
+                                .read_int(&mut warn::rev_map(warn, packer_warning))
                                 .map_err(packer_error)?;
                             let packed = LeI32::from_i32(i);
                             buf.write(packed.as_bytes()).map_err(buffer_error)?;

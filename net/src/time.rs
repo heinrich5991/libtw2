@@ -1,6 +1,6 @@
 use common::num::Cast;
-use optional::Optioned;
 use optional;
+use optional::Optioned;
 use std::cmp;
 use std::ops;
 use std::time::Duration;
@@ -26,9 +26,7 @@ impl Timestamp {
         }
     }
     pub fn from_usecs_since_epoch(usecs: u64) -> Timestamp {
-        Timestamp {
-            usec: usecs,
-        }
+        Timestamp { usec: usecs }
     }
     pub fn as_usecs_since_epoch(&self) -> u64 {
         self.usec
@@ -38,10 +36,18 @@ impl Timestamp {
 impl ops::Add<Duration> for Timestamp {
     type Output = Timestamp;
     fn add(self, duration: Duration) -> Timestamp {
-        Timestamp::from_usecs_since_epoch(self.usec.checked_add(
-            duration.as_secs().checked_mul(1_000_000_000).unwrap()
-            .checked_add(duration.subsec_nanos().u64()).unwrap()
-        ).unwrap())
+        Timestamp::from_usecs_since_epoch(
+            self.usec
+                .checked_add(
+                    duration
+                        .as_secs()
+                        .checked_mul(1_000_000_000)
+                        .unwrap()
+                        .checked_add(duration.subsec_nanos().u64())
+                        .unwrap(),
+                )
+                .unwrap(),
+        )
     }
 }
 

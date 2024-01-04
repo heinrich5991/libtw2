@@ -1,8 +1,9 @@
-#[macro_use] extern crate bencher;
+#[macro_use]
+extern crate bencher;
 extern crate common;
 
-use bencher::Bencher;
 use bencher::black_box;
+use bencher::Bencher;
 use common::num::Cast;
 
 fn u32_assert_u8(bench: &mut Bencher) {
@@ -27,8 +28,10 @@ fn u32_assert_u8_inline(bench: &mut Bencher) {
 fn u32_try_u8(bench: &mut Bencher) {
     fn helper() {
         match black_box(0u32).try_u8() {
-            Some(x) => { black_box(x); },
-            None => {},
+            Some(x) => {
+                black_box(x);
+            }
+            None => {}
         }
     }
     bench.iter(helper);
@@ -58,7 +61,8 @@ fn u8_u32_inline(bench: &mut Bencher) {
     bench.iter(helper);
 }
 
-benchmark_group!(cast,
+benchmark_group!(
+    cast,
     u32_assert_u8,
     u32_assert_u8_inline,
     u32_try_u8,

@@ -4,28 +4,29 @@ extern crate csv;
 extern crate itertools;
 extern crate logger;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate teehistorian;
 extern crate uuid;
 extern crate walkdir;
 
 use chrono::DateTime;
 use chrono::FixedOffset;
-use itertools::Itertools;
 use itertools::sorted;
+use itertools::Itertools;
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs::File;
-use std::io::Write;
 use std::io;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process;
 use std::slice;
+use teehistorian::format;
 use teehistorian::Buffer;
 use teehistorian::Reader;
-use teehistorian::format;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
@@ -64,7 +65,8 @@ struct HexU32(u32);
 
 impl serde::Serialize for HexU32 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         serializer.serialize_str(&format!("{:08x}", self.0))
     }
@@ -83,16 +85,16 @@ impl<'de> serde::de::Visitor<'de> for HexU32Visitor {
         if len != 8 {
             return Err(E::invalid_length(len, &self));
         }
-        let value = u32::from_str_radix(v, 16).map_err(|_| {
-            E::invalid_value(serde::de::Unexpected::Str(v), &self)
-        })?;
+        let value = u32::from_str_radix(v, 16)
+            .map_err(|_| E::invalid_value(serde::de::Unexpected::Str(v), &self))?;
         Ok(HexU32(value))
     }
 }
 
 impl<'de> serde::Deserialize<'de> for HexU32 {
     fn deserialize<D>(deserializer: D) -> Result<HexU32, D::Error>
-        where D: serde::de::Deserializer<'de>,
+    where
+        D: serde::de::Deserializer<'de>,
     {
         deserializer.deserialize_str(HexU32Visitor)
     }
@@ -133,8 +135,7 @@ fn contains<'a>(
     base: &mut slice::Iter<'a, ReadRecord>,
     writer: &mut csv::Writer<Box<dyn Write>>,
     path: &Path,
-) -> Result<bool, Error>
-{
+) -> Result<bool, Error> {
     let mut found = false;
     for record in base.peeking_take_while(|r| r.path <= path) {
         if record.path == path {
@@ -154,23 +155,17 @@ fn handle_dir<'a>(
     writer: &mut csv::Writer<Box<dyn Write>>,
     dir: &Path,
     config: &Config,
-) -> Result<(), ()>
-{
+) -> Result<(), ()> {
     fn helper<'a>(
         base: &mut slice::Iter<'a, ReadRecord>,
         writer: &mut csv::Writer<Box<dyn Write>>,
         dir: &Path,
         config: &Config,
-    ) -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
         let mut buffer = Buffer::new();
-        for entry in WalkDir::new(dir)
-            .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-        {
+        for entry in WalkDir::new(dir).sort_by(|a, b| a.file_name().cmp(b.file_name())) {
             let entry = entry?;
-            if !config.ignore_ext &&
-                entry.path().extension() != Some(OsStr::new("teehistorian"))
-            {
+            if !config.ignore_ext && entry.path().extension() != Some(OsStr::new("teehistorian")) {
                 continue;
             }
             if entry.file_type().is_dir() {
@@ -191,7 +186,7 @@ fn handle_dir<'a>(
                         map_crc: header.map_crc.into(),
                         map_size: header.map_size,
                     })?;
-                },
+                }
                 Err(e) => {
                     eprintln!("{}: {:?}", entry.path().display(), e);
                 }
@@ -199,8 +194,7 @@ fn handle_dir<'a>(
         }
         Ok(())
     }
-    helper(base, writer, dir, config)
-        .map_err(|e| eprintln!("{}: {:?}", dir.display(), e))
+    helper(base, writer, dir, config).map_err(|e| eprintln!("{}: {:?}", dir.display(), e))
 }
 
 // Why do I need a separate one for this. :(
@@ -224,7 +218,10 @@ fn read_index(path: &Path) -> Result<Vec<ReadRecord>, Error> {
             .map(|r| r.map_err(|e| e.into()))
             .collect()
     }
-    read(path).map(|mut v| { v.sort(); v })
+    read(path).map(|mut v| {
+        v.sort();
+        v
+    })
 }
 
 fn handle_args(
@@ -232,18 +229,16 @@ fn handle_args(
     output: Option<&Path>,
     dirs: Vec<PathBuf>,
     config: &Config,
-) -> Result<(), ()>
-{
-    let base = base.map(|b| {
-        read_index(b).map_err(|e| eprintln!("{}: {:?}", b.display(), e))
-    }).transpose()?.unwrap_or(Vec::new());
+) -> Result<(), ()> {
+    let base = base
+        .map(|b| read_index(b).map_err(|e| eprintln!("{}: {:?}", b.display(), e)))
+        .transpose()?
+        .unwrap_or(Vec::new());
 
     let mut base_iter = base.iter();
 
     let mut csv_out: csv::Writer<Box<dyn Write>> = csv::Writer::from_writer(match output {
-        Some(o) => Box::new(File::create(o).map_err(|e| {
-            eprintln!("{}: {:?}", o.display(), e)
-        })?),
+        Some(o) => Box::new(File::create(o).map_err(|e| eprintln!("{}: {:?}", o.display(), e))?),
         None => Box::new(io::stdout()),
     });
 
@@ -252,7 +247,9 @@ fn handle_args(
     }
 
     for record in base_iter {
-        csv_out.serialize(Record::from(record)).map_err(|e| eprintln!("{:?}", e))?;
+        csv_out
+            .serialize(Record::from(record))
+            .map_err(|e| eprintln!("{:?}", e))?;
     }
 
     Ok(())
@@ -265,30 +262,34 @@ fn main() {
     logger::init();
 
     let matches = App::new("Teehistorian indexer")
-        .about("Indexes folders of teehistorian files and dumps the index into \
-                a CSV file")
-        .arg(Arg::with_name("base")
-            .short("b")
-            .long("base")
-            .value_name("BASE")
-            .help("Sets a base index file")
+        .about(
+            "Indexes folders of teehistorian files and dumps the index into \
+                a CSV file",
         )
-        .arg(Arg::with_name("inplace")
-            .short("i")
-            .long("in-place")
-            .value_name("INDEX")
-            .help("Sets the index file to update")
-            .conflicts_with("base")
+        .arg(
+            Arg::with_name("base")
+                .short("b")
+                .long("base")
+                .value_name("BASE")
+                .help("Sets a base index file"),
         )
-        .arg(Arg::with_name("DIRECTORY")
-            .help("Directories to scan (current directory if none are given)")
-            .multiple(true)
+        .arg(
+            Arg::with_name("inplace")
+                .short("i")
+                .long("in-place")
+                .value_name("INDEX")
+                .help("Sets the index file to update")
+                .conflicts_with("base"),
         )
-        .arg(Arg::with_name("ignore-ext")
-            .long("--ignore-ext")
-            .help("Don't check for the .teehistorian file extension before \
-                   indexing a file")
+        .arg(
+            Arg::with_name("DIRECTORY")
+                .help("Directories to scan (current directory if none are given)")
+                .multiple(true),
         )
+        .arg(Arg::with_name("ignore-ext").long("--ignore-ext").help(
+            "Don't check for the .teehistorian file extension before \
+                   indexing a file",
+        ))
         .get_matches();
 
     let paths = matches.values_of_os("DIRECTORY");

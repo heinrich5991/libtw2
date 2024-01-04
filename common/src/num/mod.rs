@@ -78,10 +78,7 @@ impl BeI32 {
     }
     pub fn to_i32(self) -> i32 {
         let BeI32(v) = self;
-        (v[0] as i32) << 24
-            | (v[1] as i32) << 16
-            | (v[2] as i32) << 8
-            | v[3] as i32
+        (v[0] as i32) << 24 | (v[1] as i32) << 16 | (v[2] as i32) << 8 | v[3] as i32
     }
 }
 
@@ -96,10 +93,7 @@ impl LeI32 {
     }
     pub fn to_i32(self) -> i32 {
         let LeI32(v) = self;
-        (v[3] as i32) << 24
-            | (v[2] as i32) << 16
-            | (v[1] as i32) << 8
-            | v[0] as i32
+        (v[3] as i32) << 24 | (v[2] as i32) << 16 | (v[1] as i32) << 8 | v[0] as i32
     }
 }
 
@@ -114,10 +108,7 @@ impl BeU32 {
     }
     pub fn to_u32(self) -> u32 {
         let BeU32(v) = self;
-        (v[0] as u32) << 24
-            | (v[1] as u32) << 16
-            | (v[2] as u32) << 8
-            | v[3] as u32
+        (v[0] as u32) << 24 | (v[1] as u32) << 16 | (v[2] as u32) << 8 | v[3] as u32
     }
 }
 
@@ -181,9 +172,9 @@ mod test {
     use super::BeI32;
     use super::BeU16;
     use super::BeU32;
+    use super::LeI16;
     use super::LeI32;
     use super::LeU16;
-    use super::LeI16;
 
     quickcheck! {
         fn bei32_roundtrip(val: i32) -> bool { BeI32::from_i32(val).to_i32() == val }

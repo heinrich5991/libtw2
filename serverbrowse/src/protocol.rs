@@ -1,10 +1,10 @@
 use arrayvec::ArrayString;
+use common;
 use common::num::BeU16;
 use common::num::BeU32;
 use common::num::Cast;
 use common::num::LeU16;
 use common::str::truncated_arraystring;
-use common;
 use packer::Unpacker;
 use std::default::Default;
 use std::fmt;
@@ -14,40 +14,43 @@ use std::net::Ipv6Addr;
 use std::str;
 use warn::Ignore;
 
-const PLAYER_MAX_NAME_LENGTH: usize = 16-1;
-const PLAYER_MAX_CLAN_LENGTH: usize = 12-1;
-const MAX_CLIENTS_5:    u32 = 16;
+const PLAYER_MAX_NAME_LENGTH: usize = 16 - 1;
+const PLAYER_MAX_CLAN_LENGTH: usize = 12 - 1;
+const MAX_CLIENTS_5: u32 = 16;
 const MAX_CLIENTS_6_64: u32 = 64;
-const MAX_CLIENTS_7:    u32 = 64;
+const MAX_CLIENTS_7: u32 = 64;
 
 pub const MASTERSERVER_PORT: u16 = 8300;
 pub const MASTERSERVER_7_PORT: u16 = 8283;
 
 const HEADER_LEN: usize = 14;
 pub type Header = &'static [u8; HEADER_LEN];
-pub const REQUEST_LIST_5:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreqt";
-pub const REQUEST_LIST_6:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
-pub const LIST_5:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflist";
-pub const LIST_6:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
-pub const REQUEST_COUNT:     Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
-pub const COUNT:             Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
-pub const REQUEST_INFO_5:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie2";
-pub const REQUEST_INFO_6:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
+pub const REQUEST_LIST_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreqt";
+pub const REQUEST_LIST_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
+pub const LIST_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflist";
+pub const LIST_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
+pub const REQUEST_COUNT: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
+pub const COUNT: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
+pub const REQUEST_INFO_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie2";
+pub const REQUEST_INFO_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
 pub const REQUEST_INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfffstd";
 pub const REQUEST_INFO_6_EX: Header = b"xe\0\0\0\0\xff\xff\xff\xffgie3";
-pub const INFO_5:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
-pub const INFO_6:            Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
-pub const INFO_6_64:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
-pub const INFO_6_EX:         Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
-pub const INFO_6_EX_MORE:    Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
+pub const INFO_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
+pub const INFO_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
+pub const INFO_6_EX: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
+pub const INFO_6_EX_MORE: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
 
-pub const TOKEN_7:         &'static [u8;  8] = b"\x04\0\0\xff\xff\xff\xff\x05";
-pub const REQUEST_LIST_7:  &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
-pub const LIST_7:          &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
-pub const REQUEST_COUNT_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
-pub const COUNT_7:         &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
-pub const REQUEST_INFO_7:  &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
-pub const INFO_7:          &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const TOKEN_7: &'static [u8; 8] = b"\x04\0\0\xff\xff\xff\xff\x05";
+pub const REQUEST_LIST_7: &'static [u8; 17] =
+    b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffreq2";
+pub const LIST_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfflis2";
+pub const REQUEST_COUNT_7: &'static [u8; 17] =
+    b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffcou2";
+pub const COUNT_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffsiz2";
+pub const REQUEST_INFO_7: &'static [u8; 17] =
+    b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffgie3";
+pub const INFO_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
 
 pub const PACKETFLAG_CONNLESS: u8 = 1 << 6;
 pub const SERVERINFO_FLAG_PASSWORDED: i32 = 1 << 0;
@@ -59,12 +62,15 @@ pub const IPV4_MAPPING: [u8; 12] = [
 // dont-send-http-servers@mastersrv.ddnet.org
 // e02cb630-b680-38f6-81a6-da096e9696d1
 pub const NO_BACKCOMPAT: &'static [u8; 16] = &[
-    0xe0, 0x2c, 0xb6, 0x30, 0xb6, 0x80, 0x38, 0xf6,
-    0x81, 0xa6, 0xda, 0x09, 0x6e, 0x96, 0x96, 0xd1,
+    0xe0, 0x2c, 0xb6, 0x30, 0xb6, 0x80, 0x38, 0xf6, 0x81, 0xa6, 0xda, 0x09, 0x6e, 0x96, 0x96, 0xd1,
 ];
 
-pub fn request_list_5() -> [u8; 14] { *REQUEST_LIST_5 }
-pub fn request_list_6() -> [u8; 14] { *REQUEST_LIST_6 }
+pub fn request_list_5() -> [u8; 14] {
+    *REQUEST_LIST_5
+}
+pub fn request_list_6() -> [u8; 14] {
+    *REQUEST_LIST_6
+}
 pub fn request_list_7(own_token: u32, their_token: u32) -> [u8; 17] {
     let mut request = [0; 17];
     request.copy_from_slice(REQUEST_LIST_7);
@@ -101,9 +107,11 @@ pub fn request_info_6_64(challenge: u8) -> [u8; 15] {
     request_info(REQUEST_INFO_6_64, challenge)
 }
 pub fn request_info_6_ex(challenge: u32) -> [u8; 15] {
-    assert!(challenge & 0x00ff_ffff == challenge,
-        "only the lower 24 bits of challenge are used");
-    let mut request = [0; HEADER_LEN+1];
+    assert!(
+        challenge & 0x00ff_ffff == challenge,
+        "only the lower 24 bits of challenge are used"
+    );
+    let mut request = [0; HEADER_LEN + 1];
     request[..HEADER_LEN].copy_from_slice(REQUEST_INFO_6_EX);
     request[2] = ((challenge & 0x00ff_0000) >> 16) as u8;
     request[3] = ((challenge & 0x0000_ff00) >> 8) as u8;
@@ -118,8 +126,10 @@ pub fn request_token_7(own_token: u32) -> [u8; 520] {
     request
 }
 pub fn request_info_7(own_token: u32, their_token: u32, challenge: u8) -> [u8; 18] {
-    assert!(challenge & 0x3f == challenge,
-        "only the lower 6 bits of challenge can be used with this implementation");
+    assert!(
+        challenge & 0x3f == challenge,
+        "only the lower 6 bits of challenge can be used with this implementation"
+    );
     let mut request = [0; 18];
     request[..17].copy_from_slice(REQUEST_INFO_7);
     request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
@@ -128,7 +138,9 @@ pub fn request_info_7(own_token: u32, their_token: u32, challenge: u8) -> [u8; 1
     request
 }
 
-pub fn request_count() -> [u8; 14] { *REQUEST_COUNT }
+pub fn request_count() -> [u8; 14] {
+    *REQUEST_COUNT
+}
 pub fn request_count_nobackcompat() -> [u8; 30] {
     let mut request = [0; 30];
     request[..14].copy_from_slice(REQUEST_COUNT);
@@ -150,13 +162,11 @@ pub fn request_count_7_nobackcompat(own_token: u32, their_token: u32) -> [u8; 33
 }
 
 fn request_info(header: Header, challenge: u8) -> [u8; 15] {
-    let mut request = [0; HEADER_LEN+1];
+    let mut request = [0; HEADER_LEN + 1];
     request[..HEADER_LEN].copy_from_slice(header);
     request[HEADER_LEN] = challenge;
     request
 }
-
-
 
 #[derive(Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ClientInfo {
@@ -169,12 +179,10 @@ pub struct ClientInfo {
 
 impl fmt::Debug for ClientInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?} {:?} {:?} {:?} {:?}",
-            self.name,
-            self.clan,
-            self.country,
-            self.score,
-            self.is_player,
+        write!(
+            f,
+            "{:?} {:?} {:?} {:?} {:?}",
+            self.name, self.clan, self.country, self.score, self.is_player,
         )
     }
 }
@@ -217,20 +225,20 @@ impl ReceivedServerInfoVersion {
 impl ServerInfoVersion {
     pub fn max_clients(self) -> Option<u32> {
         Some(match self {
-            ServerInfoVersion::V5       => MAX_CLIENTS_5,
-            ServerInfoVersion::V6       => MAX_CLIENTS_5,
-            ServerInfoVersion::V664     => MAX_CLIENTS_6_64,
-            ServerInfoVersion::V6Ex     => return None,
-            ServerInfoVersion::V7       => MAX_CLIENTS_7,
+            ServerInfoVersion::V5 => MAX_CLIENTS_5,
+            ServerInfoVersion::V6 => MAX_CLIENTS_5,
+            ServerInfoVersion::V664 => MAX_CLIENTS_6_64,
+            ServerInfoVersion::V6Ex => return None,
+            ServerInfoVersion::V7 => MAX_CLIENTS_7,
         })
     }
     pub fn clients_per_packet(self) -> Option<u32> {
         Some(match self {
-            ServerInfoVersion::V5       => 16,
-            ServerInfoVersion::V6       => 16,
-            ServerInfoVersion::V664     => 24,
-            ServerInfoVersion::V6Ex     => return None,
-            ServerInfoVersion::V7       => 16,
+            ServerInfoVersion::V5 => 16,
+            ServerInfoVersion::V6 => 16,
+            ServerInfoVersion::V664 => 24,
+            ServerInfoVersion::V6Ex => return None,
+            ServerInfoVersion::V7 => 16,
         })
     }
     pub fn has_hostname(self) -> bool {
@@ -256,7 +264,11 @@ impl ServerInfoVersion {
     }
 }
 
-impl Default for ServerInfoVersion { fn default() -> ServerInfoVersion { ServerInfoVersion::V5 } }
+impl Default for ServerInfoVersion {
+    fn default() -> ServerInfoVersion {
+        ServerInfoVersion::V5
+    }
+}
 
 #[derive(Clone, Default, Eq, Hash, PartialEq)]
 pub struct ServerInfo {
@@ -287,7 +299,9 @@ impl ServerInfo {
 
 impl fmt::Debug for ServerInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}/{:?} {:?}/{:?}: {:?}",
+        write!(
+            f,
+            "{:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}/{:?} {:?}/{:?}: {:?}",
             self.info_version,
             self.token,
             self.version,
@@ -330,7 +344,7 @@ impl PartialServerInfo {
     }
     // TODO: What to do when the infos don't match?
     // Currently the other info is just ignored.
-    pub fn merge(&mut self, mut other: PartialServerInfo) -> Result<(),MergeError> {
+    pub fn merge(&mut self, mut other: PartialServerInfo) -> Result<(), MergeError> {
         if self.info.token != other.info.token {
             return Err(MergeError::DifferingTokens);
         }
@@ -350,9 +364,7 @@ impl PartialServerInfo {
         if self.received & other.received != 0 {
             return Err(MergeError::OverlappingInfos);
         }
-        if self.info.info_version == ServerInfoVersion::V6Ex &&
-            self.received & 1 == 0
-        {
+        if self.info.info_version == ServerInfoVersion::V6Ex && self.received & 1 == 0 {
             mem::swap(self, &mut other);
         }
         self.info.clients.extend(other.info.clients.into_iter());
@@ -387,14 +399,15 @@ fn debug_parse_fail(help: &str) -> Option<PartialServerInfo> {
     None
 }
 
-fn parse_server_info<RI,RS>(
+fn parse_server_info<RI, RS>(
     unpacker: &mut Unpacker,
     read_int: RI,
     read_str: RS,
     received_version: ReceivedServerInfoVersion,
 ) -> Option<PartialServerInfo>
-    where RI: FnMut(&mut Unpacker) -> Option<i32>,
-          RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a str>,
+where
+    RI: FnMut(&mut Unpacker) -> Option<i32>,
+    RS: for<'a> FnMut(&mut Unpacker<'a>) -> Option<&'a str>,
 {
     use self::debug_parse_fail as fail;
 
@@ -402,13 +415,17 @@ fn parse_server_info<RI,RS>(
     let mut read_str = read_str;
     let mut result = PartialServerInfo::new();
 
-    macro_rules! int { ($cause:expr) => {
-        unwrap_or_return!(read_int(unpacker), fail($cause))
-    } }
+    macro_rules! int {
+        ($cause:expr) => {
+            unwrap_or_return!(read_int(unpacker), fail($cause))
+        };
+    }
 
-    macro_rules! str { ($cause:expr) => {
-        truncated_arraystring(unwrap_or_return!(read_str(unpacker), fail($cause)))
-    } }
+    macro_rules! str {
+        ($cause:expr) => {
+            truncated_arraystring(unwrap_or_return!(read_str(unpacker), fail($cause)))
+        };
+    }
 
     let version: ServerInfoVersion = received_version.into();
 
@@ -433,7 +450,7 @@ fn parse_server_info<RI,RS>(
             } else {
                 i.hostname = None;
             }
-            i.map         = str!("map");
+            i.map = str!("map");
             if version.has_extended_map_info() {
                 i.map_crc = Some(int!("map_crc") as u32);
                 let map_size = int!("map_size");
@@ -445,8 +462,8 @@ fn parse_server_info<RI,RS>(
                 i.map_crc = None;
                 i.map_size = None;
             }
-            i.game_type   = str!("game_type");
-            i.flags       = int!("flags");
+            i.game_type = str!("game_type");
+            i.flags = int!("flags");
             if version.has_progression() {
                 i.progression = Some(int!("progression"));
             } else {
@@ -472,11 +489,17 @@ fn parse_server_info<RI,RS>(
             } else {
                 raw_offset = 0;
             }
-            if i.num_clients < 0 || i.num_clients > i.max_clients
+            if i.num_clients < 0
+                || i.num_clients > i.max_clients
                 || i.max_clients < 0
-                || version.max_clients().map(|m| i.max_clients > m.assert_i32()).unwrap_or(false)
-                || i.num_players < 0 || i.num_players > i.num_clients
-                || i.max_players < 0 || i.max_players > i.max_clients
+                || version
+                    .max_clients()
+                    .map(|m| i.max_clients > m.assert_i32())
+                    .unwrap_or(false)
+                || i.num_players < 0
+                || i.num_players > i.num_clients
+                || i.max_players < 0
+                || i.max_players > i.max_clients
             {
                 return fail("count sanity check");
             }
@@ -498,10 +521,10 @@ fn parse_server_info<RI,RS>(
             let clan;
             let country;
             if version.has_extended_player_info() {
-                clan    = str!("client_clan");
+                clan = str!("client_clan");
                 country = int!("client_country");
             } else {
-                clan    = Default::default();
+                clan = Default::default();
                 country = -1;
             }
             let score = int!("client_score");
@@ -534,7 +557,8 @@ fn parse_server_info<RI,RS>(
 }
 
 fn info_read_int_v5(unpacker: &mut Unpacker) -> Option<i32> {
-    unpacker.read_string()
+    unpacker
+        .read_string()
         .ok()
         .and_then(|x| str::from_utf8(x).ok())
         .and_then(|x| x.parse().ok())
@@ -545,7 +569,10 @@ fn info_read_int_v7(unpacker: &mut Unpacker) -> Option<i32> {
 }
 
 fn info_read_str<'a>(unpacker: &mut Unpacker<'a>) -> Option<&'a str> {
-    unpacker.read_string().ok().and_then(|s| str::from_utf8(s).ok())
+    unpacker
+        .read_string()
+        .ok()
+        .and_then(|s| str::from_utf8(s).ok())
 }
 
 impl<'a> Info5Response<'a> {
@@ -557,7 +584,11 @@ impl<'a> Info5Response<'a> {
             info_read_int_v5,
             info_read_str,
             ReceivedServerInfoVersion::Normal(ServerInfoVersion::V5),
-        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
+        )
+        .map(|mut raw| {
+            raw.info.sort_clients();
+            raw.info
+        })
     }
 }
 
@@ -570,7 +601,11 @@ impl<'a> Info6Response<'a> {
             info_read_int_v5,
             info_read_str,
             ReceivedServerInfoVersion::Normal(ServerInfoVersion::V6),
-        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
+        )
+        .map(|mut raw| {
+            raw.info.sort_clients();
+            raw.info
+        })
     }
 }
 
@@ -622,22 +657,38 @@ impl<'a> Info7Response<'a> {
             info_read_int_v7,
             info_read_str,
             ReceivedServerInfoVersion::Normal(ServerInfoVersion::V7),
-        ).map(|mut raw| { raw.info.sort_clients(); raw.info })
+        )
+        .map(|mut raw| {
+            raw.info.sort_clients();
+            raw.info
+        })
     }
 }
 
-#[derive(Copy, Clone)] pub struct Info5Response<'a>(pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct Info6Response<'a>(pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct Info664Response<'a>(pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct Info6ExResponse<'a>(pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct Info6ExMoreResponse<'a>(pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct Info7Response<'a>(pub u32, pub u32, pub &'a [u8]);
-#[derive(Copy, Clone)] pub struct CountResponse(pub u16);
-#[derive(Copy, Clone)] pub struct Count7Response(pub u32, pub u32, pub u16);
-#[derive(Copy, Clone)] pub struct List5Response<'a>(pub &'a [Addr5Packed]);
-#[derive(Copy, Clone)] pub struct List6Response<'a>(pub &'a [Addr6Packed]);
-#[derive(Copy, Clone)] pub struct List7Response<'a>(pub u32, pub u32, pub &'a [Addr6Packed]);
-#[derive(Copy, Clone)] pub struct Token7Response(pub u32, pub u32);
+#[derive(Copy, Clone)]
+pub struct Info5Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct Info6Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct Info664Response<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct Info6ExResponse<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct Info6ExMoreResponse<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct Info7Response<'a>(pub u32, pub u32, pub &'a [u8]);
+#[derive(Copy, Clone)]
+pub struct CountResponse(pub u16);
+#[derive(Copy, Clone)]
+pub struct Count7Response(pub u32, pub u32, pub u16);
+#[derive(Copy, Clone)]
+pub struct List5Response<'a>(pub &'a [Addr5Packed]);
+#[derive(Copy, Clone)]
+pub struct List6Response<'a>(pub &'a [Addr6Packed]);
+#[derive(Copy, Clone)]
+pub struct List7Response<'a>(pub u32, pub u32, pub &'a [Addr6Packed]);
+#[derive(Copy, Clone)]
+pub struct Token7Response(pub u32, pub u32);
 
 #[derive(Copy, Clone)]
 pub enum Response<'a> {
@@ -704,10 +755,13 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
                 *b = 0xff;
             }
             return match &header {
-                TOKEN_7 => Some(Response::Token7(Token7Response(own_token, parse_token(payload)?))),
+                TOKEN_7 => Some(Response::Token7(Token7Response(
+                    own_token,
+                    parse_token(payload)?,
+                ))),
                 _ => None,
             };
-        },
+        }
         Some(0x21) => {
             if data.len() < 17 {
                 return None;
@@ -725,13 +779,22 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
                 *b = 0xff;
             }
             return match &header {
-                LIST_7 => Some(Response::List7(List7Response(own_token, their_token, parse_list6(payload)))),
-                INFO_7 => Some(Response::Info7(Info7Response(own_token, their_token, payload))),
-                COUNT_7 => parse_count(payload).map(|x| Response::Count7(Count7Response(own_token, their_token, x))),
+                LIST_7 => Some(Response::List7(List7Response(
+                    own_token,
+                    their_token,
+                    parse_list6(payload),
+                ))),
+                INFO_7 => Some(Response::Info7(Info7Response(
+                    own_token,
+                    their_token,
+                    payload,
+                ))),
+                COUNT_7 => parse_count(payload)
+                    .map(|x| Response::Count7(Count7Response(own_token, their_token, x))),
                 _ => None,
             };
-        },
-        _ => {},
+        }
+        _ => {}
     }
     if data.len() < HEADER_LEN {
         return None;
@@ -823,7 +886,10 @@ impl fmt::Display for IpAddr {
     }
 }
 
-#[test] fn check_alignment_addr5_packed() { assert_eq!(mem::align_of::<Addr5Packed>(), 1); }
+#[test]
+fn check_alignment_addr5_packed() {
+    assert_eq!(mem::align_of::<Addr5Packed>(), 1);
+}
 
 impl Addr5Packed {
     pub fn unpack(self) -> Addr {
@@ -835,7 +901,10 @@ impl Addr5Packed {
     }
 }
 
-#[test] fn check_alignment_addr6_packed() { assert_eq!(mem::align_of::<Addr6Packed>(), 1); }
+#[test]
+fn check_alignment_addr6_packed() {
+    assert_eq!(mem::align_of::<Addr6Packed>(), 1);
+}
 
 impl Addr6Packed {
     pub fn unpack(self) -> Addr {
@@ -854,7 +923,12 @@ impl Addr6Packed {
                 ip_address[7].to_u16(),
             )
         } else {
-            IpAddr::new_v4(ipv4_address[0], ipv4_address[1], ipv4_address[2], ipv4_address[3])
+            IpAddr::new_v4(
+                ipv4_address[0],
+                ipv4_address[1],
+                ipv4_address[2],
+                ipv4_address[3],
+            )
         };
         Addr {
             ip_address: new_address,
@@ -865,13 +939,13 @@ impl Addr6Packed {
 
 #[cfg(test)]
 mod test {
-    use common::str::truncated_arraystring as b;
     use super::ClientInfo;
     use super::Info6ExMoreResponse;
     use super::Info6ExResponse;
     use super::Info6Response;
     use super::ServerInfo;
     use super::ServerInfoVersion;
+    use common::str::truncated_arraystring as b;
 
     #[test]
     fn parse_info_v6_real_world() {
@@ -961,15 +1035,69 @@ mod test {
             num_clients: 9,
             max_clients: 12,
             clients: vec![
-                ClientInfo { name: b("player1"), clan: b("clan1"), country: 1, score: 11, is_player: 0 },
-                ClientInfo { name: b("player2"), clan: b("clan2"), country: 2, score: 22, is_player: 0 },
-                ClientInfo { name: b("player3"), clan: b("clan3"), country: 3, score: 33, is_player: 1 },
-                ClientInfo { name: b("player4"), clan: b("clan4"), country: 4, score: 44, is_player: 0 },
-                ClientInfo { name: b("player5"), clan: b("clan5"), country: 5, score: 55, is_player: 0 },
-                ClientInfo { name: b("player6"), clan: b("clan6"), country: 6, score: 66, is_player: 0 },
-                ClientInfo { name: b("player7"), clan: b("clan7"), country: 7, score: 77, is_player: 1 },
-                ClientInfo { name: b("player8"), clan: b("clan8"), country: 8, score: 88, is_player: 1 },
-                ClientInfo { name: b("player9"), clan: b("clan9"), country: 9, score: 99, is_player: 0 },
+                ClientInfo {
+                    name: b("player1"),
+                    clan: b("clan1"),
+                    country: 1,
+                    score: 11,
+                    is_player: 0,
+                },
+                ClientInfo {
+                    name: b("player2"),
+                    clan: b("clan2"),
+                    country: 2,
+                    score: 22,
+                    is_player: 0,
+                },
+                ClientInfo {
+                    name: b("player3"),
+                    clan: b("clan3"),
+                    country: 3,
+                    score: 33,
+                    is_player: 1,
+                },
+                ClientInfo {
+                    name: b("player4"),
+                    clan: b("clan4"),
+                    country: 4,
+                    score: 44,
+                    is_player: 0,
+                },
+                ClientInfo {
+                    name: b("player5"),
+                    clan: b("clan5"),
+                    country: 5,
+                    score: 55,
+                    is_player: 0,
+                },
+                ClientInfo {
+                    name: b("player6"),
+                    clan: b("clan6"),
+                    country: 6,
+                    score: 66,
+                    is_player: 0,
+                },
+                ClientInfo {
+                    name: b("player7"),
+                    clan: b("clan7"),
+                    country: 7,
+                    score: 77,
+                    is_player: 1,
+                },
+                ClientInfo {
+                    name: b("player8"),
+                    clan: b("clan8"),
+                    country: 8,
+                    score: 88,
+                    is_player: 1,
+                },
+                ClientInfo {
+                    name: b("player9"),
+                    clan: b("clan9"),
+                    country: 9,
+                    score: 99,
+                    is_player: 0,
+                },
             ],
         };
         let info_p0 = Info6ExResponse(info_raw_p0).parse().unwrap();
@@ -985,6 +1113,5 @@ mod test {
         info.merge(info_p2).unwrap();
         println!("{:?}", info);
         assert_eq!(info.get_info(), Some(&wanted));
-
     }
 }

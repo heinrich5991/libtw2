@@ -35,11 +35,11 @@ fn process(path: &Path, json: bool) -> Result<(), Error> {
             Item::TickStart(t) => {
                 assert!(tick.is_none());
                 tick = Some(t);
-            },
+            }
             Item::TickEnd(t) => {
                 assert_eq!(tick, Some(t));
                 tick = None;
-            },
+            }
             _ => {
                 if !first {
                     if json {
@@ -50,14 +50,18 @@ fn process(path: &Path, json: bool) -> Result<(), Error> {
                 }
                 if json {
                     let stdout = io::stdout();
-                    serde_json::to_writer(stdout.lock(), &TickAndItem {
-                        tick: tick.unwrap(),
-                        item: item,
-                    }).unwrap();
+                    serde_json::to_writer(
+                        stdout.lock(),
+                        &TickAndItem {
+                            tick: tick.unwrap(),
+                            item: item,
+                        },
+                    )
+                    .unwrap();
                 } else {
                     println!("{} {:?}", tick.expect("in tick"), item);
                 }
-            },
+            }
         }
     }
     assert!(tick.is_none());
@@ -75,15 +79,19 @@ fn main() {
     logger::init();
 
     let matches = App::new("Teehistorian reader")
-        .about("Reads teehistorian file and dumps its contents in a human-readable\
-                text stream")
-        .arg(Arg::with_name("TEEHISTORIAN")
-            .help("Sets the teehistorian file to dump")
-            .required(true)
+        .about(
+            "Reads teehistorian file and dumps its contents in a human-readable\
+                text stream",
         )
-        .arg(Arg::with_name("json")
-            .long("json")
-            .help("Output machine-readable JSON")
+        .arg(
+            Arg::with_name("TEEHISTORIAN")
+                .help("Sets the teehistorian file to dump")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("json")
+                .long("json")
+                .help("Output machine-readable JSON"),
         )
         .get_matches();
 
@@ -91,7 +99,7 @@ fn main() {
     let json = matches.is_present("json");
 
     match process(path, json) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!("{}: {:?}", path.display(), err);
             process::exit(1);

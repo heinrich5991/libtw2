@@ -1,10 +1,10 @@
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
 use common::num::Cast;
 use common::pretty;
-use huffman::instances::TEEWORLDS as HUFFMAN;
 use huffman;
+use huffman::instances::TEEWORLDS as HUFFMAN;
 use std::cmp;
 use std::fmt;
 use warn::Ignore;
@@ -22,19 +22,19 @@ pub const MAX_PACKETSIZE: usize = 1400;
 // HEADER_SIZE - CHUNK_HEADER_SIZE_VITAL).
 pub const MAX_PAYLOAD: usize = 1390;
 
-pub const PACKETFLAG_CONTROL:        u8 = 1 << 0;
+pub const PACKETFLAG_CONTROL: u8 = 1 << 0;
 pub const PACKETFLAG_REQUEST_RESEND: u8 = 1 << 1;
-pub const PACKETFLAG_COMPRESSION:    u8 = 1 << 2;
-pub const PACKETFLAG_CONNLESS:       u8 = 1 << 3;
+pub const PACKETFLAG_COMPRESSION: u8 = 1 << 2;
+pub const PACKETFLAG_CONNLESS: u8 = 1 << 3;
 
-pub const CHUNKFLAG_VITAL:  u8 = 1 << 0;
+pub const CHUNKFLAG_VITAL: u8 = 1 << 0;
 pub const CHUNKFLAG_RESEND: u8 = 1 << 1;
 
-pub const CTRLMSG_KEEPALIVE:     u8 = 0;
-pub const CTRLMSG_CONNECT:       u8 = 1;
-pub const CTRLMSG_ACCEPT:        u8 = 2;
-pub const CTRLMSG_CLOSE:         u8 = 4;
-pub const CTRLMSG_TOKEN:         u8 = 5;
+pub const CTRLMSG_KEEPALIVE: u8 = 0;
+pub const CTRLMSG_CONNECT: u8 = 1;
+pub const CTRLMSG_ACCEPT: u8 = 2;
+pub const CTRLMSG_CLOSE: u8 = 4;
+pub const CTRLMSG_TOKEN: u8 = 5;
 
 pub const CONNLESS_VERSION: u8 = 1;
 pub const CTRLMSG_CLOSE_REASON_LENGTH: usize = 127;
@@ -100,8 +100,10 @@ impl<'a> fmt::Debug for ControlPacket<'a> {
             ControlPacket::KeepAlive => f.debug_tuple("KeepAlive").finish(),
             ControlPacket::Connect(rt) => f.debug_tuple("Connect").field(rt).finish(),
             ControlPacket::Accept => f.debug_tuple("Accept").finish(),
-            ControlPacket::Close(reason) =>
-                f.debug_tuple("Close").field(&pretty::AlmostString::new(reason)).finish(),
+            ControlPacket::Close(reason) => f
+                .debug_tuple("Close")
+                .field(&pretty::AlmostString::new(reason))
+                .finish(),
             ControlPacket::Token(rt) => f.debug_tuple("Token").field(rt).finish(),
         }
     }
@@ -127,27 +129,30 @@ impl<'a> Packet<'a> {
         if packet.len() > MAX_PACKETSIZE {
             return false;
         }
-        let (header, _) = unwrap_or_return!(
-            PacketHeaderPacked::from_byte_slice(packet),
-            false
-        );
+        let (header, _) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(packet), false);
         let header = header.unpack_warn(&mut Ignore);
-        header.flags & PACKETFLAG_CONNLESS == 0 &&
-            header.flags & PACKETFLAG_COMPRESSION != 0
+        header.flags & PACKETFLAG_CONNLESS == 0 && header.flags & PACKETFLAG_COMPRESSION != 0
     }
     /// Parse a packet.
     ///
     /// `buffer` needs to have at least size `MAX_PAYLOAD`.
-    pub fn read<'b, B, W>(warn: &mut W, bytes: &'b [u8], buffer: B)
-        -> Result<Packet<'b>, PacketReadError>
-        where B: Buffer<'b>,
-              W: Warn<Warning>,
+    pub fn read<'b, B, W>(
+        warn: &mut W,
+        bytes: &'b [u8],
+        buffer: B,
+    ) -> Result<Packet<'b>, PacketReadError>
+    where
+        B: Buffer<'b>,
+        W: Warn<Warning>,
     {
         with_buffer(buffer, |b| Packet::read_impl(warn, bytes, Some(b)))
     }
-    pub fn read_panic_on_decompression<'b, W>(warn: &mut W, bytes: &'b [u8])
-        -> Result<Packet<'b>, PacketReadError>
-        where W: Warn<Warning>,
+    pub fn read_panic_on_decompression<'b, W>(
+        warn: &mut W,
+        bytes: &'b [u8],
+    ) -> Result<Packet<'b>, PacketReadError>
+    where
+        W: Warn<Warning>,
     {
         Packet::read_impl(warn, bytes, None)
     }
@@ -156,18 +161,26 @@ impl<'a> Packet<'a> {
         bytes: &'d [u8],
         buffer: Option<BufferRef<'d, 's>>,
     ) -> Result<Packet<'d>, PacketReadError>
-        where W: Warn<Warning>,
+    where
+        W: Warn<Warning>,
     {
         use self::PacketReadError::*;
 
-        assert!(buffer.as_ref().map(|b| b.remaining() >= MAX_PACKETSIZE).unwrap_or(true));
+        assert!(buffer
+            .as_ref()
+            .map(|b| b.remaining() >= MAX_PACKETSIZE)
+            .unwrap_or(true));
         if bytes.len() > MAX_PACKETSIZE {
             return Err(TooLong);
         }
-        let (header, payload) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes), Err(TooShort));
+        let (header, payload) =
+            unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes), Err(TooShort));
         let header = header.unpack_warn(warn);
         if header.flags & PACKETFLAG_CONNLESS != 0 {
-            let (header, payload) = unwrap_or_return!(PacketHeaderConnlessPacked::from_byte_slice(bytes), Err(TooShort));
+            let (header, payload) = unwrap_or_return!(
+                PacketHeaderConnlessPacked::from_byte_slice(bytes),
+                Err(TooShort)
+            );
             let header = header.unpack_warn(warn);
             if header.version != CONNLESS_VERSION {
                 return Err(UnknownConnlessVersion);
@@ -184,11 +197,10 @@ impl<'a> Packet<'a> {
         }
 
         let payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
-            let mut buffer = buffer.expect("read_panic_on_decompression called on compressed packet");
-            let decompressed = Packet::decompress(bytes, &mut buffer)
-                .map_err(|_| Compression)?;
-            let (_, payload) = PacketHeaderPacked::from_byte_slice(decompressed)
-                .unwrap();
+            let mut buffer =
+                buffer.expect("read_panic_on_decompression called on compressed packet");
+            let decompressed = Packet::decompress(bytes, &mut buffer).map_err(|_| Compression)?;
+            let (_, payload) = PacketHeaderPacked::from_byte_slice(decompressed).unwrap();
             payload
         } else {
             payload
@@ -210,8 +222,7 @@ impl<'a> Packet<'a> {
                 warn.warn(Warning::ControlFlags);
             }
 
-            let (&control, payload) = unwrap_or_return!(payload.split_first(),
-                                                        Err(ControlMissing));
+            let (&control, payload) = unwrap_or_return!(payload.split_first(), Err(ControlMissing));
             let empty = |warn: &mut W| {
                 if !payload.is_empty() {
                     warn.warn(Warning::ControlExcessData);
@@ -231,16 +242,17 @@ impl<'a> Packet<'a> {
                 CTRLMSG_KEEPALIVE => {
                     empty(warn);
                     ControlPacket::KeepAlive
-                },
-                CTRLMSG_CONNECT => {
-                    ControlPacket::Connect(token(warn, true)?)
-                },
+                }
+                CTRLMSG_CONNECT => ControlPacket::Connect(token(warn, true)?),
                 CTRLMSG_ACCEPT => {
                     empty(warn);
                     ControlPacket::Accept
-                },
+                }
                 CTRLMSG_CLOSE => {
-                    let nul = payload.iter().position(|&b| b == 0).unwrap_or(payload.len());
+                    let nul = payload
+                        .iter()
+                        .position(|&b| b == 0)
+                        .unwrap_or(payload.len());
                     let nul = cmp::min(nul, CTRLMSG_CLOSE_REASON_LENGTH);
                     if payload.len() != 0 && nul + 1 != payload.len() {
                         if nul + 1 < payload.len() {
@@ -250,17 +262,17 @@ impl<'a> Packet<'a> {
                         }
                     }
                     ControlPacket::Close(&payload[..nul])
-                },
+                }
                 CTRLMSG_TOKEN => {
                     if header.token == TOKEN_NONE && bytes.len() < TOKEN_REQUEST_PACKET_SIZE {
-                        return Err(ControlTokenRequestTooShort)
+                        return Err(ControlTokenRequestTooShort);
                     }
                     ControlPacket::Token(token(warn, header.token != TOKEN_NONE)?)
-                },
+                }
                 _ => {
                     // Unrecognized control packet.
                     return Err(UnknownControl);
-                },
+                }
             };
 
             ConnectedPacketType::Control(control)
@@ -278,9 +290,10 @@ impl<'a> Packet<'a> {
         }))
     }
     /// `buffer` needs to have at least size `MAX_PACKETSIZE`.
-    pub fn decompress_if_needed<B: Buffer<'a>>(packet: &[u8], buffer: B)
-        -> Result<bool, huffman::DecompressionError>
-    {
+    pub fn decompress_if_needed<B: Buffer<'a>>(
+        packet: &[u8],
+        buffer: B,
+    ) -> Result<bool, huffman::DecompressionError> {
         with_buffer(buffer, |b| Packet::decompress_if_needed_impl(packet, b))
     }
     fn decompress_if_needed_impl<'d, 's>(
@@ -295,14 +308,16 @@ impl<'a> Packet<'a> {
         Ok(true)
     }
 
-    fn decompress<B: Buffer<'a>>(packet: &[u8], buffer: B)
-        -> Result<&'a [u8], huffman::DecompressionError>
-    {
+    fn decompress<B: Buffer<'a>>(
+        packet: &[u8],
+        buffer: B,
+    ) -> Result<&'a [u8], huffman::DecompressionError> {
         with_buffer(buffer, |b| Packet::decompress_impl(packet, b))
     }
-    fn decompress_impl<'d, 's>(packet: &[u8], mut buffer: BufferRef<'d, 's>)
-        -> Result<&'d [u8], huffman::DecompressionError>
-    {
+    fn decompress_impl<'d, 's>(
+        packet: &[u8],
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], huffman::DecompressionError> {
         assert!(buffer.remaining() >= MAX_PACKETSIZE);
         assert!(Packet::needs_decompression(packet));
         let (header, payload) = PacketHeaderPacked::from_byte_slice(packet)
@@ -323,7 +338,6 @@ impl<'a> Packet<'a> {
         Ok(buffer.initialized())
     }
 }
-
 
 #[derive(Clone, Copy, Debug)]
 pub struct ConnectedPacket<'a> {
@@ -377,7 +391,8 @@ impl<'a> ChunksIter<'a> {
         self.initial_len - self.data.len()
     }
     pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
-        where W: Warn<Warning>
+    where
+        W: Warn<Warning>,
     {
         if self.data.len() == 0 {
             if !self.checked_num_chunks_warning {
@@ -388,10 +403,8 @@ impl<'a> ChunksIter<'a> {
             }
             return None;
         }
-        let (header, sequence, chunk_data_and_rest) = unwrap_or_return!(
-            read_chunk_header(warn, self.data),
-            self.excess_data(warn)
-        );
+        let (header, sequence, chunk_data_and_rest) =
+            unwrap_or_return!(read_chunk_header(warn, self.data), self.excess_data(warn));
         let vital = sequence.map(|s| (s, header.flags & CHUNKFLAG_RESEND != 0));
         let size = header.size.usize();
         if chunk_data_and_rest.len() < size {
@@ -418,7 +431,7 @@ impl<'a> Iterator for ChunksIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for ChunksIter<'a> { }
+impl<'a> ExactSizeIterator for ChunksIter<'a> {}
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
@@ -432,7 +445,7 @@ pub struct PacketHeaderPacked {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PacketHeader {
     pub flags: u8, // u4
-    pub ack: u16, // u10
+    pub ack: u16,  // u10
     pub num_chunks: u8,
     pub token: Token,
 }
@@ -447,7 +460,7 @@ pub struct PacketHeaderConnlessPacked {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PacketHeaderConnless {
-    pub flags: u8, // u4
+    pub flags: u8,   // u4
     pub version: u8, // u2
     pub token: Token,
     pub response_token: Token,
@@ -455,7 +468,12 @@ pub struct PacketHeaderConnless {
 
 impl PacketHeaderPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> PacketHeader {
-        let PacketHeaderPacked { padding_flags_ack, ack, num_chunks, token } = self;
+        let PacketHeaderPacked {
+            padding_flags_ack,
+            ack,
+            num_chunks,
+            token,
+        } = self;
         if padding_flags_ack & 0b1100_0000 != 0 {
             warn.warn(Warning::PacketHeaderPadding);
         }
@@ -473,7 +491,12 @@ impl PacketHeaderPacked {
 
 impl PacketHeader {
     pub fn pack(self) -> PacketHeaderPacked {
-        let PacketHeader { flags, ack, num_chunks, token } = self;
+        let PacketHeader {
+            flags,
+            ack,
+            num_chunks,
+            token,
+        } = self;
         // Check that the fields do not exceed their maximal size.
         assert!(flags >> PACKET_FLAGS_BITS == 0);
         assert!(ack >> SEQUENCE_BITS == 0);
@@ -488,7 +511,11 @@ impl PacketHeader {
 
 impl PacketHeaderConnlessPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> PacketHeaderConnless {
-        let PacketHeaderConnlessPacked { padding_flags_version, token, response_token } = self;
+        let PacketHeaderConnlessPacked {
+            padding_flags_version,
+            token,
+            response_token,
+        } = self;
         if padding_flags_version & 0b1100_0000 != 0 {
             warn.warn(Warning::PacketHeaderPadding);
         }
@@ -506,7 +533,12 @@ impl PacketHeaderConnlessPacked {
 
 impl PacketHeaderConnless {
     pub fn pack(self) -> PacketHeaderConnlessPacked {
-        let PacketHeaderConnless { flags, version, token, response_token } = self;
+        let PacketHeaderConnless {
+            flags,
+            version,
+            token,
+            response_token,
+        } = self;
         // Check that the fields do not exceed their maximal size.
         assert!(flags >> PACKET_FLAGS_BITS == 0);
         assert!(version >> VERSION_BITS == 0);
@@ -533,22 +565,25 @@ pub struct ChunkHeaderVital {
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct ChunkHeaderPacked {
-    flags_size: u8, // u2 u6
+    flags_size: u8,   // u2 u6
     padding_size: u8, // u2 u6
 }
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct ChunkHeaderVitalPacked {
-    flags_size: u8, // u2 u6
+    flags_size: u8,    // u2 u6
     sequence_size: u8, // u2 u6
     sequence: u8,
 }
 
 /// -> Some((chunk_header, sequence, rest))
-pub fn read_chunk_header<'a, W>(warn: &mut W, data: &'a [u8])
-    -> Option<(ChunkHeader, Option<u16>, &'a [u8])>
-    where W: Warn<Warning>,
+pub fn read_chunk_header<'a, W>(
+    warn: &mut W,
+    data: &'a [u8],
+) -> Option<(ChunkHeader, Option<u16>, &'a [u8])>
+where
+    W: Warn<Warning>,
 {
     let (raw_header, chunk_data_and_rest) =
         unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(data));
@@ -567,7 +602,10 @@ pub fn read_chunk_header<'a, W>(warn: &mut W, data: &'a [u8])
 
 impl ChunkHeaderPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeader {
-        let ChunkHeaderPacked { flags_size, padding_size } = self;
+        let ChunkHeaderPacked {
+            flags_size,
+            padding_size,
+        } = self;
         if padding_size & 0b1111_0000 != 0 {
             warn.warn(Warning::ChunkHeaderPadding);
         }
@@ -590,19 +628,24 @@ impl ChunkHeader {
         assert!(size >> CHUNK_SIZE_BITS == 0);
         ChunkHeaderPacked {
             flags_size: (flags & 0b11) << 6 | ((size & 0b1111_1100_0000) >> 6) as u8,
-            padding_size: (size & 0b0000_0011_1111) as u8
+            padding_size: (size & 0b0000_0011_1111) as u8,
         }
     }
 }
 
 impl ChunkHeaderVitalPacked {
     pub fn unpack_warn<W: Warn<Warning>>(self, warn: &mut W) -> ChunkHeaderVital {
-        let ChunkHeaderVitalPacked { flags_size, sequence_size, sequence } = self;
+        let ChunkHeaderVitalPacked {
+            flags_size,
+            sequence_size,
+            sequence,
+        } = self;
         ChunkHeaderVital {
             h: ChunkHeaderPacked {
                 flags_size: flags_size,
                 padding_size: sequence_size & 0b0011_1111,
-            }.unpack_warn(warn),
+            }
+            .unpack_warn(warn),
             sequence: ((sequence_size & 0b1100_0000) as u16) << 2
                 | ((sequence & 0b1111_1111) as u16),
         }
@@ -616,20 +659,37 @@ impl ChunkHeaderVital {
     pub fn pack(self) -> ChunkHeaderVitalPacked {
         let ChunkHeaderVital { h, sequence } = self;
         assert!(sequence >> SEQUENCE_BITS == 0);
-        let ChunkHeaderPacked { flags_size, padding_size } = h.pack();
+        let ChunkHeaderPacked {
+            flags_size,
+            padding_size,
+        } = h.pack();
         ChunkHeaderVitalPacked {
             flags_size: flags_size,
-            sequence_size: (padding_size & 0b0011_1111)
-                | ((sequence & 0b11_0000_0000) >> 2) as u8,
+            sequence_size: (padding_size & 0b0011_1111) | ((sequence & 0b11_0000_0000) >> 2) as u8,
             sequence: (sequence & 0b00_1111_1111) as u8,
         }
     }
 }
 
 unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_ph_align);
-unsafe_boilerplate_packed!(PacketHeaderConnlessPacked, HEADER_SIZE_CONNLESS, test_phc_size, test_phc_align);
-unsafe_boilerplate_packed!(ChunkHeaderPacked, CHUNK_HEADER_SIZE, test_ch_size, test_ch_align);
-unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, CHUNK_HEADER_SIZE_VITAL, test_chv_size, test_chv_align);
+unsafe_boilerplate_packed!(
+    PacketHeaderConnlessPacked,
+    HEADER_SIZE_CONNLESS,
+    test_phc_size,
+    test_phc_align
+);
+unsafe_boilerplate_packed!(
+    ChunkHeaderPacked,
+    CHUNK_HEADER_SIZE,
+    test_ch_size,
+    test_ch_align
+);
+unsafe_boilerplate_packed!(
+    ChunkHeaderVitalPacked,
+    CHUNK_HEADER_SIZE_VITAL,
+    test_chv_size,
+    test_chv_align
+);
 
 #[cfg(test)]
 #[rustfmt::skip]

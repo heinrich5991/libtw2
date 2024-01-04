@@ -23,10 +23,10 @@ pub struct Buffer {
     data: Vec<Vec<u8>>,
 }
 
-pub type DataIter<'a> = MapIterator<&'a [u8],&'a Buffer,ops::Range<usize>>;
-pub type Items<'a> = MapIterator<ItemView<'a>,&'a Buffer,ops::Range<usize>>;
-pub type ItemTypes<'a> = MapIterator<u16,&'a Buffer,ops::Range<usize>>;
-pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>,&'a Buffer,ops::Range<usize>>;
+pub type DataIter<'a> = MapIterator<&'a [u8], &'a Buffer, ops::Range<usize>>;
+pub type Items<'a> = MapIterator<ItemView<'a>, &'a Buffer, ops::Range<usize>>;
+pub type ItemTypes<'a> = MapIterator<u16, &'a Buffer, ops::Range<usize>>;
+pub type ItemTypeItems<'a> = MapIterator<ItemView<'a>, &'a Buffer, ops::Range<usize>>;
 
 impl Buffer {
     pub fn new() -> Buffer {
@@ -47,7 +47,12 @@ impl Buffer {
         (self.item_types.len(), false)
     }
 
-    fn get_item_index(&self, item_type_index: usize, item_type_found: bool, id: u16) -> (usize, bool) {
+    fn get_item_index(
+        &self,
+        item_type_index: usize,
+        item_type_found: bool,
+        id: u16,
+    ) -> (usize, bool) {
         if !item_type_found {
             if item_type_index != self.item_types.len() {
                 (self.item_types[item_type_index].start, false)
@@ -57,11 +62,13 @@ impl Buffer {
         } else {
             let ItemType { start, num, .. } = self.item_types[item_type_index];
 
-            for (i, &Item { id: other_id, .. })
-                in self.items[start..][..num].iter().enumerate().map(|(i, x)| (start+i, x)) {
-
+            for (i, &Item { id: other_id, .. }) in self.items[start..][..num]
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (start + i, x))
+            {
                 if id <= other_id {
-                    return (i, id == other_id)
+                    return (i, id == other_id);
                 }
             }
 
@@ -70,14 +77,21 @@ impl Buffer {
     }
 
     pub fn item_type(&self, index: usize) -> u16 {
-        self.item_types.get(index).expect("Invalid type index").type_id
+        self.item_types
+            .get(index)
+            .expect("Invalid type index")
+            .type_id
     }
     pub fn num_item_types(&self) -> usize {
         self.item_types.len()
     }
 
     pub fn item<'a>(&'a self, index: usize) -> ItemView<'a> {
-        let Item { type_id, id, ref data } = self.items[index];
+        let Item {
+            type_id,
+            id,
+            ref data,
+        } = self.items[index];
         ItemView {
             type_id: type_id,
             id: id,
@@ -98,10 +112,10 @@ impl Buffer {
     pub fn item_type_indices(&self, type_id: u16) -> ops::Range<usize> {
         let (type_index, type_found) = self.get_item_type_index(type_id);
         if !type_found {
-            return 0..0
+            return 0..0;
         }
         let item_type = self.item_types[type_index];
-        item_type.start..item_type.start+item_type.num
+        item_type.start..item_type.start + item_type.num
     }
 
     pub fn items(&self) -> Items {
@@ -132,7 +146,7 @@ impl Buffer {
         MapIterator::new(self, 0..self.num_data(), map_fn)
     }
 
-    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(),()> {
+    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), ()> {
         let (type_index, type_found) = self.get_item_type_index(type_id);
         let (item_index, item_found) = self.get_item_index(type_index, type_found, id);
 
@@ -144,11 +158,14 @@ impl Buffer {
 
         // if there isn't a type with such an id yet, insert it
         if !type_found {
-            self.item_types.insert(type_index, ItemType {
-                type_id: type_id,
-                start: item_index,
-                num: 0,
-            });
+            self.item_types.insert(
+                type_index,
+                ItemType {
+                    type_id: type_id,
+                    start: item_index,
+                    num: 0,
+                },
+            );
         }
 
         // we're going to insert an item, increase the count by one
@@ -160,11 +177,14 @@ impl Buffer {
         }
 
         // actually insert the item
-        self.items.insert(item_index, Item {
-            type_id: type_id,
-            id: id,
-            data: data.to_vec(),
-        });
+        self.items.insert(
+            item_index,
+            Item {
+                type_id: type_id,
+                id: id,
+                data: data.to_vec(),
+            },
+        );
 
         Ok(())
     }

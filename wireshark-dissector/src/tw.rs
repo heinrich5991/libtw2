@@ -1,9 +1,9 @@
+use crate::c;
+use crate::Counter;
+use crate::HFRI_DEFAULT;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use crate::Counter;
-use crate::HFRI_DEFAULT;
-use crate::c;
 use format::Bitfield;
 use format::CommaSeparated;
 use format::NumBytes;
@@ -55,8 +55,7 @@ static mut HF_CHUNK_HEADER_SEQ: c_int = -1;
 static mut SPEC: Option<Spec> = None;
 
 fn unpack_header(data: &[u8]) -> Option<protocol::PacketHeader> {
-    let (raw_header, _) =
-        protocol::PacketHeaderPacked::from_byte_slice(data)?;
+    let (raw_header, _) = protocol::PacketHeaderPacked::from_byte_slice(data)?;
     Some(raw_header.unpack_warn(&mut Ignore))
 }
 
@@ -74,9 +73,7 @@ unsafe extern "C" fn dissect_heur(
     dissect_impl(tvb, pinfo, ttree).is_ok() as c_int
 }
 
-unsafe fn dissect_heur_impl(
-    tvb: *mut sys::tvbuff_t,
-) -> Result<(), ()> {
+unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
     let len = sys::tvb_reported_length(tvb).usize();
     let mut original_buffer = Vec::with_capacity(len);
     let mut decompress_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
@@ -85,7 +82,8 @@ unsafe fn dissect_heur_impl(
     let data: &[u8] = &original_buffer;
 
     let mut warnings = Counter::new();
-    let packet = protocol::Packet::read(&mut warnings, data, None, &mut decompress_buffer).map_err(|_| ())?;
+    let packet = protocol::Packet::read(&mut warnings, data, None, &mut decompress_buffer)
+        .map_err(|_| ())?;
     if !warnings.is_empty() {
         return Err(());
     }
@@ -96,9 +94,9 @@ unsafe fn dissect_heur_impl(
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
             let mut iter = protocol::ChunksIter::new(chunks_data, num_chunks);
-            while let Some(_) = iter.next_warn(&mut warnings) { }
-        },
-        _ => {},
+            while let Some(_) = iter.next_warn(&mut warnings) {}
+        }
+        _ => {}
     }
     if !warnings.is_empty() {
         return Err(());
@@ -191,11 +189,22 @@ unsafe fn dissect_impl(
     if connless {
         flags_description.add("connectionless");
     } else {
-        if compression { flags_description.add("compressed"); }
-        if request_resend { flags_description.add("resend requested"); }
-        if ctrl { flags_description.add("control"); }
+        if compression {
+            flags_description.add("compressed");
+        }
+        if request_resend {
+            flags_description.add("resend requested");
+        }
+        if ctrl {
+            flags_description.add("control");
+        }
     }
-    let flags_field = field_uint!(tree, HF_PACKET_FLAGS, 0, 1, header.flags,
+    let flags_field = field_uint!(
+        tree,
+        HF_PACKET_FLAGS,
+        0,
+        1,
+        header.flags,
         "Flags: {} ({})",
         flags_description.or("none"),
         Bitfield::new(&data[0..1], 0b1111_0000),
@@ -203,71 +212,138 @@ unsafe fn dissect_impl(
     let flag_tree = sys::proto_item_add_subtree(flags_field, ETT_PACKET_FLAGS);
 
     if !connless {
-        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_COMPRESSION,
+            0,
+            compression,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_COMPRESSION.u64() << 4),
-            if compression { "Compressed" } else { "Not compressed" },
+            if compression {
+                "Compressed"
+            } else {
+                "Not compressed"
+            },
         );
-        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, request_resend,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_REQUEST_RESEND,
+            0,
+            request_resend,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_REQUEST_RESEND.u64() << 4),
-            if request_resend { "Resend requested" } else { "No resend requested" },
+            if request_resend {
+                "Resend requested"
+            } else {
+                "No resend requested"
+            },
         );
     } else {
-        field_boolean!(flag_tree, HF_PACKET_COMPRESSION, 0, compression,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_COMPRESSION,
+            0,
+            compression,
             "{} = Not compressed (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
-        field_boolean!(flag_tree, HF_PACKET_REQUEST_RESEND, 0, request_resend,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_REQUEST_RESEND,
+            0,
+            request_resend,
             "{} = No resend requested (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
     }
-    field_boolean!(flag_tree, HF_PACKET_CONNLESS, 0, connless,
+    field_boolean!(
+        flag_tree,
+        HF_PACKET_CONNLESS,
+        0,
+        connless,
         "{} = {}",
         Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONNLESS.u64() << 4),
-        if connless { "Connectionless" } else { "Connection-oriented" },
+        if connless {
+            "Connectionless"
+        } else {
+            "Connection-oriented"
+        },
     );
     if !connless {
-        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_CONTROL,
+            0,
+            ctrl,
             "{} = {}",
             Bitfield::new(&data[0..1], protocol::PACKETFLAG_CONTROL.u64() << 4),
-            if ctrl { "Control message" } else { "Not a control message" },
+            if ctrl {
+                "Control message"
+            } else {
+                "Not a control message"
+            },
         );
     } else {
-        field_boolean!(flag_tree, HF_PACKET_CONTROL, 0, ctrl,
+        field_boolean!(
+            flag_tree,
+            HF_PACKET_CONTROL,
+            0,
+            ctrl,
             "{} = Not a control message (implied by being connectionless)",
             Bitfield::new(&data[0..1], 0),
         );
     }
     if !connless {
         // TODO: Warn if `padding != 0`.
-        field_uint!(tree, HF_PACKET_ACK, 0, 2, header.ack,
+        field_uint!(
+            tree,
+            HF_PACKET_ACK,
+            0,
+            2,
+            header.ack,
             "Acknowledged sequence number: {} ({})",
             header.ack,
             Bitfield::new(&data[0..2], 0b0000_0011_1111_1111),
         );
         if !ctrl {
-            field_uint!(tree, HF_PACKET_NUM_CHUNKS, 2, 1, header.num_chunks,
+            field_uint!(
+                tree,
+                HF_PACKET_NUM_CHUNKS,
+                2,
+                1,
+                header.num_chunks,
                 "Number of chunks: {}",
                 header.num_chunks,
             );
         }
     }
 
-    field_bytes!(tree, HF_PACKET_PAYLOAD, header_size, len.assert_i32() - header_size,
+    field_bytes!(
+        tree,
+        HF_PACKET_PAYLOAD,
+        header_size,
+        len.assert_i32() - header_size,
         "{} ({})",
-        if !compression { "Payload" } else { "Compressed payload" },
+        if !compression {
+            "Payload"
+        } else {
+            "Compressed payload"
+        },
         NumBytes::new(len - header_size.assert_usize()),
     );
 
-    let compression_protocol = protocol::Packet::decompress_if_needed(data, &mut decompress_buffer)
-        .map_err(|_| ())?;
+    let compression_protocol =
+        protocol::Packet::decompress_if_needed(data, &mut decompress_buffer).map_err(|_| ())?;
     if compression_protocol {
         let buffer = sys::wmem_alloc((*pinfo).pool, decompress_buffer.len()) as *mut u8;
         slice::from_raw_parts_mut(buffer, decompress_buffer.len())
             .copy_from_slice(&decompress_buffer);
-        tvb = sys::tvb_new_child_real_data(tvb, buffer, decompress_buffer.len().assert_u32(), decompress_buffer.len().assert_i32());
+        tvb = sys::tvb_new_child_real_data(
+            tvb,
+            buffer,
+            decompress_buffer.len().assert_u32(),
+            decompress_buffer.len().assert_i32(),
+        );
         sys::add_new_data_source(pinfo, tvb, c("Decompressed Teeworlds packet\0"));
         data = &decompress_buffer;
     }
@@ -277,11 +353,16 @@ unsafe fn dissect_impl(
     let packet = protocol::Packet::read(&mut Ignore, data, None, &mut buffer).map_err(|_| ())?;
 
     if let protocol::Packet::Connected(protocol::ConnectedPacket {
-        token: Some(token),
-        ..
-    }) = packet {
+        token: Some(token), ..
+    }) = packet
+    {
         let end = data.len().assert_i32() - 3;
-        field_uint!(tree, HF_PACKET_TOKEN, end - 4, 4, u32::from_be_bytes(token.0),
+        field_uint!(
+            tree,
+            HF_PACKET_TOKEN,
+            end - 4,
+            4,
+            u32::from_be_bytes(token.0),
             "Token: {}",
             token,
         );
@@ -300,10 +381,18 @@ unsafe fn dissect_impl(
                 KeepAlive => ("Keep alive", "ctrl.keep_alive\0"),
                 Connect => ("Connect", "ctrl.connect\0"),
                 ConnectAccept => ("Accept connection", "ctrl.accept_connection\0"),
-                Accept => ("Acknowledge connection acceptance", "ctrl.ack_accept_connection\0"),
+                Accept => (
+                    "Acknowledge connection acceptance",
+                    "ctrl.ack_accept_connection\0",
+                ),
                 Close(_) => ("Disconnect", "ctrl.disconnect\0"),
             };
-            field_uint!(tree, HF_PACKET_CTRL, 0, 1, ctrl_raw,
+            field_uint!(
+                tree,
+                HF_PACKET_CTRL,
+                0,
+                1,
+                ctrl_raw,
                 "Control message: {} ({})",
                 ctrl_str,
                 ctrl_raw,
@@ -311,14 +400,22 @@ unsafe fn dissect_impl(
             match ctrl {
                 Connect | ConnectAccept => {
                     if token.is_some() {
-                        field_none!(tree, HF_PACKET_TOKEN_MAGIC, 1, 4,
+                        field_none!(
+                            tree,
+                            HF_PACKET_TOKEN_MAGIC,
+                            1,
+                            4,
                             "Magic bytes for DDNet token protocol: \"TKEN\"",
                         );
                     }
                 }
                 Close(reason) => {
                     let reason_cstring = CString::new(reason).unwrap();
-                    field_string!(tree, HF_PACKET_CTRL_CLOSE_REASON, 1, reason.len().assert_i32(),
+                    field_string!(
+                        tree,
+                        HF_PACKET_CTRL_CLOSE_REASON,
+                        1,
+                        reason.len().assert_i32(),
                         reason_cstring.as_ptr(),
                         "Reason: {:?}",
                         pretty::AlmostString::new(reason),
@@ -327,7 +424,7 @@ unsafe fn dissect_impl(
                 _ => {}
             }
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, c(ctrl_id));
-        },
+        }
         protocol::Packet::Connected(protocol::ConnectedPacket {
             token: _,
             ack: _,
@@ -344,105 +441,170 @@ unsafe fn dissect_impl(
                 } else {
                     continue;
                 };
-                let mut flags_description: CommaSeparated<[u8; 256]> =
-                    CommaSeparated::new();
+                let mut flags_description: CommaSeparated<[u8; 256]> = CommaSeparated::new();
                 let resend = header.flags & protocol::CHUNKFLAG_RESEND != 0;
                 let vital = header.flags & protocol::CHUNKFLAG_VITAL != 0;
-                if resend { flags_description.add("re-sent"); }
-                if vital { flags_description.add("vital"); }
+                if resend {
+                    flags_description.add("re-sent");
+                }
+                if vital {
+                    flags_description.add("vital");
+                }
 
                 let chunk_header_size = 2 + (sequence.is_some() as usize);
                 let chunk_size = chunk_header_size + header.size.usize();
-                let ti = sys::proto_tree_add_item(ttree, PROTO_CHUNK, tvb, offset.assert_i32(), chunk_size.assert_i32(), sys::ENC_NA);
+                let ti = sys::proto_tree_add_item(
+                    ttree,
+                    PROTO_CHUNK,
+                    tvb,
+                    offset.assert_i32(),
+                    chunk_size.assert_i32(),
+                    sys::ENC_NA,
+                );
                 let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
                 let header_desc_add = if resend { ", re-sent" } else { "" };
                 let th = if let Some(seq) = sequence {
-                    field_none!(tree, HF_CHUNK_HEADER, offset.assert_i32(), if vital { 3 } else { 2 },
-                        "Header (vital: {}{})", seq, header_desc_add,
+                    field_none!(
+                        tree,
+                        HF_CHUNK_HEADER,
+                        offset.assert_i32(),
+                        if vital { 3 } else { 2 },
+                        "Header (vital: {}{})",
+                        seq,
+                        header_desc_add,
                     )
                 } else {
-                    field_none!(tree, HF_CHUNK_HEADER, offset.assert_i32(), if vital { 3 } else { 2 },
-                        "Header (non-vital{})", header_desc_add,
+                    field_none!(
+                        tree,
+                        HF_CHUNK_HEADER,
+                        offset.assert_i32(),
+                        if vital { 3 } else { 2 },
+                        "Header (non-vital{})",
+                        header_desc_add,
                     )
                 };
                 let header_tree = sys::proto_item_add_subtree(th, ETT_CHUNK_HEADER);
 
-                let flags_field = field_uint!(header_tree, HF_CHUNK_HEADER_FLAGS, offset.assert_i32(), 1, header.flags,
+                let flags_field = field_uint!(
+                    header_tree,
+                    HF_CHUNK_HEADER_FLAGS,
+                    offset.assert_i32(),
+                    1,
+                    header.flags,
                     "Flags: {} ({})",
                     flags_description.or("none"),
-                    Bitfield::new(&data[offset..offset+1], 0b1100_0000),
+                    Bitfield::new(&data[offset..offset + 1], 0b1100_0000),
                 );
                 let flag_tree = sys::proto_item_add_subtree(flags_field, ETT_CHUNK_HEADER_FLAGS);
-                field_boolean!(flag_tree, HF_CHUNK_HEADER_RESEND, 0, resend,
+                field_boolean!(
+                    flag_tree,
+                    HF_CHUNK_HEADER_RESEND,
+                    0,
+                    resend,
                     "{} = {}",
-                    Bitfield::new(&data[offset..offset+1], protocol::CHUNKFLAG_RESEND.u64() << 6),
-                    if ctrl { "Was re-sent" } else { "Was sent for the first time" },
+                    Bitfield::new(
+                        &data[offset..offset + 1],
+                        protocol::CHUNKFLAG_RESEND.u64() << 6
+                    ),
+                    if ctrl {
+                        "Was re-sent"
+                    } else {
+                        "Was sent for the first time"
+                    },
                 );
-                field_boolean!(flag_tree, HF_CHUNK_HEADER_VITAL, 0, vital,
+                field_boolean!(
+                    flag_tree,
+                    HF_CHUNK_HEADER_VITAL,
+                    0,
+                    vital,
                     "{} = {}",
-                    Bitfield::new(&data[offset..offset+1], protocol::CHUNKFLAG_VITAL.u64() << 6),
-                    if vital { "Will be transferred reliably" } else { "Will not be transferred reliably" },
+                    Bitfield::new(
+                        &data[offset..offset + 1],
+                        protocol::CHUNKFLAG_VITAL.u64() << 6
+                    ),
+                    if vital {
+                        "Will be transferred reliably"
+                    } else {
+                        "Will not be transferred reliably"
+                    },
                 );
-                field_uint!(header_tree, HF_CHUNK_HEADER_SIZE, offset.assert_i32(), 2, header.size,
+                field_uint!(
+                    header_tree,
+                    HF_CHUNK_HEADER_SIZE,
+                    offset.assert_i32(),
+                    2,
+                    header.size,
                     "Size: {} ({})",
                     NumBytes::new(header.size.usize()),
-                    Bitfield::new(&data[offset..offset+2], 0b0011_1111_0000_1111),
+                    Bitfield::new(&data[offset..offset + 2], 0b0011_1111_0000_1111),
                 );
                 if let Some(s) = sequence {
-                    field_uint!(header_tree, HF_CHUNK_HEADER_SEQ, offset.assert_i32() + 1, 2, s,
+                    field_uint!(
+                        header_tree,
+                        HF_CHUNK_HEADER_SEQ,
+                        offset.assert_i32() + 1,
+                        2,
+                        s,
                         "Sequence number: {} ({})",
                         s,
-                        Bitfield::new(&data[offset+1..offset+3], 0b1100_0000_1111_1111),
+                        Bitfield::new(&data[offset + 1..offset + 3], 0b1100_0000_1111_1111),
                     );
                 }
 
-                let mut p = Unpacker::new(&data[..offset+chunk_size]);
+                let mut p = Unpacker::new(&data[..offset + chunk_size]);
                 p.read_raw(offset).unwrap();
                 p.read_raw(chunk_header_size).unwrap();
                 let mut first_summary = true;
-                spec.dissect(tree, tvb, &mut p,
-                    &mut |summary| {
-                        if !summaries.is_empty() {
-                            summaries.push_str(", ");
-                        }
-                        let summary_c = CString::new(summary).unwrap();
-                        sys::proto_item_append_text(ti, c("%s%s\0"),
-                            if first_summary { c(": \0") } else { c(", \0") },
-                            summary_c.as_ptr(),
-                        );
-                        first_summary = false;
-                        summaries.push_str(summary);
-                    }
-                );
-            }
-            let info = CString::new(summaries).unwrap();
-            sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
-        }
-        protocol::Packet::Connless(message) => {
-            let ti = sys::proto_tree_add_item(ttree, PROTO_CHUNK, tvb, 0, len.assert_i32() - header_size, sys::ENC_NA);
-            let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
-
-            let mut p = Unpacker::new(message);
-            let mut summaries = String::new();
-            let mut first_summary = true;
-            spec.dissect_connless(tree, tvb, &mut p,
-                &mut |summary| {
+                spec.dissect(tree, tvb, &mut p, &mut |summary| {
                     if !summaries.is_empty() {
                         summaries.push_str(", ");
                     }
                     let summary_c = CString::new(summary).unwrap();
-                    sys::proto_item_append_text(ti, c("%s%s\0"),
+                    sys::proto_item_append_text(
+                        ti,
+                        c("%s%s\0"),
                         if first_summary { c(": \0") } else { c(", \0") },
                         summary_c.as_ptr(),
                     );
                     first_summary = false;
                     summaries.push_str(summary);
-                }
-            );
+                });
+            }
             let info = CString::new(summaries).unwrap();
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
-        },
+        }
+        protocol::Packet::Connless(message) => {
+            let ti = sys::proto_tree_add_item(
+                ttree,
+                PROTO_CHUNK,
+                tvb,
+                0,
+                len.assert_i32() - header_size,
+                sys::ENC_NA,
+            );
+            let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
+
+            let mut p = Unpacker::new(message);
+            let mut summaries = String::new();
+            let mut first_summary = true;
+            spec.dissect_connless(tree, tvb, &mut p, &mut |summary| {
+                if !summaries.is_empty() {
+                    summaries.push_str(", ");
+                }
+                let summary_c = CString::new(summary).unwrap();
+                sys::proto_item_append_text(
+                    ti,
+                    c("%s%s\0"),
+                    if first_summary { c(": \0") } else { c(", \0") },
+                    summary_c.as_ptr(),
+                );
+                first_summary = false;
+                summaries.push_str(summary);
+            });
+            let info = CString::new(summaries).unwrap();
+            sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
+        }
     }
     Ok(())
 }
@@ -581,7 +743,11 @@ pub unsafe extern "C" fn proto_register() {
         c("twp\0"),
     );
 
-    sys::proto_register_field_array(PROTO_PACKET, fields_info.as_mut_ptr(), fields_info.len().assert_i32());
+    sys::proto_register_field_array(
+        PROTO_PACKET,
+        fields_info.as_mut_ptr(),
+        fields_info.len().assert_i32(),
+    );
     sys::proto_register_subtree_array(etts.as_ptr(), etts.len().assert_i32());
 
     register_chunk_protocol(SPEC.as_ref().unwrap());
@@ -589,7 +755,14 @@ pub unsafe extern "C" fn proto_register() {
 
 pub unsafe extern "C" fn proto_reg_handoff() {
     PROTO_PACKET_HANDLE = sys::create_dissector_handle(Some(dissect), PROTO_PACKET);
-    sys::heur_dissector_add(c("udp\0"), Some(dissect_heur), c("TW over UDP\0"), c("tw_udp\0"), PROTO_PACKET, sys::HEURISTIC_ENABLE);
+    sys::heur_dissector_add(
+        c("udp\0"),
+        Some(dissect_heur),
+        c("TW over UDP\0"),
+        c("tw_udp\0"),
+        PROTO_PACKET,
+        sys::HEURISTIC_ENABLE,
+    );
     sys::dissector_add_for_decode_as(c("udp.port\0"), PROTO_PACKET_HANDLE);
 }
 
@@ -607,78 +780,85 @@ fn register_chunk_protocol(spec: &Spec) {
     }
     let mut fields_info = Vec::new();
     let mut etts = Vec::new();
-    fields_info.extend_from_slice(&unsafe {[
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Header\0"),
-                abbrev: c("tw.chunk\0"),
-                type_: sys::FT_NONE,
-                ..HFRI_DEFAULT
+    fields_info.extend_from_slice(&unsafe {
+        [
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Header\0"),
+                    abbrev: c("tw.chunk\0"),
+                    type_: sys::FT_NONE,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER_FLAGS as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Flags\0"),
-                abbrev: c("tw.chunk.flags\0"),
-                type_: sys::FT_UINT8,
-                display: sys::BASE_DEC as c_int,
-                ..HFRI_DEFAULT
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER_FLAGS as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Flags\0"),
+                    abbrev: c("tw.chunk.flags\0"),
+                    type_: sys::FT_UINT8,
+                    display: sys::BASE_DEC as c_int,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER_RESEND as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Resend\0"),
-                abbrev: c("tw.chunk.flags.resend\0"),
-                type_: sys::FT_BOOLEAN,
-                ..HFRI_DEFAULT
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER_RESEND as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Resend\0"),
+                    abbrev: c("tw.chunk.flags.resend\0"),
+                    type_: sys::FT_BOOLEAN,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER_VITAL as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Vital\0"),
-                abbrev: c("tw.chunk.flags.vital\0"),
-                type_: sys::FT_BOOLEAN,
-                ..HFRI_DEFAULT
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER_VITAL as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Vital\0"),
+                    abbrev: c("tw.chunk.flags.vital\0"),
+                    type_: sys::FT_BOOLEAN,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER_SIZE as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Size\0"),
-                abbrev: c("tw.chunk.size\0"),
-                type_: sys::FT_UINT16,
-                display: sys::BASE_DEC as c_int,
-                ..HFRI_DEFAULT
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER_SIZE as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Size\0"),
+                    abbrev: c("tw.chunk.size\0"),
+                    type_: sys::FT_UINT16,
+                    display: sys::BASE_DEC as c_int,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-        sys::hf_register_info {
-            p_id: &HF_CHUNK_HEADER_SEQ as *const _ as *mut _,
-            hfinfo: sys::_header_field_info {
-                name: c("Sequence number\0"),
-                abbrev: c("tw.chunk.seq\0"),
-                type_: sys::FT_UINT16,
-                display: sys::BASE_DEC as c_int,
-                ..HFRI_DEFAULT
+            sys::hf_register_info {
+                p_id: &HF_CHUNK_HEADER_SEQ as *const _ as *mut _,
+                hfinfo: sys::_header_field_info {
+                    name: c("Sequence number\0"),
+                    abbrev: c("tw.chunk.seq\0"),
+                    type_: sys::FT_UINT16,
+                    display: sys::BASE_DEC as c_int,
+                    ..HFRI_DEFAULT
+                },
             },
-        },
-    ]});
-    etts.extend_from_slice(&unsafe {[
-        &ETT_CHUNK as *const _ as *mut _,
-        &ETT_CHUNK_HEADER as *const _ as *mut _,
-        &ETT_CHUNK_HEADER_FLAGS as *const _ as *mut _,
-    ]});
-    spec.field_register_info(
-        &mut |hfri| fields_info.push(hfri),
-        &mut |ett| etts.push(ett),
-    );
+        ]
+    });
+    etts.extend_from_slice(&unsafe {
+        [
+            &ETT_CHUNK as *const _ as *mut _,
+            &ETT_CHUNK_HEADER as *const _ as *mut _,
+            &ETT_CHUNK_HEADER_FLAGS as *const _ as *mut _,
+        ]
+    });
+    spec.field_register_info(&mut |hfri| fields_info.push(hfri), &mut |ett| {
+        etts.push(ett)
+    });
     let fields_info = Box::leak(fields_info.into_boxed_slice());
     let etts = Box::leak(etts.into_boxed_slice());
     unsafe {
-        sys::proto_register_field_array(PROTO_CHUNK, fields_info.as_mut_ptr(), fields_info.len().assert_i32());
+        sys::proto_register_field_array(
+            PROTO_CHUNK,
+            fields_info.as_mut_ptr(),
+            fields_info.len().assert_i32(),
+        );
         sys::proto_register_subtree_array(etts.as_ptr(), etts.len().assert_i32());
     }
 }

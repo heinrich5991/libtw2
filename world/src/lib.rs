@@ -117,9 +117,7 @@ pub struct Angle {
 
 impl Angle {
     pub fn from_radians(radians: f32) -> Angle {
-        Angle {
-            radians: radians,
-        }
+        Angle { radians: radians }
     }
     pub fn to_degrees(self) -> f32 {
         self.radians / 2.0 / PI * 360.0
@@ -243,17 +241,25 @@ impl Hook {
     fn net_hooked_player(&self) -> i32 {
         self.hooked_player().map(|c| c.0 as i32).unwrap_or(-1)
     }
-    fn from_net(hook_state: i32, pos: vec2, dir: vec2, hooked_player: i32, hook_tick: Tick) -> Hook {
+    fn from_net(
+        hook_state: i32,
+        pos: vec2,
+        dir: vec2,
+        hooked_player: i32,
+        hook_tick: Tick,
+    ) -> Hook {
         // TODO: Warn on weird values.
         match hook_state {
             HOOK_RETRACTED => Hook::Retracted,
             HOOK_IDLE => Hook::Idle,
             HOOK_FLYING => Hook::Flying(pos, dir),
-            HOOK_ATTACHED_GRABBED => if hooked_player == -1 {
-                Hook::Attached(pos)
-            } else {
-                Hook::Grabbed(CharacterId(hooked_player as u32), hook_tick.0 as u32)
-            },
+            HOOK_ATTACHED_GRABBED => {
+                if hooked_player == -1 {
+                    Hook::Attached(pos)
+                } else {
+                    Hook::Grabbed(CharacterId(hooked_player as u32), hook_tick.0 as u32)
+                }
+            }
             HOOK_RETRACTING0 => Hook::Retracting0(pos),
             HOOK_RETRACTING1 => Hook::Retracting1(pos),
             HOOK_RETRACTING2 => Hook::Retracting2(pos),
@@ -359,7 +365,7 @@ pub trait Collision {
         if dist > 0.00001 {
             let end = dist.round_to_i32();
             let fraction = 1.0 / (end + 1) as f32;
-            for _ in 0..end+1 {
+            for _ in 0..end + 1 {
                 let mut new_pos = pos + vel * fraction;
                 if self.check_box(new_pos, box_) {
                     let mut hit = false;
@@ -401,27 +407,43 @@ impl Character {
             move_direction: Default::default(),
         }
     }
-    pub fn tick<C, OC>(&mut self,
-                       collision: &mut C,
-                       other_characters: &mut OC,
-                       input: PlayerInput,
-                       tuning: &SvTuneParams)
-        where C: Collision,
-              OC: OtherCharacters,
+    pub fn tick<C, OC>(
+        &mut self,
+        collision: &mut C,
+        other_characters: &mut OC,
+        input: PlayerInput,
+        tuning: &SvTuneParams,
+    ) where
+        C: Collision,
+        OC: OtherCharacters,
     {
         // Code copied from CCharacterCore::Tick
 
         const SIZE: f32 = CHARACTER_SIZE;
         let bottom_left = self.pos + vec2::new(-SIZE / 2.0, SIZE / 2.0 + 5.0);
         let bottom_right = self.pos + vec2::new(SIZE / 2.0, SIZE / 2.0 + 5.0);
-        let grounded =
-            collision.check_point(bottom_left).is_some() ||
-            collision.check_point(bottom_right).is_some();
+        let grounded = collision.check_point(bottom_left).is_some()
+            || collision.check_point(bottom_right).is_some();
 
         let target_dir = vec2::new(input.target_x as f32, input.target_y as f32).normalize();
-        let max_speed = (if grounded { tuning.ground_control_speed } else { tuning.air_control_speed }).to_float();
-        let accel = (if grounded { tuning.ground_control_accel } else { tuning.air_control_accel }).to_float();
-        let friction = (if grounded { tuning.ground_friction } else { tuning.air_friction }).to_float();
+        let max_speed = (if grounded {
+            tuning.ground_control_speed
+        } else {
+            tuning.air_control_speed
+        })
+        .to_float();
+        let accel = (if grounded {
+            tuning.ground_control_accel
+        } else {
+            tuning.air_control_accel
+        })
+        .to_float();
+        let friction = (if grounded {
+            tuning.ground_friction
+        } else {
+            tuning.air_friction
+        })
+        .to_float();
 
         self.move_direction = MoveDirection::from_int(input.direction);
         self.angle = target_dir.angle();
@@ -450,7 +472,12 @@ impl Character {
             self.hook = Hook::Idle;
         }
 
-        self.vel.x = saturated_add(-max_speed, max_speed, self.vel.x, self.move_direction.as_float() * accel);
+        self.vel.x = saturated_add(
+            -max_speed,
+            max_speed,
+            self.vel.x,
+            self.move_direction.as_float() * accel,
+        );
         if let MoveDirection::None = self.move_direction {
             self.vel.x *= friction;
         }
@@ -460,12 +487,13 @@ impl Character {
         }
 
         match self.hook {
-            Hook::Idle => {},
-            Hook::Retracted => {},
+            Hook::Idle => {}
+            Hook::Retracted => {}
             Hook::Flying(pos, dir) => {
                 let mut new_pos = pos + dir * tuning.hook_fire_speed.to_float();
                 if vec2::distance(new_pos, self.pos) > tuning.hook_length.to_float() {
-                    new_pos = self.pos + (new_pos - self.pos).normalize() * tuning.hook_length.to_float();
+                    new_pos =
+                        self.pos + (new_pos - self.pos).normalize() * tuning.hook_length.to_float();
                     self.hook = Hook::Retracting0(new_pos);
                 }
                 if let Some((p, t)) = collision.check_line(pos, new_pos) {
@@ -501,14 +529,15 @@ impl Character {
             Hook::Retracting0(pos) => self.hook = Hook::Retracting1(pos),
             Hook::Retracting1(pos) => self.hook = Hook::Retracting2(pos),
             Hook::Retracting2(_) => self.hook = Hook::Retracted,
-            Hook::Grabbed(..) => {}, // See below.
-            Hook::Attached(_) => {}, // See below.
+            Hook::Grabbed(..) => {} // See below.
+            Hook::Attached(_) => {} // See below.
         }
 
         if let Hook::Attached(hook_pos) = self.hook {
             // Disable hook drag if we're too close.
             if vec2::distance(hook_pos, self.pos) > DISABLE_HOOK_DISTANCE {
-                let mut hook_vel = (hook_pos - self.pos).normalize() * tuning.hook_drag_accel.to_float();
+                let mut hook_vel =
+                    (hook_pos - self.pos).normalize() * tuning.hook_drag_accel.to_float();
 
                 // Hooking down has 30% of the power of hooking up.
                 if hook_vel.y > 0.0 {
@@ -549,15 +578,14 @@ impl Character {
         while let Some((cid, other)) = other_characters.next(&mut iter) {
             let distance = vec2::distance(self.pos, other.pos);
 
-            if tuning.player_collision.to_float() != 0.0
-                && distance < SIZE * 1.25
-                && distance > 0.0
+            if tuning.player_collision.to_float() != 0.0 && distance < SIZE * 1.25 && distance > 0.0
             {
                 let dir_to_self = vec2::normalize(self.pos - other.pos);
                 let arbitrary_factor = SIZE * 1.45 - distance;
                 let additional_vel;
                 if self.vel.length() > 0.0001 {
-                    additional_vel = 1.0 - (vec2::dot(self.vel.normalize(), dir_to_self) + 1.0) / 2.0;
+                    additional_vel =
+                        1.0 - (vec2::dot(self.vel.normalize(), dir_to_self) + 1.0) / 2.0;
                 } else {
                     additional_vel = 0.5;
                 }
@@ -571,14 +599,27 @@ impl Character {
                     && distance > SIZE * 1.5
                 {
                     let dir = vec2::normalize(self.pos - other.pos);
-                    let accel = tuning.hook_drag_accel.to_float() * distance / tuning.hook_length.to_float();
+                    let accel = tuning.hook_drag_accel.to_float() * distance
+                        / tuning.hook_length.to_float();
                     let drag_speed = tuning.hook_drag_speed.to_float();
                     other_characters.modify(cid, |other| {
-                        other.vel.x = saturated_add(-drag_speed, drag_speed, other.vel.x, accel * dir.x * 1.5);
-                        other.vel.y = saturated_add(-drag_speed, drag_speed, other.vel.y, accel * dir.y * 1.5);
+                        other.vel.x = saturated_add(
+                            -drag_speed,
+                            drag_speed,
+                            other.vel.x,
+                            accel * dir.x * 1.5,
+                        );
+                        other.vel.y = saturated_add(
+                            -drag_speed,
+                            drag_speed,
+                            other.vel.y,
+                            accel * dir.y * 1.5,
+                        );
                     });
-                    self.vel.x = saturated_add(-drag_speed, drag_speed, self.vel.x, -accel * dir.x * 0.25);
-                    self.vel.y = saturated_add(-drag_speed, drag_speed, self.vel.y, -accel * dir.y * 0.25);
+                    self.vel.x =
+                        saturated_add(-drag_speed, drag_speed, self.vel.x, -accel * dir.x * 0.25);
+                    self.vel.y =
+                        saturated_add(-drag_speed, drag_speed, self.vel.y, -accel * dir.y * 0.25);
                 }
             }
         }
@@ -588,12 +629,14 @@ impl Character {
             self.vel = self.vel.normalize() * MAX_VELOCITY;
         }
     }
-    pub fn move_<C, OC>(&mut self,
-                        collision: &mut C,
-                        other_characters: &mut OC,
-                        tuning: &SvTuneParams)
-        where C: Collision,
-              OC: OtherCharacters,
+    pub fn move_<C, OC>(
+        &mut self,
+        collision: &mut C,
+        other_characters: &mut OC,
+        tuning: &SvTuneParams,
+    ) where
+        C: Collision,
+        OC: OtherCharacters,
     {
         let ramp_value = velocity_ramp(self.vel.length() * 50.0, tuning);
         self.vel.x *= ramp_value;

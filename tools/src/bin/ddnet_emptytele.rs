@@ -52,10 +52,11 @@ fn main() {
 
     let matches = App::new("DDNet teleporter scanner")
         .about("Scans map files for weird teleporters.")
-        .arg(Arg::with_name("MAP")
-            .help("Sets the map file to analyse")
-            .multiple(true)
-            .required(true)
+        .arg(
+            Arg::with_name("MAP")
+                .help("Sets the map file to analyse")
+                .multiple(true)
+                .required(true),
         )
         .get_matches();
 
@@ -65,7 +66,7 @@ fn main() {
     for map in maps {
         let map = Path::new(map);
         match process(map) {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(err) => {
                 eprintln!("{}: {:?}", map.display(), err);
                 error = true;

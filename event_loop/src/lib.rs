@@ -2,7 +2,8 @@ extern crate arrayvec;
 extern crate common;
 extern crate hexdump;
 extern crate itertools;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate logger;
 extern crate net;
 extern crate socket;
@@ -13,18 +14,18 @@ use common::Takeable;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;
-use net::Net;
 use net::collections::PeerMap;
 use net::collections::PeerSet;
 use net::net::Callback;
+use net::Net;
 use socket::Socket;
 use std::cmp;
 use std::fmt;
 
-pub use net::Timeout;
-pub use net::Timestamp;
 pub use net::collections;
 pub use net::net::PeerId;
+pub use net::Timeout;
+pub use net::Timestamp;
 pub use socket::Addr;
 
 pub type Chunk<'a> = net::net::Chunk<'a>;
@@ -33,7 +34,9 @@ pub type ConnlessChunk<'a> = net::net::ConnlessChunk<'a, Addr>;
 pub trait Loop {
     fn accept_connections_on_port(port: u16) -> Self;
     fn client() -> Self;
-    fn run<A: Application<Self>>(self, application: A) where Self: Sized;
+    fn run<A: Application<Self>>(self, application: A)
+    where
+        Self: Sized;
 
     fn time(&mut self) -> Timestamp;
     fn connect(&mut self, addr: Addr) -> PeerId;
@@ -89,7 +92,9 @@ impl Loop for SocketLoop {
         let mut buf2: ArrayVec<[u8; 4096]> = ArrayVec::new();
 
         loop {
-            self.net.tick(&mut self.socket).foreach(|e| panic!("{:?}", e));
+            self.net
+                .tick(&mut self.socket)
+                .foreach(|e| panic!("{:?}", e));
             application.on_tick(&mut self);
 
             for pid in self.want_to_flush.drain() {
@@ -109,10 +114,19 @@ impl Loop for SocketLoop {
             }
             self.socket.sleep(sleep_duration).unwrap();
 
-            while let Some(res) = { buf1.clear(); self.socket.receive(&mut buf1) } {
+            while let Some(res) = {
+                buf1.clear();
+                self.socket.receive(&mut buf1)
+            } {
                 let (addr, data) = res.unwrap();
                 buf2.clear();
-                let (iter, res) = self.net.feed(&mut self.socket, &mut Warn(addr, data), addr, data, &mut buf2);
+                let (iter, res) = self.net.feed(
+                    &mut self.socket,
+                    &mut Warn(addr, data),
+                    addr,
+                    data,
+                    &mut buf2,
+                );
                 res.unwrap();
                 for mut chunk in iter {
                     if !self.net.is_receive_chunk_still_valid(&mut chunk) {
@@ -120,16 +134,11 @@ impl Loop for SocketLoop {
                     }
                     use net::net::ChunkOrEvent::*;
                     match chunk {
-                        Chunk(c) =>
-                            application.on_packet(&mut self, c),
-                        Connless(c) =>
-                            application.on_connless_packet(&mut self, c),
-                        Connect(pid) =>
-                            application.on_connect(&mut self, pid),
-                        Ready(pid) =>
-                            application.on_ready(&mut self, pid),
-                        Disconnect(pid, r) =>
-                            application.on_disconnect(&mut self, pid, true, r),
+                        Chunk(c) => application.on_packet(&mut self, c),
+                        Connless(c) => application.on_connless_packet(&mut self, c),
+                        Connect(pid) => application.on_connect(&mut self, pid),
+                        Ready(pid) => application.on_ready(&mut self, pid),
+                        Disconnect(pid, r) => application.on_disconnect(&mut self, pid, true, r),
                     }
                 }
             }
@@ -154,11 +163,14 @@ impl Loop for SocketLoop {
             self.net.flush(&mut self.socket, pid).unwrap();
             self.want_to_flush.remove(pid);
         }
-        self.disconnected.insert(pid, reason.iter().cloned().collect());
+        self.disconnected
+            .insert(pid, reason.iter().cloned().collect());
         self.net.disconnect(&mut self.socket, pid, reason).unwrap();
     }
     fn send_connless(&mut self, addr: Addr, data: &[u8]) {
-        self.net.send_connless(&mut self.socket, addr, data).unwrap();
+        self.net
+            .send_connless(&mut self.socket, addr, data)
+            .unwrap();
     }
     fn send(&mut self, chunk: Chunk) {
         self.net.send(&mut self.socket, chunk).unwrap();

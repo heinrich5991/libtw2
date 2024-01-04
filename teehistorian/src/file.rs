@@ -1,14 +1,14 @@
 use std::fs::File;
-use std::io::Read;
 use std::io;
+use std::io::Read;
 use std::ops;
 use std::path::Path;
 
-use format::Header;
-use format::item::INPUT_LEN;
 use format;
-use raw::Callback;
+use format::item::INPUT_LEN;
+use format::Header;
 use raw;
+use raw::Callback;
 
 pub use raw::Buffer;
 pub use raw::Item;
@@ -51,36 +51,30 @@ pub struct Reader {
 }
 
 impl Reader {
-    fn new_impl<'a>(file: File, buffer: &'a mut Buffer)
-        -> Result<(Header<'a>, Reader), Error>
-    {
-        let mut callback_data = CallbackData {
-            file: file,
-        };
+    fn new_impl<'a>(file: File, buffer: &'a mut Buffer) -> Result<(Header<'a>, Reader), Error> {
+        let mut callback_data = CallbackData { file: file };
         let (header, raw) = raw::Reader::new(&mut callback_data, buffer)?;
-        Ok((header, Reader {
-            callback_data: callback_data,
-            raw: raw,
-        }))
+        Ok((
+            header,
+            Reader {
+                callback_data: callback_data,
+                raw: raw,
+            },
+        ))
     }
-    pub fn new<'a>(file: File, buffer: &'a mut Buffer)
-        -> Result<(Header<'a>, Reader), Error>
-    {
+    pub fn new<'a>(file: File, buffer: &'a mut Buffer) -> Result<(Header<'a>, Reader), Error> {
         Reader::new_impl(file, buffer)
     }
-    pub fn open<'a, P: AsRef<Path>>(path: P, buffer: &'a mut Buffer)
-        -> Result<(Header, Reader), Error>
-    {
-        fn inner<'a>(path: &Path, buffer: &'a mut Buffer)
-            -> Result<(Header<'a>, Reader), Error>
-        {
+    pub fn open<'a, P: AsRef<Path>>(
+        path: P,
+        buffer: &'a mut Buffer,
+    ) -> Result<(Header, Reader), Error> {
+        fn inner<'a>(path: &Path, buffer: &'a mut Buffer) -> Result<(Header<'a>, Reader), Error> {
             Reader::new_impl(File::open(path)?, buffer)
         }
         inner(path.as_ref(), buffer)
     }
-    pub fn read<'a>(&mut self, buffer: &'a mut Buffer)
-        -> Result<Option<Item<'a>>, Error>
-    {
+    pub fn read<'a>(&mut self, buffer: &'a mut Buffer) -> Result<Option<Item<'a>>, Error> {
         Ok(self.raw.read(&mut self.callback_data, buffer)?)
     }
     pub fn player_pos(&self, cid: i32) -> Option<Pos> {

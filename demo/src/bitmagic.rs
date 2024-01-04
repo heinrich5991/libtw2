@@ -1,6 +1,6 @@
+use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use buffer::with_buffer;
 use common;
 use std::mem;
 use std::slice;
@@ -11,25 +11,21 @@ use raw::ResultExt;
 use writer;
 
 /// Safe to write arbitrary bytes to this struct.
-pub unsafe trait Packed { }
+pub unsafe trait Packed {}
 
-unsafe impl Packed for common::num::BeI32 { }
-unsafe impl Packed for common::num::LeU16 { }
-unsafe impl Packed for common::num::BeU32 { }
-unsafe impl Packed for u8 { }
-unsafe impl Packed for [u8; 16] { }
-unsafe impl Packed for [u8; 32] { }
+unsafe impl Packed for common::num::BeI32 {}
+unsafe impl Packed for common::num::LeU16 {}
+unsafe impl Packed for common::num::BeU32 {}
+unsafe impl Packed for u8 {}
+unsafe impl Packed for [u8; 16] {}
+unsafe impl Packed for [u8; 32] {}
 
 pub fn as_mut_bytes<T: Packed>(x: &mut T) -> &mut [u8] {
-    unsafe {
-        slice::from_raw_parts_mut(x as *mut _ as *mut _, mem::size_of_val(x))
-    }
+    unsafe { slice::from_raw_parts_mut(x as *mut _ as *mut _, mem::size_of_val(x)) }
 }
 
 pub fn as_bytes<T: Packed>(x: &T) -> &[u8] {
-    unsafe {
-        slice::from_raw_parts(x as *const _ as *const _, mem::size_of_val(x))
-    }
+    unsafe { slice::from_raw_parts(x as *const _ as *const _, mem::size_of_val(x)) }
 }
 
 pub trait CallbackExt: Callback {
@@ -44,14 +40,13 @@ pub trait CallbackExt: Callback {
         }
         Ok(result)
     }
-    fn read_buffer<'d, B: Buffer<'d>>(&mut self, buf: B)
-        -> Result<&'d [u8], Self::Error>
-    {
+    fn read_buffer<'d, B: Buffer<'d>>(&mut self, buf: B) -> Result<&'d [u8], Self::Error> {
         with_buffer(buf, |buf| self.read_buffer_ref(buf))
     }
-    fn read_buffer_ref<'d, 's>(&mut self, mut buf: BufferRef<'d, 's>)
-        -> Result<&'d [u8], Self::Error>
-    {
+    fn read_buffer_ref<'d, 's>(
+        &mut self,
+        mut buf: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], Self::Error> {
         unsafe {
             let read = self.read(buf.uninitialized_mut())?;
             buf.advance(read);
@@ -60,7 +55,7 @@ pub trait CallbackExt: Callback {
     }
 }
 
-impl<T: Callback> CallbackExt for T { }
+impl<T: Callback> CallbackExt for T {}
 
 pub trait WriteCallbackExt: writer::Callback {
     fn write_raw<T: Packed>(&mut self, t: &T) -> Result<(), Self::Error> {
@@ -68,4 +63,4 @@ pub trait WriteCallbackExt: writer::Callback {
     }
 }
 
-impl<T: writer::Callback> WriteCallbackExt for T { }
+impl<T: writer::Callback> WriteCallbackExt for T {}

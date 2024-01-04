@@ -32,7 +32,7 @@ impl UdpSocket {
             Ok(Some(len)) => {
                 assert!(len == buf.len(), "short send: {} out of {}", len, buf.len());
                 Ok(Ok(()))
-            },
+            }
             Ok(None) => Ok(Err(WouldBlock)),
             Err(e) => Err(SockError(e)),
         }
@@ -46,7 +46,7 @@ impl UdpSocket {
             Ok(Some((len, sockaddr))) => {
                 let from = Addr::from_socket_addr(sockaddr);
                 Ok(Ok((len, from)))
-            },
+            }
             Ok(None) => Ok(Err(WouldBlock)),
             Err(x) => Err(SockError(x)),
         }
@@ -54,7 +54,9 @@ impl UdpSocket {
 }
 
 /// Extension trait providing the `would_block` function for `NonBlock`.
-pub trait NonBlockExt { fn would_block(&self) -> bool; }
+pub trait NonBlockExt {
+    fn would_block(&self) -> bool;
+}
 impl<T> NonBlockExt for NonBlock<T> {
     /// Returns `true` if the operation would block.
     fn would_block(&self) -> bool {
@@ -70,9 +72,9 @@ impl<T> NonBlockExt for NonBlock<T> {
 pub struct SockError(io::Error);
 
 /// Socket result alias.
-pub type SockResult<T> = Result<T,SockError>;
+pub type SockResult<T> = Result<T, SockError>;
 /// Non-blocking result alias.
-pub type NonBlock<T> = Result<T,WouldBlock>;
+pub type NonBlock<T> = Result<T, WouldBlock>;
 
 /// Returned when an operation can't succeed without blocking.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

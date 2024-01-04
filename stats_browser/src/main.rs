@@ -9,24 +9,23 @@ extern crate uuid;
 use clap::App;
 use clap::Arg;
 use clap::Values;
-use std::collections::HashSet;
-use stats_browser::StatsBrowser;
-use stats_browser::StatsBrowserCb;
 use stats_browser::tracker_fstd;
 use stats_browser::tracker_json;
+use stats_browser::StatsBrowser;
+use stats_browser::StatsBrowserCb;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 fn run_browser<T: StatsBrowserCb>(tracker: &mut T, masters: Vec<(String, bool)>) {
     let browser = if masters.is_empty() {
         StatsBrowser::new(tracker)
     } else {
-        StatsBrowser::new_without_masters(tracker)
-            .map(|mut browser| {
-                for (master, nobackcompat) in masters {
-                    browser.add_master(master, nobackcompat);
-                }
-                browser
-            })
+        StatsBrowser::new_without_masters(tracker).map(|mut browser| {
+            for (master, nobackcompat) in masters {
+                browser.add_master(master, nobackcompat);
+            }
+            browser
+        })
     };
     if let Some(mut browser) = browser {
         browser.run();
@@ -108,7 +107,12 @@ fn main() {
     {
         let mut seen = HashSet::new();
         add_masters(&mut masters, &mut seen, matches.values_of("master"), false);
-        add_masters(&mut masters, &mut seen, matches.values_of("master-nobackcompat"), true);
+        add_masters(
+            &mut masters,
+            &mut seen,
+            matches.values_of("master-nobackcompat"),
+            true,
+        );
     }
 
     match matches.value_of("format").unwrap() {
