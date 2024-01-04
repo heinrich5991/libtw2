@@ -17,7 +17,7 @@ jobs:
           - stable
         include:
           - os: ubuntu-latest
-            rust: 1.41.1
+            rust: 1.63.0
           - os: ubuntu-latest
             rust: nightly
     steps:
