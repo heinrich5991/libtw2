@@ -8,7 +8,9 @@ DERIVE_RE=re.compile(r'^#\[derive\((?P<derives>[A-Za-z ,]*)\)\]')
 # 17 is the unique prefix :)
 TYPE_REPLACEMENTS = {line[:17]: line for line in """\
 pub type size_t = usize;
+pub type gint8 = i8;
 pub type guint8 = u8;
+pub type gint16 = i16;
 pub type guint16 = u16;
 pub type gint32 = i32;
 pub type guint32 = u32;
