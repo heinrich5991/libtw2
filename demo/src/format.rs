@@ -140,7 +140,7 @@ impl HeaderVersionPacked {
     }
 }
 
-#[derive(Clone, /*Copy*/)]
+#[derive(Clone)]
 pub struct Header {
     pub net_version: ArrayVec<[u8; 64]>,
     pub map_name: ArrayVec<[u8; 64]>,

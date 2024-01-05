@@ -971,6 +971,7 @@ mod test {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod test_no_token {
     use super::MAX_PACKETSIZE;
     use super::Packet;
@@ -1035,6 +1036,7 @@ mod test_no_token {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod test_token {
     use super::MAX_PACKETSIZE;
     use super::Packet;

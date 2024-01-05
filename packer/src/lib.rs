@@ -406,6 +406,7 @@ fn string_to_bytes_buffer_ref<'d, 's>(mut buf: BufferRef<'d, 's>, string: &[u8])
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod test {
     use arrayvec::ArrayVec;
     use std::i32;

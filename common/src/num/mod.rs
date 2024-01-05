@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[rustfmt::skip]
 mod cast;
 
 pub use self::cast::Cast;

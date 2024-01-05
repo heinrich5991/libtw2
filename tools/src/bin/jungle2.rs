@@ -26,6 +26,7 @@ impl Default for Stats {
     }
 }
 
+#[rustfmt::skip]
 const _JUNGLE_DOODADS_5: &'static [(u8, u8)] = &[
     (0x01, 0x21),
     (0x02, 0x22),

@@ -37,6 +37,7 @@ impl Buffer {
         }
     }
 
+    #[rustfmt::skip]
     fn get_item_type_index(&self, type_id: u16) -> (usize, bool) {
         for (i, &ItemType { type_id: other_type_id, .. }) in self.item_types.iter().enumerate() {
             if type_id <= other_type_id {

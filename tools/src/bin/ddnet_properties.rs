@@ -129,6 +129,7 @@ fn tile(index: u8) -> Option<&'static str> {
     })
 }
 
+#[rustfmt::skip]
 fn tile_remapping(index: u8) -> Option<u8> {
     Some(match index {
         5 | 67 => 66, // other variations of new hookthrough

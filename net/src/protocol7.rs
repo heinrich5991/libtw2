@@ -632,6 +632,7 @@ unsafe_boilerplate_packed!(ChunkHeaderPacked, CHUNK_HEADER_SIZE, test_ch_size, t
 unsafe_boilerplate_packed!(ChunkHeaderVitalPacked, CHUNK_HEADER_SIZE_VITAL, test_chv_size, test_chv_align);
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod test {
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
