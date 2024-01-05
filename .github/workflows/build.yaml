@@ -28,6 +28,10 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+      # `demo` crate doesn't work with the MSRV.
+      - name: Exclude `demo` crate from MSRV
+        run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml
+        if: ${{ matrix.rust != 'stable' && matrix.rust != 'nightly' }}
       - run: cargo build
       - run: cargo test
       - run: cargo bench
