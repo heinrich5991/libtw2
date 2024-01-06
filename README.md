@@ -25,6 +25,8 @@ Documentation
   definition for the low-level file format of Teeworlds/DDNet maps.
 - [demo](doc/demo.md). Low-level file format of Teeworlds/DDNet demos
   (replays).
+- [demo.ksy](doc/demo.ksy). [Kaitai Struct](https://kaitai.io/) definition for
+  the low-level file format of Teeworlds/DDNet demos (replays).
 - [huffman](doc/huffman.md). Homebrew compression format using [Huffman
   coding](https://en.wikipedia.org/wiki/Huffman_coding), used in demos and over
   the network.
@@ -35,6 +37,8 @@ Teeworlds/DDNet.
   the [variable-length
   integer](https://en.wikipedia.org/wiki/Variable-length_quantity).
 - [map](doc/map.md). High-level format of Teeworlds/DDNet maps.
+- [map\_v4.ksy](doc/map.md). [Kaitai Struct](https://kaitai.io/) definition for
+  the high-level format of Teeworlds/DDNet maps.
 - [packet](doc/packet.md). Definition of Teeworlds 0.6/DDNet packet/chunk
   headers.
 - [packet7](doc/packet7.md). Definition of Teeworlds 0.7 packet/chunk
@@ -48,6 +52,8 @@ Teeworlds/DDNet.
   serverinfo protocol.
 - [snapshot](doc/snapshot.md). Teeworlds/DDNet data structure for transferring
   gamestate.
+- [tee\_rendering](doc/tee_rendering.md). Description how tees can be rendered
+  from a skin file.
 - [teehistorian](doc/teehistorian.md). DDNet file format for storing all player
   input.
 
