@@ -22,12 +22,12 @@ jobs:
             rust: nightly
     steps:
       - uses: actions/checkout@v2
-      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+      - uses: Swatinem/rust-cache@v2
       # `demo` crate doesn't work with the MSRV.
       - name: Exclude `demo` crate from MSRV
         run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml
