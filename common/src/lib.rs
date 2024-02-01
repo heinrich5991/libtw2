@@ -3,6 +3,7 @@
 extern crate quickcheck;
 
 extern crate arrayvec;
+#[cfg(feature = "file_offset")]
 extern crate file_offset;
 #[cfg(feature = "serde")]
 extern crate serde;

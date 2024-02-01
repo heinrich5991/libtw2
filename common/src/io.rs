@@ -1,11 +1,7 @@
-use file_offset::FileExt as FileOffsetExt;
 use std::error;
 use std::fmt;
-use std::fs::File;
 use std::io;
 use std::io::Read;
-
-use num::Cast;
 
 struct SeekOverflow(());
 
@@ -48,8 +44,11 @@ pub trait FileExt {
     fn read_offset_retry(&self, buffer: &mut [u8], offset: u64) -> io::Result<usize>;
 }
 
-impl FileExt for File {
+#[cfg(feature = "file_offset")]
+impl FileExt for std::fs::File {
     fn read_offset_retry(&self, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
+        use num::Cast;
+
         // Make sure the additions in this function don't overflow
         let _end_offset = offset
             .checked_add(buffer.len().u64())
@@ -57,7 +56,8 @@ impl FileExt for File {
 
         let mut read = 0;
         while read != buffer.len() {
-            match self.read_offset(&mut buffer[read..], offset + read.u64()) {
+            match file_offset::FileExt::read_offset(self, &mut buffer[read..], offset + read.u64())
+            {
                 Ok(0) => break,
                 Ok(r) => read += r,
                 Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
