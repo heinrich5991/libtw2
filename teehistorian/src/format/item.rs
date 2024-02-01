@@ -28,6 +28,10 @@ pub const EX: i32 = -11;
 pub const INPUT_LEN: usize = 10;
 pub const CONSOLE_COMMAND_MAX_ARGS: usize = 16;
 
+pub const UUID_ANTIBOT: [u8; 16] = [
+    // "866bfdac-fb49-3c0b-a887-5fe1f3ea00b8"
+    0x86, 0x6b, 0xfd, 0xac, 0xfb, 0x49, 0x3c, 0x0b, 0xa8, 0x87, 0x5f, 0xe1, 0xf3, 0xea, 0x00, 0xb8,
+];
 pub const UUID_AUTH_INIT: [u8; 16] = [
     // "60daba5c-52c4-3aeb-b8ba-b2953fb55a17"
     0x60, 0xda, 0xba, 0x5c, 0x52, 0xc4, 0x3a, 0xeb, 0xb8, 0xba, 0xb2, 0x95, 0x3f, 0xb5, 0x5a, 0x17,
@@ -55,6 +59,18 @@ pub const UUID_JOINVER6: [u8; 16] = [
 pub const UUID_JOINVER7: [u8; 16] = [
     // "59239b05-0540-318d-bea4-9aa1e80e7d2b"
     0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d, 0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
+];
+pub const UUID_PLAYER_READY: [u8; 16] = [
+    // "638587c9-3f75-3887-918e-a3c2614ffaa0"
+    0x63, 0x85, 0x87, 0xc9, 0x3f, 0x75, 0x38, 0x87, 0x91, 0x8e, 0xa3, 0xc2, 0x61, 0x4f, 0xfa, 0xa0,
+];
+pub const UUID_PLAYER_REJOIN: [u8; 16] = [
+    // "c1e921d5-96f5-37bb-8a45-7a06f163d27e"
+    0xc1, 0xe9, 0x21, 0xd5, 0x96, 0xf5, 0x37, 0xbb, 0x8a, 0x45, 0x7a, 0x06, 0xf1, 0x63, 0xd2, 0x7e,
+];
+pub const UUID_PLAYER_SWAP: [u8; 16] = [
+    // "5de9b633-49cf-3e99-9a25-d4a78e9717d7"
+    0x5d, 0xe9, 0xb6, 0x33, 0x49, 0xcf, 0x3e, 0x99, 0x9a, 0x25, 0xd4, 0xa7, 0x8e, 0x97, 0x17, 0xd7,
 ];
 pub const UUID_PLAYER_TEAM: [u8; 16] = [
     // "a111c04e-1ea8-38e0-90b1-d7f993ca0da9"
@@ -201,6 +217,7 @@ pub enum Item<'a> {
     Drop(Drop<'a>),
     ConsoleCommand(ConsoleCommand<'a>),
 
+    Antibot(Antibot<'a>),
     AuthInit(AuthInit<'a>),
     AuthLogin(AuthLogin<'a>),
     AuthLogout(AuthLogout),
@@ -208,6 +225,9 @@ pub enum Item<'a> {
     DdnetverOld(DdnetverOld),
     Joinver6(Joinver6),
     Joinver7(Joinver7),
+    PlayerReady(PlayerReady),
+    PlayerRejoin(PlayerRejoin),
+    PlayerSwap(PlayerSwap),
     PlayerTeam(PlayerTeam),
     TeamLoadFailure(TeamLoadFailure),
     TeamLoadSuccess(TeamLoadSuccess<'a>),
@@ -276,6 +296,11 @@ pub struct Drop<'a> {
 }
 
 #[derive(Clone, Serialize)]
+pub struct Antibot<'a> {
+    pub data: &'a [u8],
+}
+
+#[derive(Clone, Serialize)]
 pub struct ConsoleCommand<'a> {
     pub cid: i32,
     pub flag_mask: u32,
@@ -329,6 +354,22 @@ pub struct Joinver6 {
 #[derive(Clone, Debug, Serialize)]
 pub struct Joinver7 {
     pub cid: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PlayerReady {
+    pub cid: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PlayerRejoin {
+    pub cid: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PlayerSwap {
+    pub cid1: i32,
+    pub cid2: i32,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -397,6 +438,7 @@ impl<'a> Item<'a> {
         let uuid = p.read_uuid()?;
         let data = p.read_data(&mut Ignore)?;
         Ok(match *uuid.as_bytes() {
+            UUID_ANTIBOT => Antibot::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_INIT => AuthInit::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGIN => AuthLogin::decode(&mut Unpacker::new(data))?.into(),
             UUID_AUTH_LOGOUT => AuthLogout::decode(&mut Unpacker::new(data))?.into(),
@@ -404,6 +446,9 @@ impl<'a> Item<'a> {
             UUID_DDNETVER_OLD => DdnetverOld::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER6 => Joinver6::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER7 => Joinver7::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_READY => PlayerReady::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_REJOIN => PlayerRejoin::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_SWAP => PlayerSwap::decode(&mut Unpacker::new(data))?.into(),
             UUID_PLAYER_TEAM => PlayerTeam::decode(&mut Unpacker::new(data))?.into(),
             UUID_TEAM_LOAD_FAILURE => TeamLoadFailure::decode(&mut Unpacker::new(data))?.into(),
             UUID_TEAM_LOAD_SUCCESS => TeamLoadSuccess::decode(&mut Unpacker::new(data))?.into(),
@@ -430,6 +475,7 @@ impl<'a> Item<'a> {
             Item::Join(ref i) => i.cid,
             Item::Drop(ref i) => i.cid,
             Item::ConsoleCommand(ref i) => i.cid,
+            Item::Antibot(_) => return None,
             Item::AuthInit(ref i) => i.cid,
             Item::AuthLogin(ref i) => i.cid,
             Item::AuthLogout(ref i) => i.cid,
@@ -437,6 +483,9 @@ impl<'a> Item<'a> {
             Item::DdnetverOld(ref i) => i.cid,
             Item::Joinver6(ref i) => i.cid,
             Item::Joinver7(ref i) => i.cid,
+            Item::PlayerReady(ref i) => i.cid,
+            Item::PlayerRejoin(ref i) => i.cid,
+            Item::PlayerSwap(_) => return None,
             Item::PlayerTeam(ref i) => i.cid,
             Item::TeamLoadFailure(_) => return None,
             Item::TeamLoadSuccess(_) => return None,
@@ -576,6 +625,14 @@ impl<'a> ConsoleCommand<'a> {
     }
 }
 
+impl<'a> Antibot<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<Antibot<'a>, MaybeEnd<Error>> {
+        Ok(Antibot {
+            data: _p.read_rest()?,
+        })
+    }
+}
+
 impl<'a> AuthInit<'a> {
     fn decode(_p: &mut Unpacker<'a>) -> Result<AuthInit<'a>, MaybeEnd<Error>> {
         Ok(AuthInit {
@@ -636,6 +693,31 @@ impl Joinver7 {
     fn decode(_p: &mut Unpacker) -> Result<Joinver7, MaybeEnd<Error>> {
         Ok(Joinver7 {
             cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl PlayerReady {
+    fn decode(_p: &mut Unpacker) -> Result<PlayerReady, MaybeEnd<Error>> {
+        Ok(PlayerReady {
+            cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl PlayerRejoin {
+    fn decode(_p: &mut Unpacker) -> Result<PlayerRejoin, MaybeEnd<Error>> {
+        Ok(PlayerRejoin {
+            cid: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl PlayerSwap {
+    fn decode(_p: &mut Unpacker) -> Result<PlayerSwap, MaybeEnd<Error>> {
+        Ok(PlayerSwap {
+            cid1: _p.read_int(&mut Ignore)?,
+            cid2: _p.read_int(&mut Ignore)?,
         })
     }
 }
@@ -708,6 +790,7 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::Join(ref i) => i.fmt(f),
             Item::Drop(ref i) => i.fmt(f),
             Item::ConsoleCommand(ref i) => i.fmt(f),
+            Item::Antibot(ref i) => i.fmt(f),
             Item::AuthInit(ref i) => i.fmt(f),
             Item::AuthLogin(ref i) => i.fmt(f),
             Item::AuthLogout(ref i) => i.fmt(f),
@@ -715,6 +798,9 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
+            Item::PlayerReady(ref i) => i.fmt(f),
+            Item::PlayerRejoin(ref i) => i.fmt(f),
+            Item::PlayerSwap(ref i) => i.fmt(f),
             Item::PlayerTeam(ref i) => i.fmt(f),
             Item::TeamLoadFailure(ref i) => i.fmt(f),
             Item::TeamLoadSuccess(ref i) => i.fmt(f),
@@ -751,6 +837,14 @@ impl<'a> fmt::Debug for ConsoleCommand<'a> {
             .field("flag_mask", &self.flag_mask)
             .field("cmd", &pretty::AlmostString::new(&self.cmd))
             .field("args", &pretty::AlmostStringSlice::new(&self.args))
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for Antibot<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Antibot")
+            .field("data", &pretty::Bytes::new(&self.data))
             .finish()
     }
 }
@@ -884,6 +978,12 @@ impl<'a> From<ConsoleCommand<'a>> for Item<'a> {
     }
 }
 
+impl<'a> From<Antibot<'a>> for Item<'a> {
+    fn from(i: Antibot<'a>) -> Item<'a> {
+        Item::Antibot(i)
+    }
+}
+
 impl<'a> From<AuthInit<'a>> for Item<'a> {
     fn from(i: AuthInit<'a>) -> Item<'a> {
         Item::AuthInit(i)
@@ -923,6 +1023,24 @@ impl<'a> From<Joinver6> for Item<'a> {
 impl<'a> From<Joinver7> for Item<'a> {
     fn from(i: Joinver7) -> Item<'a> {
         Item::Joinver7(i)
+    }
+}
+
+impl<'a> From<PlayerReady> for Item<'a> {
+    fn from(i: PlayerReady) -> Item<'a> {
+        Item::PlayerReady(i)
+    }
+}
+
+impl<'a> From<PlayerRejoin> for Item<'a> {
+    fn from(i: PlayerRejoin) -> Item<'a> {
+        Item::PlayerRejoin(i)
+    }
+}
+
+impl<'a> From<PlayerSwap> for Item<'a> {
+    fn from(i: PlayerSwap) -> Item<'a> {
+        Item::PlayerSwap(i)
     }
 }
 
