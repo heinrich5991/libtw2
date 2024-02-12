@@ -698,7 +698,12 @@ pub struct SvClientDrop<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct SvGameMsg;
+pub struct SvGameMsg {
+    pub game_msg: enums::Gamemsg,
+    pub para_i: Option<i32>,
+    pub para_ii: Option<i32>,
+    pub para_iii: Option<i32>,
+}
 
 #[derive(Clone, Copy)]
 pub struct DeClientEnter<'a> {
@@ -1486,17 +1491,33 @@ impl<'a> fmt::Debug for SvClientDrop<'a> {
 
 impl SvGameMsg {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvGameMsg, Error> {
-        let result = Ok(SvGameMsg);
+        let result = Ok(SvGameMsg {
+            game_msg: enums::Gamemsg::from_i32(_p.read_int(warn)?)?,
+            para_i: _p.read_int(warn).ok(),
+            para_ii: _p.read_int(warn).ok(),
+            para_iii: _p.read_int(warn).ok(),
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(self.para_i.is_some());
+        assert!(self.para_ii.is_some());
+        assert!(self.para_iii.is_some());
+        _p.write_int(self.game_msg.to_i32())?;
+        _p.write_int(self.para_i.unwrap())?;
+        _p.write_int(self.para_ii.unwrap())?;
+        _p.write_int(self.para_iii.unwrap())?;
         Ok(_p.written())
     }
 }
 impl fmt::Debug for SvGameMsg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvGameMsg")
+            .field("game_msg", &self.game_msg)
+            .field("para_i", &self.para_i.as_ref().map(|v| v))
+            .field("para_ii", &self.para_ii.as_ref().map(|v| v))
+            .field("para_iii", &self.para_iii.as_ref().map(|v| v))
             .finish()
     }
 }

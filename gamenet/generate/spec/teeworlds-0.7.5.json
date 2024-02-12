@@ -458,7 +458,12 @@
 		{
 			"id": 21,
 			"name": ["sv", "game", "msg"],
-			"members": [],
+			"members": [
+				{"name": ["game", "msg"], "type": {"kind": "enum", "enum": ["gamemsg"]}},
+				{"name": ["para", "i"], "type": {"kind": "optional", "inner": {"kind": "int32"}}},
+				{"name": ["para", "ii"], "type": {"kind": "optional", "inner": {"kind": "int32"}}},
+				{"name": ["para", "iii"], "type": {"kind": "optional", "inner": {"kind": "int32"}}}
+			],
 			"attributes": []
 		},
 		{
