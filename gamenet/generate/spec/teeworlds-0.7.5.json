@@ -459,10 +459,10 @@
 			"id": 21,
 			"name": ["sv", "game", "msg"],
 			"members": [
-				{"name": ["game", "msg"], "type": {"kind": "enum", "enum": ["gamemsg"]}},
-				{"name": ["para", "i"], "type": {"kind": "optional", "inner": {"kind": "int32"}}},
-				{"name": ["para", "ii"], "type": {"kind": "optional", "inner": {"kind": "int32"}}},
-				{"name": ["para", "iii"], "type": {"kind": "optional", "inner": {"kind": "int32"}}}
+				{"name": ["game", "msg"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["para", "i"], "type": {"kind": "int32"}},
+				{"name": ["para", "ii"], "type": {"kind": "int32"}},
+				{"name": ["para", "iii"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
 		},

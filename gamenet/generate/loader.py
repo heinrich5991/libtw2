@@ -145,12 +145,18 @@ def fix_network(network, version):
         ]
 
     TUNE_PARAMS = ("sv", "tune", "params")
+    GAME_MSG = ("sv", "game", "msg")
     EXTRA_PROJECTILE = ("sv", "extra", "projectile")
     IS_DDNET = ("cl", "is", "ddnet")
     IS_DDNET_LEGACY = ("cl", "is", "ddnet", "legacy")
     for i in range(len(network.Messages)):
         if network.Messages[i].name == TUNE_PARAMS:
             network.Messages[i] = NetMessage("SvTuneParams", [NetTuneParam(n) for n in TUNE_PARAM_NAMES[version]])
+        elif network.Messages[i].name == GAME_MSG:
+            network.Messages[i].values.append(NetIntRange("m_GameMsg", 'GAMEMSG_TEAM_SWAP', 'GAMEMSG_GAME_PAUSED'))
+            network.Messages[i].values.append(NetIntAny("para_i"))
+            network.Messages[i].values.append(NetIntAny("para_ii"))
+            network.Messages[i].values.append(NetIntAny("para_iii"))
         elif network.Messages[i].name == EXTRA_PROJECTILE:
             network.Messages[i].values.append(NetObjectMember("projectile", ("projectile",)))
         elif network.Messages[i].name in (IS_DDNET, IS_DDNET_LEGACY):
