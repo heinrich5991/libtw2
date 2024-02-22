@@ -956,7 +956,9 @@
 				{"name": ["crc"], "type": {"kind": "int32"}},
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 7,
@@ -965,7 +967,9 @@
 				{"name": ["tick"], "type": {"kind": "int32"}},
 				{"name": ["delta", "tick"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 8,
@@ -976,7 +980,9 @@
 				{"name": ["crc"], "type": {"kind": "int32"}},
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 10,
@@ -985,7 +991,9 @@
 				{"name": ["input", "pred", "tick"], "type": {"kind": "int32"}},
 				{"name": ["time", "left"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 11,
@@ -1046,7 +1054,9 @@
 				{"name": ["input", "size"], "type": {"kind": "int32"}},
 				{"name": ["input"], "type": {"kind": "snapshot_object", "name": ["player", "input"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 21,
@@ -1074,13 +1084,17 @@
 			"id": 26,
 			"name": ["ping"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 27,
 			"name": ["ping", "reply"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 29,

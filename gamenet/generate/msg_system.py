@@ -130,7 +130,8 @@ def make_msgs(msgs):
         kwargs = {}
         if not isinstance(msg_id, int):
             kwargs["ex"] = msg_id
-        result.append(datatypes.NetMessage(name, result_members, **kwargs))
+        unreliable = vital != "vital"
+        result.append(datatypes.NetMessage(name, result_members, unreliable=unreliable, **kwargs))
 
     for (msg_id, _, _, _), struct in zip(msgs, result):
         if not isinstance(msg_id, int):

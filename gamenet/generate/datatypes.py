@@ -96,7 +96,7 @@ def uuid_v3(namespace, name):
     return str(uuid.uuid3(uuid.UUID(namespace), name))
 
 class NameValues:
-    def __init__(self, name, values, ex=None, teehistorian=True):
+    def __init__(self, name, values, ex=None, teehistorian=True, unreliable=False):
         names = name.split(':')
         if not 1 <= len(names) <= 2:
             raise ValueError("invalid name format")
@@ -107,6 +107,8 @@ class NameValues:
         self.attributes = set()
         if not teehistorian:
             self.attributes.add("nonteehistoric")
+        if unreliable:
+            self.attributes.add("unreliable")
     def init(self, index, consts, enums, structs):
         if self.ex is None:
             self.index = index

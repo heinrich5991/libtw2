@@ -1120,7 +1120,9 @@
 				{"name": ["crc"], "type": {"kind": "int32"}},
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 6,
@@ -1129,7 +1131,9 @@
 				{"name": ["tick"], "type": {"kind": "int32"}},
 				{"name": ["delta", "tick"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 7,
@@ -1140,7 +1144,9 @@
 				{"name": ["crc"], "type": {"kind": "int32"}},
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 9,
@@ -1149,7 +1155,9 @@
 				{"name": ["input", "pred", "tick"], "type": {"kind": "int32"}},
 				{"name": ["time", "left"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 10,
@@ -1189,7 +1197,9 @@
 				{"name": ["input", "size"], "type": {"kind": "int32"}},
 				{"name": ["input"], "type": {"kind": "snapshot_object", "name": ["player", "input"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 17,
@@ -1221,13 +1231,17 @@
 			"id": 20,
 			"name": ["ping"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 21,
 			"name": ["ping", "reply"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": 25,
@@ -1355,7 +1369,9 @@
 			"members": [
 				{"name": ["id"], "type": {"kind": "uuid"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": "d8295530-14a7-3a0a-b02e-b2cee08d2033",
@@ -1368,7 +1384,9 @@
 			"members": [
 				{"name": ["id"], "type": {"kind": "uuid"}}
 			],
-			"attributes": []
+			"attributes": [
+				"unreliable"
+			]
 		},
 		{
 			"id": "60a7cef1-2ecc-3ed4-b138-00fd0c8f5994",
