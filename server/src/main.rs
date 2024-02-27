@@ -3,62 +3,62 @@ extern crate log;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
-use common::num::Cast;
-use common::num::CastFloat;
-use common::pretty::AlmostString;
-use common::unwrap_or_return;
-use common::Takeable;
-use event_loop::collections::PeerMap;
-use event_loop::collections::PeerSet;
-use event_loop::Addr;
-use event_loop::Application;
-use event_loop::Chunk;
-use event_loop::ConnlessChunk;
-use event_loop::Loop;
-use event_loop::PeerId;
-use event_loop::SocketLoop;
-use event_loop::Timeout;
-use event_loop::Timestamp;
-use gamenet::enums::Emote;
-use gamenet::enums::Team;
-use gamenet::enums::Weapon;
-use gamenet::enums::MAX_CLIENTS;
-use gamenet::enums::VERSION;
-use gamenet::msg;
-use gamenet::msg::connless;
-use gamenet::msg::game;
-use gamenet::msg::game::SV_TUNE_PARAMS_DEFAULT;
-use gamenet::msg::system;
-use gamenet::msg::Connless;
-use gamenet::msg::Game;
-use gamenet::msg::System;
-use gamenet::msg::SystemOrGame;
-use gamenet::snap_obj;
-use gamenet::snap_obj::obj_size;
-use gamenet::snap_obj::Character;
-use gamenet::snap_obj::ClientInfo;
-use gamenet::snap_obj::GameInfo;
-use gamenet::snap_obj::PlayerInfo;
-use gamenet::snap_obj::Tick;
-use gamenet::snap_obj::TypeId;
-use gamenet::SnapObj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
+use libtw2_common::num::Cast;
+use libtw2_common::num::CastFloat;
+use libtw2_common::pretty::AlmostString;
+use libtw2_common::unwrap_or_return;
+use libtw2_common::Takeable;
+use libtw2_event_loop::collections::PeerMap;
+use libtw2_event_loop::collections::PeerSet;
+use libtw2_event_loop::Addr;
+use libtw2_event_loop::Application;
+use libtw2_event_loop::Chunk;
+use libtw2_event_loop::ConnlessChunk;
+use libtw2_event_loop::Loop;
+use libtw2_event_loop::PeerId;
+use libtw2_event_loop::SocketLoop;
+use libtw2_event_loop::Timeout;
+use libtw2_event_loop::Timestamp;
+use libtw2_gamenet::enums::Emote;
+use libtw2_gamenet::enums::Team;
+use libtw2_gamenet::enums::Weapon;
+use libtw2_gamenet::enums::MAX_CLIENTS;
+use libtw2_gamenet::enums::VERSION;
+use libtw2_gamenet::msg;
+use libtw2_gamenet::msg::connless;
+use libtw2_gamenet::msg::game;
+use libtw2_gamenet::msg::game::SV_TUNE_PARAMS_DEFAULT;
+use libtw2_gamenet::msg::system;
+use libtw2_gamenet::msg::Connless;
+use libtw2_gamenet::msg::Game;
+use libtw2_gamenet::msg::System;
+use libtw2_gamenet::msg::SystemOrGame;
+use libtw2_gamenet::snap_obj;
+use libtw2_gamenet::snap_obj::obj_size;
+use libtw2_gamenet::snap_obj::Character;
+use libtw2_gamenet::snap_obj::ClientInfo;
+use libtw2_gamenet::snap_obj::GameInfo;
+use libtw2_gamenet::snap_obj::PlayerInfo;
+use libtw2_gamenet::snap_obj::Tick;
+use libtw2_gamenet::snap_obj::TypeId;
+use libtw2_gamenet::SnapObj;
+use libtw2_packer::string_to_ints3;
+use libtw2_packer::string_to_ints4;
+use libtw2_packer::string_to_ints6;
+use libtw2_packer::with_packer;
+use libtw2_packer::Unpacker;
+use libtw2_snapshot::snap;
+use libtw2_world::vec2;
 use log::LogLevel;
 use ndarray::Array2;
-use packer::string_to_ints3;
-use packer::string_to_ints4;
-use packer::string_to_ints6;
-use packer::with_packer;
-use packer::Unpacker;
-use snapshot::snap;
 use std::cell::Cell;
 use std::fmt;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
-use world::vec2;
 
 const TICKS_PER_SECOND: u32 = 50;
 const PLAYER_NAME_LENGTH: usize = 16 - 1; // -1 for null termination
@@ -176,23 +176,23 @@ impl MapContents {
 
 struct Map {
     spawn: vec2,
-    collision: Array2<Option<world::CollisionType>>,
+    collision: Array2<Option<libtw2_world::CollisionType>>,
     data: MapContents,
 }
 
 impl Default for Map {
     fn default() -> Map {
         let map_contents = MapContents::default();
-        let reader = datafile::Reader::open("dm1.map").unwrap();
-        let mut map = map::Reader::from_datafile(reader);
+        let reader = libtw2_datafile::Reader::open("dm1.map").unwrap();
+        let mut map = libtw2_map::Reader::from_datafile(reader);
         map.check_version().unwrap();
         let gamelayers = map.game_layers().unwrap();
         let tiles = map.layer_tiles(gamelayers.game()).unwrap();
         let result = Map {
             spawn: vec2::new(160.0, 160.0),
             collision: tiles.mapv(|t| match t.index {
-                1 => Some(world::CollisionType::Normal),
-                3 => Some(world::CollisionType::Unhookable),
+                1 => Some(libtw2_world::CollisionType::Normal),
+                3 => Some(libtw2_world::CollisionType::Unhookable),
                 _ => None,
             }),
             data: map_contents,
@@ -200,8 +200,8 @@ impl Default for Map {
         for y in 0..result.collision.dim().0 {
             for x in 0..result.collision.dim().1 {
                 let c = match result.collision[(y, x)] {
-                    Some(world::CollisionType::Normal) => '#',
-                    Some(world::CollisionType::Unhookable) => '!',
+                    Some(libtw2_world::CollisionType::Normal) => '#',
+                    Some(libtw2_world::CollisionType::Unhookable) => '!',
                     None => ' ',
                 };
                 print!("{}", c);
@@ -212,8 +212,8 @@ impl Default for Map {
     }
 }
 
-impl world::Collision for Map {
-    fn check_point(&mut self, pos: vec2) -> Option<world::CollisionType> {
+impl libtw2_world::Collision for Map {
+    fn check_point(&mut self, pos: vec2) -> Option<libtw2_world::CollisionType> {
         let (x, y) = (pos.x.round_to_i32(), pos.y.round_to_i32());
         let (mut tx, mut ty) = (
             (x as f32 / 32.0).trunc_to_i32(),
@@ -324,7 +324,7 @@ impl SystemEnterGameState {
 
 struct IngameState {
     name: ArrayVec<[u8; PLAYER_NAME_LENGTH]>,
-    snaps: snapshot::Storage,
+    snaps: libtw2_snapshot::Storage,
     spectator: bool,
     input: snap_obj::PlayerInput,
 }
@@ -341,14 +341,14 @@ impl From<SystemEnterGameState> for IngameState {
 }
 
 struct Player {
-    character: Cell<world::Character>,
+    character: Cell<libtw2_world::Character>,
     pid: PeerId,
 }
 
 impl Player {
     fn new(pid: PeerId, spawn: vec2) -> Player {
         Player {
-            character: Cell::new(world::Character::spawn(spawn)),
+            character: Cell::new(libtw2_world::Character::spawn(spawn)),
             pid: pid,
         }
     }
@@ -662,13 +662,13 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
         }
     }
     fn game_tick(&mut self) {
-        use world::Character;
-        use world::CharacterId;
+        use libtw2_world::Character;
+        use libtw2_world::CharacterId;
         struct OtherCharacters<'a> {
             own_cid: CharacterId,
             players: &'a [Player],
         }
-        impl<'a> world::OtherCharacters for OtherCharacters<'a> {
+        impl<'a> libtw2_world::OtherCharacters for OtherCharacters<'a> {
             type Iter = CharacterId;
             fn is_self(&self, cid: CharacterId) -> bool {
                 cid == self.own_cid
@@ -815,6 +815,6 @@ impl<'a, L: Loop> ServerLoop<'a, L> {
 }
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
     Server::run::<SocketLoop>();
 }

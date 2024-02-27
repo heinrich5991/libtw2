@@ -1,8 +1,9 @@
 use arrayvec::ArrayString;
-use common::num::Cast;
-use common::str::truncated_arraystring;
-use common::unwrap_or_return;
-use packer::Unpacker;
+use libtw2_common::num::Cast;
+use libtw2_common::slice;
+use libtw2_common::str::truncated_arraystring;
+use libtw2_common::unwrap_or_return;
+use libtw2_packer::Unpacker;
 use std::default::Default;
 use std::fmt;
 use std::mem;
@@ -735,7 +736,7 @@ fn parse_list5(data: &[u8]) -> &[Addr5Packed] {
         warn!("parsing overlong list5");
     }
     let data = &data[..data.len() - remainder];
-    unsafe { common::slice::transmute(data) }
+    unsafe { slice::transmute(data) }
 }
 
 fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
@@ -744,7 +745,7 @@ fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
         warn!("parsing overlong list5");
     }
     let data = &data[..data.len() - remainder];
-    unsafe { common::slice::transmute(data) }
+    unsafe { slice::transmute(data) }
 }
 
 fn parse_token7(data: &[u8]) -> Option<Token7> {
@@ -967,7 +968,7 @@ mod test {
     use super::Info6Response;
     use super::ServerInfo;
     use super::ServerInfoVersion;
-    use common::str::truncated_arraystring as b;
+    use libtw2_common::str::truncated_arraystring as b;
 
     #[test]
     fn parse_info_v6_real_world() {

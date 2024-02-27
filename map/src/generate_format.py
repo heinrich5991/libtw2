@@ -50,8 +50,9 @@ LAYER_V1_ITEMS = [
 ]
 
 header = """\
-use common::unwrap_or_return;
-use datafile::OnlyI32;
+use libtw2_common::slice;
+use libtw2_common::unwrap_or_return;
+use libtw2_datafile::OnlyI32;
 use std::fmt;
 use std::mem;
 use std::ops;
@@ -280,7 +281,7 @@ pub trait EnvpointExt: Envpoint {
         if mem::size_of::<i32>() * slice.len() % mem::size_of::<Self>() != 0 {
             return None;
         }
-        Some(unsafe { common::slice::transmute(slice) })
+        Some(unsafe { slice::transmute(slice) })
     }
 }
 
@@ -316,7 +317,7 @@ impl MapItemLayerV1TilemapExtraRace {
         if slice.len() <= offset {
             return None;
         }
-        Some(&(unsafe { common::slice::transmute(slice) })[offset])
+        Some(&(unsafe { slice::transmute(slice) })[offset])
     }
 }
 

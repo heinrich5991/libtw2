@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 
-use datafile::Version as DfVersion;
+use libtw2_datafile::Version as DfVersion;
 use std::io;
 use std::io::Write;
 use std::path::Path;
@@ -12,7 +12,11 @@ struct Stats {
     v4: u64,
 }
 
-fn process(_: &Path, dfr: datafile::Reader, stats: &mut Stats) -> Result<(), map::Error> {
+fn process(
+    _: &Path,
+    dfr: libtw2_datafile::Reader,
+    stats: &mut Stats,
+) -> Result<(), libtw2_map::Error> {
     match dfr.version() {
         DfVersion::V3 => stats.v3 += 1,
         DfVersion::V4Crude => stats.v4_crude += 1,
@@ -34,5 +38,5 @@ fn print_stats(stats: &Stats) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

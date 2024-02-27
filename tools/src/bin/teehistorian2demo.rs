@@ -1,35 +1,36 @@
 use arrayvec::ArrayVec;
-use common::num::Cast;
-use demo::Writer;
-use gamenet_ddnet::enums::Emote;
-use gamenet_ddnet::enums::Team;
-use gamenet_ddnet::enums::Weapon;
-use gamenet_ddnet::enums::VERSION;
-use gamenet_ddnet::msg::game as game_ddnet;
-use gamenet_ddnet::msg::Game as GameDdnet;
-use gamenet_ddnet::snap_obj;
-use gamenet_ddnet::snap_obj::PlayerInput;
-use gamenet_teeworlds_0_7::msg::game as game7;
-use gamenet_teeworlds_0_7::msg::Game as Game7;
-use packer::string_to_ints3;
-use packer::string_to_ints4;
-use packer::string_to_ints6;
-use packer::with_packer;
-use packer::IntUnpacker;
-use packer::Unpacker;
-use snapshot::snap;
-use snapshot::snap::MAX_SNAPSHOT_SIZE;
+use libtw2_common::num::Cast;
+use libtw2_demo::DemoKind;
+use libtw2_demo::Writer;
+use libtw2_gamenet_ddnet::enums::Emote;
+use libtw2_gamenet_ddnet::enums::Team;
+use libtw2_gamenet_ddnet::enums::Weapon;
+use libtw2_gamenet_ddnet::enums::VERSION;
+use libtw2_gamenet_ddnet::msg::game as game_ddnet;
+use libtw2_gamenet_ddnet::msg::Game as GameDdnet;
+use libtw2_gamenet_ddnet::snap_obj;
+use libtw2_gamenet_ddnet::snap_obj::PlayerInput;
+use libtw2_gamenet_teeworlds_0_7::msg::game as game7;
+use libtw2_gamenet_teeworlds_0_7::msg::Game as Game7;
+use libtw2_packer::string_to_ints3;
+use libtw2_packer::string_to_ints4;
+use libtw2_packer::string_to_ints6;
+use libtw2_packer::with_packer;
+use libtw2_packer::IntUnpacker;
+use libtw2_packer::Unpacker;
+use libtw2_snapshot::snap;
+use libtw2_snapshot::snap::MAX_SNAPSHOT_SIZE;
+use libtw2_teehistorian::Buffer;
+use libtw2_teehistorian::Item;
+use libtw2_teehistorian::Pos;
+use libtw2_teehistorian::Reader;
+use libtw2_world::vec2;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 use std::process;
-use teehistorian::Buffer;
-use teehistorian::Item;
-use teehistorian::Pos;
-use teehistorian::Reader;
 use vec_map::VecMap;
 use warn::Ignore;
-use world::vec2;
 
 const TICKS_PER_SECOND: i32 = 50;
 
@@ -95,33 +96,18 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
             Reader::open(in_, &mut buffer).map_err(|err| format!("{:?}", err))?;
         th = teehistorian;
         let file = fs::File::create(out).map_err(|err| err.to_string())?;
-        if let Some(map_sha256) = header.map_sha256 {
-            demo = Writer::new(
-                file,
-                VERSION.as_bytes(),
-                header.map_name.as_bytes(),
-                Some(map_sha256),
-                header.map_crc,
-                demo::DemoKind::Server,
-                0,   // Length
-                b"", // Timestamp
-                &[], // Map data
-            )
-            .map_err(|err| err.to_string())?;
-        } else {
-            demo = Writer::new(
-                file,
-                VERSION.as_bytes(),
-                header.map_name.as_bytes(),
-                None,
-                header.map_crc,
-                demo::DemoKind::Server,
-                0,   // Length
-                b"", // Timestamp
-                &[], // Map data
-            )
-            .map_err(|err| err.to_string())?;
-        }
+        demo = Writer::new(
+            file,
+            VERSION.as_bytes(),
+            header.map_name.as_bytes(),
+            header.map_sha256,
+            header.map_crc,
+            DemoKind::Server,
+            0,   // Length
+            b"", // Timestamp
+            &[], // Map data
+        )
+        .map_err(|err| err.to_string())?;
     }
     let mut delta = snap::Delta::new();
     let mut last_full_snap_tick = None;
@@ -315,7 +301,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teehistorian to demo converter")
         .about("Converts teehistorian data to a demo file.")

@@ -1,5 +1,5 @@
 [package]
-name = "wireshark-dissector"
+name = "libtw2-wireshark-dissector"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -9,18 +9,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-arrayvec = "0.5.2"
 anyhow = "1.0.38"
-common = { path = "../common/" }
-gamenet_common = { path = "../gamenet/common/" }
-gamenet_spec = { path = "../gamenet/spec/" }
-huffman = { path = "../huffman/" }
-net = { path = "../net/" }
-packer = { path = "../packer/", features = ["uuid"] }
+arrayvec = "0.5.2"
+libtw2-common = { path = "../common/" }
+libtw2-gamenet-common = { path = "../gamenet/common/" }
+libtw2-gamenet-spec = { path = "../gamenet/spec/" }
+libtw2-huffman = { path = "../huffman/" }
+libtw2-net = { path = "../net/" }
+libtw2-packer = { path = "../packer/", features = ["uuid"] }
+libtw2-wireshark-dissector-sys = { path = "sys" }
 serde_json = "1.0.7"
 uuid = "0.8.1"
 warn = "0.2.2"
-wireshark-dissector-sys = { path = "sys" }
 zerocopy = "0.7.32"
 
 [build-dependencies]

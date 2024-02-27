@@ -12,12 +12,12 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context as _;
 use arrayvec::ArrayVec;
-use common::digest;
-use common::num::Cast;
-use common::pretty::AlmostString;
-use common::unwrap_or;
-use gamenet_spec::MessageId;
-use packer::Unpacker;
+use libtw2_common::digest;
+use libtw2_common::num::Cast;
+use libtw2_common::pretty::AlmostString;
+use libtw2_common::unwrap_or;
+use libtw2_gamenet_spec::MessageId;
+use libtw2_packer::Unpacker;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -183,7 +183,7 @@ impl Default for Spec {
 const PERCENT_S: &'static [u8] = b"%s\0";
 const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
 
-fn load_gamenet_spec(s: &str) -> anyhow::Result<gamenet_spec::Spec> {
+fn load_gamenet_spec(s: &str) -> anyhow::Result<libtw2_gamenet_spec::Spec> {
     Ok(serde_json::from_str(s).context("failed to parse gamenet spec")?)
 }
 
@@ -507,7 +507,7 @@ impl Spec {
     }
 }
 impl Enumeration {
-    fn from_gamenet(e: gamenet_spec::Enumeration) -> anyhow::Result<Enumeration> {
+    fn from_gamenet(e: libtw2_gamenet_spec::Enumeration) -> anyhow::Result<Enumeration> {
         let mut values = HashMap::new();
         let mut names = HashSet::new();
         for pair in e.values {
@@ -523,7 +523,7 @@ impl Enumeration {
     }
 }
 impl Flags {
-    fn from_gamenet(e: gamenet_spec::Flags) -> anyhow::Result<Flags> {
+    fn from_gamenet(e: libtw2_gamenet_spec::Flags) -> anyhow::Result<Flags> {
         let mut seen_names = HashSet::new();
         let mut seen_values = HashSet::new();
         let mut values = Vec::new();
@@ -555,7 +555,7 @@ impl Message {
         context: &Context,
         prefix: Interned,
         system: bool,
-        m: gamenet_spec::Message,
+        m: libtw2_gamenet_spec::Message,
     ) -> anyhow::Result<Message> {
         let sys_prefix = if system { "sys" } else { "game" };
         let name = intern(&format!("{}.{}", sys_prefix, m.name.snake()));
@@ -574,7 +574,7 @@ impl Message {
     fn from_gamenet_connless(
         context: &Context,
         prefix: Interned,
-        m: gamenet_spec::ConnlessMessage,
+        m: libtw2_gamenet_spec::ConnlessMessage,
     ) -> anyhow::Result<Message> {
         let name = intern(&format!("connless.{}", m.name.snake()));
         let prefix = intern(&format!("{}.{}", prefix, name));
@@ -627,7 +627,7 @@ impl Member {
     fn from_gamenet(
         context: &Context,
         prefix: Interned,
-        m: gamenet_spec::Member,
+        m: libtw2_gamenet_spec::Member,
     ) -> anyhow::Result<Member> {
         Ok(Member {
             description: intern(&m.name.desc()),
@@ -645,8 +645,8 @@ impl Member {
     }
 }
 impl Type {
-    fn from_gamenet(context: &Context, t: gamenet_spec::Type) -> anyhow::Result<Type> {
-        use gamenet_spec::Type::*;
+    fn from_gamenet(context: &Context, t: libtw2_gamenet_spec::Type) -> anyhow::Result<Type> {
+        use libtw2_gamenet_spec::Type::*;
         Ok(match t {
             Array(i) => Type::Array(ArrayType {
                 count: i.count,

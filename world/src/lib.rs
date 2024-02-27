@@ -1,9 +1,9 @@
-use common::num::Cast;
-use common::num::CastFloat;
-use gamenet::msg::game::SvTuneParams;
-use gamenet::snap_obj::CharacterCore;
-use gamenet::snap_obj::PlayerInput;
-use gamenet::snap_obj::Tick;
+use libtw2_common::num::Cast;
+use libtw2_common::num::CastFloat;
+use libtw2_gamenet::msg::game::SvTuneParams;
+use libtw2_gamenet::snap_obj::CharacterCore;
+use libtw2_gamenet::snap_obj::PlayerInput;
+use libtw2_gamenet::snap_obj::Tick;
 use std::f32::consts::PI;
 use std::fmt;
 use std::ops;

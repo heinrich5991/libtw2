@@ -10,7 +10,7 @@ fn to_socket_addr_or_panic(addr: &str) -> SocketAddr {
 }
 
 pub fn client<D: FnOnce(UdpSocket, SocketAddr)>(do_: D) {
-    logger::init();
+    libtw2_logger::init();
 
     let mut args = env::args();
     let program_name = args.next().unwrap();

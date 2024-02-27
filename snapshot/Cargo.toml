@@ -1,5 +1,5 @@
 [package]
-name = "snapshot"
+name = "libtw2-snapshot"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 buffer = "0.1.9"
-common = { path = "../common/" }
-gamenet = { package = "gamenet_teeworlds_0_6", path = "../gamenet/teeworlds-0.6/" }
-packer = { path = "../packer/" }
+libtw2-common = { path = "../common/" }
+libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+libtw2-packer = { path = "../packer/" }
 vec_map = "0.8.0"
 warn = ">=0.1.1,<0.3.0"

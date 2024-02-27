@@ -1,5 +1,5 @@
 use crate::format::ItemView;
-use common::MapIterator;
+use libtw2_common::MapIterator;
 use std::ops;
 
 #[derive(Clone, Copy, Debug)]

@@ -1,7 +1,7 @@
 use crate::time::Duration;
 use crate::time::Time;
 use crate::time::Timed;
-use common::num::Cast;
+use libtw2_common::num::Cast;
 use std::collections::hash_map;
 use std::collections::hash_map::Entry;
 use std::collections::vec_deque;

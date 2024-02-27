@@ -7,8 +7,8 @@ use crate::DeltaReceiver;
 use crate::ReceivedDelta;
 use crate::Snap;
 use crate::Storage;
-use gamenet::msg::system;
-use packer::Unpacker;
+use libtw2_gamenet::msg::system;
+use libtw2_packer::Unpacker;
 use warn::wrap;
 use warn::Warn;
 

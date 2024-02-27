@@ -1,6 +1,6 @@
 #![cfg(not(test))]
 
-use datafile as df;
+use libtw2_datafile as df;
 use std::path::Path;
 
 #[derive(Default)]
@@ -13,8 +13,8 @@ struct Stats {
     tune: u64,
 }
 
-fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
-    let map = map::Reader::from_datafile(dfr);
+fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), libtw2_map::Error> {
+    let map = libtw2_map::Reader::from_datafile(dfr);
     let game_layers = map.game_layers()?;
     stats.game += 1;
     if game_layers.teleport_raw.is_some() {
@@ -45,5 +45,5 @@ fn print_stats(stats: &Stats) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

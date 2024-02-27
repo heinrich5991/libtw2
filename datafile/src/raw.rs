@@ -6,11 +6,11 @@ use crate::bitmagic::CallbackReadDataExt;
 use crate::format;
 use crate::format::ItemView;
 use crate::format::OnlyI32;
-use common::num::Cast;
-use common::MapIterator;
 use hexdump::hexdump_iter;
 use hexdump::sanitize_byte;
 use itertools::Itertools;
+use libtw2_common::num::Cast;
+use libtw2_common::MapIterator;
 use std::mem;
 use std::ops;
 
@@ -321,7 +321,7 @@ impl Reader {
             cb.alloc_data_buffer(data_len)?;
             let data = cb.data_buffer();
 
-            match zlib::uncompress(data, &raw_data) {
+            match libtw2_zlib::uncompress(data, &raw_data) {
                 Ok(len) if len == data_len => Ok(()),
                 Ok(len) => {
                     error!(

@@ -1,3 +1,6 @@
+use libtw2_common::num::Cast;
+use std::ops;
+
 pub mod format;
 pub mod manager;
 pub mod receiver;
@@ -11,9 +14,6 @@ pub use self::snap::Delta;
 pub use self::snap::Snap;
 pub use self::snap::SnapReader;
 pub use self::storage::Storage;
-
-use common::num::Cast;
-use std::ops;
 
 fn to_usize(r: ops::Range<u32>) -> ops::Range<usize> {
     r.start.usize()..r.end.usize()

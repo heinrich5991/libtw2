@@ -1,6 +1,6 @@
 use crate::to_usize;
-use common::num::Cast;
-use gamenet::msg::system;
+use libtw2_common::num::Cast;
+use libtw2_gamenet::msg::system;
 use std::ops;
 use vec_map::VecMap;
 use warn::Warn;
@@ -212,10 +212,10 @@ mod test {
     use super::DeltaReceiver;
     use super::Error;
     use super::ReceivedDelta;
-    use common::num::Cast;
-    use gamenet::msg::system::Snap;
-    use gamenet::msg::system::SnapEmpty;
-    use gamenet::msg::system::SnapSingle;
+    use libtw2_common::num::Cast;
+    use libtw2_gamenet::msg::system::Snap;
+    use libtw2_gamenet::msg::system::SnapEmpty;
+    use libtw2_gamenet::msg::system::SnapSingle;
     use warn::Panic;
 
     #[test]

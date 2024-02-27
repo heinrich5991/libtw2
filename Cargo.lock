@@ -201,18 +201,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dbbb57365263e881e805dc77d94697c9118fd94d8da011240555aa7b23445bd"
 
 [[package]]
-name = "common"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "bencher",
- "file_offset",
- "quickcheck",
- "serde",
- "zerocopy",
-]
-
-[[package]]
 name = "crossbeam-deque"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -269,56 +257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "datafile"
-version = "0.0.1"
-dependencies = [
- "common",
- "hexdump",
- "itertools 0.4.19",
- "log 0.3.9",
- "logger",
- "zlib_minimal",
-]
-
-[[package]]
-name = "demo"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "binrw",
- "buffer",
- "common",
- "gamenet_common",
- "gamenet_ddnet",
- "huffman",
- "packer",
- "snapshot",
- "thiserror",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "downloader"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "clap",
- "common",
- "event_loop",
- "gamenet_teeworlds_0_6",
- "hexdump",
- "itertools 0.4.19",
- "log 0.3.9",
- "logger",
- "packer",
- "rand 0.8.3",
- "snapshot",
- "tempfile",
- "warn",
-]
-
-[[package]]
 name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -341,21 +279,6 @@ checksum = "15abd780e45b3ea4f76b4e9a26ff4843258dd8a3eed2775a0e7368c2e7936c2f"
 dependencies = [
  "log 0.3.9",
  "regex",
-]
-
-[[package]]
-name = "event_loop"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "common",
- "hexdump",
- "itertools 0.4.19",
- "log 0.3.9",
- "logger",
- "net",
- "socket",
- "warn",
 ]
 
 [[package]]
@@ -406,83 +329,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
-name = "gamenet_common"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "packer",
- "serde",
- "serde_derive",
- "uuid",
- "warn",
- "zerocopy",
-]
-
-[[package]]
-name = "gamenet_ddnet"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "gamenet_common",
- "packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "gamenet_spec"
-version = "0.0.1"
-dependencies = [
- "gamenet_common",
- "serde",
- "serde_derive",
- "uuid",
-]
-
-[[package]]
-name = "gamenet_teeworlds_0_5"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "gamenet_common",
- "packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "gamenet_teeworlds_0_6"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "gamenet_common",
- "packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "gamenet_teeworlds_0_7"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "gamenet_common",
- "packer",
- "uuid",
- "warn",
-]
-
-[[package]]
 name = "getrandom"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -528,38 +374,6 @@ checksum = "e40283dadb02f3af778878be1d717b17b4e4ab92e1d935ab03a730b0542905f2"
 dependencies = [
  "arrayvec 0.5.2",
  "itertools 0.4.19",
-]
-
-[[package]]
-name = "huffman"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "bencher",
- "buffer",
- "common",
- "huffman-reference",
- "itertools 0.4.19",
- "quickcheck",
-]
-
-[[package]]
-name = "huffman-reference"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "common",
- "huffman",
- "huffman-reference-sys",
- "libc",
-]
-
-[[package]]
-name = "huffman-reference-sys"
-version = "0.0.1"
-dependencies = [
- "cc",
- "libc",
 ]
 
 [[package]]
@@ -683,6 +497,440 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03b07a082330a35e43f63177cc01689da34fbffa0105e1246cf0311472cac73a"
 
 [[package]]
+name = "libtw2-common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bencher",
+ "file_offset",
+ "quickcheck",
+ "serde",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-datafile"
+version = "0.0.1"
+dependencies = [
+ "hexdump",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-logger",
+ "libtw2-zlib-minimal",
+ "log 0.3.9",
+]
+
+[[package]]
+name = "libtw2-demo"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "binrw",
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-gamenet-ddnet",
+ "libtw2-huffman",
+ "libtw2-packer",
+ "libtw2-snapshot",
+ "thiserror",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-downloader"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "clap",
+ "hexdump",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-event-loop",
+ "libtw2-gamenet-teeworlds-0-6",
+ "libtw2-logger",
+ "libtw2-packer",
+ "libtw2-snapshot",
+ "log 0.3.9",
+ "rand 0.8.3",
+ "tempfile",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-event-loop"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "hexdump",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-logger",
+ "libtw2-net",
+ "libtw2-socket",
+ "log 0.3.9",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-gamenet-common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "libtw2-common",
+ "libtw2-packer",
+ "serde",
+ "serde_derive",
+ "uuid",
+ "warn",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-gamenet-ddnet"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-gamenet-spec"
+version = "0.0.1"
+dependencies = [
+ "libtw2-gamenet-common",
+ "serde",
+ "serde_derive",
+ "uuid",
+]
+
+[[package]]
+name = "libtw2-gamenet-teeworlds-0-5"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-gamenet-teeworlds-0-6"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-gamenet-teeworlds-0-7"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-huffman"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bencher",
+ "buffer",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-huffman-reference",
+ "quickcheck",
+]
+
+[[package]]
+name = "libtw2-huffman-reference"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "libc",
+ "libtw2-common",
+ "libtw2-huffman",
+ "libtw2-huffman-reference-sys",
+]
+
+[[package]]
+name = "libtw2-huffman-reference-sys"
+version = "0.0.1"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "libtw2-logger"
+version = "0.0.1"
+dependencies = [
+ "env_logger",
+]
+
+[[package]]
+name = "libtw2-map"
+version = "0.0.1"
+dependencies = [
+ "libtw2-common",
+ "libtw2-datafile",
+ "ndarray",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-net"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "hexdump",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-huffman",
+ "linear-map",
+ "optional",
+ "quickcheck",
+ "void",
+ "warn",
+ "zerocopy",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "libtw2-packer"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "hexdump",
+ "libtw2-common",
+ "quickcheck",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-render-map"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "image",
+ "libtw2-common",
+ "libtw2-datafile",
+ "libtw2-logger",
+ "libtw2-map",
+ "ndarray",
+ "num-traits 0.1.43",
+]
+
+[[package]]
+name = "libtw2-server"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "hexdump",
+ "itertools 0.4.19",
+ "libtw2-common",
+ "libtw2-datafile",
+ "libtw2-event-loop",
+ "libtw2-gamenet-teeworlds-0-6",
+ "libtw2-logger",
+ "libtw2-map",
+ "libtw2-packer",
+ "libtw2-snapshot",
+ "libtw2-socket",
+ "libtw2-world",
+ "log 0.3.9",
+ "ndarray",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-serverbrowse"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "libtw2-common",
+ "libtw2-logger",
+ "libtw2-packer",
+ "log 0.3.9",
+ "time",
+ "warn",
+ "zerocopy",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "libtw2-snapshot"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "libtw2-common",
+ "libtw2-gamenet-teeworlds-0-6",
+ "libtw2-packer",
+ "vec_map",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-socket"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "hexdump",
+ "itertools 0.4.19",
+ "libc",
+ "libtw2-common",
+ "libtw2-net",
+ "log 0.3.9",
+ "mio",
+ "net2",
+ "rand 0.8.3",
+]
+
+[[package]]
+name = "libtw2-stats-browser"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "base64",
+ "clap",
+ "csv",
+ "ipnet",
+ "libtw2-common",
+ "libtw2-logger",
+ "libtw2-serverbrowse",
+ "log 0.3.9",
+ "mio",
+ "rand 0.8.3",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "uuid",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-teehistorian"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "chrono",
+ "itertools 0.7.11",
+ "libtw2-common",
+ "libtw2-packer",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "uuid",
+ "vec_map",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-tools"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "chrono",
+ "clap",
+ "csv",
+ "hexdump",
+ "itertools 0.7.11",
+ "libtw2-common",
+ "libtw2-datafile",
+ "libtw2-demo",
+ "libtw2-gamenet-ddnet",
+ "libtw2-gamenet-spec",
+ "libtw2-gamenet-teeworlds-0-6",
+ "libtw2-gamenet-teeworlds-0-7",
+ "libtw2-logger",
+ "libtw2-map",
+ "libtw2-net",
+ "libtw2-packer",
+ "libtw2-serverbrowse",
+ "libtw2-snapshot",
+ "libtw2-teehistorian",
+ "libtw2-world",
+ "log 0.3.9",
+ "rmp",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "uuid",
+ "vec_map",
+ "void",
+ "walkdir",
+ "warn",
+]
+
+[[package]]
+name = "libtw2-wireshark-dissector"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "arrayvec 0.5.2",
+ "cc",
+ "lazy_static",
+ "libtw2-common",
+ "libtw2-gamenet-common",
+ "libtw2-gamenet-spec",
+ "libtw2-huffman",
+ "libtw2-net",
+ "libtw2-packer",
+ "libtw2-wireshark-dissector-sys",
+ "serde_json",
+ "uuid",
+ "warn",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-wireshark-dissector-sys"
+version = "0.0.1"
+
+[[package]]
+name = "libtw2-world"
+version = "0.0.1"
+dependencies = [
+ "libtw2-common",
+ "libtw2-gamenet-teeworlds-0-6",
+]
+
+[[package]]
+name = "libtw2-zlib-minimal"
+version = "0.0.1"
+dependencies = [
+ "libc",
+ "libz-sys",
+]
+
+[[package]]
 name = "libz-sys"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -719,13 +967,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "logger"
-version = "0.0.1"
-dependencies = [
- "env_logger",
-]
-
-[[package]]
 name = "lzw"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -736,16 +977,6 @@ name = "mac"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1db08c0d0ddbb591e65f1da58d1cefccc94a2faa0c55bf979ce215a3e04d5e"
-
-[[package]]
-name = "map"
-version = "0.0.1"
-dependencies = [
- "common",
- "datafile",
- "ndarray",
- "zerocopy",
-]
 
 [[package]]
 name = "matrixmultiply"
@@ -834,25 +1065,6 @@ dependencies = [
  "matrixmultiply",
  "num-complex",
  "num-traits 0.1.43",
-]
-
-[[package]]
-name = "net"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "hexdump",
- "huffman",
- "itertools 0.4.19",
- "linear-map",
- "optional",
- "quickcheck",
- "void",
- "warn",
- "zerocopy",
- "zerocopy-derive",
 ]
 
 [[package]]
@@ -959,19 +1171,6 @@ name = "owo-colors"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
-
-[[package]]
-name = "packer"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "common",
- "hexdump",
- "quickcheck",
- "uuid",
- "warn",
-]
 
 [[package]]
 name = "pkg-config"
@@ -1263,20 +1462,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "render_map"
-version = "0.0.1"
-dependencies = [
- "clap",
- "common",
- "datafile",
- "image",
- "logger",
- "map",
- "ndarray",
- "num-traits 0.1.43",
-]
-
-[[package]]
 name = "rmp"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1357,43 +1542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "server"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "common",
- "datafile",
- "event_loop",
- "gamenet_teeworlds_0_6",
- "hexdump",
- "itertools 0.4.19",
- "log 0.3.9",
- "logger",
- "map",
- "ndarray",
- "packer",
- "snapshot",
- "socket",
- "warn",
- "world",
-]
-
-[[package]]
-name = "serverbrowse"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "common",
- "log 0.3.9",
- "logger",
- "packer",
- "time",
- "warn",
- "zerocopy",
- "zerocopy-derive",
-]
-
-[[package]]
 name = "sha1"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1413,57 +1561,6 @@ name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
-
-[[package]]
-name = "snapshot"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "common",
- "gamenet_teeworlds_0_6",
- "packer",
- "vec_map",
- "warn",
-]
-
-[[package]]
-name = "socket"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "common",
- "hexdump",
- "itertools 0.4.19",
- "libc",
- "log 0.3.9",
- "mio",
- "net",
- "net2",
- "rand 0.8.3",
-]
-
-[[package]]
-name = "stats_browser"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "base64",
- "clap",
- "common",
- "csv",
- "ipnet",
- "log 0.3.9",
- "logger",
- "mio",
- "rand 0.8.3",
- "serde",
- "serde_derive",
- "serde_json",
- "serverbrowse",
- "time",
- "uuid",
- "zerocopy",
-]
 
 [[package]]
 name = "strsim"
@@ -1502,24 +1599,6 @@ dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
  "unicode-ident",
-]
-
-[[package]]
-name = "teehistorian"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "chrono",
- "common",
- "itertools 0.7.11",
- "packer",
- "serde",
- "serde_derive",
- "serde_json",
- "uuid",
- "vec_map",
- "warn",
 ]
 
 [[package]]
@@ -1604,44 +1683,6 @@ dependencies = [
  "libc",
  "redox_syscall 0.1.51",
  "winapi 0.3.6",
-]
-
-[[package]]
-name = "tools"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "chrono",
- "clap",
- "common",
- "csv",
- "datafile",
- "demo",
- "gamenet_ddnet",
- "gamenet_spec",
- "gamenet_teeworlds_0_6",
- "gamenet_teeworlds_0_7",
- "hexdump",
- "itertools 0.7.11",
- "log 0.3.9",
- "logger",
- "map",
- "net",
- "packer",
- "rmp",
- "serde",
- "serde_derive",
- "serde_json",
- "serverbrowse",
- "snapshot",
- "teehistorian",
- "uuid",
- "vec_map",
- "void",
- "walkdir",
- "warn",
- "world",
 ]
 
 [[package]]
@@ -1774,39 +1815,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
-name = "wireshark-dissector"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "arrayvec 0.5.2",
- "cc",
- "common",
- "gamenet_common",
- "gamenet_spec",
- "huffman",
- "lazy_static",
- "net",
- "packer",
- "serde_json",
- "uuid",
- "warn",
- "wireshark-dissector-sys",
- "zerocopy",
-]
-
-[[package]]
-name = "wireshark-dissector-sys"
-version = "0.0.1"
-
-[[package]]
-name = "world"
-version = "0.0.1"
-dependencies = [
- "common",
- "gamenet_teeworlds_0_6",
-]
-
-[[package]]
 name = "ws2_32-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1835,12 +1843,4 @@ dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
  "syn 2.0.50",
-]
-
-[[package]]
-name = "zlib_minimal"
-version = "0.0.1"
-dependencies = [
- "libc",
- "libz-sys",
 ]

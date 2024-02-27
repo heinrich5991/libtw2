@@ -1,6 +1,6 @@
-use gamenet_common::error::Error;
-use packer::Unpacker;
-use packer::Warning;
+use libtw2_gamenet_common::error::Error;
+use libtw2_packer::Unpacker;
+use libtw2_packer::Warning;
 use warn::Warn;
 
 pub mod connless;
@@ -11,15 +11,15 @@ pub use self::connless::Connless;
 pub use self::game::Game;
 pub use self::system::System;
 
-pub use gamenet_common::msg::AddrPacked;
-pub use gamenet_common::msg::CLIENTS_DATA_NONE;
-pub use gamenet_common::msg::ClientsData;
-pub use gamenet_common::msg::MessageId;
-pub use gamenet_common::msg::SystemOrGame;
+pub use libtw2_gamenet_common::msg::AddrPacked;
+pub use libtw2_gamenet_common::msg::CLIENTS_DATA_NONE;
+pub use libtw2_gamenet_common::msg::ClientsData;
+pub use libtw2_gamenet_common::msg::MessageId;
+pub use libtw2_gamenet_common::msg::SystemOrGame;
 
 struct Protocol;
 
-impl<'a> gamenet_common::msg::Protocol<'a> for Protocol {
+impl<'a> libtw2_gamenet_common::msg::Protocol<'a> for Protocol {
     type System = System<'a>;
     type Game = Game<'a>;
 
@@ -41,6 +41,6 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
     -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
     where W: Warn<Warning>
 {
-    gamenet_common::msg::decode(warn, Protocol, p)
+    libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
 

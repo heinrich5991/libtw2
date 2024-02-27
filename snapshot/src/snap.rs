@@ -7,12 +7,12 @@ use crate::format::SnapHeader;
 use crate::format::Warning;
 use crate::to_usize;
 use buffer::CapacityError;
-use common::num::Cast;
-use gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
-use gamenet::msg::system;
-use packer::with_packer;
-use packer::Packer;
-use packer::Unpacker;
+use libtw2_common::num::Cast;
+use libtw2_gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
+use libtw2_gamenet::msg::system;
+use libtw2_packer::with_packer;
+use libtw2_packer::Packer;
+use libtw2_packer::Unpacker;
 use std::cmp;
 use std::collections::hash_map;
 use std::collections::HashMap;
@@ -75,14 +75,14 @@ impl From<TooLongSnap> for BuilderError {
     }
 }
 
-impl From<packer::IntOutOfRange> for Error {
-    fn from(_: packer::IntOutOfRange) -> Error {
+impl From<libtw2_packer::IntOutOfRange> for Error {
+    fn from(_: libtw2_packer::IntOutOfRange) -> Error {
         Error::IntOutOfRange
     }
 }
 
-impl From<packer::UnexpectedEnd> for Error {
-    fn from(_: packer::UnexpectedEnd) -> Error {
+impl From<libtw2_packer::UnexpectedEnd> for Error {
+    fn from(_: libtw2_packer::UnexpectedEnd) -> Error {
         Error::UnexpectedEnd
     }
 }

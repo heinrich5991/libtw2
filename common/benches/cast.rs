@@ -2,7 +2,7 @@ use bencher::benchmark_group;
 use bencher::benchmark_main;
 use bencher::black_box;
 use bencher::Bencher;
-use common::num::Cast;
+use libtw2_common::num::Cast;
 
 fn u32_assert_u8(bench: &mut Bencher) {
     fn helper() {

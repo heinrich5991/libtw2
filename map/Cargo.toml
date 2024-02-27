@@ -1,12 +1,12 @@
 [package]
-name = "map"
+name = "libtw2-map"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common/" }
-datafile = { path = "../datafile/" }
+libtw2-common = { path = "../common/" }
+libtw2-datafile = { path = "../datafile/" }
 ndarray = "0.9.1"
 zerocopy = "0.7.32"

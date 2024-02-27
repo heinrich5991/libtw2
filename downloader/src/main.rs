@@ -7,48 +7,48 @@ use clap::App;
 use clap::Arg;
 use clap::Error;
 use clap::ErrorKind;
-use common::num::Cast;
-use common::pretty;
-use event_loop::collections::PeerMap;
-use event_loop::Addr;
-use event_loop::Application;
-use event_loop::Chunk;
-use event_loop::ConnlessChunk;
-use event_loop::Loop;
-use event_loop::PeerId;
-use event_loop::SocketLoop;
-use event_loop::Timeout;
-use event_loop::Timestamp;
-use gamenet::enums;
-use gamenet::enums::Team;
-use gamenet::enums::VERSION;
-use gamenet::msg;
-use gamenet::msg::game::ClCallVote;
-use gamenet::msg::game::ClSetTeam;
-use gamenet::msg::game::ClStartInfo;
-use gamenet::msg::game::SvVoteOptionAdd;
-use gamenet::msg::game::SvVoteOptionRemove;
-use gamenet::msg::system::EnterGame;
-use gamenet::msg::system::Info;
-use gamenet::msg::system::Input;
-use gamenet::msg::system::MapChange;
-use gamenet::msg::system::MapData;
-use gamenet::msg::system::Ready;
-use gamenet::msg::system::RequestMapData;
-use gamenet::msg::Game;
-use gamenet::msg::System;
-use gamenet::msg::SystemOrGame;
-use gamenet::snap_obj::obj_size;
-use gamenet::snap_obj::PlayerInput;
-use gamenet::SnapObj;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
+use libtw2_common::num::Cast;
+use libtw2_common::pretty;
+use libtw2_event_loop::collections::PeerMap;
+use libtw2_event_loop::Addr;
+use libtw2_event_loop::Application;
+use libtw2_event_loop::Chunk;
+use libtw2_event_loop::ConnlessChunk;
+use libtw2_event_loop::Loop;
+use libtw2_event_loop::PeerId;
+use libtw2_event_loop::SocketLoop;
+use libtw2_event_loop::Timeout;
+use libtw2_event_loop::Timestamp;
+use libtw2_gamenet::enums;
+use libtw2_gamenet::enums::Team;
+use libtw2_gamenet::enums::VERSION;
+use libtw2_gamenet::msg;
+use libtw2_gamenet::msg::game::ClCallVote;
+use libtw2_gamenet::msg::game::ClSetTeam;
+use libtw2_gamenet::msg::game::ClStartInfo;
+use libtw2_gamenet::msg::game::SvVoteOptionAdd;
+use libtw2_gamenet::msg::game::SvVoteOptionRemove;
+use libtw2_gamenet::msg::system::EnterGame;
+use libtw2_gamenet::msg::system::Info;
+use libtw2_gamenet::msg::system::Input;
+use libtw2_gamenet::msg::system::MapChange;
+use libtw2_gamenet::msg::system::MapData;
+use libtw2_gamenet::msg::system::Ready;
+use libtw2_gamenet::msg::system::RequestMapData;
+use libtw2_gamenet::msg::Game;
+use libtw2_gamenet::msg::System;
+use libtw2_gamenet::msg::SystemOrGame;
+use libtw2_gamenet::snap_obj::obj_size;
+use libtw2_gamenet::snap_obj::PlayerInput;
+use libtw2_gamenet::SnapObj;
+use libtw2_packer::with_packer;
+use libtw2_packer::IntUnpacker;
+use libtw2_packer::Unpacker;
+use libtw2_snapshot::format::Item as SnapItem;
+use libtw2_snapshot::Snap;
 use log::LogLevel;
-use packer::with_packer;
-use packer::IntUnpacker;
-use packer::Unpacker;
-use snapshot::format::Item as SnapItem;
-use snapshot::Snap;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashSet;
@@ -113,7 +113,7 @@ struct Peer {
     completed_list_votes: HashSet<Vec<u8>>,
     previous_list_vote: Option<Vec<u8>>,
     previous_vote: Option<Vec<u8>>,
-    snaps: snapshot::Manager,
+    snaps: libtw2_snapshot::Manager,
     num_snaps_since_reset: u64,
     dummy_map: bool,
     state: PeerState,
@@ -137,7 +137,7 @@ impl Peer {
             completed_list_votes: HashSet::new(),
             previous_list_vote: None,
             previous_vote: None,
-            snaps: snapshot::Manager::new(),
+            snaps: libtw2_snapshot::Manager::new(),
             num_snaps_since_reset: 0,
             dummy_map: false,
             state: PeerState::Connection,
@@ -738,7 +738,7 @@ impl<'a, L: Loop> MainLoop<'a, L> {
 }
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teeworlds server map scraper")
         .about("Tries to download every map from an otherwise empty Teeworlds server.")

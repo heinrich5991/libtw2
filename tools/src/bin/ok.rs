@@ -1,9 +1,9 @@
 #![cfg(not(test))]
 
-use datafile as df;
+use libtw2_datafile as df;
 use std::path::Path;
 
-fn process(p: &Path, _: df::Reader, _: &mut ()) -> Result<(), map::Error> {
+fn process(p: &Path, _: df::Reader, _: &mut ()) -> Result<(), libtw2_map::Error> {
     println!("{}", p.display());
     Ok(())
 }
@@ -11,5 +11,5 @@ fn process(p: &Path, _: df::Reader, _: &mut ()) -> Result<(), map::Error> {
 fn print_stats(_: &()) {}
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

@@ -1,17 +1,17 @@
-extern crate gamenet_teeworlds_0_6 as gamenet;
+extern crate libtw2_gamenet_teeworlds_0_6 as libtw2_gamenet;
 
 use arrayvec::ArrayVec;
 use buffer::ReadBuffer;
-use gamenet::msg;
-use gamenet::msg::Connless;
 use hexdump::hexdump;
-use net::protocol::ChunksIter;
-use net::protocol::ConnectedPacketType;
-use net::protocol::Packet;
-use packer::Unpacker;
+use libtw2_gamenet::msg;
+use libtw2_gamenet::msg::Connless;
+use libtw2_net::protocol::ChunksIter;
+use libtw2_net::protocol::ConnectedPacketType;
+use libtw2_net::protocol::Packet;
+use libtw2_packer::Unpacker;
+use libtw2_tools::unhexdump::Unhexdump;
+use libtw2_tools::warn_stdout::Stdout;
 use std::io;
-use tools::unhexdump::Unhexdump;
-use tools::warn_stdout::Stdout;
 
 fn main() {
     let mut un = Unhexdump::new();

@@ -2,9 +2,9 @@ use crate::addr::Addr;
 use crate::addr::ServerAddr;
 use crate::base64::B64;
 use crate::StatsBrowserCb;
-use serverbrowse::protocol::ClientInfo;
-use serverbrowse::protocol::ServerInfo;
-use serverbrowse::protocol::ServerInfoVersion;
+use libtw2_serverbrowse::protocol::ClientInfo;
+use libtw2_serverbrowse::protocol::ServerInfo;
+use libtw2_serverbrowse::protocol::ServerInfoVersion;
 use std::cmp::Ordering;
 use std::fmt;
 

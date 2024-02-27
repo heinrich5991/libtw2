@@ -1,5 +1,5 @@
 [package]
-name = "wireshark-dissector-sys"
+name = "libtw2-wireshark-dissector-sys"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"

@@ -1,12 +1,12 @@
 [package]
-name = "huffman-reference"
+name = "libtw2-huffman-reference"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 edition = "2021"
 
 [dependencies]
 buffer = "0.1.9"
-common = { path = "../../common" }
-huffman = { path = ".." }
-huffman-reference-sys = { path = "sys" }
 libc = "0.2.0"
+libtw2-common = { path = "../../common" }
+libtw2-huffman = { path = ".." }
+libtw2-huffman-reference-sys = { path = "sys" }

@@ -6,5 +6,5 @@ pub mod msg;
 pub mod snap_obj;
 
 pub use self::snap_obj::SnapObj;
-pub use gamenet_common::error;
-pub use gamenet_common::error::Error;
+pub use libtw2_gamenet_common::error;
+pub use libtw2_gamenet_common::error::Error;

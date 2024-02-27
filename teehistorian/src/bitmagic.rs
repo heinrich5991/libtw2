@@ -2,7 +2,7 @@ use crate::raw::Callback;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use common::unwrap_or_return;
+use libtw2_common::unwrap_or_return;
 
 pub trait CallbackExt: Callback {
     fn read_buffer<'d, B: Buffer<'d>>(&mut self, buf: B) -> Result<Option<&'d [u8]>, Self::Error> {

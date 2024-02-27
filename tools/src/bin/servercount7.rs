@@ -3,11 +3,11 @@
 #[macro_use]
 extern crate log;
 
-use serverbrowse::protocol as browse_protocol;
-use serverbrowse::protocol::Count7Response;
-use serverbrowse::protocol::Response;
-use serverbrowse::protocol::Token7;
-use serverbrowse::protocol::Token7Response;
+use libtw2_serverbrowse::protocol as browse_protocol;
+use libtw2_serverbrowse::protocol::Count7Response;
+use libtw2_serverbrowse::protocol::Response;
+use libtw2_serverbrowse::protocol::Token7;
+use libtw2_serverbrowse::protocol::Token7Response;
 use std::net::SocketAddr;
 use std::net::UdpSocket;
 
@@ -67,5 +67,5 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
 }
 
 fn main() {
-    tools::client::client(do_);
+    libtw2_tools::client::client(do_);
 }

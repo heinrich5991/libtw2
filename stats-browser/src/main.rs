@@ -4,10 +4,10 @@ use clap::value_t;
 use clap::App;
 use clap::Arg;
 use clap::Values;
-use stats_browser::tracker_fstd;
-use stats_browser::tracker_json;
-use stats_browser::StatsBrowser;
-use stats_browser::StatsBrowserCb;
+use libtw2_stats_browser::tracker_fstd;
+use libtw2_stats_browser::tracker_json;
+use libtw2_stats_browser::StatsBrowser;
+use libtw2_stats_browser::StatsBrowserCb;
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -30,7 +30,7 @@ fn run_browser<T: StatsBrowserCb>(tracker: &mut T, masters: Vec<(String, bool)>)
 }
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("stats_browser")
         .version("0.0.1")

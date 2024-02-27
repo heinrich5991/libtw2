@@ -1,12 +1,12 @@
 #![cfg(not(test))]
 
-use common::pretty;
-use datafile as df;
-use map::format;
+use libtw2_common::pretty;
+use libtw2_datafile as df;
+use libtw2_map::format;
 use std::path::Path;
 
-fn process(_: &Path, dfr: df::Reader, _: &mut ()) -> Result<(), map::Error> {
-    let mut map = map::Reader::from_datafile(dfr);
+fn process(_: &Path, dfr: df::Reader, _: &mut ()) -> Result<(), libtw2_map::Error> {
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
     let maybe_info = map.info();
     if let Err(format::Error::MissingInfo) = maybe_info {
         return Ok(());
@@ -24,5 +24,5 @@ fn process(_: &Path, dfr: df::Reader, _: &mut ()) -> Result<(), map::Error> {
 fn nothing(_: &()) {}
 
 fn main() {
-    tools::map_stats::stats(process, nothing);
+    libtw2_tools::map_stats::stats(process, nothing);
 }

@@ -1,19 +1,19 @@
-extern crate gamenet_teeworlds_0_6 as gamenet;
+extern crate libtw2_gamenet_teeworlds_0_6 as libtw2_gamenet;
 
 use arrayvec::ArrayVec;
-use common::num::Cast;
-use common::pretty;
-use gamenet::msg::game;
-use gamenet::msg::Game;
-use packer::Unpacker;
+use libtw2_common::num::Cast;
+use libtw2_common::pretty;
+use libtw2_gamenet::msg::game;
+use libtw2_gamenet::msg::Game;
+use libtw2_packer::Unpacker;
+use libtw2_teehistorian::format::item::INPUT_LEN;
+use libtw2_teehistorian::Buffer;
+use libtw2_teehistorian::Error;
+use libtw2_teehistorian::Input;
+use libtw2_teehistorian::Item;
+use libtw2_teehistorian::Reader;
 use std::path::Path;
 use std::process;
-use teehistorian::format::item::INPUT_LEN;
-use teehistorian::Buffer;
-use teehistorian::Error;
-use teehistorian::Input;
-use teehistorian::Item;
-use teehistorian::Reader;
 use vec_map::VecMap;
 use warn::Ignore;
 
@@ -124,7 +124,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teehistorian odd input checker")
         .about("Reads teehistorian file and checks for odd inputs")

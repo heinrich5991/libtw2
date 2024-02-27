@@ -1,13 +1,11 @@
-extern crate gamenet_teeworlds_0_6 as gamenet;
-
+use libtw2_teehistorian::Buffer;
+use libtw2_teehistorian::Error;
+use libtw2_teehistorian::Item;
+use libtw2_teehistorian::Reader;
 use serde_derive::Serialize;
 use std::io;
 use std::path::Path;
 use std::process;
-use teehistorian::Buffer;
-use teehistorian::Error;
-use teehistorian::Item;
-use teehistorian::Reader;
 
 #[derive(Serialize)]
 struct TickAndItem<'a> {
@@ -69,7 +67,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teehistorian reader")
         .about(

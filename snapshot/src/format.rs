@@ -1,13 +1,13 @@
 use crate::snap::Error;
 use buffer::CapacityError;
-use packer::Packer;
-use packer::Unpacker;
+use libtw2_packer::Packer;
+use libtw2_packer::Unpacker;
 use warn::wrap;
 use warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
-    Packer(packer::Warning),
+    Packer(libtw2_packer::Warning),
     NonZeroPadding,
     DuplicateDelete,
     DuplicateUpdate,
@@ -16,8 +16,8 @@ pub enum Warning {
     NumUpdatedItems,
 }
 
-impl From<packer::Warning> for Warning {
-    fn from(w: packer::Warning) -> Warning {
+impl From<libtw2_packer::Warning> for Warning {
+    fn from(w: libtw2_packer::Warning) -> Warning {
         Warning::Packer(w)
     }
 }
@@ -62,8 +62,8 @@ pub struct SnapHeader {
 impl SnapHeader {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<SnapHeader, Error> {
         Ok(SnapHeader {
-            data_size: packer::positive(p.read_int(wrap(warn))?)?,
-            num_items: packer::positive(p.read_int(wrap(warn))?)?,
+            data_size: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
+            num_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
         })
     }
 }
@@ -77,8 +77,8 @@ pub struct DeltaHeader {
 impl DeltaHeader {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<DeltaHeader, Error> {
         let result = DeltaHeader {
-            num_deleted_items: packer::positive(p.read_int(wrap(warn))?)?,
-            num_updated_items: packer::positive(p.read_int(wrap(warn))?)?,
+            num_deleted_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
+            num_updated_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
         };
         if p.read_int(wrap(warn))? != 0 {
             warn.warn(Warning::NonZeroPadding);

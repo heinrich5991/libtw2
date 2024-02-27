@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
-use datafile as df;
-use map::reader;
+use libtw2_datafile as df;
+use libtw2_map::reader;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -9,8 +9,8 @@ fn process(
     _: &Path,
     dfr: df::Reader,
     tilesets: &mut HashMap<Vec<u8>, u64>,
-) -> Result<(), map::Error> {
-    let mut map = map::Reader::from_datafile(dfr);
+) -> Result<(), libtw2_map::Error> {
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
     for i in map.group_indices() {
         let group = map.group(i)?;
         for k in group.layer_indices.clone() {
@@ -39,5 +39,5 @@ fn print_stats(tilesets: &HashMap<Vec<u8>, u64>) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

@@ -1,4 +1,4 @@
-use map::Error;
+use libtw2_map::Error;
 use std::path::Path;
 use std::process;
 
@@ -18,7 +18,7 @@ fn tele_tile_name(index: u8) -> Option<&'static str> {
 }
 
 fn process(path: &Path) -> Result<(), Error> {
-    let mut map = map::Reader::open(path)?;
+    let mut map = libtw2_map::Reader::open(path)?;
     let game_layers = map.game_layers()?;
 
     let tele = if let Some(t) = game_layers.teleport() {
@@ -43,7 +43,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("DDNet teleporter scanner")
         .about("Scans map files for weird teleporters.")

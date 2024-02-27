@@ -1,16 +1,16 @@
-use common::num::Cast;
-use map::format::SpeedupTile;
-use map::format::SwitchTile;
-use map::format::TeleTile;
-use map::format::Tile;
-use map::format::TuneTile;
+use libtw2_common::num::Cast;
+use libtw2_map::format::SpeedupTile;
+use libtw2_map::format::SwitchTile;
+use libtw2_map::format::TeleTile;
+use libtw2_map::format::Tile;
+use libtw2_map::format::TuneTile;
 use std::fs::File;
 use std::io;
 use std::path::Path;
 use std::process;
 
 #[derive(Debug)]
-struct Error(map::Error);
+struct Error(libtw2_map::Error);
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Error {
@@ -18,20 +18,20 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<datafile::Error> for Error {
-    fn from(e: datafile::Error) -> Error {
+impl From<libtw2_datafile::Error> for Error {
+    fn from(e: libtw2_datafile::Error) -> Error {
         Error(e.into())
     }
 }
 
-impl From<map::format::Error> for Error {
-    fn from(e: map::format::Error) -> Error {
+impl From<libtw2_map::format::Error> for Error {
+    fn from(e: libtw2_map::format::Error) -> Error {
         Error(e.into())
     }
 }
 
-impl From<map::Error> for Error {
-    fn from(e: map::Error) -> Error {
+impl From<libtw2_map::Error> for Error {
+    fn from(e: libtw2_map::Error) -> Error {
         Error(e)
     }
 }
@@ -153,7 +153,7 @@ fn tile_remap_count(count: &mut [u64; 256]) {
 
 fn process(path: &Path, output_path: &Path) -> Result<(), Error> {
     let mut output = File::create(output_path)?;
-    let mut map = map::Reader::open(path)?;
+    let mut map = libtw2_map::Reader::open(path)?;
     let game_layers = map.game_layers()?;
 
     let mut tiles_count = [0u64; 256];
@@ -206,7 +206,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("DDNet map properties extractor")
         .about(

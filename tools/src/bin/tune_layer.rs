@@ -1,8 +1,8 @@
 #![cfg(not(test))]
 
-use common::num::Cast;
-use common::unwrap_or_return;
-use datafile as df;
+use libtw2_common::num::Cast;
+use libtw2_common::unwrap_or_return;
+use libtw2_datafile as df;
 use std::fmt;
 use std::path::Path;
 
@@ -36,8 +36,8 @@ impl Default for Stats {
     }
 }
 
-fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
-    let mut map = map::Reader::from_datafile(dfr);
+fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), libtw2_map::Error> {
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
     let game_layers = map.game_layers()?;
     let tune_layer = unwrap_or_return!(game_layers.tune(), Ok(()));
     let tiles = map.tune_layer_tiles(tune_layer)?;
@@ -69,5 +69,5 @@ fn print_stats(stats: &Stats) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

@@ -1,4 +1,4 @@
-use packer::IntOutOfRange;
+use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 16;
 pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;

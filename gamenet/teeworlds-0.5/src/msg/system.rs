@@ -1,10 +1,10 @@
 use buffer::CapacityError;
-use common::pretty;
 use crate::error::Error;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::with_packer;
+use libtw2_common::pretty;
+use libtw2_packer::Packer;
+use libtw2_packer::Unpacker;
+use libtw2_packer::Warning;
+use libtw2_packer::with_packer;
 use std::fmt;
 use super::MessageId;
 use super::SystemOrGame;

@@ -1,5 +1,5 @@
-use serverbrowse::protocol;
-use serverbrowse::protocol::IpAddr;
+use libtw2_serverbrowse::protocol;
+use libtw2_serverbrowse::protocol::IpAddr;
 
 use std::fmt;
 use std::net;

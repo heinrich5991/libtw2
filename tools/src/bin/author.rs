@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
-use datafile as df;
-use map::format;
+use libtw2_datafile as df;
+use libtw2_map::format;
 use std::path::Path;
 
 #[derive(Default)]
@@ -15,8 +15,8 @@ struct Stats {
     total: u64,
 }
 
-fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
-    let map = map::Reader::from_datafile(dfr);
+fn process(_: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), libtw2_map::Error> {
+    let map = libtw2_map::Reader::from_datafile(dfr);
     let info = match map.info() {
         Ok(i) => i,
         Err(format::Error::MissingInfo) => {
@@ -56,5 +56,5 @@ fn print_stats(stats: &Stats) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

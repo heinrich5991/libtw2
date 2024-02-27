@@ -1,12 +1,12 @@
 use clap::App;
 use clap::Arg;
-use demo::ddnet;
+use libtw2_demo::ddnet;
 use std::error::Error;
 use std::fs;
 use std::process;
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
     let matches = App::new("Teehistorian reader")
         .about(
             "Reads teehistorian file and dumps its contents in a human-readable\
@@ -45,8 +45,8 @@ fn main() {
 fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
     let input_file = fs::File::open(input)?;
     let output_file = fs::File::create(output)?;
-    let mut reader = demo::Reader::new(input_file, &mut warn::Ignore)?;
-    let mut writer = demo::Writer::new(
+    let mut reader = libtw2_demo::Reader::new(input_file, &mut warn::Ignore)?;
+    let mut writer = libtw2_demo::Writer::new(
         output_file,
         reader.net_version(),
         reader.map_name(),

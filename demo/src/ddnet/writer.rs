@@ -1,8 +1,12 @@
 use crate::format;
-use common::num::Cast;
-use gamenet_ddnet::msg;
-use gamenet_ddnet::snap_obj;
-use snapshot::snap;
+use libtw2_common::digest::Sha256;
+use libtw2_common::num::Cast;
+use libtw2_gamenet_ddnet::msg;
+use libtw2_gamenet_ddnet::snap_obj;
+use libtw2_packer::with_packer;
+use libtw2_snapshot::snap;
+use libtw2_snapshot::Delta;
+use libtw2_snapshot::Snap;
 use std::convert::TryInto;
 use std::io;
 use std::mem;
@@ -43,9 +47,9 @@ pub struct DemoWriter {
     // Stores the last tick, in which a snapshot was written.
     last_keyframe: Option<i32>,
     uuid_index: UuidIndex,
-    snap: snapshot::Snap,
+    snap: Snap,
     builder: snap::Builder,
-    delta: snapshot::Delta,
+    delta: Delta,
     buf: arrayvec::ArrayVec<[u8; format::MAX_SNAPSHOT_SIZE]>,
     i32_buf: Vec<i32>,
 }
@@ -90,7 +94,7 @@ impl DemoWriter {
         file: T,
         net_version: &[u8],
         map_name: &[u8],
-        map_sha256: Option<common::digest::Sha256>,
+        map_sha256: Option<Sha256>,
         map_crc: u32,
         kind: crate::DemoKind,
         length: i32,
@@ -114,8 +118,8 @@ impl DemoWriter {
             last_tick: -1,
             last_keyframe: None,
             uuid_index: UuidIndex::default(),
-            snap: snapshot::Snap::default(),
-            delta: snapshot::Delta::default(),
+            snap: Snap::default(),
+            delta: Delta::default(),
             builder: snap::Builder::default(),
             buf: arrayvec::ArrayVec::new(),
             i32_buf: Vec::new(),
@@ -154,13 +158,13 @@ impl DemoWriter {
         self.inner.write_tick(is_keyframe, tick)?;
         if is_keyframe {
             let keys = &mut self.i32_buf;
-            packer::with_packer(&mut self.buf, |p| new_snap.write(keys, p))
+            with_packer(&mut self.buf, |p| new_snap.write(keys, p))
                 .map_err(|_| WriteError::TooLargeSnap)?;
             self.inner.write_snapshot(&self.buf)?;
         } else {
             self.delta.create(&old_snap, &new_snap);
             let delta = &self.delta;
-            packer::with_packer(&mut self.buf, |p| delta.write(snap_obj::obj_size, p))
+            with_packer(&mut self.buf, |p| delta.write(snap_obj::obj_size, p))
                 .map_err(|_| WriteError::TooLargeSnap)?;
             self.inner.write_snapshot_delta(&self.buf)?;
         }
@@ -178,8 +182,7 @@ impl DemoWriter {
         Ok(())
     }
     pub fn write_msg(&mut self, msg: &msg::Game) -> Result<(), WriteError> {
-        packer::with_packer(&mut self.buf, |p| msg.encode(p))
-            .map_err(|_| WriteError::TooLongNetMsg)?;
+        with_packer(&mut self.buf, |p| msg.encode(p)).map_err(|_| WriteError::TooLongNetMsg)?;
         self.inner.write_message(self.buf.as_slice())?;
         self.buf.clear();
         Ok(())

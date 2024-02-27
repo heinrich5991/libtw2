@@ -1,5 +1,5 @@
 [package]
-name = "tools"
+name = "libtw2-tools"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -10,31 +10,31 @@ arrayvec = "0.5.2"
 buffer = "0.1.9"
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.23.1"
-common = { path = "../common/" }
 csv = "1.1.6"
-datafile = { path = "../datafile/" }
-demo = { path = "../demo/" }
-gamenet_ddnet = { path = "../gamenet/ddnet/" }
-gamenet_spec = { path = "../gamenet/spec/" }
-gamenet_teeworlds_0_6 = { path = "../gamenet/teeworlds-0.6/" }
-gamenet_teeworlds_0_7 = { path = "../gamenet/teeworlds-0.7/" }
 hexdump = "0.1.1"
 itertools = "0.7.4"
+libtw2-common = { path = "../common/" }
+libtw2-datafile = { path = "../datafile/" }
+libtw2-demo = { path = "../demo/" }
+libtw2-gamenet-ddnet = { path = "../gamenet/ddnet/" }
+libtw2-gamenet-spec = { path = "../gamenet/spec/" }
+libtw2-gamenet-teeworlds-0-6 = { path = "../gamenet/teeworlds-0.6/" }
+libtw2-gamenet-teeworlds-0-7 = { path = "../gamenet/teeworlds-0.7/" }
+libtw2-logger = { path = "../logger/" }
+libtw2-map = { path = "../map/" }
+libtw2-net = { path = "../net/" }
+libtw2-packer = { path = "../packer/", features = ["uuid"] }
+libtw2-serverbrowse = { path = "../serverbrowse/" }
+libtw2-snapshot = { path = "../snapshot/" }
+libtw2-teehistorian = { path = "../teehistorian/" }
+libtw2-world = { path = "../world/" }
 log = "0.3.1"
-logger = { path = "../logger/" }
-map = { path = "../map/" }
-net = { path = "../net/" }
-packer = { path = "../packer/", features = ["uuid"] }
 rmp = "0.8.5"
-serverbrowse = { path = "../serverbrowse/" }
 serde = "1.0.23"
-serde_json = "1.0.7"
 serde_derive = "1.0.27"
-snapshot = { path = "../snapshot/" }
-teehistorian = { path = "../teehistorian/" }
+serde_json = "1.0.7"
 uuid = { version = "0.8.1", features = ["serde"] }
 vec_map = "0.8.0"
 void = "1.0.2"
 walkdir = "2.0.1"
 warn = "0.2.2"
-world = { path = "../world/" }

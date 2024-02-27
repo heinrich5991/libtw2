@@ -3,7 +3,7 @@ use crate::bitmagic::to_little_endian;
 use crate::bitmagic::CallbackNewExt;
 use crate::raw;
 use crate::raw::CallbackNew;
-use common::num::Cast;
+use libtw2_common::num::Cast;
 use std::mem;
 use std::slice;
 
@@ -14,7 +14,7 @@ pub enum Error {
     MalformedHeader,
     Malformed,
     CompressionWrongSize,
-    CompressionError(zlib::Error),
+    CompressionError(libtw2_zlib::Error),
     TooShort,
     TooShortHeaderVersion,
     TooShortHeader,

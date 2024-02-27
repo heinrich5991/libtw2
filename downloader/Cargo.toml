@@ -1,5 +1,5 @@
 [package]
-name = "downloader"
+name = "libtw2-downloader"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -8,15 +8,15 @@ edition = "2021"
 [dependencies]
 arrayvec = "0.5.2"
 clap = "2.31.2"
-common = { path = "../common/" }
-event_loop = { path = "../event_loop/" }
-gamenet = { package = "gamenet_teeworlds_0_6", path = "../gamenet/teeworlds-0.6/" }
 hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
+libtw2-common = { path = "../common/" }
+libtw2-event-loop = { path = "../event-loop/" }
+libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+libtw2-logger = { path = "../logger/" }
+libtw2-packer = { path = "../packer/" }
+libtw2-snapshot = { path = "../snapshot/" }
 log = "0.3.1"
-logger = { path = "../logger/" }
-packer = { path = "../packer/" }
 rand = "0.8.3"
-snapshot = { path = "../snapshot/" }
 tempfile = "3.0.0"
 warn = ">=0.1.1,<0.3.0"

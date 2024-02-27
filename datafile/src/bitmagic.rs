@@ -5,10 +5,10 @@ use crate::raw::CallbackReadData;
 use crate::raw::CallbackReadError;
 use std::mem;
 
-pub use common::relative_size_of;
-pub use common::relative_size_of_mult;
-pub use common::slice::transmute as transmute_slice;
-pub use common::slice::transmute_mut as transmute_mut_slice;
+pub use libtw2_common::relative_size_of;
+pub use libtw2_common::relative_size_of_mult;
+pub use libtw2_common::slice::transmute as transmute_slice;
+pub use libtw2_common::slice::transmute_mut as transmute_mut_slice;
 
 pub fn as_mut_i32_slice<T: OnlyI32>(x: &mut [T]) -> &mut [i32] {
     unsafe { transmute_mut_slice(x) }

@@ -2,12 +2,12 @@ use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use common::boilerplate_packed;
-use common::bytes::FromBytesExt as _;
-use common::num::Cast;
-use common::pretty;
-use common::unwrap_or_return;
-use huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_common::boilerplate_packed;
+use libtw2_common::bytes::FromBytesExt as _;
+use libtw2_common::num::Cast;
+use libtw2_common::pretty;
+use libtw2_common::unwrap_or_return;
+use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
 use std::cmp;
 use std::fmt;
 use std::io::Write as _;
@@ -562,13 +562,13 @@ impl<'a> Packet<'a> {
     pub fn decompress_if_needed<B: Buffer<'a>>(
         packet: &[u8],
         buffer: B,
-    ) -> Result<bool, huffman::DecompressionError> {
+    ) -> Result<bool, libtw2_huffman::DecompressionError> {
         with_buffer(buffer, |b| Packet::decompress_if_needed_impl(packet, b))
     }
     fn decompress_if_needed_impl<'d, 's>(
         packet: &[u8],
         mut buffer: BufferRef<'d, 's>,
-    ) -> Result<bool, huffman::DecompressionError> {
+    ) -> Result<bool, libtw2_huffman::DecompressionError> {
         assert!(buffer.remaining() >= MAX_PACKETSIZE);
         if !Packet::needs_decompression(packet) {
             return Ok(false);
@@ -580,13 +580,13 @@ impl<'a> Packet<'a> {
     fn decompress<B: Buffer<'a>>(
         packet: &[u8],
         buffer: B,
-    ) -> Result<&'a [u8], huffman::DecompressionError> {
+    ) -> Result<&'a [u8], libtw2_huffman::DecompressionError> {
         with_buffer(buffer, |b| Packet::decompress_impl(packet, b))
     }
     fn decompress_impl<'d, 's>(
         packet: &[u8],
         mut buffer: BufferRef<'d, 's>,
-    ) -> Result<&'d [u8], huffman::DecompressionError> {
+    ) -> Result<&'d [u8], libtw2_huffman::DecompressionError> {
         assert!(buffer.remaining() >= MAX_PACKETSIZE);
         assert!(Packet::needs_decompression(packet));
         let (header, payload) = PacketHeaderPacked::ref_and_rest_from(packet)
@@ -916,7 +916,7 @@ mod test {
     use super::MAX_PACKETSIZE;
     use super::PACKET_FLAGS_BITS;
     use super::SEQUENCE_BITS;
-    use common::bytes::FromBytesExt;
+    use libtw2_common::bytes::FromBytesExt;
     use quickcheck::quickcheck;
     use warn::Ignore;
     use warn::Panic;

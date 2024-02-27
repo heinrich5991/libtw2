@@ -206,18 +206,18 @@ def emit_header_enums():
 
 def emit_header_snap_obj():
     print("""\
-pub use gamenet_common::snap_obj::Tick;
-pub use gamenet_common::snap_obj::TypeId;
+pub use libtw2_gamenet_common::snap_obj::Tick;
+pub use libtw2_gamenet_common::snap_obj::TypeId;
 """)
 
 def emit_header_msg_system():
     import_(
         "buffer::CapacityError",
         "crate::error::Error",
-        "packer::Packer",
-        "packer::Unpacker",
-        "packer::Warning",
-        "packer::with_packer",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
+        "libtw2_packer::with_packer",
         "super::SystemOrGame",
         "warn::Warn",
     )
@@ -246,15 +246,15 @@ def emit_header_msg_game():
     import_(
         "buffer::CapacityError",
         "crate::error::Error",
-        "packer::Packer",
-        "packer::Unpacker",
-        "packer::Warning",
-        "packer::with_packer",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
+        "libtw2_packer::with_packer",
         "super::SystemOrGame",
         "warn::Warn",
     )
     print("""\
-pub use gamenet_common::msg::TuneParam;
+pub use libtw2_gamenet_common::msg::TuneParam;
 
 impl<'a> Game<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>
@@ -279,14 +279,14 @@ impl<'a> Game<'a> {
 def emit_header_msg_connless(structs):
     import_(
         "buffer::CapacityError",
-        "common::pretty",
         "crate::error::Error",
-        "packer::Packer",
-        "packer::Unpacker",
-        "packer::Warning",
-        "packer::with_packer",
+        "libtw2_common::pretty",
+        "libtw2_gamenet_common::msg::string_from_int",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
+        "libtw2_packer::with_packer",
         "std::fmt",
-        "gamenet_common::msg::string_from_int",
         "warn::Warn",
     )
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -364,9 +364,9 @@ def emit_enum_msg(name, structs):
     import_(
         "buffer::CapacityError",
         "crate::error::Error",
-        "packer::Packer",
-        "packer::Unpacker",
-        "packer::Warning",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
         "std::fmt",
         "super::MessageId",
         "warn::Warn",
@@ -426,8 +426,8 @@ def emit_enum_msg_module(name, structs):
 def emit_enum_obj(name, structs):
     import_(
         "crate::error::Error",
-        "packer::ExcessData",
-        "packer::IntUnpacker",
+        "libtw2_packer::ExcessData",
+        "libtw2_packer::IntUnpacker",
         "std::fmt",
         "warn::Warn",
     )
@@ -493,7 +493,7 @@ def emit_enum_connless(name, structs):
     import_(
         "buffer::CapacityError",
         "crate::error::Error",
-        "packer::Warning",
+        "libtw2_packer::Warning",
         "std::fmt",
         "warn::Warn",
     )
@@ -579,9 +579,9 @@ edition = "2021"
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-common = {{ path = "../../common/" }}
-gamenet_common = {{ path = "../common/" }}
-packer = {{ path = "../../packer/", features = ["uuid"] }}
+libtw2-common = {{ path = "../../common/" }}
+libtw2-gamenet-common = {{ path = "../common/" }}
+libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"\
 """.format(name))
@@ -596,15 +596,15 @@ pub mod msg;
 pub mod snap_obj;
 
 pub use self::snap_obj::SnapObj;
-pub use gamenet_common::error;
-pub use gamenet_common::error::Error;\
+pub use libtw2_gamenet_common::error;
+pub use libtw2_gamenet_common::error::Error;\
 """)
 
 def emit_msg_module():
     import_(
-        "gamenet_common::error::Error",
-        "packer::Unpacker",
-        "packer::Warning",
+        "libtw2_gamenet_common::error::Error",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
         "warn::Warn",
     )
     print("""\
@@ -616,15 +616,15 @@ pub use self::connless::Connless;
 pub use self::game::Game;
 pub use self::system::System;
 
-pub use gamenet_common::msg::AddrPacked;
-pub use gamenet_common::msg::CLIENTS_DATA_NONE;
-pub use gamenet_common::msg::ClientsData;
-pub use gamenet_common::msg::MessageId;
-pub use gamenet_common::msg::SystemOrGame;
+pub use libtw2_gamenet_common::msg::AddrPacked;
+pub use libtw2_gamenet_common::msg::CLIENTS_DATA_NONE;
+pub use libtw2_gamenet_common::msg::ClientsData;
+pub use libtw2_gamenet_common::msg::MessageId;
+pub use libtw2_gamenet_common::msg::SystemOrGame;
 
 struct Protocol;
 
-impl<'a> gamenet_common::msg::Protocol<'a> for Protocol {
+impl<'a> libtw2_gamenet_common::msg::Protocol<'a> for Protocol {
     type System = System<'a>;
     type Game = Game<'a>;
 
@@ -646,7 +646,7 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
     -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
     where W: Warn<Warning>
 {
-    gamenet_common::msg::decode(warn, Protocol, p)
+    libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
 """)
 
@@ -656,7 +656,7 @@ class Enum(NameValues):
         self.offset = offset
     def emit_definition(self):
         import_(
-            "packer::IntOutOfRange",
+            "libtw2_packer::IntOutOfRange",
         )
         for i, name in enumerate(self.values):
             print("pub const {}_{}: i32 = {};".format(caps(self.name), caps(name), i + self.offset))
@@ -808,9 +808,9 @@ class Struct(NameValues):
         import_(
             "buffer::CapacityError",
             "crate::error::Error",
-            "packer::Packer",
-            "packer::Unpacker",
-            "packer::Warning",
+            "libtw2_packer::Packer",
+            "libtw2_packer::Unpacker",
+            "libtw2_packer::Warning",
             "std::fmt",
             "warn::Warn",
         )
@@ -906,10 +906,10 @@ class NetObject(Struct):
         super().emit_definition()
     def emit_impl_encode_decode_int(self):
         import_(
-            "common::slice",
             "crate::error::Error",
-            "packer::ExcessData",
-            "packer::IntUnpacker",
+            "libtw2_common::slice",
+            "libtw2_packer::ExcessData",
+            "libtw2_packer::IntUnpacker",
             "std::slice::from_ref",
             "warn::Warn",
         )
@@ -1053,7 +1053,7 @@ class NetArray(Member):
     def debug_expr(self, self_expr):
         if self.inner.debug_expr("x") == "x":
             return self_expr
-        import_("gamenet_common::debug::DebugSlice")
+        import_("libtw2_gamenet_common::debug::DebugSlice")
         return "DebugSlice::new(&{}, |e| {})".format(self_expr, self.inner.debug_expr("e"))
     def int_size(self):
         return self.inner.int_size() * self.count
@@ -1103,7 +1103,7 @@ class NetString(Member):
     def encode_expr(self, self_expr):
         return "_p.write_string({})".format(self_expr)
     def debug_expr(self, self_expr):
-        import_("common::pretty")
+        import_("libtw2_common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
     def serialize_type(self):
         return {"kind": self.kind, "disallow_cc": False}
@@ -1116,11 +1116,11 @@ class NetString(Member):
 
 class NetStringStrict(NetString):
     def decode_expr(self):
-        import_("packer::sanitize")
+        import_("libtw2_packer::sanitize")
         return "sanitize(warn, {})?".format(super().decode_expr())
     def assert_expr(self, self_expr):
         import_(
-            "packer::sanitize",
+            "libtw2_packer::sanitize",
             "warn::Panic",
         )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
@@ -1136,7 +1136,7 @@ class NetData(Member):
     def encode_expr(self, self_expr):
         return "_p.write_data({})".format(self_expr)
     def debug_expr(self, self_expr):
-        import_("common::pretty")
+        import_("libtw2_common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
     def serialize_type(self):
         return {"kind": self.kind, "size": "specified_before"}
@@ -1152,7 +1152,7 @@ class NetDataRest(Member):
     def encode_expr(self, self_expr):
         return "_p.write_rest({})".format(self_expr)
     def debug_expr(self, self_expr):
-        import_("common::pretty")
+        import_("libtw2_common::pretty")
         return "pretty::Bytes::new(&{})".format(self_expr)
     def serialize_type(self):
         return {"kind": self.kind}
@@ -1164,7 +1164,7 @@ class NetSha256(Member):
     type_ = "Sha256"
     kind = "sha256"
     def decode_expr(self):
-        import_("common::digest::Sha256")
+        import_("libtw2_common::digest::Sha256")
         return "Sha256::from_slice(_p.read_raw(32)?).unwrap()"
     def encode_expr(self, self_expr):
         return "_p.write_raw(&{}.0)".format(self_expr)
@@ -1278,7 +1278,7 @@ class NetIntRange(NetIntAny):
         self.max = evaluate_constant(consts, enums, max)
         return self
     def decode_expr(self):
-        import_("packer::in_range")
+        import_("libtw2_packer::in_range")
         import_consts(self.min)
         import_consts(self.max)
         return "in_range({}, {}, {})?".format(super().decode_expr(), self.min, self.max)
@@ -1287,7 +1287,7 @@ class NetIntRange(NetIntAny):
         import_consts(self.max)
         return "assert!({} <= {s} && {s} <= {})".format(self.min, self.max, s=self_expr)
     def decode_int_expr(self):
-        import_("packer::in_range")
+        import_("libtw2_packer::in_range")
         import_consts(self.min)
         import_consts(self.max)
         return "in_range({}, {}, {})?".format(super().decode_int_expr(), self.min, self.max)
@@ -1298,12 +1298,12 @@ class NetIntPositive(NetIntAny):
     def __init__(self, name):
         super().__init__(name)
     def decode_expr(self):
-        import_("packer::positive")
+        import_("libtw2_packer::positive")
         return "positive({})?".format(super().decode_expr())
     def assert_expr(self, self_expr):
         return "assert!({} >= 0)".format(self_expr)
     def decode_int_expr(self):
-        import_("packer::positive")
+        import_("libtw2_packer::positive")
         return "positive({})?".format(super().decode_int_expr())
     def serialize_type(self):
         return {"kind": self.kind, "min": 0}
@@ -1313,12 +1313,12 @@ class NetIntMin(NetIntAny):
         super().__init__(name)
         self.min = min
     def decode_expr(self):
-        import_("packer::at_least")
+        import_("libtw2_packer::at_least")
         return "at_least({}, {})?".format(super().decode_expr(), self.min)
     def assert_expr(self, self_expr):
         return "assert!({} >= {})".format(self_expr, self.min)
     def decode_int_expr(self):
-        import_("packer::at_least")
+        import_("libtw2_packer::at_least")
         return "at_least({}, {})?".format(super().decode_int_expr(), self.min)
     def serialize_type(self):
         return {"kind": self.kind, "min": self.min}
@@ -1362,12 +1362,12 @@ class NetBool(NetIntAny):
     kind = "boolean"
     type_ = "bool"
     def decode_expr(self):
-        import_("packer::to_bool")
+        import_("libtw2_packer::to_bool")
         return "to_bool({})?".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{} as i32".format(self_expr))
     def decode_int_expr(self):
-        import_("packer::to_bool")
+        import_("libtw2_packer::to_bool")
         return "to_bool({})?".format(super().decode_int_expr())
     def serialize_type(self):
         return {"kind": self.kind}
@@ -1412,7 +1412,7 @@ class NetObjectMember(Member):
     def decode_expr(self):
         return "{}::decode_msg(warn, _p)?".format(self.type_)
     def encode_expr(self, self_expr):
-        import_("packer::with_packer")
+        import_("libtw2_packer::with_packer")
         return "with_packer(&mut _p, |p| {}.encode_msg(p))".format(self_expr)
     def serialize_type(self):
         return {"kind": self.kind, "name": self.type_name}
@@ -1428,7 +1428,7 @@ class NetAddrs(Member):
         return super().definition()
     def decode_expr(self):
         import_(
-            "gamenet_common::msg::AddrPackedSliceExt",
+            "libtw2_gamenet_common::msg::AddrPackedSliceExt",
             "warn::wrap",
         )
         return "AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?)"
@@ -1470,10 +1470,10 @@ class NetIntString(NetString):
     kind = "int32_string"
     type_ = "i32"
     def decode_expr(self):
-        import_("gamenet_common::msg::int_from_string")
+        import_("libtw2_gamenet_common::msg::int_from_string")
         return "int_from_string(_p.read_string()?)?"
     def encode_expr(self, self_expr):
-        import_("gamenet_common::msg::string_from_int")
+        import_("libtw2_gamenet_common::msg::string_from_int")
         return "_p.write_string(&string_from_int({}))".format(self_expr)
     def debug_expr(self, self_expr):
         return self_expr

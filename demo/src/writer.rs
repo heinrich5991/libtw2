@@ -1,9 +1,9 @@
 use arrayvec::ArrayVec;
 use binrw::BinWrite;
-use common::digest::Sha256;
-use common::num::Cast;
-use huffman::instances::TEEWORLDS as HUFFMAN;
-use packer::with_packer;
+use libtw2_common::digest::Sha256;
+use libtw2_common::num::Cast;
+use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_packer::with_packer;
 use std::io;
 use thiserror::Error;
 

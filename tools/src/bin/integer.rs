@@ -1,10 +1,10 @@
 use arrayvec::ArrayVec;
 use clap::App;
 use clap::Arg;
-use packer::with_packer;
-use packer::Unpacker;
-use tools::unhexdump::Unhexdump;
-use tools::warn_stdout::Stdout;
+use libtw2_packer::with_packer;
+use libtw2_packer::Unpacker;
+use libtw2_tools::unhexdump::Unhexdump;
+use libtw2_tools::warn_stdout::Stdout;
 
 fn main() {
     let matches = App::new("Teeworlds variable-length integer encoding")

@@ -1,4 +1,4 @@
-use packer::IntOutOfRange;
+use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 64;
 pub const SPEC_FREEVIEW: i32 = -1;

@@ -1,5 +1,5 @@
 [package]
-name = "packer"
+name = "libtw2-packer"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-common = { path = "../common/" }
+libtw2-common = { path = "../common/" }
 uuid = { version = "0.8.1", optional = true }
 warn = ">=0.1.1,<0.3.0"
 

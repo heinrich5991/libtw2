@@ -5,7 +5,7 @@ use std::process;
 
 fn process(path: &Path) -> Result<(), Box<dyn Error>> {
     let file = File::open(path)?;
-    let _spec: gamenet_spec::Spec = serde_json::from_reader(file)?;
+    let _spec: libtw2_gamenet_spec::Spec = serde_json::from_reader(file)?;
     Ok(())
 }
 
@@ -13,7 +13,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Gamenet spec reader")
         .about("Reads a gamenet spec file and does nothing with it.")

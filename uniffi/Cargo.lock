@@ -228,14 +228,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
-name = "common"
-version = "0.0.1"
-dependencies = [
- "arrayvec",
- "zerocopy",
-]
-
-[[package]]
 name = "fs-err"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -268,16 +260,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
-name = "huffman"
-version = "0.0.1"
-dependencies = [
- "arrayvec",
- "buffer",
- "common",
- "itertools",
-]
-
-[[package]]
 name = "itertools"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -288,6 +270,39 @@ name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
+
+[[package]]
+name = "libtw2-common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec",
+ "zerocopy",
+]
+
+[[package]]
+name = "libtw2-huffman"
+version = "0.0.1"
+dependencies = [
+ "arrayvec",
+ "buffer",
+ "itertools",
+ "libtw2-common",
+]
+
+[[package]]
+name = "libtw2-uniffi-bindgen"
+version = "0.2.0"
+dependencies = [
+ "uniffi",
+]
+
+[[package]]
+name = "libtw2-uniffi-huffman"
+version = "0.2.0"
+dependencies = [
+ "libtw2-huffman",
+ "uniffi",
+]
 
 [[package]]
 name = "log"
@@ -526,21 +541,6 @@ dependencies = [
  "uniffi_build",
  "uniffi_core",
  "uniffi_macros",
-]
-
-[[package]]
-name = "uniffi-bindgen"
-version = "0.2.0"
-dependencies = [
- "uniffi",
-]
-
-[[package]]
-name = "uniffi-huffman"
-version = "0.2.0"
-dependencies = [
- "huffman",
- "uniffi",
 ]
 
 [[package]]

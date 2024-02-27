@@ -1,5 +1,5 @@
 [package]
-name = "net"
+name = "libtw2-net"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-common = { path = "../common/" }
-huffman = { path = "../huffman/" }
+libtw2-common = { path = "../common/" }
+libtw2-huffman = { path = "../huffman/" }
 linear-map = "1.0.0"
 optional = "0.0.12"
 void = ">=0.0.4,<2.0.0"

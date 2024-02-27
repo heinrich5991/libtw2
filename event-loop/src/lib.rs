@@ -2,26 +2,26 @@
 extern crate log;
 
 use arrayvec::ArrayVec;
-use common::Takeable;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
+use libtw2_common::Takeable;
+use libtw2_net::collections::PeerMap;
+use libtw2_net::collections::PeerSet;
+use libtw2_net::net::Callback;
+use libtw2_net::Net;
+use libtw2_socket::Socket;
 use log::LogLevel;
-use net::collections::PeerMap;
-use net::collections::PeerSet;
-use net::net::Callback;
-use net::Net;
-use socket::Socket;
 use std::cmp;
 use std::fmt;
 
-pub use net::collections;
-pub use net::net::PeerId;
-pub use net::Timeout;
-pub use net::Timestamp;
-pub use socket::Addr;
+pub use libtw2_net::collections;
+pub use libtw2_net::net::PeerId;
+pub use libtw2_net::Timeout;
+pub use libtw2_net::Timestamp;
+pub use libtw2_socket::Addr;
 
-pub type Chunk<'a> = net::net::Chunk<'a>;
-pub type ConnlessChunk<'a> = net::net::ConnlessChunk<'a, Addr>;
+pub type Chunk<'a> = libtw2_net::net::Chunk<'a>;
+pub type ConnlessChunk<'a> = libtw2_net::net::ConnlessChunk<'a, Addr>;
 
 pub trait Loop {
     fn accept_connections_on_port(port: u16) -> Self;
@@ -124,7 +124,7 @@ impl Loop for SocketLoop {
                     if !self.net.is_receive_chunk_still_valid(&mut chunk) {
                         continue;
                     }
-                    use net::net::ChunkOrEvent::*;
+                    use libtw2_net::net::ChunkOrEvent::*;
                     match chunk {
                         Chunk(c) => application.on_packet(&mut self, c),
                         Connless(c) => application.on_connless_packet(&mut self, c),

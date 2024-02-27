@@ -1,7 +1,7 @@
 #![cfg(not(test))]
 
-use datafile as df;
-use map::format::*;
+use libtw2_datafile as df;
+use libtw2_map::format::*;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
@@ -87,7 +87,7 @@ fn process(
     _: &Path,
     dfr: df::Reader,
     results: &mut HashMap<WeirdItem, u64>,
-) -> Result<(), map::Error> {
+) -> Result<(), libtw2_map::Error> {
     let mut env_version = None;
 
     macro_rules! register {
@@ -262,5 +262,5 @@ fn print_stats(results: &HashMap<WeirdItem, u64>) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

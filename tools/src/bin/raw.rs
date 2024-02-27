@@ -1,14 +1,14 @@
 #![cfg(not(test))]
 
-use map::format::*;
+use libtw2_map::format::*;
 use std::fmt::Debug;
 use std::path::Path;
 
-fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error> {
+fn process(_: &Path, dfr: libtw2_datafile::Reader, _: &mut ()) -> Result<(), libtw2_map::Error> {
     let mut env_version = None;
 
     for item in dfr.items() {
-        let item: datafile::ItemView = item;
+        let item: libtw2_datafile::ItemView = item;
         fn print_map_item<T: MapItem + Debug>(slice: &[i32]) {
             if let Ok(Some(mi)) = T::from_slice(slice) {
                 print!(" {:?}", mi);
@@ -105,5 +105,5 @@ fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error
 fn nothing(_: &()) {}
 
 fn main() {
-    tools::map_stats::stats(process, nothing);
+    libtw2_tools::map_stats::stats(process, nothing);
 }

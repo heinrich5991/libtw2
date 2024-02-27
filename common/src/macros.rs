@@ -28,7 +28,7 @@ macro_rules! boilerplate_packed {
         fn $ts() {
             assert_eq!(::std::mem::size_of::<$t>(), $size);
         }
-        impl ::common::bytes::ByteArray for $t {
+        impl ::libtw2_common::bytes::ByteArray for $t {
             type ByteArray = [u8; $size];
         }
     };

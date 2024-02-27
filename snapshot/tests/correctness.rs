@@ -1,9 +1,9 @@
 use buffer::CapacityError;
-use gamenet::snap_obj::obj_size;
-use packer::with_packer;
-use packer::Unpacker;
-use snapshot::snap::Delta;
-use snapshot::snap::Snap;
+use libtw2_gamenet::snap_obj::obj_size;
+use libtw2_packer::with_packer;
+use libtw2_packer::Unpacker;
+use libtw2_snapshot::snap::Delta;
+use libtw2_snapshot::snap::Snap;
 use warn::Panic;
 
 #[rustfmt::skip]

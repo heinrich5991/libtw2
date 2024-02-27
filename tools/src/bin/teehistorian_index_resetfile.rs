@@ -2,6 +2,9 @@ use chrono::DateTime;
 use chrono::FixedOffset;
 use itertools::sorted;
 use itertools::Itertools;
+use libtw2_teehistorian::format;
+use libtw2_teehistorian::Buffer;
+use libtw2_teehistorian::Reader;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::borrow::Cow;
@@ -14,9 +17,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process;
 use std::slice;
-use teehistorian::format;
-use teehistorian::Buffer;
-use teehistorian::Reader;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
@@ -34,9 +34,9 @@ impl From<csv::Error> for Error {
     }
 }
 
-impl From<teehistorian::Error> for Error {
-    fn from(e: teehistorian::Error) -> Error {
-        use teehistorian::Error::*;
+impl From<libtw2_teehistorian::Error> for Error {
+    fn from(e: libtw2_teehistorian::Error) -> Error {
+        use libtw2_teehistorian::Error::*;
         match e {
             Teehistorian(i) => Error::Teehistorian(i),
             Io(i) => Error::Io(i),
@@ -253,7 +253,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teehistorian indexer")
         .about(

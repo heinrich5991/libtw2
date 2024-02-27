@@ -1,4 +1,4 @@
-extern crate wireshark_dissector_sys as sys;
+extern crate libtw2_wireshark_dissector_sys as sys;
 
 mod format;
 mod intern;
@@ -15,9 +15,9 @@ mod test {
     }
 }
 
-use gamenet_spec::Identifier;
 use intern::intern;
 use intern::Interned;
+use libtw2_gamenet_spec::Identifier;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;

@@ -1,22 +1,22 @@
 use buffer::CapacityError;
-use common::slice;
 use crate::enums;
 use crate::error::Error;
-use packer::ExcessData;
-use packer::IntUnpacker;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::at_least;
-use packer::in_range;
-use packer::positive;
-use packer::to_bool;
+use libtw2_common::slice;
+use libtw2_packer::ExcessData;
+use libtw2_packer::IntUnpacker;
+use libtw2_packer::Packer;
+use libtw2_packer::Unpacker;
+use libtw2_packer::Warning;
+use libtw2_packer::at_least;
+use libtw2_packer::in_range;
+use libtw2_packer::positive;
+use libtw2_packer::to_bool;
 use std::fmt;
 use std::slice::from_ref;
 use warn::Warn;
 
-pub use gamenet_common::snap_obj::Tick;
-pub use gamenet_common::snap_obj::TypeId;
+pub use libtw2_gamenet_common::snap_obj::Tick;
+pub use libtw2_gamenet_common::snap_obj::TypeId;
 
 pub const PLAYERFLAG_ADMIN: i32 = 1 << 0;
 pub const PLAYERFLAG_CHATTING: i32 = 1 << 1;

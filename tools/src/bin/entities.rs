@@ -1,9 +1,9 @@
 #![cfg(not(test))]
 
-use common::num::Cast;
-use datafile as df;
+use libtw2_common::num::Cast;
+use libtw2_datafile as df;
+use libtw2_tools::map_stats::Entity;
 use std::path::Path;
-use tools::map_stats::Entity;
 
 pub struct Stats {
     tiles: [u64; 256],
@@ -15,8 +15,8 @@ impl Default for Stats {
     }
 }
 
-fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
-    let mut map = map::Reader::from_datafile(dfr);
+fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), libtw2_map::Error> {
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
     let game_layers = map.game_layers()?;
     let mut tiles_count = [0u64; 256];
 
@@ -46,5 +46,5 @@ fn print_stats(stats: &Stats) {
 }
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

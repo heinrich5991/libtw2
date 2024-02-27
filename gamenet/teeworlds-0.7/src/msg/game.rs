@@ -1,24 +1,24 @@
 use buffer::CapacityError;
-use common::pretty;
 use crate::enums;
 use crate::error::Error;
-use gamenet_common::debug::DebugSlice;
-use packer::Packer;
-use packer::Unpacker;
-use packer::Warning;
-use packer::at_least;
-use packer::in_range;
-use packer::positive;
-use packer::sanitize;
-use packer::to_bool;
-use packer::with_packer;
+use libtw2_common::pretty;
+use libtw2_gamenet_common::debug::DebugSlice;
+use libtw2_packer::Packer;
+use libtw2_packer::Unpacker;
+use libtw2_packer::Warning;
+use libtw2_packer::at_least;
+use libtw2_packer::in_range;
+use libtw2_packer::positive;
+use libtw2_packer::sanitize;
+use libtw2_packer::to_bool;
+use libtw2_packer::with_packer;
 use std::fmt;
 use super::MessageId;
 use super::SystemOrGame;
 use warn::Panic;
 use warn::Warn;
 
-pub use gamenet_common::msg::TuneParam;
+pub use libtw2_gamenet_common::msg::TuneParam;
 
 impl<'a> Game<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<Game<'a>, Error>

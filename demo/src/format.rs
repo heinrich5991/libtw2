@@ -1,8 +1,8 @@
 use arrayvec::ArrayVec;
 use binrw::BinRead;
 use binrw::BinWrite;
-use common::digest::Sha256;
-use common::num::Cast;
+use libtw2_common::digest::Sha256;
+use libtw2_common::num::Cast;
 use std::convert::TryFrom;
 use std::io;
 use warn::Warn;
@@ -26,11 +26,11 @@ pub enum Warning {
     WeirdTimelineMarkerPadding,
     WeirdTimestamp,
     WeirdType,
-    Message(packer::Warning),
+    Message(libtw2_packer::Warning),
 }
 
-impl From<packer::Warning> for Warning {
-    fn from(w: packer::Warning) -> Warning {
+impl From<libtw2_packer::Warning> for Warning {
+    fn from(w: libtw2_packer::Warning) -> Warning {
         Warning::Message(w)
     }
 }

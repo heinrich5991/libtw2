@@ -1,10 +1,10 @@
 [package]
-name = "world"
+name = "libtw2-world"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common/" }
-gamenet = { package = "gamenet_teeworlds_0_6", path = "../gamenet/teeworlds-0.6/" }
+libtw2-common = { path = "../common/" }
+libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }

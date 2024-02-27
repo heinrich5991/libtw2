@@ -4,15 +4,15 @@ use clap::value_t;
 use clap::values_t;
 use clap::App;
 use clap::Arg;
-use common::num::Cast;
-use common::slice;
-use common::vec;
-use datafile as df;
 use image::imageops;
 use image::ImageError;
 use image::RgbaImage;
-use map::format;
-use map::reader;
+use libtw2_common::num::Cast;
+use libtw2_common::slice;
+use libtw2_common::vec;
+use libtw2_datafile as df;
+use libtw2_map::format;
+use libtw2_map::reader;
 use ndarray::Array2;
 use num_traits::ToPrimitive;
 use std::cmp;
@@ -212,7 +212,7 @@ fn transform_coordinates(
     (iy, ix)
 }
 
-fn select_layers(map: &mut map::Reader, config: &Config) -> Result<Vec<Layer>, Error> {
+fn select_layers(map: &mut libtw2_map::Reader, config: &Config) -> Result<Vec<Layer>, Error> {
     let mut layers = vec![];
 
     for group_idx in map.group_indices() {
@@ -258,7 +258,7 @@ fn select_layers(map: &mut map::Reader, config: &Config) -> Result<Vec<Layer>, E
 
 fn prepare_tilesets<E>(
     layers: &[Layer],
-    map: &mut map::Reader,
+    map: &mut libtw2_map::Reader,
     mut external_tileset_loader: &mut E,
     tile_len: u32,
 ) -> Result<HashMap<Option<usize>, Array2<Color>>, Error>
@@ -409,7 +409,7 @@ where
     E: FnMut(&str) -> Result<Option<Array2<Color>>, Error>,
 {
     let dfr = df::Reader::open(path)?;
-    let mut map = map::Reader::from_datafile(dfr);
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
 
     let layers = select_layers(&mut map, &config)?;
 
@@ -473,7 +473,7 @@ enum Error {
     Df(df::format::Error),
     Io(io::Error),
     Image(ImageError),
-    Map(map::format::Error),
+    Map(libtw2_map::format::Error),
     Own(OwnError),
 }
 
@@ -486,11 +486,11 @@ impl From<df::Error> for Error {
     }
 }
 
-impl From<map::Error> for Error {
-    fn from(e: map::Error) -> Error {
+impl From<libtw2_map::Error> for Error {
+    fn from(e: libtw2_map::Error) -> Error {
         match e {
-            map::Error::Df(e) => e.into(),
-            map::Error::Map(e) => e.into(),
+            libtw2_map::Error::Df(e) => e.into(),
+            libtw2_map::Error::Map(e) => e.into(),
         }
     }
 }
@@ -501,8 +501,8 @@ impl From<df::format::Error> for Error {
     }
 }
 
-impl From<map::format::Error> for Error {
-    fn from(e: map::format::Error) -> Error {
+impl From<libtw2_map::format::Error> for Error {
+    fn from(e: libtw2_map::format::Error) -> Error {
         Error::Map(e)
     }
 }
@@ -537,7 +537,7 @@ impl fmt::Display for Error {
 
 #[derive(Default)]
 struct ErrorStats {
-    map_errors: HashMap<map::format::Error, u64>,
+    map_errors: HashMap<libtw2_map::format::Error, u64>,
     df_errors: HashMap<df::format::Error, u64>,
     own_errors: HashMap<OwnError, u64>,
     image_errors: Vec<ImageError>,
@@ -605,7 +605,7 @@ fn load_external_image(path: &Path) -> Result<Option<Array2<Color>>, Error> {
 }
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teeworlds map renderer")
         .about("Reads a Teeworlds map file and renders a PNG thumbnail.")

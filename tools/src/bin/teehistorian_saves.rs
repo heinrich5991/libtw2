@@ -1,18 +1,18 @@
 use arrayvec::ArrayVec;
-use common::num::Cast;
-use common::pretty;
-use gamenet_ddnet::msg::game as game_ddnet;
-use gamenet_ddnet::msg::Game as GameDdnet;
-use gamenet_teeworlds_0_7::msg::game as game7;
-use gamenet_teeworlds_0_7::msg::Game as Game7;
-use packer::Unpacker;
+use libtw2_common::num::Cast;
+use libtw2_common::pretty;
+use libtw2_gamenet_ddnet::msg::game as game_ddnet;
+use libtw2_gamenet_ddnet::msg::Game as GameDdnet;
+use libtw2_gamenet_teeworlds_0_7::msg::game as game7;
+use libtw2_gamenet_teeworlds_0_7::msg::Game as Game7;
+use libtw2_packer::Unpacker;
+use libtw2_teehistorian::Buffer;
+use libtw2_teehistorian::Error;
+use libtw2_teehistorian::Item;
+use libtw2_teehistorian::Reader;
 use std::path::Path;
 use std::process;
 use std::str;
-use teehistorian::Buffer;
-use teehistorian::Error;
-use teehistorian::Item;
-use teehistorian::Reader;
 use uuid::Uuid;
 use vec_map::VecMap;
 use warn::Ignore;
@@ -191,7 +191,7 @@ fn main() {
     use clap::App;
     use clap::Arg;
 
-    logger::init();
+    libtw2_logger::init();
 
     let matches = App::new("Teehistorian reader")
         .about(

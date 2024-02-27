@@ -1,5 +1,5 @@
-use huffman::Huffman;
 use itertools::Itertools;
+use libtw2_huffman::Huffman;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;

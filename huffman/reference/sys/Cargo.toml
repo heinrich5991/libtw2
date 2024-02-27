@@ -1,5 +1,5 @@
 [package]
-name = "huffman-reference-sys"
+name = "libtw2-huffman-reference-sys"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 edition = "2021"

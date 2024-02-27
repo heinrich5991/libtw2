@@ -2,8 +2,8 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashSet;
 
-pub use gamenet_common::msg::MessageId;
-pub use gamenet_common::snap_obj::TypeId;
+pub use libtw2_gamenet_common::msg::MessageId;
+pub use libtw2_gamenet_common::snap_obj::TypeId;
 
 #[derive(Clone, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct Spec {

@@ -1,9 +1,9 @@
-extern crate huffman_reference_sys as sys;
+extern crate libtw2_huffman_reference_sys as sys;
 
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use common::num::Cast;
+use libtw2_common::num::Cast;
 
 pub struct Huffman {
     huffman: Vec<u8>,
@@ -59,14 +59,14 @@ impl Huffman {
         &self,
         input: &'a [u8],
         buffer: B,
-    ) -> Result<&'a [u8], huffman::DecompressionError> {
+    ) -> Result<&'a [u8], libtw2_huffman::DecompressionError> {
         with_buffer(buffer, |b| self.decompress_impl(input, b))
     }
     fn decompress_impl<'d, 's>(
         &self,
         input: &[u8],
         mut buffer: BufferRef<'d, 's>,
-    ) -> Result<&'d [u8], huffman::DecompressionError> {
+    ) -> Result<&'d [u8], libtw2_huffman::DecompressionError> {
         let result_len = unsafe {
             sys::huffman_decompress(
                 self.inner_huffman(),
@@ -81,7 +81,9 @@ impl Huffman {
                 buffer.advance(l);
                 Ok(buffer.initialized())
             },
-            None => Err(huffman::DecompressionError::Capacity(buffer::CapacityError)),
+            None => Err(libtw2_huffman::DecompressionError::Capacity(
+                buffer::CapacityError,
+            )),
         }
     }
     fn inner_huffman_mut(&mut self) -> *mut libc::c_void {

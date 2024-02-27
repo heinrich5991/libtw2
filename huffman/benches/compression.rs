@@ -2,10 +2,10 @@ use bencher::benchmark_group;
 use bencher::benchmark_main;
 use bencher::black_box;
 use bencher::Bencher;
-use common::num::Cast;
-use huffman::Huffman;
-use huffman_reference::Huffman as HuffmanReference;
 use itertools::Itertools;
+use libtw2_common::num::Cast;
+use libtw2_huffman::Huffman;
+use libtw2_huffman_reference::Huffman as HuffmanReference;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -24,7 +24,7 @@ fn frequencies_default() -> Vec<u32> {
 }
 
 fn huffman_default() -> Huffman {
-    huffman::instances::TEEWORLDS
+    libtw2_huffman::instances::TEEWORLDS
 }
 
 fn huffman_reference_default() -> HuffmanReference {

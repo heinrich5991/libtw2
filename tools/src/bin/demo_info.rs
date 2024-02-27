@@ -1,6 +1,7 @@
-extern crate gamenet_teeworlds_0_6 as gamenet;
+extern crate libtw2_gamenet_teeworlds_0_6 as libtw2_gamenet;
 
-use gamenet::msg::Game;
+use libtw2_demo::RawChunk;
+use libtw2_gamenet::msg::Game;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -10,16 +11,16 @@ use warn::Warn;
 
 #[derive(Debug)]
 enum Error {
-    DemoRead(demo::ReadError),
-    DemoWrite(demo::WriteError),
+    DemoRead(libtw2_demo::ReadError),
+    DemoWrite(libtw2_demo::WriteError),
     Io(io::Error),
-    Gamenet(gamenet::Error),
+    Gamenet(libtw2_gamenet::Error),
 }
 
 #[derive(Debug)]
 enum Warning {
-    Demo(demo::Warning),
-    Gamenet(packer::Warning),
+    Demo(libtw2_demo::Warning),
+    Gamenet(libtw2_packer::Warning),
 }
 
 impl From<io::Error> for Error {
@@ -28,8 +29,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<demo::ReadError> for Error {
-    fn from(err: demo::ReadError) -> Self {
+impl From<libtw2_demo::ReadError> for Error {
+    fn from(err: libtw2_demo::ReadError) -> Self {
         match err.io_error() {
             Ok(io) => Error::Io(io),
             Err(demo) => Error::DemoRead(demo),
@@ -37,8 +38,8 @@ impl From<demo::ReadError> for Error {
     }
 }
 
-impl From<demo::WriteError> for Error {
-    fn from(err: demo::WriteError) -> Error {
+impl From<libtw2_demo::WriteError> for Error {
+    fn from(err: libtw2_demo::WriteError) -> Error {
         match err.io_error() {
             Ok(io) => Error::Io(io),
             Err(demo) => Error::DemoWrite(demo),
@@ -46,31 +47,31 @@ impl From<demo::WriteError> for Error {
     }
 }
 
-impl From<gamenet::Error> for Error {
-    fn from(e: gamenet::Error) -> Error {
+impl From<libtw2_gamenet::Error> for Error {
+    fn from(e: libtw2_gamenet::Error) -> Error {
         Error::Gamenet(e)
     }
 }
 
-impl From<demo::Warning> for Warning {
-    fn from(w: demo::Warning) -> Warning {
+impl From<libtw2_demo::Warning> for Warning {
+    fn from(w: libtw2_demo::Warning) -> Warning {
         Warning::Demo(w)
     }
 }
 
-impl From<packer::Warning> for Warning {
-    fn from(w: packer::Warning) -> Warning {
+impl From<libtw2_packer::Warning> for Warning {
+    fn from(w: libtw2_packer::Warning) -> Warning {
         Warning::Gamenet(w)
     }
 }
 
 #[derive(Default)]
 struct ErrorStats {
-    demo_warnings: HashMap<demo::Warning, u64>,
-    demo_read_errors: Vec<demo::ReadError>,
-    demo_write_errors: Vec<demo::WriteError>,
-    gamenet_warnings: HashMap<packer::Warning, u64>,
-    gamenet_errors: HashMap<gamenet::Error, u64>,
+    demo_warnings: HashMap<libtw2_demo::Warning, u64>,
+    demo_read_errors: Vec<libtw2_demo::ReadError>,
+    demo_write_errors: Vec<libtw2_demo::WriteError>,
+    gamenet_warnings: HashMap<libtw2_packer::Warning, u64>,
+    gamenet_errors: HashMap<libtw2_gamenet::Error, u64>,
     io_errors: Vec<io::Error>,
     ok: u64,
 }
@@ -115,7 +116,7 @@ fn print_error_stats(error_stats: &ErrorStats) {
 
 fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
     let file = fs::File::open(path)?;
-    let mut reader = demo::Reader::new(file, warn::wrap(warn))?;
+    let mut reader = libtw2_demo::Reader::new(file, warn::wrap(warn))?;
     println!("{}", path.display());
     println!("version: {:?}", reader.version());
     println!(
@@ -128,14 +129,14 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
     println!("timestamp: {}", String::from_utf8_lossy(reader.timestamp()));
     while let Some(chunk) = reader.read_chunk(warn::wrap(warn))? {
         match chunk {
-            demo::RawChunk::Message(bytes) => {
-                let mut u = packer::Unpacker::new_from_demo(bytes);
+            RawChunk::Message(bytes) => {
+                let mut u = libtw2_packer::Unpacker::new_from_demo(bytes);
                 println!("message {:?}", Game::decode(warn::wrap(warn), &mut u)?);
             }
-            demo::RawChunk::Tick { tick, .. } => println!("tick={}", tick),
-            demo::RawChunk::Snapshot(_) => println!("snapshot"),
-            demo::RawChunk::SnapshotDelta(_) => println!("snapshot_delta"),
-            demo::RawChunk::Unknown => println!("Unknown chunk"),
+            RawChunk::Tick { tick, .. } => println!("tick={}", tick),
+            RawChunk::Snapshot(_) => println!("snapshot"),
+            RawChunk::SnapshotDelta(_) => println!("snapshot_delta"),
+            RawChunk::Unknown => println!("Unknown chunk"),
         }
     }
     println!();
@@ -143,7 +144,7 @@ fn process<W: Warn<Warning>>(warn: &mut W, path: &Path) -> Result<(), Error> {
 }
 
 fn main() {
-    logger::init();
+    libtw2_logger::init();
 
     let mut args = env::args_os();
     let mut have_args = false;

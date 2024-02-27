@@ -1,8 +1,8 @@
 #![cfg(not(test))]
 
-use common::num::Cast;
-use datafile as df;
-use map::reader;
+use libtw2_common::num::Cast;
+use libtw2_datafile as df;
+use libtw2_map::reader;
 use std::cmp;
 use std::collections::hash_map;
 use std::collections::HashMap;
@@ -90,8 +90,8 @@ const _JUNGLE_DOODADS_5: &'static [(u8, u8)] = &[
     */
 ];
 
-fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::Error> {
-    let mut map = map::Reader::from_datafile(dfr);
+fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), libtw2_map::Error> {
+    let mut map = libtw2_map::Reader::from_datafile(dfr);
 
     let mut images = HashMap::new();
     let mut found = false;
@@ -195,5 +195,5 @@ fn process(path: &Path, dfr: df::Reader, stats: &mut Stats) -> Result<(), map::E
 fn print_stats(_: &Stats) {}
 
 fn main() {
-    tools::map_stats::stats(process, print_stats);
+    libtw2_tools::map_stats::stats(process, print_stats);
 }

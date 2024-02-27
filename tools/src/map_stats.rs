@@ -1,4 +1,4 @@
-use datafile as df;
+use libtw2_datafile as df;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
@@ -50,21 +50,21 @@ impl fmt::Display for Entity {
 
 #[derive(Default)]
 struct ErrorStats {
-    map_errors: HashMap<map::format::Error, u64>,
+    map_errors: HashMap<libtw2_map::format::Error, u64>,
     df_errors: HashMap<df::format::Error, u64>,
     io_errors: Vec<io::Error>,
     ok: u64,
 }
 
-fn update_error_stats(stats: &mut ErrorStats, err: map::Error) {
+fn update_error_stats(stats: &mut ErrorStats, err: libtw2_map::Error) {
     match err {
-        map::Error::Map(e) => {
+        libtw2_map::Error::Map(e) => {
             *stats.map_errors.entry(e).or_insert(0) += 1;
         }
-        map::Error::Df(df::Error::Df(e)) => {
+        libtw2_map::Error::Df(df::Error::Df(e)) => {
             *stats.df_errors.entry(e).or_insert(0) += 1;
         }
-        map::Error::Df(df::Error::Io(e)) => {
+        libtw2_map::Error::Df(df::Error::Io(e)) => {
             stats.io_errors.push(e);
         }
     }
@@ -83,9 +83,9 @@ fn print_error_stats(error_stats: &ErrorStats) {
     println!("ok: {}", error_stats.ok);
 }
 
-fn process<D, P>(path: &Path, process_inner: P, stats: &mut D) -> Result<(), map::Error>
+fn process<D, P>(path: &Path, process_inner: P, stats: &mut D) -> Result<(), libtw2_map::Error>
 where
-    P: FnOnce(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
+    P: FnOnce(&Path, df::Reader, &mut D) -> Result<(), libtw2_map::Error>,
 {
     let reader = df::Reader::open(path)?;
     process_inner(path, reader, stats)
@@ -94,10 +94,10 @@ where
 pub fn stats<D, P, S>(mut process_inner: P, summary: S)
 where
     D: Default,
-    P: FnMut(&Path, df::Reader, &mut D) -> Result<(), map::Error>,
+    P: FnMut(&Path, df::Reader, &mut D) -> Result<(), libtw2_map::Error>,
     S: FnOnce(&D),
 {
-    logger::init();
+    libtw2_logger::init();
 
     let mut args = env::args_os();
     let mut have_args = false;

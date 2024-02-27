@@ -1,14 +1,14 @@
 [package]
-name = "datafile"
+name = "libtw2-datafile"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common/", features = ["file_offset"] }
 hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
+libtw2-common = { path = "../common/", features = ["file_offset"] }
+libtw2-logger = { path = "../logger/" }
+libtw2-zlib = { package = "libtw2-zlib-minimal", path = "../zlib-minimal/" }
 log = "0.3.0"
-logger = { path = "../logger/" }
-zlib = { package = "zlib_minimal", path = "../zlib_minimal/" }

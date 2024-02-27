@@ -1,8 +1,9 @@
 use arrayvec::ArrayVec;
 use binrw::BinRead;
-use common::digest::Sha256;
-use common::num::Cast;
-use huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_common::digest::Sha256;
+use libtw2_common::num::Cast;
+use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_packer::Unpacker;
 use std::io;
 use thiserror::Error;
 use warn::wrap;
@@ -18,7 +19,7 @@ use crate::{format, DemoKind};
 pub enum ReadError {
     Io(#[from] io::Error),
     Binrw(#[from] binrw::Error),
-    Huffman(#[from] huffman::DecompressionError),
+    Huffman(#[from] libtw2_huffman::DecompressionError),
     #[error("Unexpected data end during secondary decompression of message")]
     MessageVarIntUnexpectedEnd,
     #[error("Too big decompressed size during secondary decompression of message")]
@@ -162,7 +163,7 @@ impl Reader {
                     DataKind::Snapshot => RawChunk::Snapshot(&self.huffman),
                     DataKind::SnapshotDelta => RawChunk::SnapshotDelta(&self.huffman),
                     DataKind::Message => {
-                        let mut unpacker = packer::Unpacker::new(&self.huffman);
+                        let mut unpacker = Unpacker::new(&self.huffman);
                         let mut len = 0;
                         let mut buffer = self.raw.chunks_mut(4);
                         while !unpacker.is_empty() {
