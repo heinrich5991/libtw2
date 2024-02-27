@@ -7,6 +7,7 @@ extern crate arrayvec;
 extern crate file_offset;
 #[cfg(feature = "serde")]
 extern crate serde;
+extern crate zerocopy;
 
 pub use map_iter::MapIterator;
 pub use slice::relative_size_of;
@@ -16,6 +17,7 @@ pub use takeable::Takeable;
 #[macro_use]
 mod macros;
 
+pub mod bytes;
 pub mod digest;
 pub mod io;
 pub mod map_iter;

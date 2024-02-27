@@ -227,7 +227,11 @@ impl<'a> StatsBrowser<'a> {
         let mut send = |data: &[u8]| socket.send_to(data, master.addr_7.unwrap()).unwrap();
 
         debug!("Requesting token from {}", master.domain);
-        if send(&protocol::request_token_7(master.own_token.unwrap().u32())).would_block() {
+        if send(&protocol::request_token_7(
+            master.own_token.unwrap().serverbrowse7(),
+        ))
+        .would_block()
+        {
             debug!("Failed to send count or list request, would block");
             return Err(());
         }
@@ -277,7 +281,9 @@ impl<'a> StatsBrowser<'a> {
         let would_block = match server_addr.version {
             ProtocolVersion::V5 => send(&protocol::request_info_5(token.u8())).would_block(),
             ProtocolVersion::V6 => send(&protocol::request_info_6_ex(token.u24())).would_block(),
-            ProtocolVersion::V7 => send(&protocol::request_token_7(token.u32())).would_block(),
+            ProtocolVersion::V7 => {
+                send(&protocol::request_token_7(token.serverbrowse7())).would_block()
+            }
         };
 
         if would_block {
@@ -342,13 +348,13 @@ impl<'a> StatsBrowser<'a> {
         if !master.nobackcompat {
             debug!("Requesting 0.7 count and list from {}", master.domain);
             if send(&protocol::request_count_7(
-                master.own_token.unwrap().u32(),
-                their_token.u32(),
+                master.own_token.unwrap().serverbrowse7(),
+                their_token.serverbrowse7(),
             ))
             .would_block()
                 || send(&protocol::request_list_7(
-                    master.own_token.unwrap().u32(),
-                    their_token.u32(),
+                    master.own_token.unwrap().serverbrowse7(),
+                    their_token.serverbrowse7(),
                 ))
                 .would_block()
             {
@@ -360,13 +366,13 @@ impl<'a> StatsBrowser<'a> {
                 master.domain
             );
             if send(&protocol::request_count_7_nobackcompat(
-                master.own_token.unwrap().u32(),
-                their_token.u32(),
+                master.own_token.unwrap().serverbrowse7(),
+                their_token.serverbrowse7(),
             ))
             .would_block()
                 || send(&protocol::request_list_7_nobackcompat(
-                    master.own_token.unwrap().u32(),
-                    their_token.u32(),
+                    master.own_token.unwrap().serverbrowse7(),
+                    their_token.serverbrowse7(),
                 ))
                 .would_block()
             {
@@ -441,7 +447,7 @@ impl<'a> StatsBrowser<'a> {
         if !server
             .missing_resp
             .iter()
-            .any(|&t| t.u32() == own_token.u32())
+            .any(|&t| t.bytes() == own_token.bytes())
         {
             if server.num_invalid_token < config::MAX_INVALID_TOKEN {
                 warn!("Received info with wrong token from {}", from);
@@ -455,8 +461,8 @@ impl<'a> StatsBrowser<'a> {
         let mut send = |data: &[u8]| socket.send_to(data, from.addr).unwrap();
 
         if send(&protocol::request_info_7(
-            own_token.u32(),
-            their_token.u32(),
+            own_token.serverbrowse7(),
+            their_token.serverbrowse7(),
             0,
         ))
         .would_block()
@@ -479,7 +485,7 @@ impl<'a> StatsBrowser<'a> {
             }
         };
         if let Some(pt) = protocol_token {
-            if !server.missing_resp.iter().any(|&t| t.u32() == pt.u32()) {
+            if !server.missing_resp.iter().any(|&t| t.bytes() == pt.bytes()) {
                 if server.num_invalid_resp < config::MAX_INVALID_RESP {
                     warn!("Received info with wrong 0.7 token from {}", from);
                 }
@@ -618,8 +624,8 @@ impl<'a> StatsBrowser<'a> {
     fn process_packet(&mut self, from: Addr, data: &[u8]) {
         match protocol::parse_response(data) {
             Some(Response::Token7(Token7Response(own_token, their_token))) => {
-                let own_token = Token::from_u32(own_token);
-                let their_token = Token::from_u32(their_token);
+                let own_token = Token::from_serverbrowse7(own_token);
+                let their_token = Token::from_serverbrowse7(their_token);
                 let mut found = false;
                 if let Some(id) = self.get_master_id(from) {
                     found = true;
@@ -651,7 +657,7 @@ impl<'a> StatsBrowser<'a> {
                 }
             },
             Some(Response::Count7(Count7Response(own_token, _, count))) => {
-                let own_token = Token::from_u32(own_token);
+                let own_token = Token::from_serverbrowse7(own_token);
                 if let Some(id) = self.get_master_id(from) {
                     if Some(own_token) == self.master_servers[id].own_token {
                         self.process_count_7(id, count);
@@ -711,7 +717,7 @@ impl<'a> StatsBrowser<'a> {
                 }
             },
             Some(Response::List7(List7Response(own_token, _, servers))) => {
-                let own_token = Token::from_u32(own_token);
+                let own_token = Token::from_serverbrowse7(own_token);
                 if let Some(id) = self.get_master_id(from) {
                     if Some(own_token) == self.master_servers[id].own_token {
                         self.process_list(
@@ -774,7 +780,7 @@ impl<'a> StatsBrowser<'a> {
             }
             Some(Response::Info7(partial)) => {
                 let Info7Response(own_token, _, raw_data) = partial;
-                let own_token = Token::from_u32(own_token);
+                let own_token = Token::from_serverbrowse7(own_token);
                 self.process_info(
                     ServerAddr::new(ProtocolVersion::V7, from),
                     Some(own_token),

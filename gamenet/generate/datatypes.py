@@ -1451,11 +1451,9 @@ class NetBigEndianU16(Member):
     kind = "be_uint16"
     type_ = "u16"
     def decode_expr(self):
-        import_("common::num::BeU16")
-        return "{ let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() }"
+        return "{ let s = _p.read_raw(2)?; u16::from_be_bytes([s[0], s[1]]) }"
     def encode_expr(self, self_expr):
-        import_("common::num::BeU16")
-        return "_p.write_raw(BeU16::from_u16({}).as_bytes())".format(self_expr)
+        return "_p.write_raw(&{}.to_be_bytes())".format(self_expr)
     def serialize_type(self):
         return {"kind": self.kind}
     @staticmethod

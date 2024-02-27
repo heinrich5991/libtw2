@@ -8,3 +8,4 @@ license = "MIT/Apache-2.0"
 common = { path = "../common/" }
 datafile = { path = "../datafile/" }
 ndarray = "0.9.1"
+zerocopy = "0.7.32"

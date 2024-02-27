@@ -20,6 +20,7 @@ use std::os::raw::c_void;
 use std::ptr;
 use std::slice;
 use warn::Ignore;
+use zerocopy::FromBytes;
 
 const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-17.2.1.json");
 
@@ -55,7 +56,7 @@ static mut HF_CHUNK_HEADER_SEQ: c_int = -1;
 static mut SPEC: Option<Spec> = None;
 
 fn unpack_header(data: &[u8]) -> Option<protocol::PacketHeader> {
-    let (raw_header, _) = protocol::PacketHeaderPacked::from_byte_slice(data)?;
+    let raw_header = protocol::PacketHeaderPacked::ref_from_prefix(data)?;
     Some(raw_header.unpack_warn(&mut Ignore))
 }
 

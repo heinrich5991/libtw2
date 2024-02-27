@@ -1,5 +1,6 @@
 use serverbrowse::protocol::PartialServerInfo;
 use serverbrowse::protocol::ServerInfo;
+use serverbrowse::protocol::Token7;
 
 use std::collections::HashSet;
 use std::fmt;
@@ -7,9 +8,12 @@ use std::fmt;
 use addr::Addr;
 use addr::ServerAddr;
 use arrayvec::ArrayVec;
+use common::bytes::AsBytesExt;
+use common::bytes::FromBytesExt;
 use rand;
 use rand::distributions;
 use rand::distributions::Distribution;
+use zerocopy::byteorder::big_endian;
 
 /// Describes a master server.
 #[derive(Clone)]
@@ -115,30 +119,42 @@ impl ServerEntry {
 /// integer), DDNet tokens can use 24 bit, low-level 0.7 tokens can even use 32
 /// bit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Token(u32);
+pub struct Token(big_endian::U32);
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.u32(), f)
+        write!(f, "{:08x}", self.u32())
     }
 }
 
 impl Token {
+    /// Creates a new token from a serverbrowse token.
+    pub fn from_serverbrowse7(v: Token7) -> Token {
+        Token(big_endian::U32::from_array(v.0))
+    }
     /// Creates a new token from a 32-bit integer.
     pub fn from_u32(v: u32) -> Token {
-        Token(v)
+        Token(big_endian::U32::new(v))
     }
     /// Retrieves the 32 bit token.
     pub fn u32(self) -> u32 {
-        self.0
+        self.0.get()
     }
     /// Retrieves the 24 bit token.
     pub fn u24(self) -> u32 {
-        self.0 & 0x00ff_ffff
+        self.0.get() & 0x00ff_ffff
     }
     /// Retrieves the 8 bit token.
     pub fn u8(self) -> u8 {
-        self.0 as u8
+        self.0.get() as u8
+    }
+    /// Retrieves the token as serverbrowse token.
+    pub fn serverbrowse7(self) -> Token7 {
+        Token7(self.bytes())
+    }
+    /// Retrieves the token as four bytes.
+    pub fn bytes(self) -> [u8; 4] {
+        *self.0.as_byte_array()
     }
 }
 

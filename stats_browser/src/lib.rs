@@ -12,6 +12,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate time as rust_time;
 extern crate uuid;
+extern crate zerocopy;
 
 #[macro_use]
 extern crate common;

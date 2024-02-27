@@ -13,6 +13,7 @@ extern crate serde_json;
 extern crate uuid;
 extern crate warn;
 extern crate wireshark_dissector_sys as sys;
+extern crate zerocopy;
 
 mod format;
 mod intern;

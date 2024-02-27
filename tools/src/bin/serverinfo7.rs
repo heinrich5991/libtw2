@@ -7,6 +7,7 @@ extern crate tools;
 
 use serverbrowse::protocol as browse_protocol;
 use serverbrowse::protocol::Response;
+use serverbrowse::protocol::Token7;
 use serverbrowse::protocol::Token7Response;
 
 use std::net::SocketAddr;
@@ -18,7 +19,7 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
     let mut buf = [0; BUFSIZE];
 
     socket
-        .send_to(&browse_protocol::request_token_7(0), addr)
+        .send_to(&browse_protocol::request_token_7(Token7([0; 4])), addr)
         .unwrap();
 
     loop {
@@ -31,10 +32,13 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
             continue;
         }
         match browse_protocol::parse_response(&buf[..len]) {
-            Some(Response::Token7(Token7Response(0, their_token))) => {
-                info!("token={:08x}", their_token);
+            Some(Response::Token7(Token7Response(Token7([0, 0, 0, 0]), their_token))) => {
+                info!("token={}", their_token);
                 socket
-                    .send_to(&browse_protocol::request_info_7(0, their_token, 0), addr)
+                    .send_to(
+                        &browse_protocol::request_info_7(Token7([0; 4]), their_token, 0),
+                        addr,
+                    )
                     .unwrap();
                 break;
             }

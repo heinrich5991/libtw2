@@ -1,9 +1,9 @@
 use common;
-use common::num::LeI16;
 use datafile::OnlyI32;
 use std::fmt;
 use std::mem;
 use std::ops;
+use zerocopy::byteorder::little_endian;
 
 pub trait MapItem: OnlyI32 {
     fn version() -> i32;
@@ -291,7 +291,7 @@ pub struct SpeedupTile {
     pub max_speed: u8,
     pub index: u8,
     pub padding: u8,
-    pub angle: LeI16,
+    pub angle: little_endian::I16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

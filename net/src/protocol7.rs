@@ -1,6 +1,7 @@
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
+use common::bytes::FromBytesExt as _;
 use common::num::Cast;
 use common::pretty;
 use huffman;
@@ -9,6 +10,10 @@ use std::cmp;
 use std::fmt;
 use warn::Ignore;
 use warn::Warn;
+use zerocopy::AsBytes;
+use zerocopy_derive::AsBytes;
+use zerocopy_derive::FromBytes;
+use zerocopy_derive::FromZeroes;
 
 pub const CHUNK_HEADER_SIZE: usize = 2;
 pub const CHUNK_HEADER_SIZE_VITAL: usize = 3;
@@ -129,7 +134,7 @@ impl<'a> Packet<'a> {
         if packet.len() > MAX_PACKETSIZE {
             return false;
         }
-        let (header, _) = unwrap_or_return!(PacketHeaderPacked::from_byte_slice(packet), false);
+        let (header, _) = unwrap_or_return!(PacketHeaderPacked::ref_and_rest_from(packet), false);
         let header = header.unpack_warn(&mut Ignore);
         header.flags & PACKETFLAG_CONNLESS == 0 && header.flags & PACKETFLAG_COMPRESSION != 0
     }
@@ -174,11 +179,11 @@ impl<'a> Packet<'a> {
             return Err(TooLong);
         }
         let (header, payload) =
-            unwrap_or_return!(PacketHeaderPacked::from_byte_slice(bytes), Err(TooShort));
+            unwrap_or_return!(PacketHeaderPacked::ref_and_rest_from(bytes), Err(TooShort));
         let header = header.unpack_warn(warn);
         if header.flags & PACKETFLAG_CONNLESS != 0 {
             let (header, payload) = unwrap_or_return!(
-                PacketHeaderConnlessPacked::from_byte_slice(bytes),
+                PacketHeaderConnlessPacked::ref_and_rest_from(bytes),
                 Err(TooShort)
             );
             let header = header.unpack_warn(warn);
@@ -200,7 +205,7 @@ impl<'a> Packet<'a> {
             let mut buffer =
                 buffer.expect("read_panic_on_decompression called on compressed packet");
             let decompressed = Packet::decompress(bytes, &mut buffer).map_err(|_| Compression)?;
-            let (_, payload) = PacketHeaderPacked::from_byte_slice(decompressed).unwrap();
+            let (_, payload) = PacketHeaderPacked::ref_and_rest_from(decompressed).unwrap();
             payload
         } else {
             payload
@@ -320,7 +325,7 @@ impl<'a> Packet<'a> {
     ) -> Result<&'d [u8], huffman::DecompressionError> {
         assert!(buffer.remaining() >= MAX_PACKETSIZE);
         assert!(Packet::needs_decompression(packet));
-        let (header, payload) = PacketHeaderPacked::from_byte_slice(packet)
+        let (header, payload) = PacketHeaderPacked::ref_and_rest_from(packet)
             .expect("packet passed to decompress too short for header");
         let header = header.unpack_warn(&mut Ignore);
         assert!(header.flags & PACKETFLAG_CONNLESS == 0);
@@ -434,7 +439,7 @@ impl<'a> Iterator for ChunksIter<'a> {
 impl<'a> ExactSizeIterator for ChunksIter<'a> {}
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
 pub struct PacketHeaderPacked {
     padding_flags_ack: u8, // u2 u4 u2
     ack: u8,
@@ -451,7 +456,7 @@ pub struct PacketHeader {
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
 pub struct PacketHeaderConnlessPacked {
     padding_flags_version: u8, // u2 u4 u2
     token: [u8; 4],
@@ -563,14 +568,14 @@ pub struct ChunkHeaderVital {
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
 pub struct ChunkHeaderPacked {
     flags_size: u8,   // u2 u6
     padding_size: u8, // u2 u6
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
 pub struct ChunkHeaderVitalPacked {
     flags_size: u8,    // u2 u6
     sequence_size: u8, // u2 u6
@@ -586,12 +591,12 @@ where
     W: Warn<Warning>,
 {
     let (raw_header, chunk_data_and_rest) =
-        unwrap_or_return!(ChunkHeaderPacked::from_byte_slice(data));
+        unwrap_or_return!(ChunkHeaderPacked::ref_and_rest_from(data));
 
     let header = raw_header.unpack_warn(&mut Ignore);
     Some(if header.flags & CHUNKFLAG_VITAL != 0 {
         let (header, chunk_data_and_rest_vital) =
-            unwrap_or_return!(ChunkHeaderVitalPacked::from_byte_slice(data));
+            unwrap_or_return!(ChunkHeaderVitalPacked::ref_and_rest_from(data));
         let header = header.unpack_warn(warn);
         (header.h, Some(header.sequence), chunk_data_and_rest_vital)
     } else {
@@ -671,29 +676,23 @@ impl ChunkHeaderVital {
     }
 }
 
-unsafe_boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size, test_ph_align);
-unsafe_boilerplate_packed!(
+boilerplate_packed!(PacketHeaderPacked, HEADER_SIZE, test_ph_size);
+boilerplate_packed!(
     PacketHeaderConnlessPacked,
     HEADER_SIZE_CONNLESS,
-    test_phc_size,
-    test_phc_align
+    test_phc_size
 );
-unsafe_boilerplate_packed!(
-    ChunkHeaderPacked,
-    CHUNK_HEADER_SIZE,
-    test_ch_size,
-    test_ch_align
-);
-unsafe_boilerplate_packed!(
+boilerplate_packed!(ChunkHeaderPacked, CHUNK_HEADER_SIZE, test_ch_size);
+boilerplate_packed!(
     ChunkHeaderVitalPacked,
     CHUNK_HEADER_SIZE_VITAL,
-    test_chv_size,
-    test_chv_align
+    test_chv_size
 );
 
 #[cfg(test)]
 #[rustfmt::skip]
 mod test {
+    use common::bytes::FromBytesExt as _;
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
     use super::ChunkHeader;
@@ -716,6 +715,7 @@ mod test {
     use super::Warning;
     use warn::Panic;
     use warn::Warn;
+    use zerocopy::AsBytes as _;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);
 
@@ -807,7 +807,7 @@ mod test {
             // Two bits must be zeroed (see doc/packet7.md).
             let v0 = v.0 & 0b0011_1111;
             let bytes = &[v0, v.1, v.2, v.3, v.4, v.5, v.6];
-            PacketHeaderPacked::from_bytes(bytes).unpack().pack().as_bytes() == bytes
+            PacketHeaderPacked::ref_from_array(bytes).unpack().pack().as_bytes() == bytes
         }
 
         fn chunk_header_roundtrip(flags: u8, size: u16, sequence: u16) -> bool {
@@ -831,8 +831,8 @@ mod test {
             let bytes3 = &[v.0, v.1, v.2];
             let bytes2_result = &[v.0, v.1 & 0b0011_1111];
             let bytes3_result = &[v.0, v.1, v.2];
-            ChunkHeaderPacked::from_bytes(bytes2).unpack().pack().as_bytes() == bytes2_result
-                && ChunkHeaderVitalPacked::from_bytes(bytes3).unpack().pack().as_bytes() == bytes3_result
+            ChunkHeaderPacked::ref_from_array(bytes2).unpack().pack().as_bytes() == bytes2_result
+                && ChunkHeaderVitalPacked::ref_from_array(bytes3).unpack().pack().as_bytes() == bytes3_result
         }
     }
 }

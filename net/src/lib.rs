@@ -18,6 +18,8 @@ extern crate matches;
 extern crate optional;
 extern crate void;
 extern crate warn;
+extern crate zerocopy;
+extern crate zerocopy_derive;
 
 pub mod collections;
 pub mod connection;

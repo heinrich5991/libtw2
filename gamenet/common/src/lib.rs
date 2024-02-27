@@ -7,6 +7,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate uuid;
 extern crate warn;
+extern crate zerocopy;
 
 pub mod debug;
 pub mod error;

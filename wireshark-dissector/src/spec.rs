@@ -6,7 +6,6 @@ use anyhow::bail;
 use anyhow::Context as _;
 use arrayvec::ArrayVec;
 use common::digest;
-use common::num::BeU16;
 use common::num::Cast;
 use common::pretty::AlmostString;
 use format::Bitfield;
@@ -830,7 +829,7 @@ impl Type {
             }
             BeUint16(i) => {
                 let v = p.read_raw(2).map_err(|_| ())?;
-                let v = BeU16::from_bytes(&[v[0], v[1]]).to_u16();
+                let v = u16::from_be_bytes([v[0], v[1]]);
                 sys::proto_tree_add_uint_format(
                     tree,
                     i.id.get(),

@@ -1,9 +1,6 @@
 use arrayvec::ArrayString;
 use common;
-use common::num::BeU16;
-use common::num::BeU32;
 use common::num::Cast;
-use common::num::LeU16;
 use common::str::truncated_arraystring;
 use packer::Unpacker;
 use std::default::Default;
@@ -13,6 +10,12 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::str;
 use warn::Ignore;
+use zerocopy::byteorder::big_endian;
+use zerocopy::byteorder::little_endian;
+use zerocopy::FromZeroes;
+use zerocopy_derive::AsBytes;
+use zerocopy_derive::FromBytes;
+use zerocopy_derive::FromZeroes;
 
 const PLAYER_MAX_NAME_LENGTH: usize = 16 - 1;
 const PLAYER_MAX_CLAN_LENGTH: usize = 12 - 1;
@@ -71,11 +74,11 @@ pub fn request_list_5() -> [u8; 14] {
 pub fn request_list_6() -> [u8; 14] {
     *REQUEST_LIST_6
 }
-pub fn request_list_7(own_token: u32, their_token: u32) -> [u8; 17] {
+pub fn request_list_7(own_token: Token7, their_token: Token7) -> [u8; 17] {
     let mut request = [0; 17];
     request.copy_from_slice(REQUEST_LIST_7);
-    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
-    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request[1..5].copy_from_slice(&their_token.0);
+    request[5..9].copy_from_slice(&own_token.0);
     request
 }
 pub fn request_list_5_nobackcompat() -> [u8; 30] {
@@ -90,7 +93,7 @@ pub fn request_list_6_nobackcompat() -> [u8; 30] {
     request[14..].copy_from_slice(NO_BACKCOMPAT);
     request
 }
-pub fn request_list_7_nobackcompat(own_token: u32, their_token: u32) -> [u8; 33] {
+pub fn request_list_7_nobackcompat(own_token: Token7, their_token: Token7) -> [u8; 33] {
     let mut request = [0; 33];
     request[..17].copy_from_slice(&request_list_7(own_token, their_token));
     request[17..].copy_from_slice(NO_BACKCOMPAT);
@@ -118,22 +121,22 @@ pub fn request_info_6_ex(challenge: u32) -> [u8; 15] {
     request[HEADER_LEN] = ((challenge & 0x0000_00ff) >> 0) as u8;
     request
 }
-pub fn request_token_7(own_token: u32) -> [u8; 520] {
+pub fn request_token_7(own_token: Token7) -> [u8; 520] {
     let mut request = [0; 520];
     request[..8].copy_from_slice(TOKEN_7);
-    request[3..7].copy_from_slice(BeU32::from_u32(0xffff_ffff).as_bytes());
-    request[8..12].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request[3..7].copy_from_slice(&[0xff, 0xff, 0xff, 0xff]);
+    request[8..12].copy_from_slice(&own_token.0);
     request
 }
-pub fn request_info_7(own_token: u32, their_token: u32, challenge: u8) -> [u8; 18] {
+pub fn request_info_7(own_token: Token7, their_token: Token7, challenge: u8) -> [u8; 18] {
     assert!(
         challenge & 0x3f == challenge,
         "only the lower 6 bits of challenge can be used with this implementation"
     );
     let mut request = [0; 18];
     request[..17].copy_from_slice(REQUEST_INFO_7);
-    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
-    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request[1..5].copy_from_slice(&their_token.0);
+    request[5..9].copy_from_slice(&own_token.0);
     request[17] = challenge;
     request
 }
@@ -147,14 +150,14 @@ pub fn request_count_nobackcompat() -> [u8; 30] {
     request[14..].copy_from_slice(NO_BACKCOMPAT);
     request
 }
-pub fn request_count_7(own_token: u32, their_token: u32) -> [u8; 17] {
+pub fn request_count_7(own_token: Token7, their_token: Token7) -> [u8; 17] {
     let mut request = [0; 17];
     request.copy_from_slice(REQUEST_COUNT_7);
-    request[1..5].copy_from_slice(BeU32::from_u32(their_token).as_bytes());
-    request[5..9].copy_from_slice(BeU32::from_u32(own_token).as_bytes());
+    request[1..5].copy_from_slice(&their_token.0);
+    request[5..9].copy_from_slice(&own_token.0);
     request
 }
-pub fn request_count_7_nobackcompat(own_token: u32, their_token: u32) -> [u8; 33] {
+pub fn request_count_7_nobackcompat(own_token: Token7, their_token: Token7) -> [u8; 33] {
     let mut request = [0; 33];
     request[..17].copy_from_slice(&request_count_7(own_token, their_token));
     request[17..].copy_from_slice(NO_BACKCOMPAT);
@@ -166,6 +169,26 @@ fn request_info(header: Header, challenge: u8) -> [u8; 15] {
     request[..HEADER_LEN].copy_from_slice(header);
     request[HEADER_LEN] = challenge;
     request
+}
+
+#[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
+#[repr(transparent)]
+pub struct Token7(pub [u8; 4]);
+
+impl fmt::Debug for Token7 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{:02x}{:02x}{:02x}{:02x}",
+            self.0[0], self.0[1], self.0[2], self.0[3]
+        )
+    }
+}
+
+impl fmt::Display for Token7 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
 }
 
 #[derive(Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -676,19 +699,19 @@ pub struct Info6ExResponse<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct Info6ExMoreResponse<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
-pub struct Info7Response<'a>(pub u32, pub u32, pub &'a [u8]);
+pub struct Info7Response<'a>(pub Token7, pub Token7, pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct CountResponse(pub u16);
 #[derive(Copy, Clone)]
-pub struct Count7Response(pub u32, pub u32, pub u16);
+pub struct Count7Response(pub Token7, pub Token7, pub u16);
 #[derive(Copy, Clone)]
 pub struct List5Response<'a>(pub &'a [Addr5Packed]);
 #[derive(Copy, Clone)]
 pub struct List6Response<'a>(pub &'a [Addr6Packed]);
 #[derive(Copy, Clone)]
-pub struct List7Response<'a>(pub u32, pub u32, pub &'a [Addr6Packed]);
+pub struct List7Response<'a>(pub Token7, pub Token7, pub &'a [Addr6Packed]);
 #[derive(Copy, Clone)]
-pub struct Token7Response(pub u32, pub u32);
+pub struct Token7Response(pub Token7, pub Token7);
 
 #[derive(Copy, Clone)]
 pub enum Response<'a> {
@@ -724,9 +747,11 @@ fn parse_list6(data: &[u8]) -> &[Addr6Packed] {
     unsafe { common::slice::transmute(data) }
 }
 
-fn parse_token(data: &[u8]) -> Option<u32> {
-    let (token, _) = BeU32::from_byte_slice(data)?;
-    Some(token.to_u32())
+fn parse_token7(data: &[u8]) -> Option<Token7> {
+    if data.len() < 4 {
+        return None;
+    }
+    Some(Token7([data[0], data[1], data[2], data[3]]))
 }
 
 fn parse_count(data: &[u8]) -> Option<u16> {
@@ -746,18 +771,17 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
                 return None;
             }
             let mut header = [0; 8];
-            let mut own_token = [0; 4];
+            let mut own_token = Token7::new_zeroed();
             let payload = &data[8..];
             header.copy_from_slice(&data[..8]);
-            own_token.copy_from_slice(&header[3..7]);
-            let own_token = BeU32::from_bytes(&own_token).to_u32();
+            own_token.0.copy_from_slice(&header[3..7]);
             for b in &mut header[3..7] {
                 *b = 0xff;
             }
             return match &header {
                 TOKEN_7 => Some(Response::Token7(Token7Response(
                     own_token,
-                    parse_token(payload)?,
+                    parse_token7(payload)?,
                 ))),
                 _ => None,
             };
@@ -767,14 +791,12 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
                 return None;
             }
             let mut header = [0; 17];
-            let mut own_token = [0; 4];
-            let mut their_token = [0; 4];
+            let mut own_token = Token7::new_zeroed();
+            let mut their_token = Token7::new_zeroed();
             let payload = &data[17..];
             header.copy_from_slice(&data[..17]);
-            own_token.copy_from_slice(&header[1..5]);
-            their_token.copy_from_slice(&header[5..9]);
-            let own_token = BeU32::from_bytes(&own_token).to_u32();
-            let their_token = BeU32::from_bytes(&their_token).to_u32();
+            own_token.0.copy_from_slice(&header[1..5]);
+            their_token.0.copy_from_slice(&header[5..9]);
             for b in &mut header[1..9] {
                 *b = 0xff;
             }
@@ -860,14 +882,14 @@ impl fmt::Debug for IpAddr {
 #[repr(C, packed)]
 pub struct Addr5Packed {
     ip_address: [u8; 4],
-    port: LeU16,
+    port: little_endian::U16,
 }
 
 #[derive(Clone, Copy)]
 #[repr(C, packed)]
 pub struct Addr6Packed {
     ip_address: [u8; 16],
-    port: BeU16,
+    port: big_endian::U16,
 }
 
 // ---------------------------------------
@@ -896,7 +918,7 @@ impl Addr5Packed {
         let Addr5Packed { ip_address, port } = self;
         Addr {
             ip_address: IpAddr::new_v4(ip_address[0], ip_address[1], ip_address[2], ip_address[3]),
-            port: port.to_u16(),
+            port: port.get(),
         }
     }
 }
@@ -911,16 +933,16 @@ impl Addr6Packed {
         let Addr6Packed { ip_address, port } = self;
         let (maybe_ipv4_mapping, ipv4_address) = ip_address.split_at(IPV4_MAPPING.len());
         let new_address = if maybe_ipv4_mapping != IPV4_MAPPING {
-            let ip_address: [BeU16; 8] = unsafe { mem::transmute(ip_address) };
+            let ip_address: [big_endian::U16; 8] = unsafe { mem::transmute(ip_address) };
             IpAddr::new_v6(
-                ip_address[0].to_u16(),
-                ip_address[1].to_u16(),
-                ip_address[2].to_u16(),
-                ip_address[3].to_u16(),
-                ip_address[4].to_u16(),
-                ip_address[5].to_u16(),
-                ip_address[6].to_u16(),
-                ip_address[7].to_u16(),
+                ip_address[0].get(),
+                ip_address[1].get(),
+                ip_address[2].get(),
+                ip_address[3].get(),
+                ip_address[4].get(),
+                ip_address[5].get(),
+                ip_address[6].get(),
+                ip_address[7].get(),
             )
         } else {
             IpAddr::new_v4(
@@ -932,7 +954,7 @@ impl Addr6Packed {
         };
         Addr {
             ip_address: new_address,
-            port: port.to_u16(),
+            port: port.get(),
         }
     }
 }

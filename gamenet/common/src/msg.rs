@@ -1,6 +1,5 @@
 use arrayvec::ArrayVec;
 use buffer::CapacityError;
-use common::num::BeU16;
 use common::slice;
 use error::Error;
 use error::InvalidIntString;
@@ -14,6 +13,7 @@ use std::mem;
 use std::str;
 use uuid::Uuid;
 use warn::Warn;
+use zerocopy::byteorder::big_endian;
 
 pub const CLIENTS_DATA_NONE: ClientsData<'static> = ClientsData { inner: b"" };
 
@@ -35,7 +35,7 @@ impl<'a> ClientsData<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct AddrPacked {
     ip_address: [u8; 16],
-    port: BeU16,
+    port: big_endian::U16,
 }
 
 pub trait AddrPackedSliceExt {

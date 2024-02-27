@@ -1,5 +1,4 @@
 use buffer::CapacityError;
-use common::num::BeU16;
 use common::pretty;
 use error::Error;
 use gamenet_common::msg::AddrPackedSliceExt;
@@ -387,13 +386,13 @@ impl fmt::Debug for RequestCount {
 impl Count {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Count, Error> {
         let result = Ok(Count {
-            count: { let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
+            count: { let s = _p.read_raw(2)?; u16::from_be_bytes([s[0], s[1]]) },
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_raw(BeU16::from_u16(self.count).as_bytes())?;
+        _p.write_raw(&self.count.to_be_bytes())?;
         Ok(_p.written())
     }
 }
@@ -580,13 +579,13 @@ impl<'a> fmt::Debug for InfoExtendedMore<'a> {
 impl Heartbeat {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Heartbeat, Error> {
         let result = Ok(Heartbeat {
-            alt_port: { let s = _p.read_raw(2)?; BeU16::from_bytes(&[s[0], s[1]]).to_u16() },
+            alt_port: { let s = _p.read_raw(2)?; u16::from_be_bytes([s[0], s[1]]) },
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_raw(BeU16::from_u16(self.alt_port).as_bytes())?;
+        _p.write_raw(&self.alt_port.to_be_bytes())?;
         Ok(_p.written())
     }
 }

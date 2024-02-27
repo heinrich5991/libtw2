@@ -3,11 +3,9 @@ use binrw::BinWrite;
 use buffer;
 use common::digest::Sha256;
 use common::num::Cast;
-use common::num::LeI32;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use packer::with_packer;
 use std::io;
-use std::mem;
 use thiserror::Error;
 
 use crate::format::CappedString;
@@ -144,13 +142,12 @@ impl Writer {
         with_packer(
             &mut self.buffer2,
             |mut p| -> Result<(), buffer::CapacityError> {
-                for b in msg.chunks(mem::size_of::<LeI32>()) {
+                for b in msg.chunks(4) {
                     // Get or return 0.
                     fn g(bytes: &[u8], idx: usize) -> u8 {
                         bytes.get(idx).cloned().unwrap_or(0)
                     }
-                    let i = LeI32::from_bytes(&[g(b, 0), g(b, 1), g(b, 2), g(b, 3)]).to_i32();
-                    p.write_int(i)?;
+                    p.write_int(i32::from_le_bytes([g(b, 0), g(b, 1), g(b, 2), g(b, 3)]))?;
                 }
                 Ok(())
             },

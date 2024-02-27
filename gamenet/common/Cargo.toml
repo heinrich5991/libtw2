@@ -13,3 +13,4 @@ serde = "1.0.23"
 serde_derive = "1.0.7"
 uuid = { version = "0.8.1", features = ["serde"] }
 warn = ">=0.1.1,<0.3.0"
+zerocopy = "0.7.32"

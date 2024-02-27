@@ -12,3 +12,5 @@ logger = { path = "../logger/" }
 packer = { path = "../packer/" }
 time = "0.1.25"
 warn = "0.2.2"
+zerocopy = "0.7.32"
+zerocopy-derive = "0.7.32"

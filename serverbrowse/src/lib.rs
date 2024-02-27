@@ -5,5 +5,7 @@ extern crate common;
 extern crate log;
 extern crate packer;
 extern crate warn;
+extern crate zerocopy;
+extern crate zerocopy_derive;
 
 pub mod protocol;
