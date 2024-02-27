@@ -16,7 +16,6 @@ itertools = ">=0.3.0,<0.5.0"
 log = "0.3.1"
 logger = { path = "../logger/" }
 map = { path = "../map/" }
-matches = "0.1.2"
 ndarray = "0.9.1"
 packer = { path = "../packer/" }
 snapshot = { path = "../snapshot/" }

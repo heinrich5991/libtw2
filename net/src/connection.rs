@@ -14,7 +14,6 @@ use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use matches::assert_matches;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
@@ -483,7 +482,7 @@ impl Connection {
         result
     }
     pub fn reset(&mut self) {
-        assert_matches!(self.state, State::Disconnected);
+        assert!(matches!(self.state, State::Disconnected));
         *self = Connection::new();
     }
     pub fn is_unconnected(&self) -> bool {
@@ -505,7 +504,7 @@ impl Connection {
         cmp::min(self.send, resends)
     }
     pub fn connect<CB: Callback>(&mut self, cb: &mut CB) -> Result<(), CB::Error> {
-        assert_matches!(self.state, State::Unconnected);
+        assert!(matches!(self.state, State::Unconnected));
         self.state = State::Connecting;
         self.tick_action(cb)?;
         Ok(())
