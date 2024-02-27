@@ -30,11 +30,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # `demo` crate doesn't work with the MSRV.
       - name: Exclude `demo` crate from MSRV
-        run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml
+        run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml; cargo generate-lockfile
         if: ${{ matrix.rust != 'stable' && matrix.rust != 'nightly' }}
-      - run: cargo build
-      - run: cargo test
-      - run: cargo bench
+      - run: cargo build --locked
+      - run: cargo test --locked
+      - run: cargo bench --locked
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.rust == 'stable' }}
         with:
@@ -49,6 +49,18 @@ jobs:
             !target/**/deps
             !target/**/incremental
           name: libtw2-${{ matrix.os }}
+
+  build-uniffi:
+    name: Build uniffi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: uniffi
+      - run: cd uniffi; cargo build --locked
+      - run: cd uniffi; cargo test --locked
+      - run: cd uniffi; cargo bench --locked
 
   check-generated:
     name: Check that generated files match
