@@ -1,11 +1,5 @@
-#[macro_use]
-extern crate bencher;
-extern crate buffer;
-extern crate common;
-extern crate huffman;
-extern crate huffman_reference;
-extern crate itertools;
-
+use bencher::benchmark_group;
+use bencher::benchmark_main;
 use bencher::black_box;
 use bencher::Bencher;
 use common::num::Cast;

@@ -1,9 +1,6 @@
 #![cfg(not(test))]
 
-extern crate datafile as df;
-extern crate map;
-extern crate tools;
-
+use datafile as df;
 use map::reader;
 use std::collections::HashMap;
 use std::path::Path;

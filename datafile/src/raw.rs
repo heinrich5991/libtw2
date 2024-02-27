@@ -1,21 +1,18 @@
+use crate::bitmagic::relative_size_of;
+use crate::bitmagic::relative_size_of_mult;
+use crate::bitmagic::transmute_slice;
+use crate::bitmagic::CallbackNewExt;
+use crate::bitmagic::CallbackReadDataExt;
+use crate::format;
+use crate::format::ItemView;
+use crate::format::OnlyI32;
 use common::num::Cast;
 use common::MapIterator;
 use hexdump::hexdump_iter;
 use hexdump::sanitize_byte;
 use itertools::Itertools;
-use log;
 use std::mem;
 use std::ops;
-use zlib;
-
-use bitmagic::relative_size_of;
-use bitmagic::relative_size_of_mult;
-use bitmagic::transmute_slice;
-use bitmagic::CallbackNewExt;
-use bitmagic::CallbackReadDataExt;
-use format;
-use format::ItemView;
-use format::OnlyI32;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub enum Version {

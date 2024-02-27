@@ -1,25 +1,10 @@
 #![cfg(not(test))]
 
-extern crate arrayvec;
-extern crate base64 as base64_dep;
-extern crate csv;
-extern crate ipnet;
 #[macro_use]
 extern crate log;
-extern crate rand;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate time as rust_time;
-extern crate uuid;
-extern crate zerocopy;
 
-#[macro_use]
-extern crate common;
-extern crate serverbrowse;
-
-pub use stats_browser::StatsBrowser;
-pub use stats_browser::StatsBrowserCb;
+pub use self::stats_browser::StatsBrowser;
+pub use self::stats_browser::StatsBrowserCb;
 
 pub mod addr;
 pub mod base64;

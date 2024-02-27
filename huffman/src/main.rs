@@ -1,5 +1,3 @@
-extern crate huffman;
-
 use huffman::Huffman;
 use std::fs::File;
 use std::io::BufRead;

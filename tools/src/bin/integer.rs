@@ -1,9 +1,3 @@
-extern crate arrayvec;
-extern crate clap;
-extern crate hexdump;
-extern crate packer;
-extern crate tools;
-
 use arrayvec::ArrayVec;
 use clap::App;
 use clap::Arg;

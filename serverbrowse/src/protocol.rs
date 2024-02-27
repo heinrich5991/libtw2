@@ -1,7 +1,7 @@
 use arrayvec::ArrayString;
-use common;
 use common::num::Cast;
 use common::str::truncated_arraystring;
+use common::unwrap_or_return;
 use packer::Unpacker;
 use std::default::Default;
 use std::fmt;

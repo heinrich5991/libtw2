@@ -1,4 +1,4 @@
-use common;
+use common::unwrap_or_return;
 use datafile::OnlyI32;
 use std::fmt;
 use std::mem;

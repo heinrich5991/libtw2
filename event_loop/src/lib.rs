@@ -1,13 +1,5 @@
-extern crate arrayvec;
-extern crate common;
-extern crate hexdump;
-extern crate itertools;
 #[macro_use]
 extern crate log;
-extern crate logger;
-extern crate net;
-extern crate socket;
-extern crate warn;
 
 use arrayvec::ArrayVec;
 use common::Takeable;

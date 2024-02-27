@@ -1,7 +1,7 @@
 use buffer::CapacityError;
 use common::digest::Sha256;
 use common::pretty;
-use error::Error;
+use crate::error::Error;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
@@ -520,7 +520,7 @@ pub struct Input {
     pub ack_snapshot: i32,
     pub intended_tick: i32,
     pub input_size: i32,
-    pub input: ::snap_obj::PlayerInput,
+    pub input: crate::snap_obj::PlayerInput,
 }
 
 #[derive(Clone, Copy)]
@@ -928,7 +928,7 @@ impl Input {
             ack_snapshot: _p.read_int(warn)?,
             intended_tick: _p.read_int(warn)?,
             input_size: _p.read_int(warn)?,
-            input: ::snap_obj::PlayerInput::decode_msg(warn, _p)?,
+            input: crate::snap_obj::PlayerInput::decode_msg(warn, _p)?,
         });
         _p.finish(warn);
         result

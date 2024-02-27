@@ -1,9 +1,5 @@
 #![cfg(not(test))]
 
-extern crate datafile;
-extern crate map;
-extern crate tools;
-
 use datafile::Version as DfVersion;
 use std::io;
 use std::io::Write;

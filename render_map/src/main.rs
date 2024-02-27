@@ -1,20 +1,13 @@
 #![cfg(not(test))]
 
-#[macro_use]
-extern crate clap;
-extern crate common;
-extern crate datafile as df;
-extern crate image;
-extern crate logger;
-extern crate map;
-extern crate ndarray;
-extern crate num_traits;
-
+use clap::value_t;
+use clap::values_t;
 use clap::App;
 use clap::Arg;
 use common::num::Cast;
 use common::slice;
 use common::vec;
+use datafile as df;
 use image::imageops;
 use image::ImageError;
 use image::RgbaImage;

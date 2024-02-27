@@ -1,19 +1,4 @@
-extern crate anyhow;
-extern crate arrayvec;
-#[macro_use]
-extern crate common;
-extern crate gamenet_common;
-extern crate gamenet_spec;
-extern crate huffman;
-#[cfg(test)]
-extern crate lazy_static;
-extern crate net;
-extern crate packer;
-extern crate serde_json;
-extern crate uuid;
-extern crate warn;
 extern crate wireshark_dissector_sys as sys;
-extern crate zerocopy;
 
 mod format;
 mod intern;

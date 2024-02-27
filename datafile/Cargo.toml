@@ -3,6 +3,7 @@ name = "datafile"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
+edition = "2021"
 
 [dependencies]
 common = { path = "../common/", features = ["file_offset"] }
@@ -10,4 +11,4 @@ hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
 log = "0.3.0"
 logger = { path = "../logger/" }
-zlib_minimal = { path = "../zlib_minimal/" }
+zlib = { package = "zlib_minimal", path = "../zlib_minimal/" }

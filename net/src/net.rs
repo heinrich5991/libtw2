@@ -1,27 +1,27 @@
+use crate::collections::peer_map;
+use crate::collections::PeerMap;
+use crate::connection;
+use crate::connection::ReceiveChunk;
+use crate::protocol;
+use crate::protocol::ConnectedPacket;
+use crate::protocol::ConnectedPacketType;
+use crate::protocol::ControlPacket;
+use crate::protocol::Packet;
+use crate::Connection;
+use crate::Timeout;
+use crate::Timestamp;
 use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use collections::peer_map;
-use collections::PeerMap;
-use connection;
-use connection::ReceiveChunk;
-use protocol;
-use protocol::ConnectedPacket;
-use protocol::ConnectedPacketType;
-use protocol::ControlPacket;
-use protocol::Packet;
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
 use warn::Panic;
 use warn::Warn;
-use Connection;
-use Timeout;
-use Timestamp;
 
-pub use connection::Error;
+pub use crate::connection::Error;
 
 pub trait Callback<A: Address> {
     type Error;
@@ -577,13 +577,13 @@ mod test {
     use super::Callback;
     use super::ChunkOrEvent;
     use super::Net;
+    use crate::protocol;
+    use crate::Timestamp;
     use itertools::Itertools;
-    use protocol;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
     use warn::Panic;
-    use Timestamp;
 
     #[test]
     fn establish_connection() {

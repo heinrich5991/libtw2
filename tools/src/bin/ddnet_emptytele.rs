@@ -1,8 +1,3 @@
-extern crate clap;
-extern crate datafile;
-extern crate logger;
-extern crate map;
-
 use map::Error;
 use std::path::Path;
 use std::process;

@@ -1,13 +1,11 @@
-use std::mem;
-
-use bitmagic::as_mut_i32_slice;
-use bitmagic::to_little_endian;
-use bitmagic::CallbackNewExt;
+use crate::bitmagic::as_mut_i32_slice;
+use crate::bitmagic::to_little_endian;
+use crate::bitmagic::CallbackNewExt;
+use crate::raw;
+use crate::raw::CallbackNew;
 use common::num::Cast;
-use raw;
-use raw::CallbackNew;
+use std::mem;
 use std::slice;
-use zlib;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Error {

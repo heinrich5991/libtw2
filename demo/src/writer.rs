@@ -1,6 +1,5 @@
 use arrayvec::ArrayVec;
 use binrw::BinWrite;
-use buffer;
 use common::digest::Sha256;
 use common::num::Cast;
 use huffman::instances::TEEWORLDS as HUFFMAN;

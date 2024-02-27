@@ -1,11 +1,4 @@
-extern crate arrayvec;
-extern crate buffer;
 extern crate gamenet_teeworlds_0_6 as gamenet;
-extern crate hexdump;
-extern crate net;
-extern crate packer;
-extern crate tools;
-extern crate warn;
 
 use arrayvec::ArrayVec;
 use buffer::ReadBuffer;

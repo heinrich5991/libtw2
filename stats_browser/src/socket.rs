@@ -1,11 +1,7 @@
-extern crate mio;
-
-use self::mio::net::UdpSocket as MioUdpSocket;
-
+use crate::addr::Addr;
+use mio::net::UdpSocket as MioUdpSocket;
 use std::fmt;
 use std::io;
-
-use addr::Addr;
 
 /// An unconnected non-blocking UDP socket.
 pub struct UdpSocket(MioUdpSocket);

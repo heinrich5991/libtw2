@@ -1,18 +1,15 @@
-use serverbrowse::protocol::PartialServerInfo;
-use serverbrowse::protocol::ServerInfo;
-use serverbrowse::protocol::Token7;
-
-use std::collections::HashSet;
-use std::fmt;
-
-use addr::Addr;
-use addr::ServerAddr;
+use crate::addr::Addr;
+use crate::addr::ServerAddr;
 use arrayvec::ArrayVec;
 use common::bytes::AsBytesExt;
 use common::bytes::FromBytesExt;
-use rand;
 use rand::distributions;
 use rand::distributions::Distribution;
+use serverbrowse::protocol::PartialServerInfo;
+use serverbrowse::protocol::ServerInfo;
+use serverbrowse::protocol::Token7;
+use std::collections::HashSet;
+use std::fmt;
 use zerocopy::byteorder::big_endian;
 
 /// Describes a master server.

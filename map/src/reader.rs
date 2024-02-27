@@ -1,4 +1,9 @@
+use crate::format;
+use crate::format::Error as MapError;
+use crate::format::MapItem;
+use crate::format::MapItemExt;
 use common::num::Cast;
+use common::unwrap_or_return;
 use common::vec;
 use datafile as df;
 use ndarray::Array2;
@@ -6,11 +11,6 @@ use std::io;
 use std::mem;
 use std::ops;
 use std::path::Path;
-
-use format;
-use format::Error as MapError;
-use format::MapItem;
-use format::MapItemExt;
 
 #[derive(Debug)]
 pub enum Error {

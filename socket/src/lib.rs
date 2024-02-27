@@ -1,19 +1,10 @@
-extern crate buffer;
-#[macro_use]
-extern crate common;
-extern crate hexdump;
-extern crate itertools;
-extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate mio;
-extern crate net;
-extern crate net2;
-extern crate rand;
 
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
+use common::unwrap_or_return;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
 use log::LogLevel;

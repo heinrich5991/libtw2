@@ -1,20 +1,15 @@
 #[macro_use]
 extern crate log;
 
-extern crate common;
-extern crate hexdump;
-extern crate itertools;
-extern crate zlib_minimal as zlib;
-
-pub use file::DataIter;
-pub use file::Error;
-pub use file::Reader;
-pub use format::ItemView;
-pub use format::OnlyI32;
-pub use raw::ItemTypeItems;
-pub use raw::ItemTypes;
-pub use raw::Items;
-pub use raw::Version;
+pub use self::file::DataIter;
+pub use self::file::Error;
+pub use self::file::Reader;
+pub use self::format::ItemView;
+pub use self::format::OnlyI32;
+pub use self::raw::ItemTypeItems;
+pub use self::raw::ItemTypes;
+pub use self::raw::Items;
+pub use self::raw::Version;
 
 mod bitmagic;
 pub mod buffer;

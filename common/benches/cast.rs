@@ -1,7 +1,5 @@
-#[macro_use]
-extern crate bencher;
-extern crate common;
-
+use bencher::benchmark_group;
+use bencher::benchmark_main;
 use bencher::black_box;
 use bencher::Bencher;
 use common::num::Cast;

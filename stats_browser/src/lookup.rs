@@ -1,4 +1,4 @@
-use addr::Addr;
+use crate::addr::Addr;
 use std::io;
 use std::net::ToSocketAddrs;
 

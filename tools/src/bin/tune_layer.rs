@@ -1,12 +1,8 @@
 #![cfg(not(test))]
 
-#[macro_use]
-extern crate common;
-extern crate datafile as df;
-extern crate map;
-extern crate tools;
-
 use common::num::Cast;
+use common::unwrap_or_return;
+use datafile as df;
 use std::fmt;
 use std::path::Path;
 

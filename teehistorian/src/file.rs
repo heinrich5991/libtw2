@@ -1,18 +1,17 @@
+use crate::format;
+use crate::format::item::INPUT_LEN;
+use crate::format::Header;
+use crate::raw;
+use crate::raw::Callback;
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::ops;
 use std::path::Path;
 
-use format;
-use format::item::INPUT_LEN;
-use format::Header;
-use raw;
-use raw::Callback;
-
-pub use raw::Buffer;
-pub use raw::Item;
-pub use raw::Pos;
+pub use crate::raw::Buffer;
+pub use crate::raw::Item;
+pub use crate::raw::Pos;
 
 #[derive(Debug)]
 pub enum Error {

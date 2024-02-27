@@ -213,7 +213,7 @@ pub use gamenet_common::snap_obj::TypeId;
 def emit_header_msg_system():
     import_(
         "buffer::CapacityError",
-        "error::Error",
+        "crate::error::Error",
         "packer::Packer",
         "packer::Unpacker",
         "packer::Warning",
@@ -245,7 +245,7 @@ impl<'a> System<'a> {
 def emit_header_msg_game():
     import_(
         "buffer::CapacityError",
-        "error::Error",
+        "crate::error::Error",
         "packer::Packer",
         "packer::Unpacker",
         "packer::Warning",
@@ -280,7 +280,7 @@ def emit_header_msg_connless(structs):
     import_(
         "buffer::CapacityError",
         "common::pretty",
-        "error::Error",
+        "crate::error::Error",
         "packer::Packer",
         "packer::Unpacker",
         "packer::Warning",
@@ -363,7 +363,7 @@ def emit_enum_from(name, structs):
 def emit_enum_msg(name, structs):
     import_(
         "buffer::CapacityError",
-        "error::Error",
+        "crate::error::Error",
         "packer::Packer",
         "packer::Unpacker",
         "packer::Warning",
@@ -425,7 +425,7 @@ def emit_enum_msg_module(name, structs):
 
 def emit_enum_obj(name, structs):
     import_(
-        "error::Error",
+        "crate::error::Error",
         "packer::ExcessData",
         "packer::IntUnpacker",
         "std::fmt",
@@ -492,7 +492,7 @@ def emit_enum_obj_module(name, structs, flags):
 def emit_enum_connless(name, structs):
     import_(
         "buffer::CapacityError",
-        "error::Error",
+        "crate::error::Error",
         "packer::Warning",
         "std::fmt",
         "warn::Warn",
@@ -574,6 +574,7 @@ name = "{}"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
+edition = "2021"
 
 [dependencies]
 arrayvec = "0.5.2"
@@ -587,14 +588,6 @@ warn = ">=0.1.1,<0.3.0"\
 
 def emit_main_lib():
     print("""\
-extern crate arrayvec;
-extern crate buffer;
-extern crate common;
-extern crate gamenet_common;
-extern crate packer;
-extern crate uuid;
-extern crate warn;
-
 #[rustfmt::skip]
 pub mod enums;
 #[rustfmt::skip]
@@ -602,9 +595,9 @@ pub mod msg;
 #[rustfmt::skip]
 pub mod snap_obj;
 
+pub use self::snap_obj::SnapObj;
 pub use gamenet_common::error;
-pub use gamenet_common::error::Error;
-pub use snap_obj::SnapObj;\
+pub use gamenet_common::error::Error;\
 """)
 
 def emit_msg_module():
@@ -814,7 +807,7 @@ class Struct(NameValues):
     def emit_impl_encode_decode(self, suffix=False):
         import_(
             "buffer::CapacityError",
-            "error::Error",
+            "crate::error::Error",
             "packer::Packer",
             "packer::Unpacker",
             "packer::Warning",
@@ -914,7 +907,7 @@ class NetObject(Struct):
     def emit_impl_encode_decode_int(self):
         import_(
             "common::slice",
-            "error::Error",
+            "crate::error::Error",
             "packer::ExcessData",
             "packer::IntUnpacker",
             "std::slice::from_ref",
@@ -1339,12 +1332,12 @@ class NetEnum(NetIntAny):
         self.enum_name = canonicalize(enum_name)
         self.type_ = "enums::{}".format(title(self.enum_name))
     def decode_expr(self):
-        import_("enums")
+        import_("crate::enums")
         return "enums::{}::from_i32({})?".format(title(self.enum_name), super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.to_i32()".format(self_expr))
     def decode_int_expr(self):
-        import_("enums")
+        import_("crate::enums")
         return "enums::{}::from_i32({})?".format(title(self.enum_name), super().decode_int_expr())
     def serialize_type(self):
         return {"kind": self.kind, "enum": self.enum_name}
@@ -1397,13 +1390,13 @@ class NetTuneParam(NetIntAny):
 
 class NetTick(NetIntAny):
     kind = "tick"
-    type_ = "::snap_obj::Tick"
+    type_ = "crate::snap_obj::Tick"
     def decode_expr(self):
-        return "::snap_obj::Tick({})".format(super().decode_expr())
+        return "crate::snap_obj::Tick({})".format(super().decode_expr())
     def encode_expr(self, self_expr):
         return super().encode_expr("{}.0".format(self_expr))
     def decode_int_expr(self):
-        return "::snap_obj::Tick({})".format(super().decode_int_expr())
+        return "crate::snap_obj::Tick({})".format(super().decode_int_expr())
     def serialize_type(self):
         return {"kind": self.kind}
     @staticmethod
@@ -1414,7 +1407,7 @@ class NetObjectMember(Member):
     kind = "snapshot_object"
     def __init__(self, name, type_):
         super().__init__(name)
-        self.type_ = "::snap_obj::{}".format(title(type_))
+        self.type_ = "crate::snap_obj::{}".format(title(type_))
         self.type_name = type_
     def decode_expr(self):
         return "{}::decode_msg(warn, _p)?".format(self.type_)

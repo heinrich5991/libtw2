@@ -1,6 +1,4 @@
-use df;
-use logger;
-use map;
+use datafile as df;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;

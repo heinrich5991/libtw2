@@ -1,8 +1,9 @@
 [package]
-authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 name = "teehistorian"
 version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
+edition = "2021"
 
 [dependencies]
 arrayvec = { version = "0.5.2", features = ["serde"] }

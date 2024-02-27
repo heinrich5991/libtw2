@@ -1,21 +1,10 @@
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
-extern crate arrayvec;
-extern crate buffer;
-#[macro_use]
-extern crate common;
-#[cfg(feature = "uuid")]
-extern crate uuid;
-extern crate warn;
-
 use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
 use buffer::CapacityError;
 use common::num::Cast;
+use common::unwrap_or_return;
 use std::iter;
 use std::mem;
 use std::slice;
@@ -427,6 +416,7 @@ fn string_to_bytes_buffer_ref<'d, 's>(
 #[rustfmt::skip]
 mod test {
     use arrayvec::ArrayVec;
+    use quickcheck::quickcheck;
     use std::i32;
     use super::Unpacker;
     use super::Warning::*;

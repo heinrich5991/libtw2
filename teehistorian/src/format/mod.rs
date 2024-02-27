@@ -3,7 +3,7 @@ use chrono::FixedOffset;
 use common::digest::Sha256;
 use packer::UnexpectedEnd;
 use packer::Unpacker;
-use serde_json;
+use serde_derive::Deserialize;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use uuid::Uuid;

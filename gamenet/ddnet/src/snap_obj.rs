@@ -1,7 +1,7 @@
 use buffer::CapacityError;
 use common::slice;
-use enums;
-use error::Error;
+use crate::enums;
+use crate::error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
 use packer::Packer;
@@ -558,7 +558,7 @@ pub struct Projectile {
     pub vel_x: i32,
     pub vel_y: i32,
     pub type_: enums::Weapon,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -568,7 +568,7 @@ pub struct Laser {
     pub y: i32,
     pub from_x: i32,
     pub from_y: i32,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -593,7 +593,7 @@ pub struct Flag {
 pub struct GameInfo {
     pub game_flags: i32,
     pub game_state_flags: i32,
-    pub round_start_tick: ::snap_obj::Tick,
+    pub round_start_tick: crate::snap_obj::Tick,
     pub warmup_timer: i32,
     pub score_limit: i32,
     pub time_limit: i32,
@@ -623,7 +623,7 @@ pub struct CharacterCore {
     pub jumped: i32,
     pub hooked_player: i32,
     pub hook_state: i32,
-    pub hook_tick: ::snap_obj::Tick,
+    pub hook_tick: crate::snap_obj::Tick,
     pub hook_x: i32,
     pub hook_y: i32,
     pub hook_dx: i32,
@@ -683,13 +683,13 @@ pub struct MyOwnObject {
 #[derive(Clone, Copy)]
 pub struct DdnetCharacter {
     pub flags: i32,
-    pub freeze_end: ::snap_obj::Tick,
+    pub freeze_end: crate::snap_obj::Tick,
     pub jumps: i32,
     pub tele_checkpoint: i32,
     pub strong_weak_id: i32,
     pub jumped_total: i32,
-    pub ninja_activation_tick: ::snap_obj::Tick,
-    pub freeze_start: ::snap_obj::Tick,
+    pub ninja_activation_tick: crate::snap_obj::Tick,
+    pub freeze_start: crate::snap_obj::Tick,
     pub target_x: i32,
     pub target_y: i32,
 }
@@ -717,7 +717,7 @@ pub struct DdraceProjectile {
     pub angle: i32,
     pub data: i32,
     pub type_: enums::Weapon,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -727,7 +727,7 @@ pub struct DdnetLaser {
     pub to_y: i32,
     pub from_x: i32,
     pub from_y: i32,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
     pub owner: i32,
     pub type_: i32,
     pub switch_number: i32,
@@ -742,7 +742,7 @@ pub struct DdnetProjectile {
     pub vel_x: i32,
     pub vel_y: i32,
     pub type_: enums::Weapon,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
     pub owner: i32,
     pub switch_number: i32,
     pub tune_zone: i32,
@@ -939,7 +939,7 @@ impl Projectile {
             vel_x: _p.read_int()?,
             vel_y: _p.read_int()?,
             type_: enums::Weapon::from_i32(_p.read_int()?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -970,7 +970,7 @@ impl Laser {
             y: _p.read_int()?,
             from_x: _p.read_int()?,
             from_y: _p.read_int()?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1061,7 +1061,7 @@ impl GameInfo {
         Ok(GameInfo {
             game_flags: in_range(_p.read_int()?, 0, 256)?,
             game_state_flags: in_range(_p.read_int()?, 0, 256)?,
-            round_start_tick: ::snap_obj::Tick(_p.read_int()?),
+            round_start_tick: crate::snap_obj::Tick(_p.read_int()?),
             warmup_timer: _p.read_int()?,
             score_limit: positive(_p.read_int()?)?,
             time_limit: positive(_p.read_int()?)?,
@@ -1150,7 +1150,7 @@ impl CharacterCore {
             jumped: in_range(_p.read_int()?, 0, 3)?,
             hooked_player: in_range(_p.read_int()?, -1, 63)?,
             hook_state: in_range(_p.read_int()?, -1, 5)?,
-            hook_tick: ::snap_obj::Tick(_p.read_int()?),
+            hook_tick: crate::snap_obj::Tick(_p.read_int()?),
             hook_x: _p.read_int()?,
             hook_y: _p.read_int()?,
             hook_dx: _p.read_int()?,
@@ -1370,13 +1370,13 @@ impl DdnetCharacter {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetCharacter, Error> {
         Ok(DdnetCharacter {
             flags: _p.read_int()?,
-            freeze_end: ::snap_obj::Tick(_p.read_int()?),
+            freeze_end: crate::snap_obj::Tick(_p.read_int()?),
             jumps: in_range(_p.read_int()?, -1, 255)?,
             tele_checkpoint: _p.read_int()?,
             strong_weak_id: in_range(_p.read_int()?, 0, 63)?,
             jumped_total: in_range(_p.read_int()?, -1, 255)?,
-            ninja_activation_tick: ::snap_obj::Tick(_p.read_int()?),
-            freeze_start: ::snap_obj::Tick(_p.read_int()?),
+            ninja_activation_tick: crate::snap_obj::Tick(_p.read_int()?),
+            freeze_start: crate::snap_obj::Tick(_p.read_int()?),
             target_x: _p.read_int()?,
             target_y: _p.read_int()?,
         })
@@ -1467,7 +1467,7 @@ impl DdraceProjectile {
             angle: _p.read_int()?,
             data: _p.read_int()?,
             type_: enums::Weapon::from_i32(_p.read_int()?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1502,7 +1502,7 @@ impl DdnetLaser {
             to_y: _p.read_int()?,
             from_x: _p.read_int()?,
             from_y: _p.read_int()?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
             owner: in_range(_p.read_int()?, -1, 63)?,
             type_: _p.read_int()?,
             switch_number: _p.read_int()?,
@@ -1544,7 +1544,7 @@ impl DdnetProjectile {
             vel_x: _p.read_int()?,
             vel_y: _p.read_int()?,
             type_: enums::Weapon::from_i32(_p.read_int()?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
             owner: in_range(_p.read_int()?, -1, 63)?,
             switch_number: _p.read_int()?,
             tune_zone: _p.read_int()?,

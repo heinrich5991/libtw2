@@ -1,8 +1,10 @@
-use addr::ProtocolVersion;
-use addr::ServerAddr;
+use crate::addr::ProtocolVersion;
+use crate::addr::ServerAddr;
+use crate::StatsBrowserCb;
 use arrayvec::ArrayString;
-use csv;
 use ipnet::Ipv4Net;
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 use serverbrowse::protocol::ClientInfo;
 use serverbrowse::protocol::IpAddr;
 use serverbrowse::protocol::ServerInfo;
@@ -22,12 +24,12 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
-use StatsBrowserCb;
 
 mod json {
     use super::Timestamp;
-    use addr;
+    use crate::addr;
     use arrayvec::ArrayString;
+    use serde_derive::Serialize;
     use serverbrowse::protocol;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;

@@ -2,6 +2,7 @@
 name = "huffman-reference"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+edition = "2021"
 
 [dependencies]
 buffer = "0.1.9"

@@ -1,24 +1,25 @@
+use crate::protocol;
+use crate::protocol::ChunksIter;
+use crate::protocol::ConnectedPacket;
+use crate::protocol::ConnectedPacketType;
+use crate::protocol::ControlPacket;
+use crate::protocol::Packet;
+use crate::protocol::Token;
+use crate::protocol::MAX_PACKETSIZE;
+use crate::protocol::MAX_PAYLOAD;
+use crate::protocol::TOKEN_NONE;
+use crate::Timeout;
+use crate::Timestamp;
 use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
-use protocol;
-use protocol::ChunksIter;
-use protocol::ConnectedPacket;
-use protocol::ConnectedPacketType;
-use protocol::ControlPacket;
-use protocol::Packet;
-use protocol::Token;
-use protocol::MAX_PACKETSIZE;
-use protocol::MAX_PAYLOAD;
-use protocol::TOKEN_NONE;
+use matches::assert_matches;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
 use std::time::Duration;
 use warn::Warn;
-use Timeout;
-use Timestamp;
 
 // TODO: Implement receive timeout.
 // TODO: Don't allow for unbounded backlog of vital messages.
@@ -807,14 +808,14 @@ mod test {
     use super::ReceiveChunk;
     use super::Sequence;
     use super::SequenceOrdering;
+    use crate::protocol;
+    use crate::Timestamp;
     use hexdump::hexdump;
     use itertools::Itertools;
-    use protocol;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
     use warn::Panic;
-    use Timestamp;
 
     #[test]
     fn sequence_compare() {

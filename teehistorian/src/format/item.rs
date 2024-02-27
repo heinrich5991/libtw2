@@ -3,7 +3,6 @@ use common::num::Cast;
 use common::pretty;
 use packer::positive;
 use packer::Unpacker;
-use serde;
 use serde::ser::SerializeSeq;
 use serde::Serialize;
 use std::fmt;

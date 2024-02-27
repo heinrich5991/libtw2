@@ -1,8 +1,4 @@
-extern crate buffer;
-extern crate common;
-extern crate huffman;
 extern crate huffman_reference_sys as sys;
-extern crate libc;
 
 use buffer::with_buffer;
 use buffer::Buffer;

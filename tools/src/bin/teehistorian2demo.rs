@@ -1,17 +1,3 @@
-extern crate arrayvec;
-extern crate clap;
-extern crate common;
-extern crate demo;
-extern crate gamenet_ddnet;
-extern crate gamenet_teeworlds_0_7;
-extern crate logger;
-extern crate packer;
-extern crate snapshot;
-extern crate teehistorian;
-extern crate vec_map;
-extern crate warn;
-extern crate world;
-
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use demo::Writer;

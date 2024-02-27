@@ -1,6 +1,5 @@
-use linear_map;
+use crate::net::PeerId;
 use linear_map::LinearMap;
-use net::PeerId;
 use std::fmt;
 use std::iter::FromIterator;
 use std::ops;

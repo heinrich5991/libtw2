@@ -1,6 +1,3 @@
-extern crate common;
-extern crate gamenet_teeworlds_0_6 as gamenet;
-
 use common::num::Cast;
 use common::num::CastFloat;
 use gamenet::msg::game::SvTuneParams;

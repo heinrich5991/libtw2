@@ -1,6 +1,6 @@
 use super::peer_map;
 use super::PeerMap;
-use net::PeerId;
+use crate::net::PeerId;
 use std::fmt;
 use std::iter::FromIterator;
 

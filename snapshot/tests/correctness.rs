@@ -1,9 +1,3 @@
-extern crate buffer;
-extern crate gamenet_teeworlds_0_6 as gamenet;
-extern crate packer;
-extern crate snapshot;
-extern crate warn;
-
 use buffer::CapacityError;
 use gamenet::snap_obj::obj_size;
 use packer::with_packer;

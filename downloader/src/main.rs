@@ -1,21 +1,8 @@
-extern crate arrayvec;
-#[macro_use]
-extern crate clap;
-extern crate common;
-extern crate event_loop;
-extern crate gamenet_teeworlds_0_6 as gamenet;
-extern crate hexdump;
-extern crate itertools;
 #[macro_use]
 extern crate log;
-extern crate logger;
-extern crate packer;
-extern crate rand;
-extern crate snapshot;
-extern crate tempfile;
-extern crate warn;
 
 use arrayvec::ArrayVec;
+use clap::values_t;
 use clap::App;
 use clap::Arg;
 use clap::Error;

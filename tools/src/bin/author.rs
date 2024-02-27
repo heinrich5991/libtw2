@@ -1,10 +1,6 @@
 #![cfg(not(test))]
 
-extern crate common;
-extern crate datafile as df;
-extern crate map;
-extern crate tools;
-
+use datafile as df;
 use map::format;
 use std::path::Path;
 

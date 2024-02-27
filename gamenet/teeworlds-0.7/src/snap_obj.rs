@@ -1,7 +1,7 @@
 use buffer::CapacityError;
 use common::slice;
-use enums;
-use error::Error;
+use crate::enums;
+use crate::error::Error;
 use packer::ExcessData;
 use packer::IntUnpacker;
 use packer::Packer;
@@ -388,7 +388,7 @@ pub struct Projectile {
     pub vel_x: i32,
     pub vel_y: i32,
     pub type_: enums::Weapon,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -398,7 +398,7 @@ pub struct Laser {
     pub y: i32,
     pub from_x: i32,
     pub from_y: i32,
-    pub start_tick: ::snap_obj::Tick,
+    pub start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -420,9 +420,9 @@ pub struct Flag {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GameData {
-    pub game_start_tick: ::snap_obj::Tick,
+    pub game_start_tick: crate::snap_obj::Tick,
     pub game_state_flags: i32,
-    pub game_state_end_tick: ::snap_obj::Tick,
+    pub game_state_end_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -437,14 +437,14 @@ pub struct GameDataTeam {
 pub struct GameDataFlag {
     pub flag_carrier_red: i32,
     pub flag_carrier_blue: i32,
-    pub flag_drop_tick_red: ::snap_obj::Tick,
-    pub flag_drop_tick_blue: ::snap_obj::Tick,
+    pub flag_drop_tick_red: crate::snap_obj::Tick,
+    pub flag_drop_tick_blue: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CharacterCore {
-    pub tick: ::snap_obj::Tick,
+    pub tick: crate::snap_obj::Tick,
     pub x: i32,
     pub y: i32,
     pub vel_x: i32,
@@ -454,7 +454,7 @@ pub struct CharacterCore {
     pub jumped: i32,
     pub hooked_player: i32,
     pub hook_state: i32,
-    pub hook_tick: ::snap_obj::Tick,
+    pub hook_tick: crate::snap_obj::Tick,
     pub hook_x: i32,
     pub hook_y: i32,
     pub hook_dx: i32,
@@ -470,7 +470,7 @@ pub struct Character {
     pub ammo_count: i32,
     pub weapon: enums::Weapon,
     pub emote: enums::Emote,
-    pub attack_tick: ::snap_obj::Tick,
+    pub attack_tick: crate::snap_obj::Tick,
     pub triggered_events: i32,
 }
 
@@ -573,7 +573,7 @@ pub struct Damage {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PlayerInfoRace {
-    pub race_start_tick: ::snap_obj::Tick,
+    pub race_start_tick: crate::snap_obj::Tick,
 }
 
 #[repr(C)]
@@ -685,7 +685,7 @@ impl Projectile {
             vel_x: _p.read_int()?,
             vel_y: _p.read_int()?,
             type_: enums::Weapon::from_i32(_p.read_int()?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -700,7 +700,7 @@ impl Projectile {
             vel_x: _p.read_int(warn)?,
             vel_y: _p.read_int(warn)?,
             type_: enums::Weapon::from_i32(_p.read_int(warn)?)?,
-            start_tick: ::snap_obj::Tick(_p.read_int(warn)?),
+            start_tick: crate::snap_obj::Tick(_p.read_int(warn)?),
         });
         _p.finish(warn);
         result
@@ -739,7 +739,7 @@ impl Laser {
             y: _p.read_int()?,
             from_x: _p.read_int()?,
             from_y: _p.read_int()?,
-            start_tick: ::snap_obj::Tick(_p.read_int()?),
+            start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -819,9 +819,9 @@ impl GameData {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<GameData, Error> {
         Ok(GameData {
-            game_start_tick: ::snap_obj::Tick(_p.read_int()?),
+            game_start_tick: crate::snap_obj::Tick(_p.read_int()?),
             game_state_flags: _p.read_int()?,
-            game_state_end_tick: ::snap_obj::Tick(_p.read_int()?),
+            game_state_end_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -874,8 +874,8 @@ impl GameDataFlag {
         Ok(GameDataFlag {
             flag_carrier_red: in_range(_p.read_int()?, -3, 63)?,
             flag_carrier_blue: in_range(_p.read_int()?, -3, 63)?,
-            flag_drop_tick_red: ::snap_obj::Tick(_p.read_int()?),
-            flag_drop_tick_blue: ::snap_obj::Tick(_p.read_int()?),
+            flag_drop_tick_red: crate::snap_obj::Tick(_p.read_int()?),
+            flag_drop_tick_blue: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -914,7 +914,7 @@ impl CharacterCore {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<CharacterCore, Error> {
         Ok(CharacterCore {
-            tick: ::snap_obj::Tick(_p.read_int()?),
+            tick: crate::snap_obj::Tick(_p.read_int()?),
             x: _p.read_int()?,
             y: _p.read_int()?,
             vel_x: _p.read_int()?,
@@ -924,7 +924,7 @@ impl CharacterCore {
             jumped: in_range(_p.read_int()?, 0, 3)?,
             hooked_player: in_range(_p.read_int()?, -1, 63)?,
             hook_state: in_range(_p.read_int()?, -1, 5)?,
-            hook_tick: ::snap_obj::Tick(_p.read_int()?),
+            hook_tick: crate::snap_obj::Tick(_p.read_int()?),
             hook_x: _p.read_int()?,
             hook_y: _p.read_int()?,
             hook_dx: _p.read_int()?,
@@ -968,7 +968,7 @@ impl Character {
             ammo_count: _p.read_int()?,
             weapon: enums::Weapon::from_i32(_p.read_int()?)?,
             emote: enums::Emote::from_i32(_p.read_int()?)?,
-            attack_tick: ::snap_obj::Tick(_p.read_int()?),
+            attack_tick: crate::snap_obj::Tick(_p.read_int()?),
             triggered_events: _p.read_int()?,
         })
     }
@@ -1439,7 +1439,7 @@ impl PlayerInfoRace {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<PlayerInfoRace, Error> {
         Ok(PlayerInfoRace {
-            race_start_tick: ::snap_obj::Tick(_p.read_int()?),
+            race_start_tick: crate::snap_obj::Tick(_p.read_int()?),
         })
     }
     pub fn encode(&self) -> &[i32] {

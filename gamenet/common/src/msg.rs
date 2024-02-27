@@ -1,12 +1,14 @@
+use crate::error::Error;
+use crate::error::InvalidIntString;
 use arrayvec::ArrayVec;
 use buffer::CapacityError;
 use common::slice;
-use error::Error;
-use error::InvalidIntString;
 use packer::ExcessData;
 use packer::Packer;
 use packer::Unpacker;
 use packer::Warning;
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 use std::fmt;
 use std::io::Write;
 use std::mem;

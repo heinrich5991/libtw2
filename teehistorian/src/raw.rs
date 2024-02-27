@@ -1,18 +1,18 @@
+use crate::bitmagic::CallbackExt;
+use crate::format;
+use crate::format::item;
+use crate::format::item::INPUT_LEN;
+use crate::format::MaybeEnd;
 use common::num::Cast;
 use itertools::zip_eq;
 use packer::Unpacker;
+use serde_derive::Serialize;
 use std::cmp;
 use std::fmt;
 use std::ops;
 use vec_map::VecMap;
 
-use bitmagic::CallbackExt;
-use format;
-use format::item;
-use format::item::INPUT_LEN;
-use format::MaybeEnd;
-
-pub use format::Header;
+pub use crate::format::Header;
 
 macro_rules! unexp_end {
     ($e:expr) => {

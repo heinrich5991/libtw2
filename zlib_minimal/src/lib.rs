@@ -3,7 +3,6 @@
 //! This wrapper only exposes the `uncompress` method of zlib, both without
 //! indirection and as idiomatic Rust function.
 
-extern crate libc;
 extern crate libz_sys as raw;
 
 use libc::c_ulong;

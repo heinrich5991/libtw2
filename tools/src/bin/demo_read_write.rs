@@ -1,7 +1,3 @@
-extern crate clap;
-extern crate demo;
-extern crate logger;
-
 use clap::App;
 use clap::Arg;
 use demo::ddnet;

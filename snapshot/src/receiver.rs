@@ -1,7 +1,7 @@
+use crate::to_usize;
 use common::num::Cast;
 use gamenet::msg::system;
 use std::ops;
-use to_usize;
 use vec_map::VecMap;
 use warn::Warn;
 

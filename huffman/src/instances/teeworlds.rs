@@ -1,5 +1,5 @@
-use Huffman;
-use Node;
+use crate::Huffman;
+use crate::Node;
 pub const INSTANCE: Huffman = Huffman { nodes: [
     Node { children: [256, 1] },
     Node { children: [1024, 8] },

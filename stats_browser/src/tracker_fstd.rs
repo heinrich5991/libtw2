@@ -1,17 +1,12 @@
+use crate::addr::Addr;
+use crate::addr::ServerAddr;
+use crate::base64::B64;
+use crate::StatsBrowserCb;
 use serverbrowse::protocol::ClientInfo;
 use serverbrowse::protocol::ServerInfo;
 use serverbrowse::protocol::ServerInfoVersion;
-
 use std::cmp::Ordering;
 use std::fmt;
-
-use rust_time;
-
-use addr::Addr;
-use addr::ServerAddr;
-use base64::B64;
-
-use StatsBrowserCb;
 
 #[allow(missing_copy_implementations)]
 pub struct Tracker {
@@ -171,7 +166,7 @@ impl StatsBrowserCb for Tracker {
 }
 
 fn print_iter<'a, I: Iterator<Item = &'a (dyn fmt::Display + 'a)>>(command: &str, args: I) {
-    print!("{}\t{}", rust_time::get_time().sec, command);
+    print!("{}\t{}", time::get_time().sec, command);
     for a in args {
         print!("\t{}", a);
     }

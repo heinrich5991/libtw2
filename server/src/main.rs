@@ -1,29 +1,12 @@
-extern crate arrayvec;
-#[macro_use]
-extern crate common;
-extern crate datafile;
-extern crate event_loop;
-extern crate gamenet_teeworlds_0_6 as gamenet;
-extern crate hexdump;
-extern crate itertools;
 #[macro_use]
 extern crate log;
-extern crate logger;
-extern crate map;
-#[macro_use]
-extern crate matches;
-extern crate ndarray;
-extern crate packer;
-extern crate snapshot;
-extern crate socket;
-extern crate warn;
-extern crate world;
 
 use arrayvec::ArrayString;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::num::CastFloat;
 use common::pretty::AlmostString;
+use common::unwrap_or_return;
 use common::Takeable;
 use event_loop::collections::PeerMap;
 use event_loop::collections::PeerSet;

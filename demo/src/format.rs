@@ -5,7 +5,6 @@ use common::digest::Sha256;
 use common::num::Cast;
 use std::convert::TryFrom;
 use std::io;
-use warn;
 use warn::Warn;
 
 pub const MAX_SNAPSHOT_SIZE: usize = 65536;

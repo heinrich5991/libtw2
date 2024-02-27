@@ -1,7 +1,3 @@
-extern crate common;
-extern crate huffman;
-extern crate itertools;
-
 use huffman::Huffman;
 use itertools::Itertools;
 use std::fs::File;

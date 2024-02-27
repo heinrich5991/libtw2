@@ -1,4 +1,4 @@
-use time::Duration;
+use crate::time::Duration;
 
 /// Maximum number of malformed responses to report per server.
 pub const MAX_MALFORMED_RESP: u32 = 10;

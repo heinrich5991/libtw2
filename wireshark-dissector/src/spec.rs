@@ -1,5 +1,12 @@
 use crate::c;
+use crate::format::Bitfield;
+use crate::format::CommaSeparated;
+use crate::format::NumBytes;
+use crate::intern::intern;
+use crate::intern::intern_static_with_nul;
+use crate::intern::Interned;
 use crate::to_guid;
+use crate::IdentifierEx;
 use crate::HFRI_DEFAULT;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -8,13 +15,8 @@ use arrayvec::ArrayVec;
 use common::digest;
 use common::num::Cast;
 use common::pretty::AlmostString;
-use format::Bitfield;
-use format::CommaSeparated;
-use format::NumBytes;
+use common::unwrap_or;
 use gamenet_spec::MessageId;
-use intern::intern;
-use intern::intern_static_with_nul;
-use intern::Interned;
 use packer::Unpacker;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -30,7 +32,6 @@ use std::os::raw::c_uint;
 use std::rc::Rc;
 use std::str;
 use warn::Ignore;
-use IdentifierEx;
 
 #[derive(Debug)]
 pub struct Spec {

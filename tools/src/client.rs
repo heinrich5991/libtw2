@@ -1,4 +1,3 @@
-use logger;
 use std::env;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;

@@ -1,5 +1,3 @@
-extern crate libc;
-
 #[link(name = "huffman")]
 extern "C" {
     pub fn huffman_size() -> libc::size_t;

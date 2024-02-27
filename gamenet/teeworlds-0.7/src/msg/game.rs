@@ -1,7 +1,7 @@
 use buffer::CapacityError;
 use common::pretty;
-use enums;
-use error::Error;
+use crate::enums;
+use crate::error::Error;
 use gamenet_common::debug::DebugSlice;
 use packer::Packer;
 use packer::Unpacker;
@@ -558,7 +558,7 @@ pub struct SvTeam {
     pub client_id: i32,
     pub team: enums::Team,
     pub silent: bool,
-    pub cooldown_tick: ::snap_obj::Tick,
+    pub cooldown_tick: crate::snap_obj::Tick,
 }
 
 #[derive(Clone, Copy)]
@@ -607,7 +607,7 @@ pub struct SvTuneParams {
 
 #[derive(Clone, Copy)]
 pub struct SvExtraProjectile {
-    pub projectile: ::snap_obj::Projectile,
+    pub projectile: crate::snap_obj::Projectile,
 }
 
 #[derive(Clone, Copy)]
@@ -894,7 +894,7 @@ impl SvTeam {
             client_id: in_range(_p.read_int(warn)?, -1, 63)?,
             team: enums::Team::from_i32(_p.read_int(warn)?)?,
             silent: to_bool(_p.read_int(warn)?)?,
-            cooldown_tick: ::snap_obj::Tick(_p.read_int(warn)?),
+            cooldown_tick: crate::snap_obj::Tick(_p.read_int(warn)?),
         });
         _p.finish(warn);
         result
@@ -1069,7 +1069,7 @@ impl fmt::Debug for SvTuneParams {
 impl SvExtraProjectile {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvExtraProjectile, Error> {
         let result = Ok(SvExtraProjectile {
-            projectile: ::snap_obj::Projectile::decode_msg(warn, _p)?,
+            projectile: crate::snap_obj::Projectile::decode_msg(warn, _p)?,
         });
         _p.finish(warn);
         result

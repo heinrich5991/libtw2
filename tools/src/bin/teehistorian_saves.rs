@@ -1,16 +1,3 @@
-extern crate arrayvec;
-extern crate buffer;
-extern crate clap;
-extern crate common;
-extern crate gamenet_ddnet;
-extern crate gamenet_teeworlds_0_7;
-extern crate logger;
-extern crate packer;
-extern crate teehistorian;
-extern crate uuid;
-extern crate vec_map;
-extern crate warn;
-
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;

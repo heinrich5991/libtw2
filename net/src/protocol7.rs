@@ -1,10 +1,11 @@
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
+use common::boilerplate_packed;
 use common::bytes::FromBytesExt as _;
 use common::num::Cast;
 use common::pretty;
-use huffman;
+use common::unwrap_or_return;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use std::cmp;
 use std::fmt;
@@ -693,6 +694,7 @@ boilerplate_packed!(
 #[rustfmt::skip]
 mod test {
     use common::bytes::FromBytesExt as _;
+    use quickcheck::quickcheck;
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
     use super::ChunkHeader;

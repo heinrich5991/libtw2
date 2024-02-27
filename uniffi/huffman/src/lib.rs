@@ -1,6 +1,3 @@
-extern crate huffman;
-extern crate uniffi;
-
 use std::error;
 use std::fmt;
 

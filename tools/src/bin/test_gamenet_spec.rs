@@ -1,8 +1,3 @@
-extern crate clap;
-extern crate gamenet_spec;
-extern crate logger;
-extern crate serde_json;
-
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;

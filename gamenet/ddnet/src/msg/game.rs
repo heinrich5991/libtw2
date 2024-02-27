@@ -1,7 +1,7 @@
 use buffer::CapacityError;
 use common::pretty;
-use enums;
-use error::Error;
+use crate::enums;
+use crate::error::Error;
 use gamenet_common::debug::DebugSlice;
 use packer::Packer;
 use packer::Unpacker;

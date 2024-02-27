@@ -1,6 +1,6 @@
 use buffer::CapacityError;
 use common::pretty;
-use error::Error;
+use crate::error::Error;
 use gamenet_common::msg::string_from_int;
 use packer::Packer;
 use packer::Unpacker;

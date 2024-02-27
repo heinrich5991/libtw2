@@ -1,5 +1,5 @@
+use crate::format::ItemView;
 use common::MapIterator;
-use format::ItemView;
 use std::ops;
 
 #[derive(Clone, Copy, Debug)]

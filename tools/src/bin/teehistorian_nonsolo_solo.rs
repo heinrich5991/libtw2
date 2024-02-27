@@ -1,16 +1,5 @@
-extern crate chrono;
-extern crate clap;
-extern crate csv;
-extern crate itertools;
-extern crate logger;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate teehistorian;
-extern crate uuid;
-extern crate walkdir;
-
 use itertools::sorted;
+use serde_derive::Serialize;
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::io;

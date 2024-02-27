@@ -1,12 +1,3 @@
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
-extern crate arrayvec;
-extern crate buffer;
-extern crate common;
-extern crate itertools;
-
 use arrayvec::ArrayVec;
 use buffer::with_buffer;
 use buffer::Buffer;
@@ -526,6 +517,7 @@ impl fmt::Display for SymbolRepr {
 mod test {
     use super::Node;
     use super::SymbolRepr;
+    use quickcheck::quickcheck;
 
     quickcheck! {
         fn roundtrip_node(v: (u16, u16)) -> bool {

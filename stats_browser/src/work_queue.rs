@@ -1,3 +1,6 @@
+use crate::time::Duration;
+use crate::time::Time;
+use crate::time::Timed;
 use common::num::Cast;
 use std::collections::hash_map;
 use std::collections::hash_map::Entry;
@@ -6,10 +9,6 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::default::Default;
 use std::iter;
-
-use time::Duration;
-use time::Time;
-use time::Timed;
 
 #[derive(Clone)]
 pub struct TimedWorkQueue<T> {

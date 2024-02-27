@@ -1,7 +1,6 @@
+use crate::relative_size_of_mult;
+use crate::slice;
 use std::mem;
-
-use relative_size_of_mult;
-use slice;
 
 pub unsafe fn transmute<T, U>(vec: Vec<T>) -> Vec<U> {
     slice::transmute::<T, U>(&vec); // Error checking done there.

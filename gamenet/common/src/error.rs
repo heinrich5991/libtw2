@@ -1,5 +1,3 @@
-use packer;
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Error {
     ControlCharacters,

@@ -1,5 +1,3 @@
-use base64_dep;
-
 use std::fmt;
 
 /// A struct for printing a byte array as [Base64][wiki].
@@ -11,7 +9,7 @@ pub struct B64<'a>(pub &'a [u8]);
 impl<'a> fmt::Debug for B64<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let B64(bytes) = *self;
-        fmt::Display::fmt(&base64_dep::encode(bytes), f)
+        fmt::Display::fmt(&base64::encode(bytes), f)
     }
 }
 

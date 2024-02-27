@@ -1,9 +1,6 @@
 #![cfg(not(test))]
 
-extern crate datafile as df;
-extern crate map;
-extern crate tools;
-
+use datafile as df;
 use std::path::Path;
 
 fn process(p: &Path, _: df::Reader, _: &mut ()) -> Result<(), map::Error> {

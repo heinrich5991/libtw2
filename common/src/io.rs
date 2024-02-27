@@ -47,7 +47,7 @@ pub trait FileExt {
 #[cfg(feature = "file_offset")]
 impl FileExt for std::fs::File {
     fn read_offset_retry(&self, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
-        use num::Cast;
+        use crate::num::Cast;
 
         // Make sure the additions in this function don't overflow
         let _end_offset = offset

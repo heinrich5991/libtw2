@@ -18,6 +18,7 @@ pub fn truncated_arraystring<A: Array<Item = u8> + Copy>(mut s: &str) -> ArraySt
 #[cfg(test)]
 mod test {
     use super::truncated_arraystring;
+    use quickcheck::quickcheck;
     quickcheck! {
         fn truncated_arraystring0(v: String) -> bool {
             truncated_arraystring::<[u8; 0]>(&v);

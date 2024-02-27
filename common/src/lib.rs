@@ -1,18 +1,7 @@
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
-extern crate arrayvec;
-#[cfg(feature = "file_offset")]
-extern crate file_offset;
-#[cfg(feature = "serde")]
-extern crate serde;
-extern crate zerocopy;
-
-pub use map_iter::MapIterator;
-pub use slice::relative_size_of;
-pub use slice::relative_size_of_mult;
-pub use takeable::Takeable;
+pub use self::map_iter::MapIterator;
+pub use self::slice::relative_size_of;
+pub use self::slice::relative_size_of_mult;
+pub use self::takeable::Takeable;
 
 #[macro_use]
 mod macros;

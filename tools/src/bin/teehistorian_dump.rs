@@ -1,13 +1,6 @@
-extern crate buffer;
-extern crate clap;
 extern crate gamenet_teeworlds_0_6 as gamenet;
-extern crate logger;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate teehistorian;
-extern crate warn;
 
+use serde_derive::Serialize;
 use std::io;
 use std::path::Path;
 use std::process;

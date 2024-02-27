@@ -1,10 +1,3 @@
-extern crate clap;
-extern crate common;
-extern crate datafile;
-extern crate logger;
-extern crate map;
-extern crate rmp;
-
 use common::num::Cast;
 use map::format::SpeedupTile;
 use map::format::SwitchTile;

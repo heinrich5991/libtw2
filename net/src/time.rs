@@ -1,5 +1,4 @@
 use common::num::Cast;
-use optional;
 use optional::Optioned;
 use std::cmp;
 use std::ops;

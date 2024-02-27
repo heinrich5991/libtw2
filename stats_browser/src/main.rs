@@ -1,11 +1,6 @@
 #![cfg(not(test))]
 
-#[macro_use]
-extern crate clap;
-extern crate logger;
-extern crate stats_browser;
-extern crate uuid;
-
+use clap::value_t;
 use clap::App;
 use clap::Arg;
 use clap::Values;

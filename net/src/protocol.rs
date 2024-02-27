@@ -1,12 +1,12 @@
 use arrayvec::ArrayVec;
-use buffer;
 use buffer::with_buffer;
 use buffer::Buffer;
 use buffer::BufferRef;
+use common::boilerplate_packed;
 use common::bytes::FromBytesExt as _;
 use common::num::Cast;
 use common::pretty;
-use huffman;
+use common::unwrap_or_return;
 use huffman::instances::TEEWORLDS as HUFFMAN;
 use std::cmp;
 use std::fmt;
@@ -917,6 +917,7 @@ mod test {
     use super::PACKET_FLAGS_BITS;
     use super::SEQUENCE_BITS;
     use common::bytes::FromBytesExt;
+    use quickcheck::quickcheck;
     use warn::Ignore;
     use warn::Panic;
     use warn::Warn;
@@ -1038,6 +1039,7 @@ mod test {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_no_token {
+    use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
     use super::PacketReadError::*;
@@ -1103,6 +1105,7 @@ mod test_no_token {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_token {
+    use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
     use super::PacketReadError::*;

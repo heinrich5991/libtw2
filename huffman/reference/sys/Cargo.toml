@@ -2,7 +2,7 @@
 name = "huffman-reference-sys"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
-build = "build.rs"
+edition = "2021"
 
 [build-dependencies]
 cc = "1.0.3"

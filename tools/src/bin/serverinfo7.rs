@@ -2,14 +2,11 @@
 
 #[macro_use]
 extern crate log;
-extern crate serverbrowse;
-extern crate tools;
 
 use serverbrowse::protocol as browse_protocol;
 use serverbrowse::protocol::Response;
 use serverbrowse::protocol::Token7;
 use serverbrowse::protocol::Token7Response;
-
 use std::net::SocketAddr;
 use std::net::UdpSocket;
 

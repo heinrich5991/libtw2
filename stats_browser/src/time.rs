@@ -3,8 +3,6 @@ use std::ops::Add;
 use std::ops::Sub;
 use std::time as std_time;
 
-use rust_time as time;
-
 // TODO: What happens on time overflow?
 // TODO: What happens on time backward jump?
 

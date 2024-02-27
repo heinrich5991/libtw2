@@ -1,3 +1,9 @@
+use crate::format;
+use crate::format::ItemView;
+use crate::raw;
+use crate::raw::CallbackError;
+use crate::raw::CallbackNew;
+use crate::raw::CallbackReadData;
 use common::io::seek_overflow;
 use common::io::FileExt;
 use common::io::ReadExt;
@@ -10,13 +16,6 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::ops;
 use std::path::Path;
-
-use format;
-use format::ItemView;
-use raw;
-use raw::CallbackError;
-use raw::CallbackNew;
-use raw::CallbackReadData;
 
 #[derive(Debug)]
 pub enum Error {

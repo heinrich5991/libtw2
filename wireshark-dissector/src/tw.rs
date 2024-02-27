@@ -1,16 +1,16 @@
 use crate::c;
+use crate::format::Bitfield;
+use crate::format::CommaSeparated;
+use crate::format::NumBytes;
+use crate::intern::intern_static_with_nul;
+use crate::spec::Spec;
 use crate::Counter;
 use crate::HFRI_DEFAULT;
 use arrayvec::ArrayVec;
 use common::num::Cast;
 use common::pretty;
-use format::Bitfield;
-use format::CommaSeparated;
-use format::NumBytes;
-use intern::intern_static_with_nul;
 use net::protocol;
 use packer::Unpacker;
-use spec::Spec;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Write;
@@ -868,7 +868,7 @@ fn register_chunk_protocol(spec: &Spec) {
 mod test {
     #[test]
     fn spec_valid() {
-        use test;
+        use crate::test;
         let _guard = test::TEST_MUTEX.lock().unwrap();
         super::load_spec().expect("invalid spec");
     }

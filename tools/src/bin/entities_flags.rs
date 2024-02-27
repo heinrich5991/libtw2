@@ -1,11 +1,7 @@
 #![cfg(not(test))]
 
-extern crate common;
-extern crate datafile as df;
-extern crate map;
-extern crate tools;
-
 use common::num::Cast;
+use datafile as df;
 use std::path::Path;
 use tools::map_stats::Entity;
 

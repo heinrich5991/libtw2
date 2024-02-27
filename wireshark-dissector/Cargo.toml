@@ -3,6 +3,7 @@ name = "wireshark-dissector"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]

@@ -1,8 +1,8 @@
-use format;
-use snap;
-use snap::Builder;
-use snap::Delta;
-use snap::Snap;
+use crate::format;
+use crate::snap;
+use crate::snap::Builder;
+use crate::snap::Delta;
+use crate::snap::Snap;
 use std::collections::VecDeque;
 use warn::wrap;
 use warn::Warn;

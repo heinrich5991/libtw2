@@ -1,13 +1,8 @@
 #![cfg(not(test))]
 
-extern crate datafile;
-extern crate map;
-extern crate tools;
-
+use map::format::*;
 use std::fmt::Debug;
 use std::path::Path;
-
-use map::format::*;
 
 fn process(_: &Path, dfr: datafile::Reader, _: &mut ()) -> Result<(), map::Error> {
     let mut env_version = None;

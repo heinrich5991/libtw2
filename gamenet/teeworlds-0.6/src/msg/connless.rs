@@ -1,6 +1,6 @@
 use buffer::CapacityError;
 use common::pretty;
-use error::Error;
+use crate::error::Error;
 use gamenet_common::msg::AddrPackedSliceExt;
 use gamenet_common::msg::int_from_string;
 use gamenet_common::msg::string_from_int;

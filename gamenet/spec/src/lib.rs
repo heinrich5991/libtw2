@@ -1,9 +1,5 @@
-extern crate gamenet_common;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate uuid;
-
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 use std::collections::HashSet;
 
 pub use gamenet_common::msg::MessageId;

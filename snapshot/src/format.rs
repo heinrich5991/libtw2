@@ -1,8 +1,7 @@
+use crate::snap::Error;
 use buffer::CapacityError;
-use packer;
 use packer::Packer;
 use packer::Unpacker;
-use snap::Error;
 use warn::wrap;
 use warn::Warn;
 
