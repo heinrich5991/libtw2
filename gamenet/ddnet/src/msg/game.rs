@@ -734,7 +734,9 @@ pub struct SvRecordLegacy {
 pub struct Unused2;
 
 #[derive(Clone, Copy)]
-pub struct SvTeamsStateLegacy;
+pub struct SvTeamsStateLegacy {
+    pub teams: [i32; 64],
+}
 
 #[derive(Clone, Copy)]
 pub struct ClShowOthersLegacy {
@@ -758,7 +760,9 @@ pub struct ClShowOthers {
 }
 
 #[derive(Clone, Copy)]
-pub struct SvTeamsState;
+pub struct SvTeamsState {
+    pub teams: [i32; 64],
+}
 
 #[derive(Clone, Copy)]
 pub struct SvDdraceTime {
@@ -1649,17 +1653,91 @@ impl fmt::Debug for Unused2 {
 
 impl SvTeamsStateLegacy {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsStateLegacy, Error> {
-        let result = Ok(SvTeamsStateLegacy);
+        let result = Ok(SvTeamsStateLegacy {
+            teams: [
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+            ],
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        for &e in &self.teams {
+            assert!(0 <= e && e <= 64);
+        }
+        for &e in &self.teams {
+            _p.write_int(e)?;
+        }
         Ok(_p.written())
     }
 }
 impl fmt::Debug for SvTeamsStateLegacy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvTeamsStateLegacy")
+            .field("teams", &self.teams)
             .finish()
     }
 }
@@ -1754,17 +1832,91 @@ impl fmt::Debug for ClShowOthers {
 
 impl SvTeamsState {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsState, Error> {
-        let result = Ok(SvTeamsState);
+        let result = Ok(SvTeamsState {
+            teams: [
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 64)?,
+            ],
+        });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        for &e in &self.teams {
+            assert!(0 <= e && e <= 64);
+        }
+        for &e in &self.teams {
+            _p.write_int(e)?;
+        }
         Ok(_p.written())
     }
 }
 impl fmt::Debug for SvTeamsState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvTeamsState")
+            .field("teams", &self.teams)
             .finish()
     }
 }

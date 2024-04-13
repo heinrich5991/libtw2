@@ -599,7 +599,9 @@
 		{
 			"id": 30,
 			"name": ["sv", "teams", "state", "legacy"],
-			"members": [],
+			"members": [
+				{"name": ["teams"], "type": {"kind": "array", "count": 64, "member_type": {"kind": "int32", "min": 0, "max": 64}}}
+			],
 			"attributes": []
 		},
 		{
@@ -658,7 +660,9 @@
 				"name": "teamsstate@netmsg.ddnet.tw"
 			},
 			"name": ["sv", "teams", "state"],
-			"members": [],
+			"members": [
+				{"name": ["teams"], "type": {"kind": "array", "count": 64, "member_type": {"kind": "int32", "min": 0, "max": 64}}}
+			],
 			"attributes": []
 		},
 		{
