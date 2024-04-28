@@ -530,7 +530,7 @@ where
             let score = int!("client_score");
             let is_player;
             if version.has_extended_player_info() {
-                is_player = int!("client_is_player");
+                is_player = if int!("client_is_player") == 0 { 1 } else { 0 };
             } else {
                 is_player = 1;
             }
@@ -998,14 +998,14 @@ mod test {
                     clan: b("twelve"),
                     country: 13,
                     score: 14,
-                    is_player: 15,
+                    is_player: 0,
                 },
                 ClientInfo {
                     name: b("seven"),
                     clan: b("eight"),
                     country: -1,
                     score: 9,
-                    is_player: 10,
+                    is_player: 0,
                 },
             ],
         };
@@ -1040,63 +1040,63 @@ mod test {
                     clan: b("clan1"),
                     country: 1,
                     score: 11,
-                    is_player: 0,
+                    is_player: 1,
                 },
                 ClientInfo {
                     name: b("player2"),
                     clan: b("clan2"),
                     country: 2,
                     score: 22,
-                    is_player: 0,
+                    is_player: 1,
                 },
                 ClientInfo {
                     name: b("player3"),
                     clan: b("clan3"),
                     country: 3,
                     score: 33,
-                    is_player: 1,
+                    is_player: 0,
                 },
                 ClientInfo {
                     name: b("player4"),
                     clan: b("clan4"),
                     country: 4,
                     score: 44,
-                    is_player: 0,
+                    is_player: 1,
                 },
                 ClientInfo {
                     name: b("player5"),
                     clan: b("clan5"),
                     country: 5,
                     score: 55,
-                    is_player: 0,
+                    is_player: 1,
                 },
                 ClientInfo {
                     name: b("player6"),
                     clan: b("clan6"),
                     country: 6,
                     score: 66,
-                    is_player: 0,
+                    is_player: 1,
                 },
                 ClientInfo {
                     name: b("player7"),
                     clan: b("clan7"),
                     country: 7,
                     score: 77,
-                    is_player: 1,
+                    is_player: 0,
                 },
                 ClientInfo {
                     name: b("player8"),
                     clan: b("clan8"),
                     country: 8,
                     score: 88,
-                    is_player: 1,
+                    is_player: 0,
                 },
                 ClientInfo {
                     name: b("player9"),
                     clan: b("clan9"),
                     country: 9,
                     score: 99,
-                    is_player: 0,
+                    is_player: 1,
                 },
             ],
         };
