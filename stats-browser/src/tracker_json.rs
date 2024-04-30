@@ -116,7 +116,7 @@ mod json {
                 clan: i.clan,
                 country: i.country,
                 score: i.score,
-                is_player: i.is_player != 0,
+                is_player: i.flags & protocol::CLIENTINFO_FLAG_SPECTATOR == 0,
             })
         }
     }

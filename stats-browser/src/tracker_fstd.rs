@@ -72,7 +72,7 @@ impl Tracker {
         if player_ignore(addr, old) || player_ignore(addr, new) {
             return;
         }
-        if old.clan != new.clan || old.is_player != new.is_player || old.country != new.country {
+        if old.clan != new.clan || old.flags != new.flags || old.country != new.country {
             print_player_change(addr, old, new);
         }
     }
@@ -193,7 +193,7 @@ fn print_player_new(addr: LogAddr, info: &ClientInfo) {
         &[
             &B64(info.name.as_bytes()),
             &B64(info.clan.as_bytes()),
-            &info.is_player,
+            &info.flags,
             &info.country,
         ],
     );

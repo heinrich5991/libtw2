@@ -58,6 +58,7 @@ pub const INFO_7: &'static [u8; 17] = b"\x21\xff\xff\xff\xff\xff\xff\xff\xff\xff
 
 pub const PACKETFLAG_CONNLESS: u8 = 1 << 6;
 pub const SERVERINFO_FLAG_PASSWORDED: i32 = 1 << 0;
+pub const SERVERINFO_FLAG_TIMESCORE: i32 = 1 << 1;
 
 pub const IPV4_MAPPING: [u8; 12] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
@@ -198,7 +199,7 @@ pub struct ClientInfo {
     pub clan: ArrayString<[u8; PLAYER_MAX_CLAN_LENGTH]>,
     pub country: i32,
     pub score: i32,
-    pub is_player: i32,
+    pub flags: i32,
 }
 
 impl fmt::Debug for ClientInfo {
@@ -206,10 +207,13 @@ impl fmt::Debug for ClientInfo {
         write!(
             f,
             "{:?} {:?} {:?} {:?} {:?}",
-            self.name, self.clan, self.country, self.score, self.is_player,
+            self.name, self.clan, self.country, self.score, self.flags,
         )
     }
 }
+
+pub const CLIENTINFO_FLAG_SPECTATOR: i32 = 1 << 0;
+pub const CLIENTINFO_FLAG_BOT: i32 = 1 << 1;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ServerInfoVersion {
@@ -285,6 +289,9 @@ impl ServerInfoVersion {
     }
     pub fn has_extra_info(self) -> bool {
         self == ServerInfoVersion::V6Ex
+    }
+    pub fn has_full_client_flags(self) -> bool {
+        self == ServerInfoVersion::V7
     }
 }
 
@@ -552,11 +559,20 @@ where
                 country = -1;
             }
             let score = int!("client_score");
-            let is_player;
+            let flags;
             if version.has_extended_player_info() {
-                is_player = int!("client_is_player");
+                if version.has_full_client_flags() {
+                    flags = int!("client_flags");
+                } else {
+                    let is_spectator = int!("client_is_player") == 0;
+                    flags = if is_spectator {
+                        CLIENTINFO_FLAG_SPECTATOR
+                    } else {
+                        0
+                    };
+                }
             } else {
-                is_player = 1;
+                flags = 0;
             }
             if version.has_extra_info() {
                 let _: ArrayString<[u8; 0]> = str!("extra_info");
@@ -573,7 +589,7 @@ where
                 clan: clan,
                 country: country,
                 score: score,
-                is_player: is_player,
+                flags: flags,
             });
         }
     }
@@ -966,8 +982,11 @@ mod test {
     use super::Info6ExMoreResponse;
     use super::Info6ExResponse;
     use super::Info6Response;
+    use super::Info7Response;
     use super::ServerInfo;
     use super::ServerInfoVersion;
+    use super::Token7;
+    use super::CLIENTINFO_FLAG_SPECTATOR;
     use libtw2_common::str::truncated_arraystring as b;
 
     #[test]
@@ -1021,14 +1040,14 @@ mod test {
                     clan: b("twelve"),
                     country: 13,
                     score: 14,
-                    is_player: 15,
+                    flags: 0,
                 },
                 ClientInfo {
                     name: b("seven"),
                     clan: b("eight"),
                     country: -1,
                     score: 9,
-                    is_player: 10,
+                    flags: 0,
                 },
             ],
         };
@@ -1063,63 +1082,63 @@ mod test {
                     clan: b("clan1"),
                     country: 1,
                     score: 11,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
                 ClientInfo {
                     name: b("player2"),
                     clan: b("clan2"),
                     country: 2,
                     score: 22,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
                 ClientInfo {
                     name: b("player3"),
                     clan: b("clan3"),
                     country: 3,
                     score: 33,
-                    is_player: 1,
+                    flags: 0,
                 },
                 ClientInfo {
                     name: b("player4"),
                     clan: b("clan4"),
                     country: 4,
                     score: 44,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
                 ClientInfo {
                     name: b("player5"),
                     clan: b("clan5"),
                     country: 5,
                     score: 55,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
                 ClientInfo {
                     name: b("player6"),
                     clan: b("clan6"),
                     country: 6,
                     score: 66,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
                 ClientInfo {
                     name: b("player7"),
                     clan: b("clan7"),
                     country: 7,
                     score: 77,
-                    is_player: 1,
+                    flags: 0,
                 },
                 ClientInfo {
                     name: b("player8"),
                     clan: b("clan8"),
                     country: 8,
                     score: 88,
-                    is_player: 1,
+                    flags: 0,
                 },
                 ClientInfo {
                     name: b("player9"),
                     clan: b("clan9"),
                     country: 9,
                     score: 99,
-                    is_player: 0,
+                    flags: CLIENTINFO_FLAG_SPECTATOR,
                 },
             ],
         };
@@ -1136,5 +1155,48 @@ mod test {
         info.merge(info_p2).unwrap();
         println!("{:?}", info);
         assert_eq!(info.get_info(), Some(&wanted));
+    }
+
+    #[test]
+    fn parse_info_v7() {
+        let info_raw = b"\x01two\0three\0four\0five\0six\0\x07\x08\x01\x02\x02\x03thirteen\0fourteen\0\x0f\x10\x11eighteen\0nineteen\0\x14\x15\x16";
+        let info = ServerInfo {
+            info_version: ServerInfoVersion::V7,
+            token: 1,
+            version: b("two"),
+            name: b("three"),
+            hostname: Some(b("four")),
+            map: b("five"),
+            map_crc: None,
+            map_size: None,
+            game_type: b("six"),
+            flags: 7,
+            progression: None,
+            skill_level: Some(8),
+            num_players: 1,
+            max_players: 2,
+            num_clients: 2,
+            max_clients: 3,
+            clients: vec![
+                ClientInfo {
+                    name: b("eighteen"),
+                    clan: b("nineteen"),
+                    country: 20,
+                    score: 21,
+                    flags: 22,
+                },
+                ClientInfo {
+                    name: b("thirteen"),
+                    clan: b("fourteen"),
+                    country: 15,
+                    score: 16,
+                    flags: 17,
+                },
+            ],
+        };
+        assert_eq!(
+            Info7Response(Token7([0, 0, 0, 0]), Token7([0, 0, 0, 0]), info_raw).parse(),
+            Some(info),
+        );
     }
 }
