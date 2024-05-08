@@ -18,6 +18,7 @@ use std::os::raw::c_int;
 use std::os::raw::c_uint;
 use std::os::raw::c_void;
 use std::ptr;
+use std::ptr::addr_of_mut;
 use std::slice;
 use warn::Ignore;
 use zerocopy::FromBytes;
@@ -617,7 +618,7 @@ pub unsafe extern "C" fn proto_register() {
     let mut etts = Vec::new();
     fields_info.extend_from_slice(&[
         sys::hf_register_info {
-            p_id: &HF_PACKET_FLAGS as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_FLAGS),
             hfinfo: sys::_header_field_info {
                 name: c("Flags\0"),
                 abbrev: c("tw.packet.flags\0"),
@@ -627,7 +628,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_COMPRESSION as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_COMPRESSION),
             hfinfo: sys::_header_field_info {
                 name: c("Compressed\0"),
                 abbrev: c("tw.packet.flags.compression\0"),
@@ -636,7 +637,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_REQUEST_RESEND as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_REQUEST_RESEND),
             hfinfo: sys::_header_field_info {
                 name: c("Request resend\0"),
                 abbrev: c("tw.packet.flags.request_resend\0"),
@@ -645,7 +646,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_CONNLESS as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_CONNLESS),
             hfinfo: sys::_header_field_info {
                 name: c("Connless\0"),
                 abbrev: c("tw.packet.flags.connless\0"),
@@ -654,7 +655,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_CONTROL as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_CONTROL),
             hfinfo: sys::_header_field_info {
                 name: c("Control\0"),
                 abbrev: c("tw.packet.flags.control\0"),
@@ -663,7 +664,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_ACK as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_ACK),
             hfinfo: sys::_header_field_info {
                 name: c("Acknowledged sequence number\0"),
                 abbrev: c("tw.packet.ack\0"),
@@ -673,7 +674,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_NUM_CHUNKS as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_NUM_CHUNKS),
             hfinfo: sys::_header_field_info {
                 name: c("Number of chunks\0"),
                 abbrev: c("tw.packet.num_chunks\0"),
@@ -683,7 +684,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_TOKEN_MAGIC as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_TOKEN_MAGIC),
             hfinfo: sys::_header_field_info {
                 name: c("Magic bytes for DDNet token protocol\0"),
                 abbrev: c("tw.packet.token_magic\0"),
@@ -692,7 +693,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_TOKEN as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_TOKEN),
             hfinfo: sys::_header_field_info {
                 name: c("Token\0"),
                 abbrev: c("tw.packet.token\0"),
@@ -702,7 +703,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_CTRL as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_CTRL),
             hfinfo: sys::_header_field_info {
                 name: c("Control message\0"),
                 abbrev: c("tw.packet.ctrl\0"),
@@ -712,7 +713,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_CTRL_CLOSE_REASON as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_CTRL_CLOSE_REASON),
             hfinfo: sys::_header_field_info {
                 name: c("Close reason\0"),
                 abbrev: c("tw.packet.ctrl.close_reason\0"),
@@ -722,7 +723,7 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
         sys::hf_register_info {
-            p_id: &HF_PACKET_PAYLOAD as *const _ as *mut _,
+            p_id: addr_of_mut!(HF_PACKET_PAYLOAD),
             hfinfo: sys::_header_field_info {
                 name: c("Payload\0"),
                 abbrev: c("tw.packet.payload\0"),
@@ -731,9 +732,10 @@ pub unsafe extern "C" fn proto_register() {
             },
         },
     ]);
+    #[rustfmt::skip]
     etts.extend_from_slice(&[
-        &ETT_PACKET as *const _ as *mut _,
-        &ETT_PACKET_FLAGS as *const _ as *mut _,
+        addr_of_mut!(ETT_PACKET),
+        addr_of_mut!(ETT_PACKET_FLAGS),
     ]);
 
     let fields_info = Box::leak(fields_info.into_boxed_slice());
@@ -784,7 +786,7 @@ fn register_chunk_protocol(spec: &Spec) {
     fields_info.extend_from_slice(&unsafe {
         [
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER),
                 hfinfo: sys::_header_field_info {
                     name: c("Header\0"),
                     abbrev: c("tw.chunk\0"),
@@ -793,7 +795,7 @@ fn register_chunk_protocol(spec: &Spec) {
                 },
             },
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER_FLAGS as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER_FLAGS),
                 hfinfo: sys::_header_field_info {
                     name: c("Flags\0"),
                     abbrev: c("tw.chunk.flags\0"),
@@ -803,7 +805,7 @@ fn register_chunk_protocol(spec: &Spec) {
                 },
             },
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER_RESEND as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER_RESEND),
                 hfinfo: sys::_header_field_info {
                     name: c("Resend\0"),
                     abbrev: c("tw.chunk.flags.resend\0"),
@@ -812,7 +814,7 @@ fn register_chunk_protocol(spec: &Spec) {
                 },
             },
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER_VITAL as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER_VITAL),
                 hfinfo: sys::_header_field_info {
                     name: c("Vital\0"),
                     abbrev: c("tw.chunk.flags.vital\0"),
@@ -821,7 +823,7 @@ fn register_chunk_protocol(spec: &Spec) {
                 },
             },
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER_SIZE as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER_SIZE),
                 hfinfo: sys::_header_field_info {
                     name: c("Size\0"),
                     abbrev: c("tw.chunk.size\0"),
@@ -831,7 +833,7 @@ fn register_chunk_protocol(spec: &Spec) {
                 },
             },
             sys::hf_register_info {
-                p_id: &HF_CHUNK_HEADER_SEQ as *const _ as *mut _,
+                p_id: addr_of_mut!(HF_CHUNK_HEADER_SEQ),
                 hfinfo: sys::_header_field_info {
                     name: c("Sequence number\0"),
                     abbrev: c("tw.chunk.seq\0"),
@@ -844,9 +846,9 @@ fn register_chunk_protocol(spec: &Spec) {
     });
     etts.extend_from_slice(&unsafe {
         [
-            &ETT_CHUNK as *const _ as *mut _,
-            &ETT_CHUNK_HEADER as *const _ as *mut _,
-            &ETT_CHUNK_HEADER_FLAGS as *const _ as *mut _,
+            addr_of_mut!(ETT_CHUNK),
+            addr_of_mut!(ETT_CHUNK_HEADER),
+            addr_of_mut!(ETT_CHUNK_HEADER_FLAGS),
         ]
     });
     spec.field_register_info(&mut |hfri| fields_info.push(hfri), &mut |ett| {
