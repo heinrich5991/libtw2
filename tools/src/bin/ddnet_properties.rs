@@ -9,6 +9,7 @@ use std::io;
 use std::path::Path;
 use std::process;
 
+#[allow(dead_code)] // We add fields just for their `Debug` implementation.
 #[derive(Debug)]
 struct Error(libtw2_map::Error);
 

@@ -13,6 +13,7 @@ use std::process;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+#[allow(dead_code)] // We add fields just for their `Debug` implementation.
 #[derive(Debug)]
 enum Error {
     Csv(csv::Error),
