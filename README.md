@@ -93,7 +93,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
   formats. See also Ryozuki's [teeint](https://github.com/edg-l/teeint) for
   another implementation of Teeworlds/DDNet's [variable-length
   integers](https://en.wikipedia.org/wiki/Variable-length_quantity).
-- [**render\_map**](render_map). Render Teeworlds/DDNet maps to images. **You
+- [**render-map**](render-map). Render Teeworlds/DDNet maps to images. **You
   should probably use Patiga's [TwGpu](https://gitlab.com/Patiga/twgpu)
   instead.**
 - [server](server). Proof-of-concept Teeworlds 0.6 server implementation.
@@ -106,7 +106,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [**snapshot**](snapshot) Teeworlds/DDNet data structure for transferring
   gamestate.
 - [socket](socket). Helper for creating UDP sockets.
-- [stats\_browser](stats_browser). Used for adding entries to the DDNet HTTPS
+- [stats-browser](stats-browser). Used for adding entries to the DDNet HTTPS
   masterserver, for game servers not supporting the HTTPS masterserver
   protocol. Originally intended to provide a tracking for Teeworlds servers.
   That info can now be found at https://ddnet.org/stats/master/ and parsed
@@ -122,5 +122,5 @@ indicate that the libraries or executables might be useful outside of libtw2.
   for Teeworlds 0.6, Teeworlds 0.7 and DDNet.
 - [world](world). Proof-of-concept Teeworlds physics. **You should probably use
   Zwelf's [TwGame](https://gitlab.com/ddnet-rs/twgame) instead.**
-- [zlib\_minimal](zlib_minimal). Minimal wrapper around
+- [zlib-minimal](zlib_minimal). Minimal wrapper around
   [zlib](https://zlib.net/).
