@@ -1,12 +1,15 @@
 [package]
-name = "libtw2-stats-browser"
+name = "pre-rfc3243-libtw2-stats-browser"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "libtw2_stats_browser"
+
 [[bin]]
-name = "libtw2-stats-browser"
+name = "pre-rfc3243-libtw2-stats-browser"
 doc = false
 
 [dependencies]
@@ -15,9 +18,9 @@ base64 = "0.13.0"
 clap = "2.23.1"
 csv = "1.1.6"
 ipnet = { version = "2.3.0", features = ["serde"] }
-libtw2-common = { path = "../common/" }
-libtw2-logger = { path = "../logger/" }
-libtw2-serverbrowse = { path = "../serverbrowse/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-logger = { path = "../logger/" }
+pre-rfc3243-libtw2-serverbrowse = { path = "../serverbrowse/" }
 log = "0.3.1"
 mio = "0.6.6"
 rand = "0.8.3"

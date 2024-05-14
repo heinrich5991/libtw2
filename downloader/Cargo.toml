@@ -1,21 +1,25 @@
 [package]
-name = "libtw2-downloader"
+name = "pre-rfc3243-libtw2-downloader"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+
+[[bin]]
+name = "libtw2_downloader"
+path = "src/main.rs"
 
 [dependencies]
 arrayvec = "0.5.2"
 clap = "2.31.2"
 hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
-libtw2-common = { path = "../common/" }
-libtw2-event-loop = { path = "../event-loop/" }
-libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
-libtw2-logger = { path = "../logger/" }
-libtw2-packer = { path = "../packer/" }
-libtw2-snapshot = { path = "../snapshot/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-event-loop = { path = "../event-loop/" }
+libtw2-gamenet = { package = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+pre-rfc3243-libtw2-logger = { path = "../logger/" }
+pre-rfc3243-libtw2-packer = { path = "../packer/" }
+pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }
 log = "0.3.1"
 rand = "0.8.3"
 tempfile = "3.0.0"

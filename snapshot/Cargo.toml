@@ -1,14 +1,17 @@
 [package]
-name = "libtw2-snapshot"
+name = "pre-rfc3243-libtw2-snapshot"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "libtw2_snapshot"
+
 [dependencies]
 buffer = "0.1.9"
-libtw2-common = { path = "../common/" }
-libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
-libtw2-packer = { path = "../packer/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+libtw2-gamenet = { package = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+pre-rfc3243-libtw2-packer = { path = "../packer/" }
 vec_map = "0.8.0"
 warn = ">=0.1.1,<0.3.0"

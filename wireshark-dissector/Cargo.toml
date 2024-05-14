@@ -1,23 +1,24 @@
 [package]
-name = "libtw2-wireshark-dissector"
+name = "pre-rfc3243-libtw2-wireshark-dissector"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
 [lib]
+name = "libtw2_wireshark_dissector"
 crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.38"
 arrayvec = "0.5.2"
-libtw2-common = { path = "../common/" }
-libtw2-gamenet-common = { path = "../gamenet/common/" }
-libtw2-gamenet-spec = { path = "../gamenet/spec/" }
-libtw2-huffman = { path = "../huffman/" }
-libtw2-net = { path = "../net/" }
-libtw2-packer = { path = "../packer/", features = ["uuid"] }
-libtw2-wireshark-dissector-sys = { path = "sys" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-gamenet-common = { path = "../gamenet/common/" }
+pre-rfc3243-libtw2-gamenet-spec = { path = "../gamenet/spec/" }
+pre-rfc3243-libtw2-huffman = { path = "../huffman/" }
+pre-rfc3243-libtw2-net = { path = "../net/" }
+pre-rfc3243-libtw2-packer = { path = "../packer/", features = ["uuid"] }
+pre-rfc3243-libtw2-wireshark-dissector-sys = { path = "sys" }
 serde_json = "1.0.7"
 uuid = "0.8.1"
 warn = "0.2.2"

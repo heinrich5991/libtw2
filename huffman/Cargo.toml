@@ -1,19 +1,22 @@
 [package]
-name = "libtw2-huffman"
+name = "pre-rfc3243-libtw2-huffman"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "libtw2_huffman"
+
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
 itertools = ">=0.3.0,<0.5.0"
-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
 
 [dev-dependencies]
 bencher = "0.1.5"
-libtw2-huffman-reference = { path = "reference" }
+pre-rfc3243-libtw2-huffman-reference = { path = "reference" }
 quickcheck = "0.4.1"
 
 [[bench]]

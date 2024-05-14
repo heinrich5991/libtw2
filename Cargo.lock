@@ -497,440 +497,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03b07a082330a35e43f63177cc01689da34fbffa0105e1246cf0311472cac73a"
 
 [[package]]
-name = "libtw2-common"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "bencher",
- "file_offset",
- "quickcheck",
- "serde",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-datafile"
-version = "0.0.1"
-dependencies = [
- "hexdump",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-logger",
- "libtw2-zlib-minimal",
- "log 0.3.9",
-]
-
-[[package]]
-name = "libtw2-demo"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "binrw",
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-gamenet-ddnet",
- "libtw2-huffman",
- "libtw2-packer",
- "libtw2-snapshot",
- "thiserror",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-downloader"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "clap",
- "hexdump",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-event-loop",
- "libtw2-gamenet-teeworlds-0-6",
- "libtw2-logger",
- "libtw2-packer",
- "libtw2-snapshot",
- "log 0.3.9",
- "rand 0.8.3",
- "tempfile",
- "warn",
-]
-
-[[package]]
-name = "libtw2-event-loop"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "hexdump",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-logger",
- "libtw2-net",
- "libtw2-socket",
- "log 0.3.9",
- "warn",
-]
-
-[[package]]
-name = "libtw2-gamenet-common"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "libtw2-common",
- "libtw2-packer",
- "serde",
- "serde_derive",
- "uuid",
- "warn",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-gamenet-ddnet"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-gamenet-spec"
-version = "0.0.1"
-dependencies = [
- "libtw2-gamenet-common",
- "serde",
- "serde_derive",
- "uuid",
-]
-
-[[package]]
-name = "libtw2-gamenet-teeworlds-0-5"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-gamenet-teeworlds-0-6"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-gamenet-teeworlds-0-7"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-packer",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-huffman"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "bencher",
- "buffer",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-huffman-reference",
- "quickcheck",
-]
-
-[[package]]
-name = "libtw2-huffman-reference"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "libc",
- "libtw2-common",
- "libtw2-huffman",
- "libtw2-huffman-reference-sys",
-]
-
-[[package]]
-name = "libtw2-huffman-reference-sys"
-version = "0.0.1"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
-name = "libtw2-logger"
-version = "0.0.1"
-dependencies = [
- "env_logger",
-]
-
-[[package]]
-name = "libtw2-map"
-version = "0.0.1"
-dependencies = [
- "libtw2-common",
- "libtw2-datafile",
- "ndarray",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-net"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "hexdump",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-huffman",
- "linear-map",
- "optional",
- "quickcheck",
- "void",
- "warn",
- "zerocopy",
- "zerocopy-derive",
-]
-
-[[package]]
-name = "libtw2-packer"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "hexdump",
- "libtw2-common",
- "quickcheck",
- "uuid",
- "warn",
-]
-
-[[package]]
-name = "libtw2-render-map"
-version = "0.0.1"
-dependencies = [
- "clap",
- "image",
- "libtw2-common",
- "libtw2-datafile",
- "libtw2-logger",
- "libtw2-map",
- "ndarray",
- "num-traits 0.1.43",
-]
-
-[[package]]
-name = "libtw2-server"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "hexdump",
- "itertools 0.4.19",
- "libtw2-common",
- "libtw2-datafile",
- "libtw2-event-loop",
- "libtw2-gamenet-teeworlds-0-6",
- "libtw2-logger",
- "libtw2-map",
- "libtw2-packer",
- "libtw2-snapshot",
- "libtw2-socket",
- "libtw2-world",
- "log 0.3.9",
- "ndarray",
- "warn",
-]
-
-[[package]]
-name = "libtw2-serverbrowse"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "libtw2-common",
- "libtw2-logger",
- "libtw2-packer",
- "log 0.3.9",
- "time",
- "warn",
- "zerocopy",
- "zerocopy-derive",
-]
-
-[[package]]
-name = "libtw2-snapshot"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "libtw2-common",
- "libtw2-gamenet-teeworlds-0-6",
- "libtw2-packer",
- "vec_map",
- "warn",
-]
-
-[[package]]
-name = "libtw2-socket"
-version = "0.0.1"
-dependencies = [
- "buffer",
- "hexdump",
- "itertools 0.4.19",
- "libc",
- "libtw2-common",
- "libtw2-net",
- "log 0.3.9",
- "mio",
- "net2",
- "rand 0.8.3",
-]
-
-[[package]]
-name = "libtw2-stats-browser"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "base64",
- "clap",
- "csv",
- "ipnet",
- "libtw2-common",
- "libtw2-logger",
- "libtw2-serverbrowse",
- "log 0.3.9",
- "mio",
- "rand 0.8.3",
- "serde",
- "serde_derive",
- "serde_json",
- "time",
- "uuid",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-teehistorian"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "chrono",
- "itertools 0.7.11",
- "libtw2-common",
- "libtw2-packer",
- "serde",
- "serde_derive",
- "serde_json",
- "uuid",
- "vec_map",
- "warn",
-]
-
-[[package]]
-name = "libtw2-tools"
-version = "0.0.1"
-dependencies = [
- "arrayvec 0.5.2",
- "buffer",
- "chrono",
- "clap",
- "csv",
- "hexdump",
- "itertools 0.7.11",
- "libtw2-common",
- "libtw2-datafile",
- "libtw2-demo",
- "libtw2-gamenet-ddnet",
- "libtw2-gamenet-spec",
- "libtw2-gamenet-teeworlds-0-6",
- "libtw2-gamenet-teeworlds-0-7",
- "libtw2-logger",
- "libtw2-map",
- "libtw2-net",
- "libtw2-packer",
- "libtw2-serverbrowse",
- "libtw2-snapshot",
- "libtw2-teehistorian",
- "libtw2-world",
- "log 0.3.9",
- "rmp",
- "serde",
- "serde_derive",
- "serde_json",
- "uuid",
- "vec_map",
- "void",
- "walkdir",
- "warn",
-]
-
-[[package]]
-name = "libtw2-wireshark-dissector"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "arrayvec 0.5.2",
- "cc",
- "lazy_static",
- "libtw2-common",
- "libtw2-gamenet-common",
- "libtw2-gamenet-spec",
- "libtw2-huffman",
- "libtw2-net",
- "libtw2-packer",
- "libtw2-wireshark-dissector-sys",
- "serde_json",
- "uuid",
- "warn",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-wireshark-dissector-sys"
-version = "0.0.1"
-
-[[package]]
-name = "libtw2-world"
-version = "0.0.1"
-dependencies = [
- "libtw2-common",
- "libtw2-gamenet-teeworlds-0-6",
-]
-
-[[package]]
-name = "libtw2-zlib-minimal"
-version = "0.0.1"
-dependencies = [
- "libc",
- "libz-sys",
-]
-
-[[package]]
 name = "libz-sys"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1195,6 +761,440 @@ name = "ppv-lite86"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
+
+[[package]]
+name = "pre-rfc3243-libtw2-common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bencher",
+ "file_offset",
+ "quickcheck",
+ "serde",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-datafile"
+version = "0.0.1"
+dependencies = [
+ "hexdump",
+ "itertools 0.4.19",
+ "log 0.3.9",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-zlib-minimal",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-demo"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "binrw",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-ddnet",
+ "pre-rfc3243-libtw2-huffman",
+ "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-snapshot",
+ "thiserror",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-downloader"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "clap",
+ "hexdump",
+ "itertools 0.4.19",
+ "log 0.3.9",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-event-loop",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-snapshot",
+ "rand 0.8.3",
+ "tempfile",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-event-loop"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "hexdump",
+ "itertools 0.4.19",
+ "log 0.3.9",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-net",
+ "pre-rfc3243-libtw2-socket",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-common"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-packer",
+ "serde",
+ "serde_derive",
+ "uuid",
+ "warn",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-ddnet"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-spec"
+version = "0.0.1"
+dependencies = [
+ "pre-rfc3243-libtw2-gamenet-common",
+ "serde",
+ "serde_derive",
+ "uuid",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-5"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-7"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-huffman"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "bencher",
+ "buffer",
+ "itertools 0.4.19",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-huffman-reference",
+ "quickcheck",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-huffman-reference"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "libc",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-huffman",
+ "pre-rfc3243-libtw2-huffman-reference-sys",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-huffman-reference-sys"
+version = "0.0.1"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-logger"
+version = "0.0.1"
+dependencies = [
+ "env_logger",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-map"
+version = "0.0.1"
+dependencies = [
+ "ndarray",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-datafile",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-net"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "hexdump",
+ "itertools 0.4.19",
+ "linear-map",
+ "optional",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-huffman",
+ "quickcheck",
+ "void",
+ "warn",
+ "zerocopy",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-packer"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "hexdump",
+ "pre-rfc3243-libtw2-common",
+ "quickcheck",
+ "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-render-map"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "image",
+ "ndarray",
+ "num-traits 0.1.43",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-datafile",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-map",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-server"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "hexdump",
+ "itertools 0.4.19",
+ "log 0.3.9",
+ "ndarray",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-datafile",
+ "pre-rfc3243-libtw2-event-loop",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-map",
+ "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-snapshot",
+ "pre-rfc3243-libtw2-socket",
+ "pre-rfc3243-libtw2-world",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-serverbrowse"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "log 0.3.9",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-packer",
+ "time",
+ "warn",
+ "zerocopy",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-snapshot"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
+ "pre-rfc3243-libtw2-packer",
+ "vec_map",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-socket"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "hexdump",
+ "itertools 0.4.19",
+ "libc",
+ "log 0.3.9",
+ "mio",
+ "net2",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-net",
+ "rand 0.8.3",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-stats-browser"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "base64",
+ "clap",
+ "csv",
+ "ipnet",
+ "log 0.3.9",
+ "mio",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-serverbrowse",
+ "rand 0.8.3",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "uuid",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-teehistorian"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "chrono",
+ "itertools 0.7.11",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-packer",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "uuid",
+ "vec_map",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-tools"
+version = "0.0.1"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "chrono",
+ "clap",
+ "csv",
+ "hexdump",
+ "itertools 0.7.11",
+ "log 0.3.9",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-datafile",
+ "pre-rfc3243-libtw2-demo",
+ "pre-rfc3243-libtw2-gamenet-ddnet",
+ "pre-rfc3243-libtw2-gamenet-spec",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-7",
+ "pre-rfc3243-libtw2-logger",
+ "pre-rfc3243-libtw2-map",
+ "pre-rfc3243-libtw2-net",
+ "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-serverbrowse",
+ "pre-rfc3243-libtw2-snapshot",
+ "pre-rfc3243-libtw2-teehistorian",
+ "pre-rfc3243-libtw2-world",
+ "rmp",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "uuid",
+ "vec_map",
+ "void",
+ "walkdir",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-wireshark-dissector"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "arrayvec 0.5.2",
+ "cc",
+ "lazy_static",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-spec",
+ "pre-rfc3243-libtw2-huffman",
+ "pre-rfc3243-libtw2-net",
+ "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-wireshark-dissector-sys",
+ "serde_json",
+ "uuid",
+ "warn",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-wireshark-dissector-sys"
+version = "0.0.1"
+
+[[package]]
+name = "pre-rfc3243-libtw2-world"
+version = "0.0.1"
+dependencies = [
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-zlib-minimal"
+version = "0.0.1"
+dependencies = [
+ "libc",
+ "libz-sys",
+]
 
 [[package]]
 name = "proc-macro2"

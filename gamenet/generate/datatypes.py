@@ -570,21 +570,24 @@ def emit_enum_module(consts, enums):
 def emit_cargo_toml(name):
     print("""\
 [package]
-name = "{}"
+name = "pre-rfc3243-{}"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "{}"
+
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-libtw2-common = {{ path = "../../common/" }}
-libtw2-gamenet-common = {{ path = "../common/" }}
-libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
+pre-rfc3243-libtw2-common = {{ path = "../../common/" }}
+pre-rfc3243-libtw2-gamenet-common = {{ path = "../common/" }}
+pre-rfc3243-libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"\
-""".format(name))
+""".format(name, name.replace("-", "_")))
 
 def emit_main_lib():
     print("""\

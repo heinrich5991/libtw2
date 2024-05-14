@@ -1,8 +1,11 @@
 [package]
-name = "libtw2-huffman-reference-sys"
+name = "pre-rfc3243-libtw2-huffman-reference-sys"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 edition = "2021"
+
+[lib]
+name = "libtw2_huffman_reference_sys"
 
 [build-dependencies]
 cc = "1.0.3"

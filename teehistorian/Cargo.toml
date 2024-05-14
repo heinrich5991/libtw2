@@ -1,17 +1,20 @@
 [package]
-name = "libtw2-teehistorian"
+name = "pre-rfc3243-libtw2-teehistorian"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+
+[lib]
+name = "libtw2_teehistorian"
 
 [dependencies]
 arrayvec = { version = "0.5.2", features = ["serde"] }
 buffer = "0.1.9"
 chrono = "0.4.0"
 itertools = "0.7.4"
-libtw2-common = { path = "../common/", features = ["serde"] }
-libtw2-packer = { path = "../packer/", features = ["uuid"] }
+pre-rfc3243-libtw2-common = { path = "../common/", features = ["serde"] }
+pre-rfc3243-libtw2-packer = { path = "../packer/", features = ["uuid"] }
 serde = "1.0.23"
 serde_derive = "1.0.7"
 serde_json = "1.0.7"

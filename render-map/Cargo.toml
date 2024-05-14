@@ -1,5 +1,5 @@
 [package]
-name = "libtw2-render-map"
+name = "pre-rfc3243-libtw2-render-map"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -8,9 +8,9 @@ edition = "2021"
 [dependencies]
 clap = "2.31.2"
 image = "0.10.1"
-libtw2-common = { path = "../common/" }
-libtw2-datafile = { path = "../datafile/" }
-libtw2-logger = { path = "../logger/" }
-libtw2-map = { path = "../map/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-datafile = { path = "../datafile/" }
+pre-rfc3243-libtw2-logger = { path = "../logger/" }
+pre-rfc3243-libtw2-map = { path = "../map/" }
 ndarray = "0.9.1"
 num-traits = "0.1.32"

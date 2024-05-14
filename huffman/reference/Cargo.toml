@@ -1,12 +1,15 @@
 [package]
-name = "libtw2-huffman-reference"
+name = "pre-rfc3243-libtw2-huffman-reference"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 edition = "2021"
 
+[lib]
+name = "libtw2_huffman_reference"
+
 [dependencies]
 buffer = "0.1.9"
 libc = "0.2.0"
-libtw2-common = { path = "../../common" }
-libtw2-huffman = { path = ".." }
-libtw2-huffman-reference-sys = { path = "sys" }
+pre-rfc3243-libtw2-common = { path = "../../common" }
+pre-rfc3243-libtw2-huffman = { path = ".." }
+pre-rfc3243-libtw2-huffman-reference-sys = { path = "sys" }

@@ -1,9 +1,12 @@
 [package]
-name = "libtw2-tools"
+name = "pre-rfc3243-libtw2-tools"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+
+[lib]
+name = "libtw2_tools"
 
 [dependencies]
 arrayvec = "0.5.2"
@@ -13,21 +16,21 @@ clap = "2.23.1"
 csv = "1.1.6"
 hexdump = "0.1.1"
 itertools = "0.7.4"
-libtw2-common = { path = "../common/" }
-libtw2-datafile = { path = "../datafile/" }
-libtw2-demo = { path = "../demo/" }
-libtw2-gamenet-ddnet = { path = "../gamenet/ddnet/" }
-libtw2-gamenet-spec = { path = "../gamenet/spec/" }
-libtw2-gamenet-teeworlds-0-6 = { path = "../gamenet/teeworlds-0.6/" }
-libtw2-gamenet-teeworlds-0-7 = { path = "../gamenet/teeworlds-0.7/" }
-libtw2-logger = { path = "../logger/" }
-libtw2-map = { path = "../map/" }
-libtw2-net = { path = "../net/" }
-libtw2-packer = { path = "../packer/", features = ["uuid"] }
-libtw2-serverbrowse = { path = "../serverbrowse/" }
-libtw2-snapshot = { path = "../snapshot/" }
-libtw2-teehistorian = { path = "../teehistorian/" }
-libtw2-world = { path = "../world/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-datafile = { path = "../datafile/" }
+pre-rfc3243-libtw2-demo = { path = "../demo/" }
+pre-rfc3243-libtw2-gamenet-ddnet = { path = "../gamenet/ddnet/" }
+pre-rfc3243-libtw2-gamenet-spec = { path = "../gamenet/spec/" }
+pre-rfc3243-libtw2-gamenet-teeworlds-0-6 = { path = "../gamenet/teeworlds-0.6/" }
+pre-rfc3243-libtw2-gamenet-teeworlds-0-7 = { path = "../gamenet/teeworlds-0.7/" }
+pre-rfc3243-libtw2-logger = { path = "../logger/" }
+pre-rfc3243-libtw2-map = { path = "../map/" }
+pre-rfc3243-libtw2-net = { path = "../net/" }
+pre-rfc3243-libtw2-packer = { path = "../packer/", features = ["uuid"] }
+pre-rfc3243-libtw2-serverbrowse = { path = "../serverbrowse/" }
+pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }
+pre-rfc3243-libtw2-teehistorian = { path = "../teehistorian/" }
+pre-rfc3243-libtw2-world = { path = "../world/" }
 log = "0.3.1"
 rmp = "0.8.5"
 serde = "1.0.23"

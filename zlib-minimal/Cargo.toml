@@ -1,9 +1,12 @@
 [package]
-name = "libtw2-zlib-minimal"
+name = "pre-rfc3243-libtw2-zlib-minimal"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+
+[lib]
+name = "libtw2_zlib_minimal"
 
 [dependencies]
 libc = ">=0.1.5,<0.3.0"

@@ -1,17 +1,20 @@
 [package]
-name = "libtw2-event-loop"
+name = "pre-rfc3243-libtw2-event-loop"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "libtw2_event_loop"
+
 [dependencies]
 arrayvec = "0.5.2"
 hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
-libtw2-common = { path = "../common/" }
-libtw2-logger = { path = "../logger/" }
-libtw2-net = { path = "../net/" }
-libtw2-socket = { path = "../socket/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+pre-rfc3243-libtw2-logger = { path = "../logger/" }
+pre-rfc3243-libtw2-net = { path = "../net/" }
+pre-rfc3243-libtw2-socket = { path = "../socket/" }
 log = "0.3.1"
 warn = ">=0.1.1,<0.3.0"

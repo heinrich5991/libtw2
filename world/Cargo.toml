@@ -1,10 +1,13 @@
 [package]
-name = "libtw2-world"
+name = "pre-rfc3243-libtw2-world"
 version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 
+[lib]
+name = "libtw2_world"
+
 [dependencies]
-libtw2-common = { path = "../common/" }
-libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+pre-rfc3243-libtw2-common = { path = "../common/" }
+libtw2-gamenet = { package = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
