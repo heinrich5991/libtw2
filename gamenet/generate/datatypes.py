@@ -571,7 +571,8 @@ def emit_cargo_toml(name):
     print("""\
 [package]
 name = "pre-rfc3243-{}"
-version = "0.0.1"
+description = "pre-rfc3243-{}"
+version = "0.1.0"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
@@ -582,12 +583,12 @@ name = "{}"
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-pre-rfc3243-libtw2-common = {{ path = "../../common/" }}
-pre-rfc3243-libtw2-gamenet-common = {{ path = "../common/" }}
-pre-rfc3243-libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
+pre-rfc3243-libtw2-common = {{ version = "0.1", path = "../../common/" }}
+pre-rfc3243-libtw2-gamenet-common = {{ version = "0.1", path = "../common/" }}
+pre-rfc3243-libtw2-packer = {{ version = "0.1", path = "../../packer/", features = ["uuid"] }}
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"\
-""".format(name, name.replace("-", "_")))
+""".format(name, name, name.replace("-", "_")))
 
 def emit_main_lib():
     print("""\
