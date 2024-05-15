@@ -96,7 +96,7 @@ def uuid_v3(namespace, name):
     return str(uuid.uuid3(uuid.UUID(namespace), name))
 
 class NameValues:
-    def __init__(self, name, values, ex=None, teehistorian=True, unreliable=False):
+    def __init__(self, name, values, ex=None, teehistorian=True, unreliable=False, extra_attributes=frozenset()):
         names = name.split(':')
         if not 1 <= len(names) <= 2:
             raise ValueError("invalid name format")
@@ -109,6 +109,7 @@ class NameValues:
             self.attributes.add("nonteehistoric")
         if unreliable:
             self.attributes.add("unreliable")
+        self.attributes |= set(extra_attributes)
     def init(self, index, consts, enums, structs):
         if self.ex is None:
             self.index = index
@@ -424,6 +425,29 @@ def emit_enum_msg_module(name, structs):
         s.emit_maybe_default()
         s.emit_impl_debug()
         print()
+    snap = None
+    snap_empty = None
+    snap_single = None
+    for s in structs:
+        if snap is None and "snap" in s.attributes:
+            snap = s
+        if snap_empty is None and "snap_empty" in s.attributes:
+            snap_empty = s
+        if snap_single is None and "snap_single" in s.attributes:
+            snap_single = s
+    if snap is not None and snap_empty is not None and snap_single is not None:
+        import_("libtw2_gamenet_snap::SnapMsg")
+        print("impl<'a> From<SnapMsg<'a>> for {}<'a> {{".format(name))
+        print("    fn from(msg: SnapMsg<'a>) -> {}<'a> {{".format(name))
+        print("        match msg {")
+        print("            SnapMsg::Snap(m) => {}::{}(m),".format(name, title(snap.name)))
+        print("            SnapMsg::SnapEmpty(m) => {}::{}(m),".format(name, title(snap_empty.name)))
+        print("            SnapMsg::SnapSingle(m) => {}::{}(m),".format(name, title(snap_single.name)))
+        print("        }")
+        print("    }")
+        print("}")
+        print()
+
 
 def emit_enum_obj(name, structs):
     import_(
@@ -583,6 +607,7 @@ arrayvec = "0.5.2"
 buffer = "0.1.9"
 libtw2-common = {{ path = "../../common/" }}
 libtw2-gamenet-common = {{ path = "../common/" }}
+libtw2-gamenet-snap = {{ path = "../snap/" }}
 libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"\
@@ -869,6 +894,9 @@ class Struct(NameValues):
                     self.values[i] = NetBool(self.values[i].name)
         self.values = [member.update(self, consts, enums, structs) for member in self.values]
 
+        if ("snap" in self.attributes) + ("snap_empty" in self.attributes) + ("snap_single" in self.attributes) > 1:
+            raise ValueError("invalid flags for struct")
+
     def emit_consts(self):
         if isinstance(self.index, int):
             type_ = self.const_type
@@ -879,6 +907,15 @@ class Struct(NameValues):
             value = "Uuid::from_u128(0x{})".format(self.index.replace("-", "_"))
         print("pub const {}: {} = {};".format(caps(self.name), type_, value))
     def emit_definition(self):
+        if "snap" in self.attributes:
+            print("pub use libtw2_gamenet_snap::Snap;")
+            return
+        if "snap_empty" in self.attributes:
+            print("pub use libtw2_gamenet_snap::SnapEmpty;")
+            return
+        if "snap_single" in self.attributes:
+            print("pub use libtw2_gamenet_snap::SnapSingle;")
+            return
         if self.super:
             super = self.structs[self.super]
         else:
@@ -898,6 +935,8 @@ class Struct(NameValues):
         else:
             print("pub struct {};".format(title(self.name)))
     def emit_impl_encode_decode(self, suffix=False):
+        if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
+            return
         import_(
             "buffer::CapacityError",
             "crate::error::Error",
@@ -934,6 +973,8 @@ class Struct(NameValues):
         print("    }")
         print("}")
     def emit_impl_debug(self):
+        if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
+            return
         print("impl{l} fmt::Debug for {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
         print("        f.debug_struct(\"{}\")".format(title(self.name)))

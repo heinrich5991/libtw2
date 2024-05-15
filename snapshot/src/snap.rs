@@ -8,8 +8,9 @@ use crate::format::Warning;
 use crate::to_usize;
 use buffer::CapacityError;
 use libtw2_common::num::Cast;
-use libtw2_gamenet::enums::MAX_SNAPSHOT_PACKSIZE;
-use libtw2_gamenet::msg::system;
+use libtw2_gamenet_snap as msg;
+use libtw2_gamenet_snap::SnapMsg;
+use libtw2_gamenet_snap::MAX_SNAPSHOT_PACKSIZE;
 use libtw2_packer::with_packer;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
@@ -552,23 +553,6 @@ pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaC
     }
 }
 
-impl<'a> Into<system::System<'a>> for SnapMsg<'a> {
-    fn into(self) -> system::System<'a> {
-        match self {
-            SnapMsg::Snap(s) => system::System::Snap(s),
-            SnapMsg::SnapEmpty(s) => system::System::SnapEmpty(s),
-            SnapMsg::SnapSingle(s) => system::System::SnapSingle(s),
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum SnapMsg<'a> {
-    Snap(system::Snap<'a>),
-    SnapEmpty(system::SnapEmpty),
-    SnapSingle(system::SnapSingle<'a>),
-}
-
 pub struct DeltaChunks<'a> {
     tick: i32,
     delta_tick: i32,
@@ -585,12 +569,12 @@ impl<'a> Iterator for DeltaChunks<'a> {
             return None;
         }
         let result = if self.num_parts == 0 {
-            SnapMsg::SnapEmpty(system::SnapEmpty {
+            SnapMsg::SnapEmpty(msg::SnapEmpty {
                 tick: self.tick,
                 delta_tick: self.delta_tick,
             })
         } else if self.num_parts == 1 {
-            SnapMsg::SnapSingle(system::SnapSingle {
+            SnapMsg::SnapSingle(msg::SnapSingle {
                 tick: self.tick,
                 delta_tick: self.delta_tick,
                 crc: self.crc,
@@ -603,7 +587,7 @@ impl<'a> Iterator for DeltaChunks<'a> {
                 MAX_SNAPSHOT_PACKSIZE as usize * (index + 1),
                 self.data.len(),
             );
-            SnapMsg::Snap(system::Snap {
+            SnapMsg::Snap(msg::Snap {
                 tick: self.tick,
                 delta_tick: self.delta_tick,
                 num_parts: self.num_parts,

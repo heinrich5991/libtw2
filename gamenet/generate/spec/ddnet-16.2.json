@@ -2,7 +2,6 @@
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 64},
 		{"name": ["spec", "freeview"], "type": "int32", "value": -1},
-		{"name": ["max", "snapshot", "packsize"], "type": "int32", "value": 900},
 		{"name": ["flag", "missing"], "type": "int32", "value": -3},
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},
@@ -1125,6 +1124,7 @@
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
 			"attributes": [
+				"snap",
 				"unreliable"
 			]
 		},
@@ -1136,6 +1136,7 @@
 				{"name": ["delta", "tick"], "type": {"kind": "int32"}}
 			],
 			"attributes": [
+				"snap_empty",
 				"unreliable"
 			]
 		},
@@ -1149,6 +1150,7 @@
 				{"name": ["data"], "type": {"kind": "data", "size": "specified_before"}}
 			],
 			"attributes": [
+				"snap_single",
 				"unreliable"
 			]
 		},

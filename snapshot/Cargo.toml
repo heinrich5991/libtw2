@@ -8,7 +8,10 @@ edition = "2021"
 [dependencies]
 buffer = "0.1.9"
 libtw2-common = { path = "../common/" }
-libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }
+libtw2-gamenet-snap = { path = "../gamenet/snap/" }
 libtw2-packer = { path = "../packer/" }
 vec_map = "0.8.0"
 warn = ">=0.1.1,<0.3.0"
+
+[dev-dependencies]
+libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }

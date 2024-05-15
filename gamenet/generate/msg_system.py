@@ -25,9 +25,9 @@ SYSTEM_MSGS_0_6 = [
     ( 2, "map_change", "vital", "s:name i:crc i:size"),
     ( 3, "map_data", "vital", "i:last i:crc i:chunk d:data"),
     ( 4, "con_ready", "vital", ""),
-    ( 5, "snap", "", "i:tick i:delta_tick i:num_parts i:part i:crc d:data"),
-    ( 6, "snap_empty", "", "i:tick i:delta_tick"),
-    ( 7, "snap_single", "", "i:tick i:delta_tick i:crc d:data"),
+    ( 5, "snap", "snap", "i:tick i:delta_tick i:num_parts i:part i:crc d:data"),
+    ( 6, "snap_empty", "snap_empty", "i:tick i:delta_tick"),
+    ( 7, "snap_single", "snap_single", "i:tick i:delta_tick i:crc d:data"),
     ( 9, "input_timing", "", "i:input_pred_tick i:time_left"),
     (10, "rcon_auth_status", "vital", "i?:auth_level i?:receive_commands"),
     (11, "rcon_line", "vital", "s:line"),
@@ -96,7 +96,8 @@ SYSTEM_MSGS_0_7 = [
 
 def make_msgs(msgs):
     result = []
-    for msg_id, name, vital, members in msgs:
+    for msg_id, name, flags, members in msgs:
+        flags = set(flags.split())
         result_members = []
         for member in members.split():
             type_, member_name = member.split(':')
@@ -130,8 +131,9 @@ def make_msgs(msgs):
         kwargs = {}
         if not isinstance(msg_id, int):
             kwargs["ex"] = msg_id
-        unreliable = vital != "vital"
-        result.append(datatypes.NetMessage(name, result_members, unreliable=unreliable, **kwargs))
+        unreliable = "vital" not in flags
+        flags -= frozenset(["vital"])
+        result.append(datatypes.NetMessage(name, result_members, unreliable=unreliable, extra_attributes=flags, **kwargs))
 
     for (msg_id, _, _, _), struct in zip(msgs, result):
         if not isinstance(msg_id, int):

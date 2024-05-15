@@ -8,6 +8,7 @@ members = [
     "event-loop",
     "gamenet/common",
     "gamenet/ddnet",
+    "gamenet/snap",
     "gamenet/spec",
     "gamenet/teeworlds-0.5",
     "gamenet/teeworlds-0.6",

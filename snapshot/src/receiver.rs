@@ -1,6 +1,6 @@
 use crate::to_usize;
 use libtw2_common::num::Cast;
-use libtw2_gamenet::msg::system;
+use libtw2_gamenet_snap as msg;
 use std::ops;
 use vec_map::VecMap;
 use warn::Warn;
@@ -69,14 +69,11 @@ impl DeltaReceiver {
         self.current = None;
         self.previous_tick = Some(tick);
     }
-    pub fn snap_empty<W>(
+    pub fn snap_empty<W: Warn<Warning>>(
         &mut self,
         warn: &mut W,
-        snap: system::SnapEmpty,
-    ) -> Result<Option<ReceivedDelta>, Error>
-    where
-        W: Warn<Warning>,
-    {
+        snap: msg::SnapEmpty,
+    ) -> Result<Option<ReceivedDelta>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -96,14 +93,11 @@ impl DeltaReceiver {
             data_and_crc: None,
         }))
     }
-    pub fn snap_single<W>(
+    pub fn snap_single<W: Warn<Warning>>(
         &mut self,
         warn: &mut W,
-        snap: system::SnapSingle,
-    ) -> Result<Option<ReceivedDelta>, Error>
-    where
-        W: Warn<Warning>,
-    {
+        snap: msg::SnapSingle,
+    ) -> Result<Option<ReceivedDelta>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -124,14 +118,11 @@ impl DeltaReceiver {
             data_and_crc: Some((&self.result, snap.crc)),
         }))
     }
-    pub fn snap<W>(
+    pub fn snap<W: Warn<Warning>>(
         &mut self,
         warn: &mut W,
-        snap: system::Snap,
-    ) -> Result<Option<ReceivedDelta>, Error>
-    where
-        W: Warn<Warning>,
-    {
+        snap: msg::Snap,
+    ) -> Result<Option<ReceivedDelta>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -213,9 +204,9 @@ mod test {
     use super::Error;
     use super::ReceivedDelta;
     use libtw2_common::num::Cast;
-    use libtw2_gamenet::msg::system::Snap;
-    use libtw2_gamenet::msg::system::SnapEmpty;
-    use libtw2_gamenet::msg::system::SnapSingle;
+    use libtw2_gamenet_snap::Snap;
+    use libtw2_gamenet_snap::SnapEmpty;
+    use libtw2_gamenet_snap::SnapSingle;
     use warn::Panic;
 
     #[test]

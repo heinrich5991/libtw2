@@ -10,6 +10,7 @@ arrayvec = "0.5.2"
 buffer = "0.1.9"
 libtw2-common = { path = "../../common/" }
 libtw2-gamenet-common = { path = "../common/" }
+libtw2-gamenet-snap = { path = "../snap/" }
 libtw2-packer = { path = "../../packer/", features = ["uuid"] }
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"

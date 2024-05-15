@@ -1,7 +1,6 @@
 {
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 64},
-		{"name": ["max", "snapshot", "packsize"], "type": "int32", "value": 900},
 		{"name": ["flag", "missing"], "type": "int32", "value": -3},
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},

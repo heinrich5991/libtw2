@@ -1,7 +1,6 @@
 use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 16;
-pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;
 pub const VERSION: &'static str = "0.5 b67d1f1a1eea234e";
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
