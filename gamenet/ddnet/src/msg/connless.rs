@@ -1,5 +1,5 @@
-use buffer::CapacityError;
 use crate::error::Error;
+use buffer::CapacityError;
 use libtw2_common::pretty;
 use libtw2_gamenet_common::msg::AddrPackedSliceExt;
 use libtw2_gamenet_common::msg::int_from_string;

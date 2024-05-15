@@ -84,9 +84,6 @@ def fix_network(network, version):
         network.Constants += [
             Constant("SPEC_FREEVIEW", -1),
         ]
-    network.Constants += [
-        Constant("MAX_SNAPSHOT_PACKSIZE", 900),
-    ]
     if version != VERSION_0_5:
         network.Constants += [
             Constant("FLAG_MISSING", -3),

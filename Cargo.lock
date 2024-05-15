@@ -795,7 +795,6 @@ dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
- "pre-rfc3243-libtw2-gamenet-ddnet",
  "pre-rfc3243-libtw2-huffman",
  "pre-rfc3243-libtw2-packer",
  "pre-rfc3243-libtw2-snapshot",
@@ -862,8 +861,20 @@ dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-packer",
  "uuid",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-snap"
+version = "0.0.1"
+dependencies = [
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
  "warn",
 ]
 
@@ -885,6 +896,7 @@ dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-packer",
  "uuid",
  "warn",
@@ -898,6 +910,7 @@ dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-packer",
  "uuid",
  "warn",
@@ -911,6 +924,7 @@ dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-packer",
  "uuid",
  "warn",
@@ -1054,6 +1068,7 @@ version = "0.0.1"
 dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
  "pre-rfc3243-libtw2-packer",
  "vec_map",

@@ -1,0 +1,16 @@
+[package]
+name = "pre-rfc3243-libtw2-gamenet-snap"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+
+[lib]
+name = "libtw2_gamenet_snap"
+
+[dependencies]
+buffer = "0.1.9"
+pre-rfc3243-libtw2-common = { path = "../../common" }
+pre-rfc3243-libtw2-gamenet-common = { path = "../common" }
+pre-rfc3243-libtw2-packer = { path = "../../packer/", features = ["uuid"] }
+warn = ">=0.1.1,<0.3.0"

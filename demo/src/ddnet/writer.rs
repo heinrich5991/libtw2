@@ -1,14 +1,17 @@
 use crate::format;
 use libtw2_common::digest::Sha256;
 use libtw2_common::num::Cast;
-use libtw2_gamenet_ddnet::msg;
-use libtw2_gamenet_ddnet::snap_obj;
+use libtw2_gamenet_common::snap_obj;
+use libtw2_gamenet_common::traits::MessageExt as _;
+use libtw2_gamenet_common::traits::Protocol;
+use libtw2_gamenet_common::traits::SnapObj as _;
 use libtw2_packer::with_packer;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
 use libtw2_snapshot::Snap;
 use std::convert::TryInto;
 use std::io;
+use std::marker::PhantomData;
 use std::mem;
 use thiserror::Error;
 
@@ -38,9 +41,10 @@ impl From<snap::BuilderError> for WriteError {
     }
 }
 
-/// DDNet demo writer, can only be used with `gamenet_ddnet`.
+/// DDNet demo writer.
+///
 /// Automatically writes snapshot deltas.
-pub struct DemoWriter {
+pub struct DemoWriter<P: for<'a> Protocol<'a>> {
     inner: crate::Writer,
     // To verify the monotonic increase
     last_tick: i32,
@@ -52,6 +56,7 @@ pub struct DemoWriter {
     delta: Delta,
     buf: arrayvec::ArrayVec<[u8; format::MAX_SNAPSHOT_SIZE]>,
     i32_buf: Vec<i32>,
+    protocol: PhantomData<P>,
 }
 
 #[derive(Default)]
@@ -89,7 +94,7 @@ impl UuidIndex {
     }
 }
 
-impl DemoWriter {
+impl<P: for<'a> Protocol<'a>> DemoWriter<P> {
     pub fn new<T: io::Write + io::Seek + 'static>(
         file: T,
         net_version: &[u8],
@@ -123,10 +128,11 @@ impl DemoWriter {
             builder: snap::Builder::default(),
             buf: arrayvec::ArrayVec::new(),
             i32_buf: Vec::new(),
+            protocol: PhantomData,
         })
     }
 
-    pub fn write_snap<'a, T: Iterator<Item = (&'a snap_obj::SnapObj, u16)>>(
+    pub fn write_snap<'a, T: Iterator<Item = (&'a P::SnapObj, u16)>>(
         &mut self,
         tick: i32,
         items: T,
@@ -142,7 +148,7 @@ impl DemoWriter {
             Some(last_keyframe) => tick - last_keyframe > 250,
         };
 
-        // Build snap with UUID items, which map the uuids of ex-items to type ids.
+        // Build snap with UUID items, which map the UUIDs of ex-items to type ids.
         for (item, id) in items {
             let type_id = match item.obj_type_id() {
                 snap_obj::TypeId::Ordinal(type_id) => type_id,
@@ -164,7 +170,7 @@ impl DemoWriter {
         } else {
             self.delta.create(&old_snap, &new_snap);
             let delta = &self.delta;
-            with_packer(&mut self.buf, |p| delta.write(snap_obj::obj_size, p))
+            with_packer(&mut self.buf, |p| delta.write(P::obj_size, p))
                 .map_err(|_| WriteError::TooLargeSnap)?;
             self.inner.write_snapshot_delta(&self.buf)?;
         }
@@ -181,7 +187,7 @@ impl DemoWriter {
         }
         Ok(())
     }
-    pub fn write_msg(&mut self, msg: &msg::Game) -> Result<(), WriteError> {
+    pub fn write_msg(&mut self, msg: &<P as Protocol<'_>>::Game) -> Result<(), WriteError> {
         with_packer(&mut self.buf, |p| msg.encode(p)).map_err(|_| WriteError::TooLongNetMsg)?;
         self.inner.write_message(self.buf.as_slice())?;
         self.buf.clear();

@@ -5,5 +5,5 @@ name = "libtw2-huffman"
 repository = "https://github.com/heinrich5991/libtw2"
 
 [build-system]
-requires = ["maturin>=1.0,<2.0", "libtw2-uniffi-bindgen>=0.2.0,<0.3.0"]
+requires = ["maturin>=1.0,<2.0", "uniffi-bindgen>=0.27.0,<0.28.0"]
 build-backend = "maturin"

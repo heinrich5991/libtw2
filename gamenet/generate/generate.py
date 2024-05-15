@@ -55,6 +55,11 @@ def generate(spec, out_dir, name):
 
     emit = datatypes.Emit()
     with emit:
+        datatypes.emit_traits_module()
+    write_file(os.path.join(out_dir, "src/traits.rs"), emit.get())
+
+    emit = datatypes.Emit()
+    with emit:
         datatypes.emit_cargo_toml(name)
     write_file(os.path.join(out_dir, "Cargo.toml"), emit.get())
 

@@ -7,7 +7,7 @@ use crate::DeltaReceiver;
 use crate::ReceivedDelta;
 use crate::Snap;
 use crate::Storage;
-use libtw2_gamenet::msg::system;
+use libtw2_gamenet_snap as msg;
 use libtw2_packer::Unpacker;
 use warn::wrap;
 use warn::Warn;
@@ -89,7 +89,7 @@ impl Manager {
         &mut self,
         warn: &mut W,
         object_size: O,
-        snap: system::SnapEmpty,
+        snap: msg::SnapEmpty,
     ) -> Result<Option<&Snap>, Error>
     where
         W: Warn<Warning>,
@@ -102,7 +102,7 @@ impl Manager {
         &mut self,
         warn: &mut W,
         object_size: O,
-        snap: system::SnapSingle,
+        snap: msg::SnapSingle,
     ) -> Result<Option<&Snap>, Error>
     where
         W: Warn<Warning>,
@@ -115,7 +115,7 @@ impl Manager {
         &mut self,
         warn: &mut W,
         object_size: O,
-        snap: system::Snap,
+        snap: msg::Snap,
     ) -> Result<Option<&Snap>, Error>
     where
         W: Warn<Warning>,

@@ -14,7 +14,6 @@ binrw = "0.11.1"
 buffer = "0.1.9"
 pre-rfc3243-libtw2-common = { path = "../common/" }
 pre-rfc3243-libtw2-gamenet-common = { path = "../gamenet/common/" }
-pre-rfc3243-libtw2-gamenet-ddnet = { path = "../gamenet/ddnet/" }
 pre-rfc3243-libtw2-huffman = { path = "../huffman/" }
 pre-rfc3243-libtw2-packer = { path = "../packer/" }
 pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }

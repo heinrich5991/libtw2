@@ -1,6 +1,6 @@
-use buffer::CapacityError;
 use crate::enums;
 use crate::error::Error;
+use buffer::CapacityError;
 use libtw2_common::pretty;
 use libtw2_gamenet_common::debug::DebugSlice;
 use libtw2_packer::Packer;

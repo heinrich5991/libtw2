@@ -1,6 +1,7 @@
 use clap::App;
 use clap::Arg;
 use libtw2_demo::ddnet;
+use libtw2_gamenet_ddnet::Protocol as DDNet;
 use std::error::Error;
 use std::fs;
 use std::process;
@@ -66,8 +67,8 @@ fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
 fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
     let input_file = fs::File::open(input)?;
     let output_file = fs::File::create(output)?;
-    let mut reader = ddnet::DemoReader::new(input_file, &mut warn::Log)?;
-    let mut writer = ddnet::DemoWriter::new(
+    let mut reader = ddnet::DemoReader::<DDNet>::new(input_file, &mut warn::Log)?;
+    let mut writer = ddnet::DemoWriter::<DDNet>::new(
         output_file,
         reader.inner().net_version(),
         reader.inner().map_name(),

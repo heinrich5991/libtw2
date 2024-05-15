@@ -96,7 +96,7 @@ def uuid_v3(namespace, name):
     return str(uuid.uuid3(uuid.UUID(namespace), name))
 
 class NameValues:
-    def __init__(self, name, values, ex=None, teehistorian=True, unreliable=False):
+    def __init__(self, name, values, ex=None, teehistorian=True, unreliable=False, extra_attributes=frozenset()):
         names = name.split(':')
         if not 1 <= len(names) <= 2:
             raise ValueError("invalid name format")
@@ -109,6 +109,7 @@ class NameValues:
             self.attributes.add("nonteehistoric")
         if unreliable:
             self.attributes.add("unreliable")
+        self.attributes |= set(extra_attributes)
     def init(self, index, consts, enums, structs):
         if self.ex is None:
             self.index = index
@@ -175,7 +176,9 @@ class Emit:
     def get(self):
         imports = []
         if self.imports:
-            for i in sorted(self.imports):
+            # Sort `crate::` imports first.
+            key = lambda i: (not i.startswith("crate::"), i)
+            for i in sorted(self.imports, key=key):
                 imports.append("use {};".format(i))
             imports.append("")
         return "\n".join(imports + self.lines + [""])
@@ -422,6 +425,29 @@ def emit_enum_msg_module(name, structs):
         s.emit_maybe_default()
         s.emit_impl_debug()
         print()
+    snap = None
+    snap_empty = None
+    snap_single = None
+    for s in structs:
+        if snap is None and "snap" in s.attributes:
+            snap = s
+        if snap_empty is None and "snap_empty" in s.attributes:
+            snap_empty = s
+        if snap_single is None and "snap_single" in s.attributes:
+            snap_single = s
+    if snap is not None and snap_empty is not None and snap_single is not None:
+        import_("libtw2_gamenet_snap::SnapMsg")
+        print("impl<'a> From<SnapMsg<'a>> for {}<'a> {{".format(name))
+        print("    fn from(msg: SnapMsg<'a>) -> {}<'a> {{".format(name))
+        print("        match msg {")
+        print("            SnapMsg::Snap(m) => {}::{}(m),".format(name, title(snap.name)))
+        print("            SnapMsg::SnapEmpty(m) => {}::{}(m),".format(name, title(snap_empty.name)))
+        print("            SnapMsg::SnapSingle(m) => {}::{}(m),".format(name, title(snap_single.name)))
+        print("        }")
+        print("    }")
+        print("}")
+        print()
+
 
 def emit_enum_obj(name, structs):
     import_(
@@ -583,9 +609,10 @@ name = "{}"
 [dependencies]
 arrayvec = "0.5.2"
 buffer = "0.1.9"
-pre-rfc3243-libtw2-common = {{ version = "0.1", path = "../../common/" }}
-pre-rfc3243-libtw2-gamenet-common = {{ version = "0.1", path = "../common/" }}
-pre-rfc3243-libtw2-packer = {{ version = "0.1", path = "../../packer/", features = ["uuid"] }}
+pre-rfc3243-libtw2-common = {{ path = "../../common/" }}
+pre-rfc3243-libtw2-gamenet-common = {{ path = "../common/" }}
+pre-rfc3243-libtw2-gamenet-snap = {{ path = "../snap/" }}
+pre-rfc3243-libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
 uuid = "0.8.1"
 warn = ">=0.1.1,<0.3.0"\
 """.format(name, name, name.replace("-", "_")))
@@ -599,7 +626,10 @@ pub mod msg;
 #[rustfmt::skip]
 pub mod snap_obj;
 
+mod traits;
+
 pub use self::snap_obj::SnapObj;
+pub use self::traits::Protocol;
 pub use libtw2_gamenet_common::error;
 pub use libtw2_gamenet_common::error::Error;\
 """)
@@ -652,6 +682,94 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
 {
     libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
+""")
+
+def emit_traits_module():
+    import_(
+        "buffer::CapacityError",
+        "crate::msg",
+        "crate::snap_obj",
+        "libtw2_gamenet_common::error::Error",
+        "libtw2_gamenet_common::msg::MessageId",
+        "libtw2_gamenet_common::msg::SystemOrGame",
+        "libtw2_gamenet_common::traits",
+        "libtw2_packer::ExcessData",
+        "libtw2_packer::IntUnpacker",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
+        "warn::Warn",
+    )
+    print("""\
+pub struct Protocol(());
+
+impl traits::ProtocolStatic for Protocol {
+    type SnapObj = snap_obj::SnapObj;
+    fn obj_size(type_id: u16) -> Option<u32> {
+        snap_obj::obj_size(type_id)
+    }
+}
+
+impl<'a> traits::Protocol<'a> for Protocol {
+    type Game = msg::Game<'a>;
+    type System = msg::System<'a>;
+}
+
+impl traits::SnapObj for crate::SnapObj {
+    fn decode_obj<W: Warn<ExcessData>>(
+        warn: &mut W,
+        obj_type_id: snap_obj::TypeId,
+        p: &mut IntUnpacker,
+    ) -> Result<Self, Error> {
+        crate::SnapObj::decode_obj(warn, obj_type_id, p)
+    }
+    fn obj_type_id(&self) -> snap_obj::TypeId {
+        self.obj_type_id()
+    }
+    fn encode(&self) -> &[i32] {
+        self.encode()
+    }
+}
+
+impl<'a> traits::Message<'a> for msg::Game<'a> {
+    fn decode_msg<W: Warn<Warning>>(
+        warn: &mut W,
+        id: SystemOrGame<MessageId, MessageId>,
+        p: &mut Unpacker<'a>,
+    ) -> Result<msg::Game<'a>, Error> {
+        if let SystemOrGame::Game(id) = id {
+            msg::Game::decode_msg(warn, id, p)
+        } else {
+            Err(Error::UnknownId)
+        }
+    }
+    fn msg_id(&self) -> SystemOrGame<MessageId, MessageId> {
+        SystemOrGame::Game(self.msg_id())
+    }
+    fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        self.encode_msg(p)
+    }
+}
+
+impl<'a> traits::Message<'a> for msg::System<'a> {
+    fn decode_msg<W: Warn<Warning>>(
+        warn: &mut W,
+        id: SystemOrGame<MessageId, MessageId>,
+        p: &mut Unpacker<'a>,
+    ) -> Result<msg::System<'a>, Error> {
+        if let SystemOrGame::System(id) = id {
+            msg::System::decode_msg(warn, id, p)
+        } else {
+            Err(Error::UnknownId)
+        }
+    }
+    fn msg_id(&self) -> SystemOrGame<MessageId, MessageId> {
+        SystemOrGame::System(self.msg_id())
+    }
+    fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        self.encode_msg(p)
+    }
+}\
 """)
 
 class Enum(NameValues):
@@ -780,6 +898,9 @@ class Struct(NameValues):
                     self.values[i] = NetBool(self.values[i].name)
         self.values = [member.update(self, consts, enums, structs) for member in self.values]
 
+        if ("snap" in self.attributes) + ("snap_empty" in self.attributes) + ("snap_single" in self.attributes) > 1:
+            raise ValueError("invalid flags for struct")
+
     def emit_consts(self):
         if isinstance(self.index, int):
             type_ = self.const_type
@@ -790,6 +911,15 @@ class Struct(NameValues):
             value = "Uuid::from_u128(0x{})".format(self.index.replace("-", "_"))
         print("pub const {}: {} = {};".format(caps(self.name), type_, value))
     def emit_definition(self):
+        if "snap" in self.attributes:
+            print("pub use libtw2_gamenet_snap::Snap;")
+            return
+        if "snap_empty" in self.attributes:
+            print("pub use libtw2_gamenet_snap::SnapEmpty;")
+            return
+        if "snap_single" in self.attributes:
+            print("pub use libtw2_gamenet_snap::SnapSingle;")
+            return
         if self.super:
             super = self.structs[self.super]
         else:
@@ -809,6 +939,8 @@ class Struct(NameValues):
         else:
             print("pub struct {};".format(title(self.name)))
     def emit_impl_encode_decode(self, suffix=False):
+        if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
+            return
         import_(
             "buffer::CapacityError",
             "crate::error::Error",
@@ -845,6 +977,8 @@ class Struct(NameValues):
         print("    }")
         print("}")
     def emit_impl_debug(self):
+        if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
+            return
         print("impl{l} fmt::Debug for {}{l} {{".format(title(self.name), l=self.lifetime()))
         print("    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {")
         print("        f.debug_struct(\"{}\")".format(title(self.name)))

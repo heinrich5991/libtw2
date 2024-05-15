@@ -1,7 +1,6 @@
 use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 64;
-pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
