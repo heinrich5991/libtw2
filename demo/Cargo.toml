@@ -11,7 +11,6 @@ binrw = "0.11.1"
 buffer = "0.1.9"
 libtw2-common = { path = "../common/" }
 libtw2-gamenet-common = { path = "../gamenet/common/" }
-libtw2-gamenet-ddnet = { path = "../gamenet/ddnet/" }
 libtw2-huffman = { path = "../huffman/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-snapshot = { path = "../snapshot/" }

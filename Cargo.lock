@@ -529,7 +529,6 @@ dependencies = [
  "buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
- "libtw2-gamenet-ddnet",
  "libtw2-huffman",
  "libtw2-packer",
  "libtw2-snapshot",
