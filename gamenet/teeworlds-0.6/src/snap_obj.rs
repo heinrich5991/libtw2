@@ -1,6 +1,6 @@
-use buffer::CapacityError;
 use crate::enums;
 use crate::error::Error;
+use buffer::CapacityError;
 use libtw2_common::slice;
 use libtw2_packer::ExcessData;
 use libtw2_packer::IntUnpacker;

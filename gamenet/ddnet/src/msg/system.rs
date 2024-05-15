@@ -1,5 +1,5 @@
-use buffer::CapacityError;
 use crate::error::Error;
+use buffer::CapacityError;
 use libtw2_common::digest::Sha256;
 use libtw2_common::pretty;
 use libtw2_packer::Packer;

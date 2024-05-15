@@ -175,7 +175,9 @@ class Emit:
     def get(self):
         imports = []
         if self.imports:
-            for i in sorted(self.imports):
+            # Sort `crate::` imports first.
+            key = lambda i: (not i.startswith("crate::"), i)
+            for i in sorted(self.imports, key=key):
                 imports.append("use {};".format(i))
             imports.append("")
         return "\n".join(imports + self.lines + [""])
@@ -595,7 +597,10 @@ pub mod msg;
 #[rustfmt::skip]
 pub mod snap_obj;
 
+mod traits;
+
 pub use self::snap_obj::SnapObj;
+pub use self::traits::Protocol;
 pub use libtw2_gamenet_common::error;
 pub use libtw2_gamenet_common::error::Error;\
 """)
@@ -648,6 +653,94 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
 {
     libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
+""")
+
+def emit_traits_module():
+    import_(
+        "buffer::CapacityError",
+        "crate::msg",
+        "crate::snap_obj",
+        "libtw2_gamenet_common::error::Error",
+        "libtw2_gamenet_common::msg::MessageId",
+        "libtw2_gamenet_common::msg::SystemOrGame",
+        "libtw2_gamenet_common::traits",
+        "libtw2_packer::ExcessData",
+        "libtw2_packer::IntUnpacker",
+        "libtw2_packer::Packer",
+        "libtw2_packer::Unpacker",
+        "libtw2_packer::Warning",
+        "warn::Warn",
+    )
+    print("""\
+pub struct Protocol(());
+
+impl traits::ProtocolStatic for Protocol {
+    type SnapObj = snap_obj::SnapObj;
+    fn obj_size(type_id: u16) -> Option<u32> {
+        snap_obj::obj_size(type_id)
+    }
+}
+
+impl<'a> traits::Protocol<'a> for Protocol {
+    type Game = msg::Game<'a>;
+    type System = msg::System<'a>;
+}
+
+impl traits::SnapObj for crate::SnapObj {
+    fn decode_obj<W: Warn<ExcessData>>(
+        warn: &mut W,
+        obj_type_id: snap_obj::TypeId,
+        p: &mut IntUnpacker,
+    ) -> Result<Self, Error> {
+        crate::SnapObj::decode_obj(warn, obj_type_id, p)
+    }
+    fn obj_type_id(&self) -> snap_obj::TypeId {
+        self.obj_type_id()
+    }
+    fn encode(&self) -> &[i32] {
+        self.encode()
+    }
+}
+
+impl<'a> traits::Message<'a> for msg::Game<'a> {
+    fn decode_msg<W: Warn<Warning>>(
+        warn: &mut W,
+        id: SystemOrGame<MessageId, MessageId>,
+        p: &mut Unpacker<'a>,
+    ) -> Result<msg::Game<'a>, Error> {
+        if let SystemOrGame::Game(id) = id {
+            msg::Game::decode_msg(warn, id, p)
+        } else {
+            Err(Error::UnknownId)
+        }
+    }
+    fn msg_id(&self) -> SystemOrGame<MessageId, MessageId> {
+        SystemOrGame::Game(self.msg_id())
+    }
+    fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        self.encode_msg(p)
+    }
+}
+
+impl<'a> traits::Message<'a> for msg::System<'a> {
+    fn decode_msg<W: Warn<Warning>>(
+        warn: &mut W,
+        id: SystemOrGame<MessageId, MessageId>,
+        p: &mut Unpacker<'a>,
+    ) -> Result<msg::System<'a>, Error> {
+        if let SystemOrGame::System(id) = id {
+            msg::System::decode_msg(warn, id, p)
+        } else {
+            Err(Error::UnknownId)
+        }
+    }
+    fn msg_id(&self) -> SystemOrGame<MessageId, MessageId> {
+        SystemOrGame::System(self.msg_id())
+    }
+    fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        self.encode_msg(p)
+    }
+}\
 """)
 
 class Enum(NameValues):
