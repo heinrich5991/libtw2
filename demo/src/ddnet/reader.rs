@@ -37,8 +37,8 @@ pub enum ReadError {
     ChunkOrder,
 }
 
-pub struct DemoReader<P: for<'a> Protocol<'a>> {
-    raw: reader::Reader,
+pub struct DemoReader<'a, P: for<'p> Protocol<'p>> {
+    raw: reader::Reader<'a>,
     delta: Delta,
     snap: Snap,
     old_snap: Snap,
@@ -84,10 +84,10 @@ pub enum Chunk<'a, P: Protocol<'a>> {
     Invalid,
 }
 
-impl<P: for<'a> Protocol<'a>> DemoReader<P> {
+impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
     pub fn new<R, W>(data: R, warn: &mut W) -> Result<Self, ReadError>
     where
-        R: io::Read + io::Seek + 'static,
+        R: io::Read + io::Seek + 'a,
         W: Warn<Warning>,
     {
         let reader = reader::Reader::new(data, wrap(warn))?;
@@ -146,7 +146,7 @@ impl<P: for<'a> Protocol<'a>> DemoReader<P> {
         }
     }
 
-    pub fn inner(&self) -> &reader::Reader {
+    pub fn inner(&'a self) -> &'a reader::Reader {
         &self.raw
     }
 }
