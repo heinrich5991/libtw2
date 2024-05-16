@@ -44,8 +44,8 @@ impl From<snap::BuilderError> for WriteError {
 /// DDNet demo writer.
 ///
 /// Automatically writes snapshot deltas.
-pub struct DemoWriter<P: for<'a> Protocol<'a>> {
-    inner: crate::Writer,
+pub struct DemoWriter<'a, P: for<'p> Protocol<'p>> {
+    inner: crate::Writer<'a>,
     // To verify the monotonic increase
     last_tick: i32,
     // Stores the last tick, in which a snapshot was written.
@@ -94,8 +94,8 @@ impl UuidIndex {
     }
 }
 
-impl<P: for<'a> Protocol<'a>> DemoWriter<P> {
-    pub fn new<T: io::Write + io::Seek + 'static>(
+impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
+    pub fn new<T: io::Write + io::Seek + 'a>(
         file: T,
         net_version: &[u8],
         map_name: &[u8],
@@ -132,7 +132,7 @@ impl<P: for<'a> Protocol<'a>> DemoWriter<P> {
         })
     }
 
-    pub fn write_snap<'a, T: Iterator<Item = (&'a P::SnapObj, u16)>>(
+    pub fn write_snap<'b, T: Iterator<Item = (&'b P::SnapObj, u16)>>(
         &mut self,
         tick: i32,
         items: T,
