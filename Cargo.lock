@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-demo"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "arrayvec 0.5.2",
  "binrw",
@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-ddnet"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-snap"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",
@@ -890,7 +890,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-5"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -904,7 +904,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -918,7 +918,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-7"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -932,7 +932,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-huffman"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "arrayvec 0.5.2",
  "bencher",
@@ -981,7 +981,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-net"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "arrayvec 0.5.2",
  "buffer",
@@ -1064,7 +1064,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-snapshot"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "buffer",
  "pre-rfc3243-libtw2-common",

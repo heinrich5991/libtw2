@@ -178,32 +178,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
 
 [[package]]
-name = "libtw2-common"
-version = "0.0.1"
-dependencies = [
- "arrayvec",
- "zerocopy",
-]
-
-[[package]]
-name = "libtw2-huffman"
-version = "0.0.1"
-dependencies = [
- "arrayvec",
- "buffer",
- "itertools",
- "libtw2-common",
-]
-
-[[package]]
-name = "libtw2-uniffi-huffman"
-version = "0.2.0"
-dependencies = [
- "libtw2-huffman",
- "uniffi",
-]
-
-[[package]]
 name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -276,6 +250,32 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "pre-rfc3243-libtw2-common"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-huffman"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "buffer",
+ "itertools",
+ "pre-rfc3243-libtw2-common",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-uniffi-huffman"
+version = "0.2.0"
+dependencies = [
+ "pre-rfc3243-libtw2-huffman",
+ "uniffi",
+]
 
 [[package]]
 name = "proc-macro2"
