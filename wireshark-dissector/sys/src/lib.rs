@@ -100,6 +100,7 @@ pub type GHashTable = u8;
 pub type GSList = [u64; 2usize];
 #[doc = " A public opaque type representing one wmem allocation pool."]
 pub type wmem_allocator_t = u8;
+#[cfg_attr(windows, link(name = "libwsutil.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Allocate the requested amount of memory in the given pool.\n\n @param allocator The allocator object to use to allocate the memory.\n @param size The amount of memory to allocate.\n @return A void pointer to the newly allocated memory."]
     pub fn wmem_alloc(allocator: *mut wmem_allocator_t, size: usize)
@@ -227,6 +228,7 @@ fn bindgen_test_layout__e_guid_t() {
 }
 pub type e_guid_t = _e_guid_t;
 pub type tvbuff_t = u8;
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn tvb_new_child_real_data(
         parent: *mut tvbuff_t,
@@ -235,13 +237,16 @@ extern "C" {
         reported_length: gint,
     ) -> *mut tvbuff_t;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Similar to tvb_new_subset_length_caplen() but with backing_length and reported_length set\n to -1.  Can throw ReportedBoundsError."]
     pub fn tvb_new_subset_remaining(backing: *mut tvbuff_t, backing_offset: gint) -> *mut tvbuff_t;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn tvb_reported_length(tvb: *const tvbuff_t) -> guint;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Returns target for convenience. Does not suffer from possible\n expense of tvb_get_ptr(), since this routine is smart enough\n to copy data in chunks if the request range actually exists in\n different \"real\" tvbuffs. This function assumes that the target\n memory is already allocated; it does not allocate or free the\n target memory."]
     pub fn tvb_memcpy(
@@ -1708,22 +1713,27 @@ fn bindgen_test_layout_proto_plugin() {
         )
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Register dissector plugin with the plugin system."]
     pub fn proto_register_plugin(plugin: *const proto_plugin);
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Create a subtree under an existing item.\n@param pi the parent item of the new subtree\n@param idx one of the ett_ array elements registered with proto_register_subtree_array()\n@return the new subtree"]
     pub fn proto_item_add_subtree(pi: *mut proto_item, idx: gint) -> *mut proto_tree;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Replace text of item after it already has been created.\n@param pi the item to set the text\n@param format printf like format string\n@param ... printf like parameters"]
     pub fn proto_item_set_text(pi: *mut proto_item, format: *const ::std::os::raw::c_char, ...);
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Append to text of item after it has already been created.\n@param pi the item to append the text to\n@param format printf like format string\n@param ... printf like parameters"]
     pub fn proto_item_append_text(pi: *mut proto_item, format: *const ::std::os::raw::c_char, ...);
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn proto_tree_add_item(
         tree: *mut proto_tree,
@@ -1734,6 +1744,7 @@ extern "C" {
         encoding: guint,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_NONE field to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_none_format(
@@ -1746,6 +1757,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_BYTES to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param start_ptr pointer to the data to display\n@return the newly created item"]
     pub fn proto_tree_add_bytes(
@@ -1757,6 +1769,7 @@ extern "C" {
         start_ptr: *const guint8,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_BYTES to a proto_tree like proto_tree_add_bytes,\nbut used when the tvb data length does not match the bytes length.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param start_ptr pointer to the data to display\n@param ptr_length length of data in start_ptr\n@return the newly created item"]
     pub fn proto_tree_add_bytes_with_length(
@@ -1769,6 +1782,7 @@ extern "C" {
         ptr_length: gint,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_BYTES to a proto_tree, with the format generating\nthe entire string for the entry, including any field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param start_ptr pointer to the data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_bytes_format(
@@ -1782,6 +1796,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_GUID to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value_ptr data to display\n@return the newly created item"]
     pub fn proto_tree_add_guid(
@@ -1793,6 +1808,7 @@ extern "C" {
         value_ptr: *const e_guid_t,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_GUID to a proto_tree, with the format generating\nthe entire string for the entry, including any field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value_ptr data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_guid_format(
@@ -1806,6 +1822,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add an FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC to a\nproto_tree. The value passed in should be a UTF-8 encoded null terminated\nstring, such as produced by tvb_get_string_enc(), regardless of the original\npacket data.\n\nThis function is used to add a custom string *value* to the protocol tree.\nDo not format the string value for display, for example by using format_text().\nThe input string represents packet data, not a display label. Formatting\nlabels is a concern of the UI. Doing that here would change the meaning of the packet\ndata, restrict the options for formatting later and make display filtering unintuitive\nfor whitespace and other special characters.\n\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@return the newly created item"]
     pub fn proto_tree_add_string(
@@ -1817,6 +1834,7 @@ extern "C" {
         value: *const ::std::os::raw::c_char,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_STRING, FT_STRINGZ, FT_STRINGZPAD, or FT_STRINGZTRUNC\nto a proto_tree, with the format generating the entire string for the\nentry, including any field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_string_format(
@@ -1830,6 +1848,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_BOOLEAN to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@return the newly created item"]
     pub fn proto_tree_add_boolean(
@@ -1841,6 +1860,7 @@ extern "C" {
         value: guint32,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_BOOLEAN to a proto_tree, with the format generating\nthe entire string for the entry, including any field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_boolean_format(
@@ -1854,6 +1874,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a FT_FLOAT to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@return the newly created item"]
     pub fn proto_tree_add_float(
@@ -1865,6 +1886,7 @@ extern "C" {
         value: f32,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_FLOAT to a proto_tree, with the format generating\nthe entire string for the entry, including any field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_float_format(
@@ -1878,6 +1900,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add one of FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@return the newly created item"]
     pub fn proto_tree_add_uint(
@@ -1889,6 +1912,7 @@ extern "C" {
         value: guint32,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_UINT8, FT_UINT16, FT_UINT24 or FT_UINT32 to a proto_tree,\nwith the format generating the entire string for the entry, including any\nfield name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_uint_format(
@@ -1902,6 +1926,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add one of FT_INT8, FT_INT16, FT_INT24 or FT_INT32 to a proto_tree.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@return the newly created item"]
     pub fn proto_tree_add_int(
@@ -1913,6 +1938,7 @@ extern "C" {
         value: gint32,
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a formatted FT_INT8, FT_INT16, FT_INT24 or FT_INT32 to a proto_tree,\nwith the format generating the entire string for the entry, including\nany field name.\n@param tree the tree to append this item to\n@param hfindex field index\n@param tvb the tv buffer of the current data\n@param start start of data in tvb\n@param length length of data in tvb\n@param value data to display\n@param format printf like format string\n@param ... printf like parameters\n@return the newly created item"]
     pub fn proto_tree_add_int_format(
@@ -1926,6 +1952,7 @@ extern "C" {
         ...
     ) -> *mut proto_item;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Register a new protocol.\n@param name the full name of the new protocol\n@param short_name abbreviated name of the new protocol\n@param filter_name protocol name used for a display filter string\n@return the new protocol handle"]
     pub fn proto_register_protocol(
@@ -1934,6 +1961,7 @@ extern "C" {
         filter_name: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Register a header_field array.\n@param parent the protocol handle from proto_register_protocol()\n@param hf the hf_register_info array\n@param num_records the number of records in hf"]
     pub fn proto_register_field_array(
@@ -1942,6 +1970,7 @@ extern "C" {
         num_records: ::std::os::raw::c_int,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Register a protocol subtree (ett) array.\n@param indices array of ett indices\n@param num_indices the number of records in indices"]
     pub fn proto_register_subtree_array(
@@ -2041,6 +2070,7 @@ fn bindgen_test_layout_epan_range() {
 pub struct epan_column_info {
     _unused: [u8; 0],
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn epan_get_version() -> *const gchar;
 }
@@ -2141,14 +2171,17 @@ pub const COL_CLS_TIME: _bindgen_ty_21 = 45;
 pub const NUM_COL_FMTS: _bindgen_ty_21 = 46;
 #[doc = " All of the possible columns in summary listing.\n\n NOTE1: The entries MUST remain in this order, or else you need to reorder\n        the slist[] and dlist[] arrays in column.c to match!\n\n NOTE2: Please add the COL_XYZ entry in the appropriate spot, such that the\n        dlist[] array remains in alphabetical order!"]
 pub type _bindgen_ty_21 = ::std::os::raw::c_uint;
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Clears the text of a column element.\n\n @param cinfo the current packet row\n @param col the column to use, e.g. COL_INFO"]
     pub fn col_clear(cinfo: *mut column_info, col: gint);
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Set (replace) the text of a column element, the text won't be formatted or copied.\n\n Use this for simple static strings like protocol names. Don't use for untrusted strings\n or strings that may contain unprintable characters.\n\n Usually used to set const strings!\n\n @param cinfo the current packet row\n @param col the column to use, e.g. COL_INFO\n @param str the string to set"]
     pub fn col_set_str(cinfo: *mut column_info, col: gint, str_: *const gchar);
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add (replace) the text of a column element, the text will be formatted and copied.\n\n Unprintable characters according to isprint() are escaped.\n\n @param cinfo the current packet row\n @param col the column to use, e.g. COL_INFO\n @param str the string to add"]
     pub fn col_add_str(cinfo: *mut column_info, col: gint, str_: *const gchar);
@@ -2179,6 +2212,7 @@ pub type heur_dissector_t = ::std::option::Option<
 pub const HEURISTIC_DISABLE: heuristic_enable_e = 0;
 pub const HEURISTIC_ENABLE: heuristic_enable_e = 1;
 pub type heuristic_enable_e = ::std::os::raw::c_uint;
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_uint(
         name: *const ::std::os::raw::c_char,
@@ -2186,6 +2220,7 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_uint_with_preference(
         name: *const ::std::os::raw::c_char,
@@ -2193,6 +2228,7 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_uint_range(
         abbrev: *const ::std::os::raw::c_char,
@@ -2200,6 +2236,7 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_uint_range_with_preference(
         abbrev: *const ::std::os::raw::c_char,
@@ -2207,6 +2244,7 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_string(
         name: *const ::std::os::raw::c_char,
@@ -2214,6 +2252,7 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_custom_table_handle(
         name: *const ::std::os::raw::c_char,
@@ -2263,6 +2302,7 @@ fn bindgen_test_layout__guid_key() {
     );
 }
 pub type guid_key = _guid_key;
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_guid(
         name: *const ::std::os::raw::c_char,
@@ -2270,18 +2310,21 @@ extern "C" {
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_for_decode_as(
         name: *const ::std::os::raw::c_char,
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn dissector_add_for_decode_as_with_preference(
         name: *const ::std::os::raw::c_char,
         handle: dissector_handle_t,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Add a sub-dissector to a heuristic dissector list.\n  Call this in the proto_handoff function of the sub-dissector.\n\n @param name the name of the heuristic dissector table into which to register the dissector, e.g. \"tcp\"\n @param dissector the sub-dissector to be registered\n @param display_name the string used to present heuristic to user, e.g. \"HTTP over TCP\"\n @param internal_name the string used for \"internal\" use to identify heuristic, e.g. \"http_tcp\"\n @param proto the protocol id of the sub-dissector\n @param enable initially enabled or not"]
     pub fn heur_dissector_add(
@@ -2293,6 +2336,7 @@ extern "C" {
         enable: heuristic_enable_e,
     );
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " Create an anonymous handle for a dissector."]
     pub fn create_dissector_handle(
@@ -2300,6 +2344,7 @@ extern "C" {
         proto: ::std::os::raw::c_int,
     ) -> dissector_handle_t;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn add_new_data_source(
         pinfo: *mut packet_info,
@@ -2636,10 +2681,12 @@ pub type conversation_t = conversation;
 pub struct conversation_addr_port_endpoints {
     _unused: [u8; 0],
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     #[doc = " A helper function that calls find_conversation() and, if a conversation is\n not found, calls conversation_new().\n The frame number and addresses are taken from pinfo.\n No options are used, though we could extend this API to include an options\n parameter.\n\n @param pinfo Packet info.\n @return The existing or new conversation."]
     pub fn find_or_create_conversation(pinfo: *mut packet_info) -> *mut conversation_t;
 }
+#[cfg_attr(windows, link(name = "libwireshark.dll", kind = "raw-dylib"))]
 extern "C" {
     pub fn conversation_set_dissector(
         conversation: *mut conversation_t,
