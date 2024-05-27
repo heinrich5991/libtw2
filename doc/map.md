@@ -383,11 +383,11 @@ item_data extension for tilemap layers:
 - all tile types have the `id` byte, which identifies its use
     - for example in the game layer, 0 is air, 1 is hookable, etc.
 - many have a `flags` byte, which is a bitflag with the following bits:
-    - 2^0 -> vertical flip
-    - 2^1 -> horizontal flip
+    - 2^0 -> horizontal flip (left-right switch)
+    - 2^1 -> vertical flip (up-down switch)
     - 2^2 -> opaque
     - 2^3 -> 90° rotation
-    - order of flips and rotations: vertical flip -> horizontal flip -> rotation
+    - order of flips and rotations: horizontal flip -> vertical flip -> rotation
 
 ```
 'Tile' tile type (consisting of bytes, used by all vanilla layers and the front layer):
