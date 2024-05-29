@@ -370,6 +370,9 @@ impl<'a> Packet<'a> {
         let (header, payload) =
             unwrap_or_return!(PacketHeaderPacked::ref_and_rest_from(packet), false);
         let header = header.unpack_warn(&mut Ignore);
+        if header.flags & PACKETFLAG_CONNLESS != 0 {
+            return true;
+        }
         let ctrl = payload.first().copied();
         header.flags & !PACKETFLAG_REQUEST_RESEND == PACKETFLAG_CONTROL
             && (ctrl == Some(CTRLMSG_CONNECT) || ctrl == Some(CTRLMSG_ACCEPT))
