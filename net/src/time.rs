@@ -21,7 +21,7 @@ impl Timestamp {
     }
     pub fn from_secs_since_epoch(secs: u64) -> Timestamp {
         Timestamp {
-            usec: secs.checked_mul(1_000_000_000).unwrap(),
+            usec: secs.checked_mul(1_000_000).unwrap(),
         }
     }
     pub fn from_usecs_since_epoch(usecs: u64) -> Timestamp {
@@ -40,9 +40,9 @@ impl ops::Add<Duration> for Timestamp {
                 .checked_add(
                     duration
                         .as_secs()
-                        .checked_mul(1_000_000_000)
+                        .checked_mul(1_000_000)
                         .unwrap()
-                        .checked_add(duration.subsec_nanos().u64())
+                        .checked_add((duration.subsec_nanos().u64() + 999) / 1_000)
                         .unwrap(),
                 )
                 .unwrap(),
