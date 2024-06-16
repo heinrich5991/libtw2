@@ -1,0 +1,27 @@
+name: Pip huffman
+
+on: [push, pull_request]
+
+jobs:
+  pip:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade build
+    - name: Install huffman pip package
+      run: |
+        cd uniffi/huffman
+        python -m build
+        pip install dist/libtw2_huffman-*.tar.gz
+        python -c "import libtw2_huffman;assert libtw2_huffman.decompress(b'\xae\x95\x13\x5c\x09\x57\xc2\x16\x29\x6e\x00') == b'hello'"
+
