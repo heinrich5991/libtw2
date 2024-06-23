@@ -370,7 +370,17 @@ pub struct MapData<'a> {
 
 #[derive(Clone, Copy)]
 pub struct ServerInfo<'a> {
-    pub data: &'a [u8],
+    pub version: &'a [u8],
+    pub name: &'a [u8],
+    pub hostname: &'a [u8],
+    pub map: &'a [u8],
+    pub game_type: &'a [u8],
+    pub flags: i32,
+    pub skill_level: i32,
+    pub num_players: i32,
+    pub max_players: i32,
+    pub num_clients: i32,
+    pub max_clients: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -561,20 +571,50 @@ impl<'a> fmt::Debug for MapData<'a> {
 impl<'a> ServerInfo<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<ServerInfo<'a>, Error> {
         let result = Ok(ServerInfo {
-            data: _p.read_rest()?,
+            version: _p.read_string()?,
+            name: _p.read_string()?,
+            hostname: _p.read_string()?,
+            map: _p.read_string()?,
+            game_type: _p.read_string()?,
+            flags: _p.read_int(warn)?,
+            skill_level: _p.read_int(warn)?,
+            num_players: _p.read_int(warn)?,
+            max_players: _p.read_int(warn)?,
+            num_clients: _p.read_int(warn)?,
+            max_clients: _p.read_int(warn)?,
         });
         _p.finish(warn);
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_rest(self.data)?;
+        _p.write_string(self.version)?;
+        _p.write_string(self.name)?;
+        _p.write_string(self.hostname)?;
+        _p.write_string(self.map)?;
+        _p.write_string(self.game_type)?;
+        _p.write_int(self.flags)?;
+        _p.write_int(self.skill_level)?;
+        _p.write_int(self.num_players)?;
+        _p.write_int(self.max_players)?;
+        _p.write_int(self.num_clients)?;
+        _p.write_int(self.max_clients)?;
         Ok(_p.written())
     }
 }
 impl<'a> fmt::Debug for ServerInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ServerInfo")
-            .field("data", &pretty::Bytes::new(&self.data))
+            .field("version", &pretty::Bytes::new(&self.version))
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("hostname", &pretty::Bytes::new(&self.hostname))
+            .field("map", &pretty::Bytes::new(&self.map))
+            .field("game_type", &pretty::Bytes::new(&self.game_type))
+            .field("flags", &self.flags)
+            .field("skill_level", &self.skill_level)
+            .field("num_players", &self.num_players)
+            .field("max_players", &self.max_players)
+            .field("num_clients", &self.num_clients)
+            .field("max_clients", &self.max_clients)
             .finish()
     }
 }

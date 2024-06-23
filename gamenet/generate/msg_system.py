@@ -70,7 +70,7 @@ SYSTEM_MSGS_0_7 = [
     ( 1, "info", "vital", "s:version s?:password i?:client_version"),
     ( 2, "map_change", "vital", "s:name i:crc i:size i:num_response_chunks_per_request i:chunk_size h:sha256"),
     ( 3, "map_data", "vital", "r:data"),
-    ( 4, "server_info", "vital", "r:data"),
+    ( 4, "server_info", "vital", "s:version s:name s:hostname s:map s:game_type i:flags i:skill_level i:num_players i:max_players i:num_clients i:max_clients"),
     ( 5, "con_ready", "vital", ""),
     ( 6, "snap", "", "i:tick i:delta_tick i:num_parts i:part i:crc d:data"),
     ( 7, "snap_empty", "", "i:tick i:delta_tick"),

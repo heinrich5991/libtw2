@@ -934,7 +934,17 @@
 			"id": 4,
 			"name": ["server", "info"],
 			"members": [
-				{"name": ["data"], "type": {"kind": "rest"}}
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["hostname"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": false}},
+				{"name": ["flags"], "type": {"kind": "int32"}},
+				{"name": ["skill", "level"], "type": {"kind": "int32"}},
+				{"name": ["num", "players"], "type": {"kind": "int32"}},
+				{"name": ["max", "players"], "type": {"kind": "int32"}},
+				{"name": ["num", "clients"], "type": {"kind": "int32"}},
+				{"name": ["max", "clients"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
 		},
