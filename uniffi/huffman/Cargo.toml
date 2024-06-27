@@ -1,6 +1,6 @@
 [package]
 name = "libtw2-uniffi-huffman"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
