@@ -29,7 +29,7 @@ Documentation
   the low-level file format of Teeworlds/DDNet demos (replays).
 - [huffman](doc/huffman.md). Homebrew compression format using [Huffman
   coding](https://en.wikipedia.org/wiki/Huffman_coding), used in demos and over
-  the network.
+  the network. Comes as a rust create but also has [python bindings](./uniffi/huffman/)
 - [int](doc/int.md). Definition of the [variable-length
   integer](https://en.wikipedia.org/wiki/Variable-length_quantity) used in
 Teeworlds/DDNet.
