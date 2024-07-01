@@ -1,8 +1,8 @@
 use libtw2_serverbrowse::protocol;
-use libtw2_serverbrowse::protocol::IpAddr;
 
 use std::fmt;
 use std::net;
+use std::net::IpAddr;
 
 /// Protocol version of the `SERVERBROWSE_GETINFO` packet.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -39,12 +39,7 @@ impl Addr {
     /// Converts the address to a socket address.
     pub fn to_socket_addr(self) -> net::SocketAddr {
         let srvbrowse_addr = self.to_srvbrowse_addr();
-        match srvbrowse_addr.ip_address {
-            IpAddr::V4(x) => net::SocketAddr::V4(net::SocketAddrV4::new(x, srvbrowse_addr.port)),
-            IpAddr::V6(x) => {
-                net::SocketAddr::V6(net::SocketAddrV6::new(x, srvbrowse_addr.port, 0, 0))
-            }
-        }
+        net::SocketAddr::new(srvbrowse_addr.ip_address, srvbrowse_addr.port)
     }
     /// Converts a socket address to an `Addr`.
     pub fn from_socket_addr(addr: net::SocketAddr) -> Addr {

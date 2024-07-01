@@ -7,6 +7,7 @@ use libtw2_packer::Unpacker;
 use std::default::Default;
 use std::fmt;
 use std::mem;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::str;
@@ -860,21 +861,6 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
 }
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum IpAddr {
-    V4(Ipv4Addr),
-    V6(Ipv6Addr),
-}
-
-impl IpAddr {
-    fn new_v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
-        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
-    }
-    fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> IpAddr {
-        IpAddr::V6(Ipv6Addr::new(a, b, c, d, e, f, g, h))
-    }
-}
-
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Addr {
     pub ip_address: IpAddr,
     pub port: u16,
@@ -882,15 +868,9 @@ pub struct Addr {
 
 impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.ip_address, self.port)
-    }
-}
-
-impl fmt::Debug for IpAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            IpAddr::V4(i) => write!(f, "{}", i),
-            IpAddr::V6(i) => write!(f, "[{}]", i),
+        match self.ip_address {
+            IpAddr::V4(..) => write!(f, "{}:{}", self.ip_address, self.port),
+            IpAddr::V6(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
         }
     }
 }
@@ -919,12 +899,6 @@ impl fmt::Display for Addr {
     }
 }
 
-impl fmt::Display for IpAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
-}
-
 #[test]
 fn check_alignment_addr5_packed() {
     assert_eq!(mem::align_of::<Addr5Packed>(), 1);
@@ -934,7 +908,8 @@ impl Addr5Packed {
     pub fn unpack(self) -> Addr {
         let Addr5Packed { ip_address, port } = self;
         Addr {
-            ip_address: IpAddr::new_v4(ip_address[0], ip_address[1], ip_address[2], ip_address[3]),
+            ip_address: Ipv4Addr::new(ip_address[0], ip_address[1], ip_address[2], ip_address[3])
+                .into(),
             port: port.get(),
         }
     }
@@ -951,7 +926,7 @@ impl Addr6Packed {
         let (maybe_ipv4_mapping, ipv4_address) = ip_address.split_at(IPV4_MAPPING.len());
         let new_address = if maybe_ipv4_mapping != IPV4_MAPPING {
             let ip_address: [big_endian::U16; 8] = unsafe { mem::transmute(ip_address) };
-            IpAddr::new_v6(
+            Ipv6Addr::new(
                 ip_address[0].get(),
                 ip_address[1].get(),
                 ip_address[2].get(),
@@ -961,13 +936,15 @@ impl Addr6Packed {
                 ip_address[6].get(),
                 ip_address[7].get(),
             )
+            .into()
         } else {
-            IpAddr::new_v4(
+            Ipv4Addr::new(
                 ipv4_address[0],
                 ipv4_address[1],
                 ipv4_address[2],
                 ipv4_address[3],
             )
+            .into()
         };
         Addr {
             ip_address: new_address,
