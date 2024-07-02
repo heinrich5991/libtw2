@@ -180,6 +180,22 @@ impl Default for Spec {
     }
 }
 
+macro_rules! bformat_impl {
+    ($arrayvec:expr, $vec:expr, $fmt:expr, $($args:tt)*) => {{
+        let arrayvec = &mut $arrayvec;
+        let vec = &mut $vec;
+        arrayvec.clear();
+        let success = write!(arrayvec, $fmt, $($args)*).is_ok();
+        let success = success && arrayvec.try_push(0).is_ok();
+        if success {
+            CStr::from_bytes_with_nul(&arrayvec).unwrap().as_ptr()
+        } else {
+            write!(vec, $fmt, $($args)*).unwrap();
+            vec.push(0);
+            CStr::from_bytes_with_nul(&vec).unwrap().as_ptr()
+        }
+    }};
+}
 const PERCENT_S: &'static [u8] = b"%s\0";
 const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
 
@@ -334,13 +350,11 @@ impl Spec {
         summary: &mut dyn FnMut(&str),
     ) {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
-            ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
-            }};
+            ($fmt:expr, $($args:tt)*) => {
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
+            };
         }
 
         let original_data = p.as_slice();
@@ -442,12 +456,10 @@ impl Spec {
         summary: &mut dyn FnMut(&str),
     ) {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
             }};
         }
 
@@ -811,12 +823,10 @@ impl Type {
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
             }};
         }
 
