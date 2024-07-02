@@ -14,8 +14,7 @@ doc = false
 arrayvec = { version = "0.5.2", features = ["serde"] }
 base64 = "0.13.0"
 clap = "2.23.1"
-csv = "1.1.6"
-ipnet = { version = "2.3.0", features = ["serde"] }
+libloc = { version = "0.1.1", default-features = false, features = ["compat-0-1-1"] }
 libtw2-common = { path = "../common/" }
 libtw2-logger = { path = "../logger/" }
 libtw2-serverbrowse = { path = "../serverbrowse/" }

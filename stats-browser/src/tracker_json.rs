@@ -2,7 +2,7 @@ use crate::addr::ProtocolVersion;
 use crate::addr::ServerAddr;
 use crate::StatsBrowserCb;
 use arrayvec::ArrayString;
-use ipnet::Ipv4Net;
+use libloc::Locations;
 use libtw2_serverbrowse::protocol::ClientInfo;
 use libtw2_serverbrowse::protocol::ServerInfo;
 use serde_derive::Deserialize;
@@ -16,7 +16,6 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
 use std::mem;
-use std::net::IpAddr;
 use std::process;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -168,12 +167,6 @@ impl Timekeeper {
     }
 }
 
-#[derive(Deserialize)]
-struct LocationRecord {
-    network: Ipv4Net,
-    location: ArrayString<[u8; 15]>,
-}
-
 pub struct ServerEntry {
     location: Option<ArrayString<[u8; 15]>>,
     info: Option<json::ServerInfo>,
@@ -182,7 +175,7 @@ pub struct ServerEntry {
 
 pub struct Tracker {
     filename: String,
-    locations: Vec<LocationRecord>,
+    locations: Option<Locations>,
     secret_seed: Uuid,
     servers: Arc<Mutex<HashMap<ServerAddr, ServerEntry>>>,
     timekeeper: Timekeeper,
@@ -200,16 +193,10 @@ impl Tracker {
         locations_filename: Option<String>,
         secret_seed: Option<Uuid>,
     ) -> Tracker {
-        let locations: Result<Vec<_>, _>;
-        if let Some(l) = locations_filename {
-            let mut locations_reader = csv::Reader::from_path(l).unwrap();
-            locations = locations_reader.deserialize().collect();
-        } else {
-            locations = Ok(Vec::new());
-        }
+        let locations = locations_filename.map(|filename| Locations::open(filename).unwrap());
         Tracker {
             filename,
-            locations: locations.unwrap(),
+            locations,
             secret_seed: secret_seed.unwrap_or_else(Uuid::new_v4),
             servers: Default::default(),
             timekeeper: Timekeeper::new(),
@@ -218,7 +205,7 @@ impl Tracker {
     pub fn start(&mut self) {
         let mut tracker_thread = Tracker {
             filename: mem::replace(&mut self.filename, String::new()),
-            locations: Vec::new(),
+            locations: None,
             secret_seed: self.secret_seed,
             servers: self.servers.clone(),
             timekeeper: self.timekeeper,
@@ -226,16 +213,17 @@ impl Tracker {
         thread::spawn(move || tracker_thread.handle_writeout());
     }
     fn lookup_location(&self, addr: ServerAddr) -> Option<ArrayString<[u8; 15]>> {
-        let ip_addr = match addr.addr.to_srvbrowse_addr().ip_address {
-            IpAddr::V4(a) => a,
-            IpAddr::V6(_) => return None, // sad smiley
-        };
-        for LocationRecord { network, location } in &self.locations {
-            if network.contains(&ip_addr) {
-                return Some(*location);
-            }
-        }
-        None
+        self.locations.as_ref().and_then(|locations| {
+            let ip_addr = addr.addr.to_srvbrowse_addr().ip_address;
+            let country_code = locations.lookup(ip_addr)?.country_code();
+            let continent_code = locations.country(country_code)?.continent_code();
+            let mut result = ArrayString::new();
+            result.push_str(continent_code);
+            result.push_str(":");
+            result.push_str(country_code);
+            result.make_ascii_lowercase();
+            Some(result)
+        })
     }
     fn handle_writeout(&mut self) {
         let temp_filename = format!("{}.tmp.{}", self.filename, process::id());
