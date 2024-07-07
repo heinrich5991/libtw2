@@ -1,3 +1,4 @@
+use libtw2_common::digest::Sha256;
 use libtw2_gamenet_common::snap_obj::TypeId;
 use libtw2_gamenet_common::traits;
 use libtw2_gamenet_common::traits::MessageExt as _;
@@ -21,6 +22,7 @@ use warn::Warn;
 
 use crate::format;
 use crate::reader;
+use crate::DemoKind;
 use crate::RawChunk;
 
 #[derive(Error, Debug)]
@@ -29,12 +31,10 @@ pub enum ReadError {
     Inner(#[from] reader::ReadError),
     #[error("Snap parsing - {0:?}")]
     Snap(snap::Error),
-    #[error("Uuid item has an incorrect size")]
+    #[error("UUID item has an incorrect size")]
     UuidItemLength,
-    #[error("Uuid type id that is not registered")]
+    #[error("Extended type ID that is not registered")]
     UnregisteredUuidTypeId,
-    #[error("Chunk types are not in the proper order")]
-    ChunkOrder,
 }
 
 pub struct DemoReader<'a, P: for<'p> Protocol<'p>> {
@@ -102,6 +102,40 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
         })
     }
 
+    pub fn version(&self) -> format::Version {
+        self.raw.version()
+    }
+    pub fn net_version(&self) -> &[u8] {
+        self.raw.net_version()
+    }
+    pub fn map_name(&self) -> &[u8] {
+        self.raw.map_name()
+    }
+    pub fn map_size(&self) -> u32 {
+        self.raw.map_size()
+    }
+    pub fn map_data(&self) -> &[u8] {
+        self.raw.map_data()
+    }
+    pub fn map_crc(&self) -> u32 {
+        self.raw.map_crc()
+    }
+    pub fn kind(&self) -> DemoKind {
+        self.raw.kind()
+    }
+    pub fn length(&self) -> i32 {
+        self.raw.length()
+    }
+    pub fn timestamp(&self) -> &[u8] {
+        self.raw.timestamp()
+    }
+    pub fn timeline_markers(&self) -> &[i32] {
+        self.raw.timeline_markers()
+    }
+    pub fn map_sha256(&self) -> Option<Sha256> {
+        self.raw.map_sha256()
+    }
+
     pub fn next_chunk<W: Warn<Warning>>(
         &mut self,
         warn: &mut W,
@@ -144,10 +178,6 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
                 Ok(Some(Chunk::Snapshot(self.snapshot.objects.iter())))
             }
         }
-    }
-
-    pub fn inner(&'a self) -> &'a reader::Reader {
-        &self.raw
     }
 }
 

@@ -70,14 +70,14 @@ fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
     let mut reader = ddnet::DemoReader::<DDNet>::new(input_file, &mut warn::Log)?;
     let mut writer = ddnet::DemoWriter::<DDNet>::new(
         output_file,
-        reader.inner().net_version(),
-        reader.inner().map_name(),
-        reader.inner().map_sha256(),
-        reader.inner().map_crc(),
-        reader.inner().kind(),
-        reader.inner().length(),
-        reader.inner().timestamp(),
-        reader.inner().map_data(),
+        reader.net_version(),
+        reader.map_name(),
+        reader.map_sha256(),
+        reader.map_crc(),
+        reader.kind(),
+        reader.length(),
+        reader.timestamp(),
+        reader.map_data(),
     )?;
     let mut last_tick = None;
     while let Some(chunk) = reader.next_chunk(&mut warn::Log)? {
