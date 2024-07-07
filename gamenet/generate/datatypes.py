@@ -946,6 +946,7 @@ class Struct(NameValues):
             "libtw2_packer::Warning",
             "std::fmt",
             "warn::Warn",
+            "warn::wrap",
         )
         if suffix:
             suffix = "_msg"
@@ -961,7 +962,7 @@ class Struct(NameValues):
             print("        });")
         else:
             print("        let result = Ok({});".format(title(self.name)))
-        print("        _p.finish(warn);")
+        print("        _p.finish(wrap(warn));")
         print("        result")
         print("    }")
         print("    pub fn encode{}<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {{".format(suffix, title(self.name), l=self.lifetime()))

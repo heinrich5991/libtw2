@@ -5,6 +5,7 @@ use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use std::fmt;
+use warn::wrap;
 use warn::Warn;
 
 pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;
@@ -63,7 +64,7 @@ impl<'a> Snap<'a> {
             crc: _p.read_int(warn)?,
             data: _p.read_data(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -95,7 +96,7 @@ impl SnapEmpty {
             tick: _p.read_int(warn)?,
             delta_tick: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -124,7 +125,7 @@ impl<'a> SnapSingle<'a> {
             crc: _p.read_int(warn)?,
             data: _p.read_data(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {

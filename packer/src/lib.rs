@@ -249,15 +249,15 @@ impl<'a> Unpacker<'a> {
     pub fn read_uuid(&mut self) -> Result<Uuid, UnexpectedEnd> {
         Ok(Uuid::from_slice(self.read_raw(mem::size_of::<Uuid>())?).unwrap())
     }
-    pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
+    pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
         if !self.demo {
             if !self.is_empty() {
-                warn.warn(Warning::ExcessData);
+                warn.warn(ExcessData);
             }
         } else {
             let rest = self.as_slice();
             if rest.len() >= 4 || rest.iter().any(|&b| b != 0) {
-                warn.warn(Warning::ExcessData);
+                warn.warn(ExcessData);
             }
         }
         self.use_up();
@@ -418,6 +418,7 @@ mod test {
     use arrayvec::ArrayVec;
     use quickcheck::quickcheck;
     use std::i32;
+    use super::ExcessData;
     use super::Unpacker;
     use super::Warning::*;
     use super::Warning;

@@ -13,6 +13,7 @@ use std::fmt;
 use std::slice::from_ref;
 use uuid::Uuid;
 use warn::Warn;
+use warn::wrap;
 
 pub use libtw2_gamenet_common::snap_obj::Tick;
 pub use libtw2_gamenet_common::snap_obj::TypeId;
@@ -896,7 +897,7 @@ impl PlayerInput {
             next_weapon: _p.read_int(warn)?,
             prev_weapon: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {

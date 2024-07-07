@@ -16,6 +16,7 @@ use super::SystemOrGame;
 use uuid::Uuid;
 use warn::Panic;
 use warn::Warn;
+use warn::wrap;
 
 pub use libtw2_gamenet_common::msg::TuneParam;
 
@@ -788,7 +789,7 @@ impl<'a> SvMotd<'a> {
         let result = Ok(SvMotd {
             message: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -809,7 +810,7 @@ impl<'a> SvBroadcast<'a> {
         let result = Ok(SvBroadcast {
             message: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -832,7 +833,7 @@ impl<'a> SvChat<'a> {
             client_id: in_range(_p.read_int(warn)?, -1, 63)?,
             message: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -863,7 +864,7 @@ impl SvKillMsg {
             weapon: in_range(_p.read_int(warn)?, -3, 5)?,
             mode_special: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -893,7 +894,7 @@ impl SvSoundGlobal {
         let result = Ok(SvSoundGlobal {
             sound_id: enums::Sound::from_i32(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -960,7 +961,7 @@ impl SvTuneParams {
             ground_elasticity_x: TuneParam(_p.read_int(warn)?),
             ground_elasticity_y: TuneParam(_p.read_int(warn)?),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1071,7 +1072,7 @@ impl fmt::Debug for SvTuneParams {
 impl Unused {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Unused, Error> {
         let result = Ok(Unused);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1088,7 +1089,7 @@ impl fmt::Debug for Unused {
 impl SvReadyToEnter {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvReadyToEnter, Error> {
         let result = Ok(SvReadyToEnter);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1107,7 +1108,7 @@ impl SvWeaponPickup {
         let result = Ok(SvWeaponPickup {
             weapon: enums::Weapon::from_i32(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1129,7 +1130,7 @@ impl SvEmoticon {
             client_id: in_range(_p.read_int(warn)?, 0, 63)?,
             emoticon: enums::Emoticon::from_i32(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1151,7 +1152,7 @@ impl fmt::Debug for SvEmoticon {
 impl SvVoteClearOptions {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteClearOptions, Error> {
         let result = Ok(SvVoteClearOptions);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1187,7 +1188,7 @@ impl<'a> SvVoteOptionListAdd<'a> {
                 sanitize(warn, _p.read_string()?)?,
             ],
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1216,7 +1217,7 @@ impl<'a> SvVoteOptionAdd<'a> {
         let result = Ok(SvVoteOptionAdd {
             description: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1238,7 +1239,7 @@ impl<'a> SvVoteOptionRemove<'a> {
         let result = Ok(SvVoteOptionRemove {
             description: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1262,7 +1263,7 @@ impl<'a> SvVoteSet<'a> {
             description: sanitize(warn, _p.read_string()?)?,
             reason: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1293,7 +1294,7 @@ impl SvVoteStatus {
             pass: in_range(_p.read_int(warn)?, 0, 64)?,
             total: in_range(_p.read_int(warn)?, 0, 64)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1325,7 +1326,7 @@ impl<'a> ClSay<'a> {
             team: to_bool(_p.read_int(warn)?)?,
             message: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1349,7 +1350,7 @@ impl ClSetTeam {
         let result = Ok(ClSetTeam {
             team: enums::Team::from_i32(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1370,7 +1371,7 @@ impl ClSetSpectatorMode {
         let result = Ok(ClSetSpectatorMode {
             spectator_id: in_range(_p.read_int(warn)?, -1, 63)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1398,7 +1399,7 @@ impl<'a> ClStartInfo<'a> {
             color_body: _p.read_int(warn)?,
             color_feet: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1440,7 +1441,7 @@ impl<'a> ClChangeInfo<'a> {
             color_body: _p.read_int(warn)?,
             color_feet: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1474,7 +1475,7 @@ impl<'a> fmt::Debug for ClChangeInfo<'a> {
 impl ClKill {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClKill, Error> {
         let result = Ok(ClKill);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1493,7 +1494,7 @@ impl ClEmoticon {
         let result = Ok(ClEmoticon {
             emoticon: enums::Emoticon::from_i32(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1514,7 +1515,7 @@ impl ClVote {
         let result = Ok(ClVote {
             vote: in_range(_p.read_int(warn)?, -1, 1)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1538,7 +1539,7 @@ impl<'a> ClCallVote<'a> {
             value: sanitize(warn, _p.read_string()?)?,
             reason: sanitize(warn, _p.read_string()?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1566,7 +1567,7 @@ impl ClIsDdnetLegacy {
         let result = Ok(ClIsDdnetLegacy {
             ddnet_version: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1589,7 +1590,7 @@ impl SvDdraceTimeLegacy {
             check: _p.read_int(warn)?,
             finish: in_range(_p.read_int(warn)?, 0, 1)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1616,7 +1617,7 @@ impl SvRecordLegacy {
             server_time_best: _p.read_int(warn)?,
             player_time_best: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1637,7 +1638,7 @@ impl fmt::Debug for SvRecordLegacy {
 impl Unused2 {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Unused2, Error> {
         let result = Ok(Unused2);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1721,7 +1722,7 @@ impl SvTeamsStateLegacy {
                 in_range(_p.read_int(warn)?, 0, 64)?,
             ],
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1747,7 +1748,7 @@ impl ClShowOthersLegacy {
         let result = Ok(ClShowOthersLegacy {
             show: to_bool(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1768,7 +1769,7 @@ impl SvMyOwnMessage {
         let result = Ok(SvMyOwnMessage {
             test: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1790,7 +1791,7 @@ impl ClShowDistance {
             x: _p.read_int(warn)?,
             y: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1813,7 +1814,7 @@ impl ClShowOthers {
         let result = Ok(ClShowOthers {
             show: in_range(_p.read_int(warn)?, 0, 2)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1900,7 +1901,7 @@ impl SvTeamsState {
                 in_range(_p.read_int(warn)?, 0, 64)?,
             ],
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1928,7 +1929,7 @@ impl SvDdraceTime {
             check: _p.read_int(warn)?,
             finish: in_range(_p.read_int(warn)?, 0, 1)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1955,7 +1956,7 @@ impl SvRecord {
             server_time_best: _p.read_int(warn)?,
             player_time_best: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1979,7 +1980,7 @@ impl SvKillMsgTeam {
             team: in_range(_p.read_int(warn)?, 0, 63)?,
             first: in_range(_p.read_int(warn)?, -1, 63)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {

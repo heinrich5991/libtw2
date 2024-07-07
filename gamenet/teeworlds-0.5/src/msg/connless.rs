@@ -8,6 +8,7 @@ use libtw2_packer::Warning;
 use libtw2_packer::with_packer;
 use std::fmt;
 use warn::Warn;
+use warn::wrap;
 
 impl Connless {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Connless, Error> {
@@ -149,7 +150,7 @@ pub struct ForwardError;
 impl ForwardCheck {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardCheck, Error> {
         let result = Ok(ForwardCheck);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -166,7 +167,7 @@ impl fmt::Debug for ForwardCheck {
 impl ForwardResponse {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardResponse, Error> {
         let result = Ok(ForwardResponse);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -183,7 +184,7 @@ impl fmt::Debug for ForwardResponse {
 impl ForwardOk {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardOk, Error> {
         let result = Ok(ForwardOk);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -200,7 +201,7 @@ impl fmt::Debug for ForwardOk {
 impl ForwardError {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardError, Error> {
         let result = Ok(ForwardError);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {

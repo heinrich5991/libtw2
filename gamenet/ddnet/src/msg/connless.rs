@@ -331,7 +331,7 @@ pub struct ForwardError;
 impl RequestList {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RequestList, Error> {
         let result = Ok(RequestList);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -350,7 +350,7 @@ impl<'a> List<'a> {
         let result = Ok(List {
             servers: AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -369,7 +369,7 @@ impl<'a> fmt::Debug for List<'a> {
 impl RequestCount {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RequestCount, Error> {
         let result = Ok(RequestCount);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -388,7 +388,7 @@ impl Count {
         let result = Ok(Count {
             count: { let s = _p.read_raw(2)?; u16::from_be_bytes([s[0], s[1]]) },
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -409,7 +409,7 @@ impl RequestInfo {
         let result = Ok(RequestInfo {
             token: _p.read_raw(1)?[0],
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -440,7 +440,7 @@ impl<'a> Info<'a> {
             max_clients: int_from_string(_p.read_string()?)?,
             clients: ClientsData::from_bytes(_p.read_rest()?),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -498,7 +498,7 @@ impl<'a> InfoExtended<'a> {
             reserved: sanitize(warn, _p.read_string()?)?,
             clients: ClientsData::from_bytes(_p.read_rest()?),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -553,7 +553,7 @@ impl<'a> InfoExtendedMore<'a> {
             reserved: sanitize(warn, _p.read_string()?)?,
             clients: ClientsData::from_bytes(_p.read_rest()?),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -581,7 +581,7 @@ impl Heartbeat {
         let result = Ok(Heartbeat {
             alt_port: { let s = _p.read_raw(2)?; u16::from_be_bytes([s[0], s[1]]) },
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -600,7 +600,7 @@ impl fmt::Debug for Heartbeat {
 impl ForwardCheck {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardCheck, Error> {
         let result = Ok(ForwardCheck);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -617,7 +617,7 @@ impl fmt::Debug for ForwardCheck {
 impl ForwardResponse {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardResponse, Error> {
         let result = Ok(ForwardResponse);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -634,7 +634,7 @@ impl fmt::Debug for ForwardResponse {
 impl ForwardOk {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardOk, Error> {
         let result = Ok(ForwardOk);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -651,7 +651,7 @@ impl fmt::Debug for ForwardOk {
 impl ForwardError {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ForwardError, Error> {
         let result = Ok(ForwardError);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
