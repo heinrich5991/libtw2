@@ -8,8 +8,8 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
+use libtw2_snapshot::Reader as SnapReader;
 use libtw2_snapshot::Snap;
-use libtw2_snapshot::SnapReader;
 use std::collections::HashMap;
 use std::io;
 use std::marker::PhantomData;
@@ -156,11 +156,10 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
             }
             Some(RawChunk::Snapshot(snap)) => {
                 let mut unpacker = Unpacker::new(snap);
-                let mut swap = Snap::empty();
-                mem::swap(&mut self.snap, &mut swap);
+                let builder = mem::replace(&mut self.snap, Snap::default()).recycle();
                 self.snap = self
                     .snap_reader
-                    .read(wrap(warn), swap, &mut unpacker)
+                    .read(wrap(warn), builder, &mut unpacker)
                     .unwrap();
                 self.snapshot.build::<P, _>(warn, &self.snap)?;
                 Ok(Some(Chunk::Snapshot(self.snapshot.objects.iter())))

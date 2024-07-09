@@ -11,8 +11,8 @@ pub use self::manager::Manager;
 pub use self::receiver::DeltaReceiver;
 pub use self::receiver::ReceivedDelta;
 pub use self::snap::Delta;
+pub use self::snap::Reader;
 pub use self::snap::Snap;
-pub use self::snap::SnapReader;
 pub use self::storage::Storage;
 
 fn to_usize(r: ops::Range<u32>) -> ops::Range<usize> {

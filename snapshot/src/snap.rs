@@ -255,7 +255,7 @@ impl Snap {
     }
 }
 
-pub struct SnapReader {
+pub struct Reader {
     sizes: Vec<i32>,
 }
 
@@ -263,14 +263,16 @@ fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, w: &mut W, e: Error) -> Resu
     p.read_int(wrap(w)).map_err(|_| e)
 }
 
-impl SnapReader {
-    pub fn new() -> SnapReader {
-        SnapReader { sizes: Vec::new() }
+impl Reader {
+    pub fn new() -> Reader {
+        Reader { sizes: Vec::new() }
     }
-    pub fn read<W>(&mut self, warn: &mut W, snap: Snap, p: &mut Unpacker) -> Result<Snap, Error>
-    where
-        W: Warn<Warning>,
-    {
+    pub fn read<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        mut builder: Builder,
+        p: &mut Unpacker,
+    ) -> Result<Snap, Error> {
         self.sizes.clear();
         let header = SnapHeader::decode(warn, p)?;
         let mut prev_offset = None;
@@ -294,7 +296,6 @@ impl SnapReader {
             self.sizes.push(header.data_size - last)
         }
 
-        let mut builder = snap.recycle();
         for size in &self.sizes {
             if *size % 4 != 0 {
                 return Err(Error::InvalidOffset);
@@ -306,7 +307,9 @@ impl SnapReader {
             let key = read_int_err(p, warn, Error::ItemsUnpacking)?;
             let type_id = key_to_type_id(key);
             let id = key_to_id(key);
-            builder.add_packed(warn, type_id, id, size.assert_usize() - 1, p)?;
+            for int in builder.add_item_raw(type_id, id, size.assert_usize() - 1)? {
+                *int = read_int_err(p, warn, Error::ItemsUnpacking)?;
+            }
         }
         assert!(p.is_empty());
         Ok(builder.finish())
@@ -517,22 +520,6 @@ impl Builder {
     pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
         self.add_item_raw(type_id, id, data.len())?
             .copy_from_slice(data);
-        Ok(())
-    }
-    fn add_packed<W>(
-        &mut self,
-        w: &mut W,
-        type_id: u16,
-        id: u16,
-        size: usize,
-        p: &mut Unpacker,
-    ) -> Result<(), Error>
-    where
-        W: Warn<Warning>,
-    {
-        for x in self.add_item_raw(type_id, id, size)? {
-            *x = read_int_err(p, w, Error::ItemsUnpacking)?;
-        }
         Ok(())
     }
     pub fn finish(self) -> Snap {
