@@ -68,7 +68,7 @@ impl UuidIndex {
         0x7fff - index
     }
 
-    /// The uuid items need to be inserted into every snap.
+    /// The UUID items need to be inserted into every snap.
     /// Not only in the first one where they appear.
     /// This function should be called inbetween each snap.
     fn write_to_snap(&mut self, builder: &mut snap::Builder) -> Result<(), snap::BuilderError> {

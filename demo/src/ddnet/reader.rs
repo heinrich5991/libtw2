@@ -11,7 +11,7 @@ use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
 use libtw2_snapshot::Reader as SnapReader;
 use libtw2_snapshot::Snap;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
@@ -186,7 +186,7 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
 }
 
 struct Snapshot<T> {
-    uuid_index: HashMap<u16, Uuid>,
+    uuid_index: BTreeMap<u16, Uuid>,
     pub objects: Vec<(T, u16)>,
 }
 

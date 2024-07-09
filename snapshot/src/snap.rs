@@ -15,9 +15,9 @@ use libtw2_packer::with_packer;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use std::cmp;
-use std::collections::hash_map;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::btree_map;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::iter;
 use std::mem;
@@ -117,10 +117,9 @@ fn create_delta(from: Option<&[i32]>, to: &[i32], out: &mut [i32]) {
     }
 }
 
-// TODO: Select a faster hasher?
 #[derive(Clone, Default)]
 pub struct Snap {
-    offsets: HashMap<i32, ops::Range<u32>>,
+    offsets: BTreeMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 
@@ -147,7 +146,7 @@ impl Snap {
         }
     }
     fn prepare_item_vacant<'a>(
-        entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>,
+        entry: btree_map::VacantEntry<'a, i32, ops::Range<u32>>,
         buf: &mut Vec<i32>,
         size: usize,
     ) -> Result<&'a mut ops::Range<u32>, TooLongSnap> {
@@ -162,8 +161,8 @@ impl Snap {
     }
     fn prepare_item(&mut self, type_id: u16, id: u16, size: usize) -> Result<&mut [i32], Error> {
         let offset = match self.offsets.entry(key(type_id, id)) {
-            hash_map::Entry::Occupied(o) => o.into_mut(),
-            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
+            btree_map::Entry::Occupied(o) => o.into_mut(),
+            btree_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
         }
         .clone();
         Ok(&mut self.buf[to_usize(offset)])
@@ -317,7 +316,7 @@ impl Reader {
 
 pub struct Items<'a> {
     snap: &'a Snap,
-    iter: hash_map::Iter<'a, i32, ops::Range<u32>>,
+    iter: btree_map::Iter<'a, i32, ops::Range<u32>>,
 }
 
 impl<'a> Iterator for Items<'a> {
@@ -351,8 +350,8 @@ impl fmt::Debug for Snap {
 
 #[derive(Clone, Default)]
 pub struct Delta {
-    deleted_items: HashSet<i32>,
-    updated_items: HashMap<i32, ops::Range<u32>>,
+    deleted_items: BTreeSet<i32>,
+    updated_items: BTreeMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 
@@ -510,8 +509,8 @@ impl Builder {
         size: usize,
     ) -> Result<&mut [i32], BuilderError> {
         let offset = match self.snap.offsets.entry(key(type_id, id)) {
-            hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.snap.buf, size)?,
+            btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
+            btree_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.snap.buf, size)?,
         }
         .clone();
         Ok(&mut self.snap.buf[to_usize(offset)])
