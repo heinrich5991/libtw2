@@ -277,7 +277,7 @@ impl Reader {
         let header = SnapHeader::decode(warn, p)?;
         let mut prev_offset = None;
         for _ in 0..header.num_items {
-            let offset = p.read_int(wrap(warn)).unwrap();
+            let offset = read_int_err(p, warn, Error::OffsetsUnpacking)?;
             if let Some(prev) = prev_offset {
                 if prev > offset {
                     return Err(Error::InvalidOffset);
@@ -311,7 +311,6 @@ impl Reader {
                 *int = read_int_err(p, warn, Error::ItemsUnpacking)?;
             }
         }
-        assert!(p.is_empty());
         Ok(builder.finish())
     }
 }

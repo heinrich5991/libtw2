@@ -4,6 +4,7 @@ use libtw2_gamenet_common::traits;
 use libtw2_gamenet_common::traits::MessageExt as _;
 use libtw2_gamenet_common::traits::Protocol;
 use libtw2_gamenet_common::traits::ProtocolStatic;
+use libtw2_packer::ExcessData;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::snap;
@@ -53,6 +54,7 @@ pub enum Warning {
     Snapshot(libtw2_snapshot::format::Warning),
     Packer(libtw2_packer::Warning),
     ExcessItemData,
+    ExcessSnapshotData,
     Gamenet(libtw2_gamenet_common::error::Error),
 }
 
@@ -71,8 +73,8 @@ impl From<libtw2_packer::Warning> for Warning {
         Warning::Packer(w)
     }
 }
-impl From<libtw2_packer::ExcessData> for Warning {
-    fn from(_: libtw2_packer::ExcessData) -> Self {
+impl From<ExcessData> for Warning {
+    fn from(ExcessData: ExcessData) -> Self {
         Warning::ExcessItemData
     }
 }
@@ -160,7 +162,10 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
                 self.snap = self
                     .snap_reader
                     .read(wrap(warn), builder, &mut unpacker)
-                    .unwrap();
+                    .map_err(ReadError::Snap)?;
+                unpacker.finish(warn::closure(&mut |ExcessData| {
+                    warn.warn(Warning::ExcessSnapshotData)
+                }));
                 self.snapshot.build::<P, _>(warn, &self.snap)?;
                 Ok(Some(Chunk::Snapshot(self.snapshot.objects.iter())))
             }
