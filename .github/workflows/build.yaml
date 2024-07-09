@@ -54,6 +54,7 @@ jobs:
     name: Build uniffi
     runs-on: ubuntu-latest
     steps:
+      - run: pip install build
       - uses: actions/checkout@v2
       - uses: Swatinem/rust-cache@v2
         with:
@@ -61,6 +62,8 @@ jobs:
       - run: cd uniffi; cargo build --locked
       - run: cd uniffi; cargo test --locked
       - run: cd uniffi; cargo bench --locked
+      - run: cd uniffi/huffman; python -m build; pip install dist/libtw2_huffman-*.whl
+      - run: cd uniffi/tests; python -m unittest *.py
 
   check-generated:
     name: Check that generated files match
