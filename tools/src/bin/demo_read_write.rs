@@ -87,7 +87,10 @@ fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
             ddnet::Chunk::Message(msg) => writer.write_msg(&msg)?,
             ddnet::Chunk::Snapshot(snap) => match last_tick.take() {
                 None => eprintln!("Snapshot without tick"),
-                Some(t) => writer.write_snap(t, snap.map(|(obj, id)| (obj, *id)))?,
+                // HACK: `.rev()` so that higher-valued items get inserted
+                // first, so that the extended item types get inserted in the
+                // same order as they were in the original demo.
+                Some(t) => writer.write_snap(t, snap.rev().map(|(obj, id)| (obj, *id)))?,
             },
             ddnet::Chunk::Tick(t) => last_tick = Some(t),
             ddnet::Chunk::Invalid => eprintln!("Invalid chunk!"),
