@@ -5,7 +5,6 @@ use buffer::BufferRef;
 use buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_common::unwrap_or_return;
-use std::iter;
 use std::mem;
 use std::slice;
 #[cfg(feature = "uuid")]
@@ -271,23 +270,24 @@ impl<'a> Unpacker<'a> {
 }
 
 pub struct IntUnpacker<'a> {
-    iter: iter::Cloned<slice::Iter<'a, i32>>,
+    iter: slice::Iter<'a, i32>,
 }
 
 impl<'a> IntUnpacker<'a> {
     pub fn new(slice: &[i32]) -> IntUnpacker {
-        IntUnpacker {
-            iter: slice.iter().cloned(),
-        }
+        IntUnpacker { iter: slice.iter() }
     }
     pub fn read_int(&mut self) -> Result<i32, UnexpectedEnd> {
-        self.iter.next().ok_or(UnexpectedEnd)
+        self.iter.next().copied().ok_or(UnexpectedEnd)
     }
     pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
         // TODO: replace with !self.is_empty()
         if self.iter.len() != 0 {
             warn.warn(ExcessData);
         }
+    }
+    pub fn as_slice(&self) -> &'a [i32] {
+        self.iter.as_slice()
     }
 }
 

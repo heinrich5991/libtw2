@@ -12,7 +12,9 @@ use libtw2_gamenet_snap as msg;
 use libtw2_gamenet_snap::SnapMsg;
 use libtw2_gamenet_snap::MAX_SNAPSHOT_PACKSIZE;
 use libtw2_packer::with_packer;
+use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
+use libtw2_packer::UnexpectedEnd;
 use libtw2_packer::Unpacker;
 use std::cmp;
 use std::collections::btree_map;
@@ -82,8 +84,8 @@ impl From<libtw2_packer::IntOutOfRange> for Error {
     }
 }
 
-impl From<libtw2_packer::UnexpectedEnd> for Error {
-    fn from(_: libtw2_packer::UnexpectedEnd) -> Error {
+impl From<UnexpectedEnd> for Error {
+    fn from(UnexpectedEnd: UnexpectedEnd) -> Error {
         Error::UnexpectedEnd
     }
 }
@@ -159,6 +161,24 @@ impl Snap {
         buf.extend(iter::repeat(0).take(size));
         Ok(entry.insert(start..end))
     }
+    fn add_item_raw(
+        &mut self,
+        type_id: u16,
+        id: u16,
+        size: usize,
+    ) -> Result<&mut [i32], BuilderError> {
+        let offset = match self.offsets.entry(key(type_id, id)) {
+            btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
+            btree_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
+        }
+        .clone();
+        Ok(&mut self.buf[to_usize(offset)])
+    }
+    fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+        self.add_item_raw(type_id, id, data.len())?
+            .copy_from_slice(data);
+        Ok(())
+    }
     fn prepare_item(&mut self, type_id: u16, id: u16, size: usize) -> Result<&mut [i32], Error> {
         let offset = match self.offsets.entry(key(type_id, id)) {
             btree_map::Entry::Occupied(o) => o.into_mut(),
@@ -166,6 +186,94 @@ impl Snap {
         }
         .clone();
         Ok(&mut self.buf[to_usize(offset)])
+    }
+    pub fn read<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        buf: &mut Vec<i32>,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        self.clear();
+        buf.clear();
+
+        let mut unpacker = Unpacker::new(data);
+        while !unpacker.is_empty() {
+            match unpacker.read_int(wrap(warn)) {
+                Ok(int) => buf.push(int),
+                Err(UnexpectedEnd) => {
+                    warn.warn(Warning::ExcessSnapData);
+                    break;
+                }
+            }
+        }
+
+        self.read_from_ints(warn, &buf)
+    }
+    pub fn read_from_ints<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        data: &[i32],
+    ) -> Result<(), Error> {
+        self.clear();
+
+        let mut unpacker = IntUnpacker::new(data);
+        let header = SnapHeader::decode_obj(&mut unpacker)?;
+        let data = unpacker.as_slice();
+
+        let offsets_len = header.num_items.assert_usize();
+        if data.len() < offsets_len {
+            return Err(Error::OffsetsUnpacking);
+        }
+        if header.data_size % 4 != 0 {
+            return Err(Error::InvalidOffset);
+        }
+        let items_len = (header.data_size / 4).assert_usize();
+        match (offsets_len + items_len).cmp(&data.len()) {
+            cmp::Ordering::Less => warn.warn(Warning::ExcessSnapData),
+            cmp::Ordering::Equal => {}
+            cmp::Ordering::Greater => return Err(Error::ItemsUnpacking),
+        }
+
+        let (offsets, item_data) = data.split_at(offsets_len);
+        let item_data = &item_data[..items_len];
+
+        let mut offsets = offsets.iter();
+        let mut prev_offset = None;
+        loop {
+            let offset = offsets.next().copied();
+            if let Some(offset) = offset {
+                if offset < 0 {
+                    return Err(Error::InvalidOffset);
+                }
+                if offset % 4 != 0 {
+                    return Err(Error::InvalidOffset);
+                }
+            }
+            let finished = offset.is_none();
+            let offset = offset.map(|o| o.assert_usize() / 4).unwrap_or(items_len);
+
+            if let Some(prev_offset) = prev_offset {
+                if offset <= prev_offset {
+                    return Err(Error::InvalidOffset);
+                }
+                if offset > items_len {
+                    return Err(Error::InvalidOffset);
+                }
+                let type_id = key_to_type_id(item_data[prev_offset]);
+                let id = key_to_id(item_data[prev_offset]);
+                self.add_item(type_id, id, &item_data[prev_offset + 1..offset])?;
+            } else if offset != 0 {
+                // First offset must be 0.
+                return Err(Error::InvalidOffset);
+            }
+
+            prev_offset = Some(offset);
+
+            if finished {
+                break;
+            }
+        }
+        Ok(())
     }
     pub fn read_with_delta<W>(
         &mut self,
@@ -254,64 +362,8 @@ impl Snap {
     }
 }
 
-pub struct Reader {
-    sizes: Vec<i32>,
-}
-
 fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, w: &mut W, e: Error) -> Result<i32, Error> {
     p.read_int(wrap(w)).map_err(|_| e)
-}
-
-impl Reader {
-    pub fn new() -> Reader {
-        Reader { sizes: Vec::new() }
-    }
-    pub fn read<W: Warn<Warning>>(
-        &mut self,
-        warn: &mut W,
-        mut builder: Builder,
-        p: &mut Unpacker,
-    ) -> Result<Snap, Error> {
-        self.sizes.clear();
-        let header = SnapHeader::decode(warn, p)?;
-        let mut prev_offset = None;
-        for _ in 0..header.num_items {
-            let offset = read_int_err(p, warn, Error::OffsetsUnpacking)?;
-            if let Some(prev) = prev_offset {
-                if prev > offset {
-                    return Err(Error::InvalidOffset);
-                }
-                self.sizes.push(offset - prev);
-            } else if offset != 0 {
-                // First offset must be 0
-                return Err(Error::InvalidOffset);
-            }
-            prev_offset = Some(offset);
-        }
-        if let Some(last) = prev_offset {
-            if last > header.data_size {
-                return Err(Error::InvalidOffset);
-            }
-            self.sizes.push(header.data_size - last)
-        }
-
-        for size in &self.sizes {
-            if *size % 4 != 0 {
-                return Err(Error::InvalidOffset);
-            }
-            if *size == 0 {
-                return Err(Error::InvalidOffset);
-            }
-            let size = size / 4;
-            let key = read_int_err(p, warn, Error::ItemsUnpacking)?;
-            let type_id = key_to_type_id(key);
-            let id = key_to_id(key);
-            for int in builder.add_item_raw(type_id, id, size.assert_usize() - 1)? {
-                *int = read_int_err(p, warn, Error::ItemsUnpacking)?;
-            }
-        }
-        Ok(builder.finish())
-    }
 }
 
 pub struct Items<'a> {
@@ -502,23 +554,8 @@ impl Builder {
     pub fn new() -> Builder {
         Default::default()
     }
-    fn add_item_raw(
-        &mut self,
-        type_id: u16,
-        id: u16,
-        size: usize,
-    ) -> Result<&mut [i32], BuilderError> {
-        let offset = match self.snap.offsets.entry(key(type_id, id)) {
-            btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            btree_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.snap.buf, size)?,
-        }
-        .clone();
-        Ok(&mut self.snap.buf[to_usize(offset)])
-    }
     pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
-        self.add_item_raw(type_id, id, data.len())?
-            .copy_from_slice(data);
-        Ok(())
+        self.snap.add_item(type_id, id, data)
     }
     pub fn finish(self) -> Snap {
         self.snap

@@ -1,5 +1,6 @@
 use crate::snap::Error;
 use buffer::CapacityError;
+use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use warn::wrap;
@@ -14,6 +15,7 @@ pub enum Warning {
     UnknownDelete,
     DeleteUpdate,
     NumUpdatedItems,
+    ExcessSnapData,
 }
 
 impl From<libtw2_packer::Warning> for Warning {
@@ -64,6 +66,12 @@ impl SnapHeader {
         Ok(SnapHeader {
             data_size: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
             num_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
+        })
+    }
+    pub fn decode_obj(p: &mut IntUnpacker) -> Result<SnapHeader, Error> {
+        Ok(SnapHeader {
+            data_size: libtw2_packer::positive(p.read_int()?)?,
+            num_items: libtw2_packer::positive(p.read_int()?)?,
         })
     }
 }

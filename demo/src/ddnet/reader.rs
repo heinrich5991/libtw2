@@ -9,7 +9,6 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
-use libtw2_snapshot::Reader as SnapReader;
 use libtw2_snapshot::Snap;
 use std::collections::BTreeMap;
 use std::io;
@@ -43,7 +42,7 @@ pub struct DemoReader<'a, P: for<'p> Protocol<'p>> {
     delta: Delta,
     snap: Snap,
     old_snap: Snap,
-    snap_reader: SnapReader,
+    snap_read_buf: Vec<i32>,
     snapshot: Snapshot<P::SnapObj>,
     protocol: PhantomData<P>,
 }
@@ -54,7 +53,6 @@ pub enum Warning {
     Snapshot(libtw2_snapshot::format::Warning),
     Packer(libtw2_packer::Warning),
     ExcessItemData,
-    ExcessSnapshotData,
     Gamenet(libtw2_gamenet_common::error::Error),
 }
 
@@ -98,7 +96,7 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
             delta: Delta::new(),
             snap: Snap::empty(),
             old_snap: Snap::empty(),
-            snap_reader: SnapReader::new(),
+            snap_read_buf: Vec::new(),
             snapshot: Snapshot::default(),
             protocol: PhantomData,
         })
@@ -157,15 +155,9 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
                 }
             }
             Some(RawChunk::Snapshot(snap)) => {
-                let mut unpacker = Unpacker::new(snap);
-                let builder = mem::replace(&mut self.snap, Snap::default()).recycle();
-                self.snap = self
-                    .snap_reader
-                    .read(wrap(warn), builder, &mut unpacker)
+                self.snap
+                    .read(wrap(warn), &mut self.snap_read_buf, snap)
                     .map_err(ReadError::Snap)?;
-                unpacker.finish(warn::closure(&mut |ExcessData| {
-                    warn.warn(Warning::ExcessSnapshotData)
-                }));
                 self.snapshot.build::<P, _>(warn, &self.snap)?;
                 Ok(Some(Chunk::Snapshot(self.snapshot.objects.iter())))
             }
