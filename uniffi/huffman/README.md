@@ -1,6 +1,8 @@
 # libtw2_huffman
 
-Python bindings for huffman (lossless data compression).
+Python bindings for `libtw2-huffman` which implements a homebrew compression
+format using huffman coding that is used in Teeworlds/DDNet networking and demo
+file format.
 
 ## Building from source
 
