@@ -366,16 +366,6 @@ pub fn string_to_ints6(string: &[u8]) -> [i32; 6] {
     result
 }
 
-pub fn ints_to_bytes(result: &mut [u8], input: &[i32]) {
-    assert!(result.len() == input.len() * mem::size_of::<i32>());
-    for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
-        output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
-        output[1] = (((input >> 16) & 0xff) - 0x80) as u8;
-        output[2] = (((input >> 8) & 0xff) - 0x80) as u8;
-        output[3] = (((input >> 0) & 0xff) - 0x80) as u8;
-    }
-}
-
 pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
 where
     W: Warn<WeirdStringTermination>,
