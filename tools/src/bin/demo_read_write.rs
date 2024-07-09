@@ -3,7 +3,9 @@ use clap::Arg;
 use libtw2_demo::ddnet;
 use libtw2_gamenet_ddnet::Protocol as DDNet;
 use std::error::Error;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::BufWriter;
 use std::process;
 
 fn main() {
@@ -44,8 +46,8 @@ fn main() {
 }
 
 fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
-    let input_file = fs::File::open(input)?;
-    let output_file = fs::File::create(output)?;
+    let input_file = BufReader::new(File::open(input)?);
+    let output_file = BufWriter::new(File::create(output)?);
     let mut reader = libtw2_demo::Reader::new(input_file, &mut warn::Ignore)?;
     let mut writer = libtw2_demo::Writer::new(
         output_file,
@@ -65,8 +67,8 @@ fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
-    let input_file = fs::File::open(input)?;
-    let output_file = fs::File::create(output)?;
+    let input_file = BufReader::new(File::open(input)?);
+    let output_file = BufWriter::new(File::create(output)?);
     let mut reader = ddnet::DemoReader::<DDNet>::new(input_file, &mut warn::Log)?;
     let mut writer = ddnet::DemoWriter::<DDNet>::new(
         output_file,
