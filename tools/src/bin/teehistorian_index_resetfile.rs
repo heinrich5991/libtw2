@@ -233,6 +233,7 @@ fn handle_args(
     let mut base_iter = base.iter();
 
     let mut csv_out: csv::Writer<Box<dyn Write>> = csv::Writer::from_writer(match output {
+        // `csv::Writer::from_writer` already uses a `BufWriter`
         Some(o) => Box::new(File::create(o).map_err(|e| eprintln!("{}: {:?}", o.display(), e))?),
         None => Box::new(io::stdout()),
     });

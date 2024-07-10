@@ -56,8 +56,7 @@ use ndarray::Array2;
 use std::cell::Cell;
 use std::fmt;
 use std::fmt::Write;
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::time::Duration;
 
 const TICKS_PER_SECOND: u32 = 50;
@@ -143,10 +142,9 @@ struct MapContents {
 
 impl Default for MapContents {
     fn default() -> MapContents {
-        let mut file = File::open("dm1.map").unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        MapContents { contents: contents }
+        MapContents {
+            contents: fs::read("dm1.map").unwrap(),
+        }
     }
 }
 

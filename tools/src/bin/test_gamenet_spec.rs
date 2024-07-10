@@ -1,11 +1,10 @@
 use std::error::Error;
-use std::fs::File;
+use std::fs;
 use std::path::Path;
 use std::process;
 
 fn process(path: &Path) -> Result<(), Box<dyn Error>> {
-    let file = File::open(path)?;
-    let _spec: libtw2_gamenet_spec::Spec = serde_json::from_reader(file)?;
+    let _spec: libtw2_gamenet_spec::Spec = serde_json::from_slice(&fs::read(path)?)?;
     Ok(())
 }
 

@@ -278,8 +278,7 @@ impl Tracker {
                 }
 
                 {
-                    let temp_file = File::create(&temp_filename).unwrap();
-                    let mut temp_file = BufWriter::new(temp_file);
+                    let mut temp_file = BufWriter::new(File::create(&temp_filename).unwrap());
                     serde_json::to_writer(&mut temp_file, &dump).unwrap();
                     temp_file.flush().unwrap();
                     // Drop the temporary file.

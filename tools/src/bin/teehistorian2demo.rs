@@ -26,7 +26,8 @@ use libtw2_teehistorian::Pos;
 use libtw2_teehistorian::Reader;
 use libtw2_world::vec2;
 use std::ffi::OsString;
-use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 use std::process;
 use vec_map::VecMap;
@@ -95,7 +96,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
         let (header, teehistorian) =
             Reader::open(in_, &mut buffer).map_err(|err| format!("{:?}", err))?;
         th = teehistorian;
-        let file = fs::File::create(out).map_err(|err| err.to_string())?;
+        let file = BufWriter::new(File::create(out).map_err(|err| err.to_string())?);
         demo = Writer::new(
             file,
             VERSION.as_bytes(),
