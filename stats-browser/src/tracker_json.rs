@@ -5,6 +5,7 @@ use arrayvec::ArrayString;
 use libloc::Locations;
 use libtw2_serverbrowse::protocol::ClientInfo;
 use libtw2_serverbrowse::protocol::ServerInfo;
+use libtw2_serverbrowse::protocol::ServerInfoVersion;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::BTreeMap;
@@ -36,8 +37,19 @@ mod json {
     use std::fmt::Write;
     use uuid::Uuid;
 
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub enum Protocol {
+        V5,
+        V6,
+        V7,
+        Ddper6,
+    }
+
     #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
-    pub struct Addr(pub addr::ServerAddr);
+    pub struct Addr {
+        pub protocol: Protocol,
+        pub addr: addr::Addr,
+    }
 
     #[derive(Serialize)]
     #[serde(rename_all = "snake_case")]
@@ -89,18 +101,34 @@ mod json {
         pub is_player: bool,
     }
 
+    impl Protocol {
+        pub fn from(
+            protocol_version: addr::ProtocolVersion,
+            info_version: protocol::ServerInfoVersion,
+        ) -> Protocol {
+            use self::Protocol::*;
+            match (protocol_version, info_version) {
+                (addr::ProtocolVersion::V5, _) => V5,
+                (addr::ProtocolVersion::V6, protocol::ServerInfoVersion::V6Ddper) => Ddper6,
+                (addr::ProtocolVersion::V6, _) => V6,
+                (addr::ProtocolVersion::V7, _) => V7,
+            }
+        }
+    }
+
     impl serde::Serialize for Addr {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {
             let mut result: ArrayString<[u8; 64]> = ArrayString::new();
-            result.push_str(match self.0.version {
-                addr::ProtocolVersion::V5 => "tw-0.5+udp://",
-                addr::ProtocolVersion::V6 => "tw-0.6+udp://",
-                addr::ProtocolVersion::V7 => "tw-0.7+udp://",
+            result.push_str(match self.protocol {
+                Protocol::V5 => "tw-0.5+udp://",
+                Protocol::V6 => "tw-0.6+udp://",
+                Protocol::V7 => "tw-0.7+udp://",
+                Protocol::Ddper6 => "ddper-0.6+udp://",
             });
-            write!(result, "{}", self.0.addr).unwrap();
+            write!(result, "{}", self.addr).unwrap();
             serializer.serialize_str(&result)
         }
     }
@@ -170,6 +198,7 @@ impl Timekeeper {
 pub struct ServerEntry {
     location: Option<ArrayString<[u8; 15]>>,
     info: Option<json::ServerInfo>,
+    info_version: ServerInfoVersion,
     ping_time: Timestamp,
 }
 
@@ -253,13 +282,19 @@ impl Tracker {
                             assert!(dump
                                 .addresses
                                 .insert(
-                                    json::Addr(server_addr),
+                                    json::Addr {
+                                        protocol: json::Protocol::from(
+                                            server_addr.version,
+                                            e.info_version
+                                        ),
+                                        addr: server_addr.addr,
+                                    },
                                     json::AddrInfo {
                                         kind: json::EntryKind::Backcompat,
                                         ping_time: e.ping_time,
                                         location: e.location,
                                         secret,
-                                    }
+                                    },
                                 )
                                 .is_none());
                             entry = Some(e);
@@ -302,6 +337,7 @@ impl Tracker {
 impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
+        let info_version = info.info_version;
         let info = json::ServerInfo::try_from(info).ok();
         assert!(servers
             .insert(
@@ -309,6 +345,7 @@ impl StatsBrowserCb for Tracker {
                 ServerEntry {
                     location: self.lookup_location(addr),
                     info,
+                    info_version,
                     ping_time: self.timekeeper.now(),
                 }
             )
@@ -318,6 +355,7 @@ impl StatsBrowserCb for Tracker {
         let mut servers = self.servers.lock().unwrap();
         let server = servers.get_mut(&addr).unwrap();
         server.info = json::ServerInfo::try_from(new).ok();
+        server.info_version = new.info_version;
         server.ping_time = self.timekeeper.now();
     }
     fn on_server_remove(&mut self, addr: ServerAddr, _last: &ServerInfo) {
