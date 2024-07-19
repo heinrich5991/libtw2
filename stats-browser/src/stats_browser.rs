@@ -21,6 +21,7 @@ use libtw2_serverbrowse::protocol;
 use libtw2_serverbrowse::protocol::Count7Response;
 use libtw2_serverbrowse::protocol::CountResponse;
 use libtw2_serverbrowse::protocol::Info5Response;
+use libtw2_serverbrowse::protocol::Info6DdperResponse;
 use libtw2_serverbrowse::protocol::Info6ExMoreResponse;
 use libtw2_serverbrowse::protocol::Info6ExResponse;
 use libtw2_serverbrowse::protocol::Info6Response;
@@ -753,6 +754,15 @@ impl<'a> StatsBrowser<'a> {
             }
             Some(Response::Info6(info)) => {
                 let Info6Response(raw_data) = info;
+                self.process_info(
+                    ServerAddr::new(ProtocolVersion::V6, from),
+                    None,
+                    info.parse(),
+                    raw_data,
+                );
+            }
+            Some(Response::Info6Ddper(info)) => {
+                let Info6DdperResponse(raw_data) = info;
                 self.process_info(
                     ServerAddr::new(ProtocolVersion::V6, from),
                     None,

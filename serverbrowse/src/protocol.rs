@@ -42,6 +42,7 @@ pub const REQUEST_INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
 pub const REQUEST_INFO_6_EX: Header = b"xe\0\0\0\0\xff\xff\xff\xffgie3";
 pub const INFO_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
 pub const INFO_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const INFO_6_DDPER: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdper";
 pub const INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 pub const INFO_6_EX: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
 pub const INFO_6_EX_MORE: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
@@ -220,6 +221,7 @@ pub const CLIENTINFO_FLAG_BOT: i32 = 1 << 1;
 pub enum ServerInfoVersion {
     V5,
     V6,
+    V6Ddper,
     V664,
     V6Ex,
     V7,
@@ -256,6 +258,7 @@ impl ServerInfoVersion {
         Some(match self {
             ServerInfoVersion::V5 => MAX_CLIENTS_5,
             ServerInfoVersion::V6 => MAX_CLIENTS_5,
+            ServerInfoVersion::V6Ddper => MAX_CLIENTS_5,
             ServerInfoVersion::V664 => MAX_CLIENTS_6_64,
             ServerInfoVersion::V6Ex => return None,
             ServerInfoVersion::V7 => MAX_CLIENTS_7,
@@ -265,6 +268,7 @@ impl ServerInfoVersion {
         Some(match self {
             ServerInfoVersion::V5 => 16,
             ServerInfoVersion::V6 => 16,
+            ServerInfoVersion::V6Ddper => 16,
             ServerInfoVersion::V664 => 24,
             ServerInfoVersion::V6Ex => return None,
             ServerInfoVersion::V7 => 16,
@@ -650,6 +654,23 @@ impl<'a> Info6Response<'a> {
     }
 }
 
+impl<'a> Info6DdperResponse<'a> {
+    pub fn parse(self) -> Option<ServerInfo> {
+        let Info6DdperResponse(slice) = self;
+        let mut unpacker = Unpacker::new(slice);
+        parse_server_info(
+            &mut unpacker,
+            info_read_int_v5,
+            info_read_str,
+            ReceivedServerInfoVersion::Normal(ServerInfoVersion::V6Ddper),
+        )
+        .map(|mut raw| {
+            raw.info.sort_clients();
+            raw.info
+        })
+    }
+}
+
 impl<'a> Info664Response<'a> {
     pub fn parse(self) -> Option<PartialServerInfo> {
         let Info664Response(slice) = self;
@@ -711,6 +732,8 @@ pub struct Info5Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct Info6Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
+pub struct Info6DdperResponse<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
 pub struct Info664Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct Info6ExResponse<'a>(pub &'a [u8]);
@@ -740,6 +763,7 @@ pub enum Response<'a> {
     Count7(Count7Response),
     Info5(Info5Response<'a>),
     Info6(Info6Response<'a>),
+    Info6Ddper(Info6DdperResponse<'a>),
     Info664(Info664Response<'a>),
     Info6Ex(Info6ExResponse<'a>),
     Info6ExMore(Info6ExMoreResponse<'a>),
@@ -852,6 +876,7 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
         LIST_6 => Some(Response::List6(List6Response(parse_list6(data)))),
         INFO_5 => Some(Response::Info5(Info5Response(data))),
         INFO_6 => Some(Response::Info6(Info6Response(data))),
+        INFO_6_DDPER => Some(Response::Info6Ddper(Info6DdperResponse(data))),
         INFO_6_64 => Some(Response::Info664(Info664Response(data))),
         INFO_6_EX => Some(Response::Info6Ex(Info6ExResponse(data))),
         INFO_6_EX_MORE => Some(Response::Info6ExMore(Info6ExMoreResponse(data))),
