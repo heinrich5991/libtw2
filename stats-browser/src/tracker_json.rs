@@ -42,7 +42,7 @@ mod json {
         V5,
         V6,
         V7,
-        Ddper17,
+        Ddper6,
     }
 
     #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -109,7 +109,7 @@ mod json {
             use self::Protocol::*;
             match (protocol_version, info_version) {
                 (addr::ProtocolVersion::V5, _) => V5,
-                (addr::ProtocolVersion::V6, protocol::ServerInfoVersion::V6Ddper) => Ddper17,
+                (addr::ProtocolVersion::V6, protocol::ServerInfoVersion::V6Ddper) => Ddper6,
                 (addr::ProtocolVersion::V6, _) => V6,
                 (addr::ProtocolVersion::V7, _) => V7,
             }
@@ -126,7 +126,7 @@ mod json {
                 Protocol::V5 => "tw-0.5+udp://",
                 Protocol::V6 => "tw-0.6+udp://",
                 Protocol::V7 => "tw-0.7+udp://",
-                Protocol::Ddper17 => "ddper-17+udp://",
+                Protocol::Ddper6 => "ddper-0.6+udp://",
             });
             write!(result, "{}", self.addr).unwrap();
             serializer.serialize_str(&result)
@@ -297,7 +297,7 @@ impl Tracker {
                                 )
                                 .is_none());
 
-                            if protocol == json::Protocol::Ddper17 {
+                            if protocol == json::Protocol::Ddper6 {
                                 assert!(dump
                                     .addresses
                                     .insert(
