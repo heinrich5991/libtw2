@@ -868,8 +868,14 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
     }
     let (header, data) = data.split_at(HEADER_LEN);
     let mut header: [u8; HEADER_LEN] = *unsafe { &*(header.as_ptr() as *const [u8; HEADER_LEN]) };
-    for b in &mut header[..6] {
-        *b = 0xff;
+    if header[..2] != *b"dp" || header[6..] != INFO_6_DDPER[6..] {
+        for b in &mut header[..6] {
+            *b = 0xff;
+        }
+    } else {
+        for b in &mut header[2..6] {
+            *b = 0;
+        }
     }
     match &header {
         LIST_5 => Some(Response::List5(List5Response(parse_list5(data)))),
