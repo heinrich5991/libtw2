@@ -121,6 +121,12 @@ def fix_network(network, version):
         network.Constants += [
             Constant("CL_CALL_VOTE_TYPE_SPEC", "spec"),
         ]
+    if version == VERSION_0_7:
+        network.Constants += [
+            Constant("VOTE_CHOICE_NO", -1),
+            Constant("VOTE_CHOICE_PASS", 0),
+            Constant("VOTE_CHOICE_YES", 1),
+        ]
 
     network.Enums += [
         Enum("WEAPON", "HAMMER PISTOL SHOTGUN GRENADE RIFLE NINJA".split()),

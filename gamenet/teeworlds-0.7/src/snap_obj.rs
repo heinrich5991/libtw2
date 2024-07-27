@@ -469,7 +469,7 @@ pub struct Character {
     pub health: i32,
     pub armor: i32,
     pub ammo_count: i32,
-    pub weapon: enums::Weapon,
+    pub weapon: i32,
     pub emote: enums::Emote,
     pub attack_tick: crate::snap_obj::Tick,
     pub triggered_events: i32,
@@ -967,7 +967,7 @@ impl Character {
             health: in_range(_p.read_int()?, 0, 10)?,
             armor: in_range(_p.read_int()?, 0, 10)?,
             ammo_count: _p.read_int()?,
-            weapon: enums::Weapon::from_i32(_p.read_int()?)?,
+            weapon: in_range(_p.read_int()?, -1, 5)?,
             emote: enums::Emote::from_i32(_p.read_int()?)?,
             attack_tick: crate::snap_obj::Tick(_p.read_int()?),
             triggered_events: _p.read_int()?,
@@ -977,6 +977,7 @@ impl Character {
         self.character_core.encode();
         assert!(0 <= self.health && self.health <= 10);
         assert!(0 <= self.armor && self.armor <= 10);
+        assert!(-1 <= self.weapon && self.weapon <= 5);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }

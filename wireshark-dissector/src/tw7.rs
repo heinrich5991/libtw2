@@ -24,7 +24,7 @@ use warn::Ignore;
 use zerocopy::FromBytes;
 
 const SERIALIZED_SPEC: &'static str =
-    include_str!("../../gamenet/generate/spec/teeworlds-0.7.5.json");
+    include_str!("../../gamenet/generate/spec/teeworlds-0.7-trunk.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;

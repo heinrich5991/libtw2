@@ -5,5 +5,5 @@ set -o pipefail
 
 python3 generate/generate.py generate/spec/teeworlds-0.5.json teeworlds-0.5 libtw2-gamenet-teeworlds-0-5
 python3 generate/generate.py generate/spec/teeworlds-0.6.json teeworlds-0.6 libtw2-gamenet-teeworlds-0-6
-python3 generate/generate.py generate/spec/teeworlds-0.7.5.json teeworlds-0.7 libtw2-gamenet-teeworlds-0-7
+python3 generate/generate.py generate/spec/teeworlds-0.7-trunk.json teeworlds-0.7 libtw2-gamenet-teeworlds-0-7
 python3 generate/generate.py generate/spec/ddnet-17.2.1.json ddnet libtw2-gamenet-ddnet
