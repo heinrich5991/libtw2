@@ -3,6 +3,7 @@ use buffer::CapacityError;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
+use uuid::Uuid;
 use warn::wrap;
 use warn::Warn;
 
@@ -16,6 +17,7 @@ pub enum Warning {
     DeleteUpdate,
     NumUpdatedItems,
     ExcessSnapData,
+    ExcessUuidItemData,
 }
 
 impl From<libtw2_packer::Warning> for Warning {
@@ -24,7 +26,12 @@ impl From<libtw2_packer::Warning> for Warning {
     }
 }
 
-pub fn key_to_type_id(key: i32) -> u16 {
+pub use libtw2_gamenet_common::snap_obj::TypeId;
+
+pub const TYPE_ID_EX: u16 = 0;
+pub const OFFSET_EXTENDED_TYPE_ID: u16 = 0x4000;
+
+pub fn key_to_raw_type_id(key: i32) -> u16 {
     ((key as u32 >> 16) & 0xffff) as u16
 }
 
@@ -32,27 +39,57 @@ pub fn key_to_id(key: i32) -> u16 {
     ((key as u32) & 0xffff) as u16
 }
 
-pub fn key(type_id: u16, id: u16) -> i32 {
-    (((type_id as u32) << 16) | (id as u32)) as i32
+pub fn key(raw_type_id: u16, id: u16) -> i32 {
+    (((raw_type_id as u32) << 16) | (id as u32)) as i32
+}
+
+pub fn uuid_to_item_data(uuid: Uuid) -> [i32; 4] {
+    let mut result = [0; 4];
+    for (int, four_bytes) in result.iter_mut().zip(uuid.as_bytes().chunks(4)) {
+        let four_bytes: [u8; 4] = four_bytes.try_into().unwrap();
+        *int = i32::from_be_bytes(four_bytes);
+    }
+    result
+}
+
+pub fn item_data_to_uuid<W: Warn<Warning>>(warn: &mut W, mut data: &[i32]) -> Option<Uuid> {
+    if data.len() > 4 {
+        data = &data[..4];
+        warn.warn(Warning::ExcessUuidItemData);
+    }
+    let data: &[i32; 4] = data.try_into().ok()?;
+
+    let mut result = [0; 16];
+    for (four_bytes, &int) in result.chunks_mut(4).zip(data) {
+        four_bytes.copy_from_slice(&int.to_be_bytes());
+    }
+    Some(Uuid::from_bytes(result))
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Item<'a> {
-    pub type_id: u16,
+    pub type_id: TypeId,
     pub id: u16,
     pub data: &'a [i32],
 }
 
-impl<'a> Item<'a> {
-    pub fn from_key(key: i32, data: &[i32]) -> Item {
-        Item {
-            type_id: key_to_type_id(key),
+#[derive(Clone, Copy, Debug)]
+pub struct RawItem<'a> {
+    pub raw_type_id: u16,
+    pub id: u16,
+    pub data: &'a [i32],
+}
+
+impl<'a> RawItem<'a> {
+    pub fn from_key(key: i32, data: &[i32]) -> RawItem {
+        RawItem {
+            raw_type_id: key_to_raw_type_id(key),
             id: key_to_id(key),
             data: data,
         }
     }
     pub fn key(&self) -> i32 {
-        key(self.type_id, self.id)
+        key(self.raw_type_id, self.id)
     }
 }
 

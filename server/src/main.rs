@@ -124,12 +124,9 @@ trait SnapBuilderExt {
 impl SnapBuilderExt for snap::Builder {
     fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O) {
         fn inner(builder: &mut snap::Builder, id: u16, obj: SnapObj) {
-            use self::TypeId::*;
-            let obj_type_id = match obj.obj_type_id() {
-                Ordinal(i) => i,
-                Uuid(_) => panic!("server doesn't support extended IDs yet"),
-            };
-            builder.add_item(obj_type_id, id, obj.encode()).unwrap();
+            builder
+                .add_item(obj.obj_type_id(), id, obj.encode())
+                .unwrap();
         }
         inner(self, id, obj.into())
     }

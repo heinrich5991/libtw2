@@ -542,7 +542,6 @@ dependencies = [
  "libtw2-packer",
  "libtw2-snapshot",
  "thiserror",
- "uuid",
  "warn",
 ]
 
@@ -811,9 +810,11 @@ version = "0.0.1"
 dependencies = [
  "buffer",
  "libtw2-common",
+ "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-gamenet-teeworlds-0-6",
  "libtw2-packer",
+ "uuid",
  "vec_map",
  "warn",
 ]

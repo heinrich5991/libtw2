@@ -1,5 +1,4 @@
 use libtw2_common::digest::Sha256;
-use libtw2_gamenet_common::snap_obj::TypeId;
 use libtw2_gamenet_common::traits;
 use libtw2_gamenet_common::traits::MessageExt as _;
 use libtw2_gamenet_common::traits::Protocol;
@@ -7,16 +6,15 @@ use libtw2_gamenet_common::traits::ProtocolStatic;
 use libtw2_packer::ExcessData;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Unpacker;
+use libtw2_snapshot::format::Item as SnapItem;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
 use libtw2_snapshot::Snap;
-use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
 use std::slice;
 use thiserror::Error;
-use uuid::Uuid;
 use warn::wrap;
 use warn::Warn;
 
@@ -31,10 +29,6 @@ pub enum ReadError {
     Inner(#[from] reader::ReadError),
     #[error("Snap parsing - {0:?}")]
     Snap(snap::Error),
-    #[error("UUID item has an incorrect size")]
-    UuidItemLength,
-    #[error("Extended type ID that is not registered")]
-    UnregisteredUuidTypeId,
 }
 
 pub struct DemoReader<'a, P: for<'p> Protocol<'p>> {
@@ -178,14 +172,12 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
 }
 
 struct Snapshot<T> {
-    uuid_index: BTreeMap<u16, Uuid>,
     pub objects: Vec<(T, u16)>,
 }
 
 impl<T> Default for Snapshot<T> {
     fn default() -> Snapshot<T> {
         Snapshot {
-            uuid_index: Default::default(),
             objects: Default::default(),
         }
     }
@@ -198,35 +190,12 @@ impl<T> Snapshot<T> {
         T: traits::SnapObj,
         W: Warn<Warning>,
     {
-        self.uuid_index.clear();
         self.objects.clear();
 
-        // First we build the uuid item index
-        for item in snap.items().filter(|item| item.type_id == 0) {
-            let mut uuid_bytes = [0; 16];
-            if item.data.len() != 4 {
-                return Err(ReadError::UuidItemLength);
-            }
-            for (b, x) in uuid_bytes.chunks_mut(4).zip(item.data) {
-                b.copy_from_slice(&x.to_be_bytes());
-            }
-            let uuid = Uuid::from_bytes(uuid_bytes);
-            self.uuid_index.insert(item.id, uuid);
-        }
-
-        for item in snap.items().filter(|item| item.type_id != 0) {
-            let type_id = if item.type_id < u16::MAX / 4 {
-                TypeId::Ordinal(item.type_id)
-            } else {
-                let uuid = self
-                    .uuid_index
-                    .get(&item.type_id)
-                    .ok_or(ReadError::UnregisteredUuidTypeId)?;
-                TypeId::Uuid(*uuid)
-            };
-            let mut int_unpacker = IntUnpacker::new(item.data);
+        for SnapItem { type_id, id, data } in snap.items() {
+            let mut int_unpacker = IntUnpacker::new(data);
             match P::SnapObj::decode_obj(wrap(warn), type_id, &mut int_unpacker) {
-                Ok(obj) => self.objects.push((obj, item.id)),
+                Ok(obj) => self.objects.push((obj, id)),
                 Err(err) => warn.warn(Warning::Gamenet(err)),
             }
         }

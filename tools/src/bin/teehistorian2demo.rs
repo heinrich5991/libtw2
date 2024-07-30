@@ -231,20 +231,24 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                     };
                     builder
                         .add_item(
-                            snap_obj::CLIENT_INFO,
+                            snap_obj::CLIENT_INFO.into(),
                             cid.assert_u16(),
                             client_info.encode(),
                         )
                         .unwrap();
                     builder
                         .add_item(
-                            snap_obj::PLAYER_INFO,
+                            snap_obj::PLAYER_INFO.into(),
                             cid.assert_u16(),
                             player_info.encode(),
                         )
                         .unwrap();
                     builder
-                        .add_item(snap_obj::CHARACTER, cid.assert_u16(), character.encode())
+                        .add_item(
+                            snap_obj::CHARACTER.into(),
+                            cid.assert_u16(),
+                            character.encode(),
+                        )
                         .unwrap();
 
                     prev_pos.insert(cid.assert_usize(), pos);
@@ -263,7 +267,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                 round_current: 1,
             };
             builder
-                .add_item(snap_obj::GAME_INFO, 0, game_info.encode())
+                .add_item(snap_obj::GAME_INFO.into(), 0, game_info.encode())
                 .unwrap();
             let snap = builder.finish();
 

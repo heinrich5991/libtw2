@@ -15,5 +15,4 @@ libtw2-huffman = { path = "../huffman/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-snapshot = { path = "../snapshot/" }
 thiserror = "1.0.0"
-uuid = "0.8.1"
 warn = "0.2.1"

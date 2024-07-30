@@ -1,7 +1,5 @@
 use crate::format;
 use libtw2_common::digest::Sha256;
-use libtw2_common::num::Cast;
-use libtw2_gamenet_common::snap_obj;
 use libtw2_gamenet_common::traits::MessageExt as _;
 use libtw2_gamenet_common::traits::Protocol;
 use libtw2_gamenet_common::traits::SnapObj as _;
@@ -9,7 +7,6 @@ use libtw2_packer::with_packer;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
 use libtw2_snapshot::Snap;
-use std::convert::TryInto;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
@@ -50,48 +47,12 @@ pub struct DemoWriter<'a, P: for<'p> Protocol<'p>> {
     last_tick: i32,
     // Stores the last tick, in which a snapshot was written.
     last_keyframe: Option<i32>,
-    uuid_index: UuidIndex,
     snap: Snap,
     builder: snap::Builder,
     delta: Delta,
     buf: arrayvec::ArrayVec<[u8; format::MAX_SNAPSHOT_SIZE]>,
     i32_buf: Vec<i32>,
     protocol: PhantomData<P>,
-}
-
-#[derive(Default)]
-struct UuidIndex(Vec<[u8; 16]>);
-
-impl UuidIndex {
-    fn index_to_type_id(index: u16) -> u16 {
-        // 0x7fff is the maximum type id
-        0x7fff - index
-    }
-
-    /// The UUID items need to be inserted into every snap.
-    /// Not only in the first one where they appear.
-    /// This function should be called inbetween each snap.
-    fn write_to_snap(&mut self, builder: &mut snap::Builder) -> Result<(), snap::BuilderError> {
-        for (index, uuid) in self.0.iter().enumerate() {
-            let type_id = Self::index_to_type_id(index.assert_u16());
-            let mut uuid_item_ints = [0; 4];
-            for (uuid_int, uuid_bytes) in uuid_item_ints.iter_mut().zip(uuid.chunks(4)) {
-                *uuid_int = i32::from_be_bytes(uuid_bytes.try_into().unwrap());
-            }
-            builder.add_item(0, type_id, &uuid_item_ints)?;
-        }
-        Ok(())
-    }
-
-    fn get_type_id(&mut self, uuid: &[u8; 16]) -> u16 {
-        if let Some(index) = self.0.iter().position(|e| e == uuid) {
-            Self::index_to_type_id(index.assert_u16())
-        } else {
-            let new_index = self.0.len().assert_u16();
-            self.0.push(*uuid);
-            Self::index_to_type_id(new_index)
-        }
-    }
 }
 
 impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
@@ -122,7 +83,6 @@ impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
             inner: raw,
             last_tick: -1,
             last_keyframe: None,
-            uuid_index: UuidIndex::default(),
             snap: Snap::default(),
             delta: Delta::default(),
             builder: snap::Builder::default(),
@@ -148,15 +108,11 @@ impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
             Some(last_keyframe) => tick - last_keyframe > 250,
         };
 
-        // Build snap with UUID items, which map the UUIDs of ex-items to type ids.
+        // Build snap.
         for (item, id) in items {
-            let type_id = match item.obj_type_id() {
-                snap_obj::TypeId::Ordinal(type_id) => type_id,
-                snap_obj::TypeId::Uuid(uuid) => self.uuid_index.get_type_id(uuid.as_bytes()),
-            };
-            self.builder.add_item(type_id, id, item.encode())?;
+            self.builder
+                .add_item(item.obj_type_id(), id, item.encode())?;
         }
-        self.uuid_index.write_to_snap(&mut self.builder)?;
 
         let old_snap = mem::take(&mut self.snap);
         let new_snap = mem::take(&mut self.builder).finish();
