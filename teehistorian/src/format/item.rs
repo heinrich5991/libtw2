@@ -60,6 +60,14 @@ pub const UUID_JOINVER7: [u8; 16] = [
     // "59239b05-0540-318d-bea4-9aa1e80e7d2b"
     0x59, 0x23, 0x9b, 0x05, 0x05, 0x40, 0x31, 0x8d, 0xbe, 0xa4, 0x9a, 0xa1, 0xe8, 0x0e, 0x7d, 0x2b,
 ];
+pub const UUID_PLAYER_FINISH: [u8; 16] = [
+    // "68943c01-2348-3e01-9490-3f27f8269d94"
+    0x68, 0x94, 0x3c, 0x01, 0x23, 0x48, 0x3e, 0x01, 0x94, 0x90, 0x3f, 0x27, 0xf8, 0x26, 0x9d, 0x94,
+];
+pub const UUID_PLAYER_NAME: [u8; 16] = [
+    // "d016f9b9-4151-3b87-87e5-3a6087eb5f26"
+    0xd0, 0x16, 0xf9, 0xb9, 0x41, 0x51, 0x3b, 0x87, 0x87, 0xe5, 0x3a, 0x60, 0x87, 0xeb, 0x5f, 0x26,
+];
 pub const UUID_PLAYER_READY: [u8; 16] = [
     // "638587c9-3f75-3887-918e-a3c2614ffaa0"
     0x63, 0x85, 0x87, 0xc9, 0x3f, 0x75, 0x38, 0x87, 0x91, 0x8e, 0xa3, 0xc2, 0x61, 0x4f, 0xfa, 0xa0,
@@ -75,6 +83,10 @@ pub const UUID_PLAYER_SWAP: [u8; 16] = [
 pub const UUID_PLAYER_TEAM: [u8; 16] = [
     // "a111c04e-1ea8-38e0-90b1-d7f993ca0da9"
     0xa1, 0x11, 0xc0, 0x4e, 0x1e, 0xa8, 0x38, 0xe0, 0x90, 0xb1, 0xd7, 0xf9, 0x93, 0xca, 0x0d, 0xa9,
+];
+pub const UUID_TEAM_FINISH: [u8; 16] = [
+    // "9588b9af-3fdc-3760-8043-82deeee317a5"
+    0x95, 0x88, 0xb9, 0xaf, 0x3f, 0xdc, 0x37, 0x60, 0x80, 0x43, 0x82, 0xde, 0xee, 0xe3, 0x17, 0xa5,
 ];
 pub const UUID_TEAM_LOAD_FAILURE: [u8; 16] = [
     // "ef8905a2-c695-3591-a1cd-53d2015992dd"
@@ -225,10 +237,13 @@ pub enum Item<'a> {
     DdnetverOld(DdnetverOld),
     Joinver6(Joinver6),
     Joinver7(Joinver7),
+    PlayerFinish(PlayerFinish),
+    PlayerName(PlayerName<'a>),
     PlayerReady(PlayerReady),
     PlayerRejoin(PlayerRejoin),
     PlayerSwap(PlayerSwap),
     PlayerTeam(PlayerTeam),
+    TeamFinish(TeamFinish),
     TeamLoadFailure(TeamLoadFailure),
     TeamLoadSuccess(TeamLoadSuccess<'a>),
     TeamPractice(TeamPractice),
@@ -357,6 +372,19 @@ pub struct Joinver7 {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct PlayerFinish {
+    pub cid: i32,
+    pub time_ticks: i32,
+}
+
+#[derive(Clone, Serialize)]
+pub struct PlayerName<'a> {
+    pub cid: i32,
+    #[serde(serialize_with = "serialize_str_lossy")]
+    pub name: &'a [u8],
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct PlayerReady {
     pub cid: i32,
 }
@@ -376,6 +404,12 @@ pub struct PlayerSwap {
 pub struct PlayerTeam {
     pub cid: i32,
     pub team: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct TeamFinish {
+    pub team: i32,
+    pub time_ticks: i32,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -446,10 +480,13 @@ impl<'a> Item<'a> {
             UUID_DDNETVER_OLD => DdnetverOld::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER6 => Joinver6::decode(&mut Unpacker::new(data))?.into(),
             UUID_JOINVER7 => Joinver7::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_FINISH => PlayerFinish::decode(&mut Unpacker::new(data))?.into(),
+            UUID_PLAYER_NAME => PlayerName::decode(&mut Unpacker::new(data))?.into(),
             UUID_PLAYER_READY => PlayerReady::decode(&mut Unpacker::new(data))?.into(),
             UUID_PLAYER_REJOIN => PlayerRejoin::decode(&mut Unpacker::new(data))?.into(),
             UUID_PLAYER_SWAP => PlayerSwap::decode(&mut Unpacker::new(data))?.into(),
             UUID_PLAYER_TEAM => PlayerTeam::decode(&mut Unpacker::new(data))?.into(),
+            UUID_TEAM_FINISH => TeamFinish::decode(&mut Unpacker::new(data))?.into(),
             UUID_TEAM_LOAD_FAILURE => TeamLoadFailure::decode(&mut Unpacker::new(data))?.into(),
             UUID_TEAM_LOAD_SUCCESS => TeamLoadSuccess::decode(&mut Unpacker::new(data))?.into(),
             UUID_TEAM_PRACTICE => TeamPractice::decode(&mut Unpacker::new(data))?.into(),
@@ -483,10 +520,13 @@ impl<'a> Item<'a> {
             Item::DdnetverOld(ref i) => i.cid,
             Item::Joinver6(ref i) => i.cid,
             Item::Joinver7(ref i) => i.cid,
+            Item::PlayerName(ref i) => i.cid,
+            Item::PlayerFinish(ref i) => i.cid,
             Item::PlayerReady(ref i) => i.cid,
             Item::PlayerRejoin(ref i) => i.cid,
             Item::PlayerSwap(_) => return None,
             Item::PlayerTeam(ref i) => i.cid,
+            Item::TeamFinish(_) => return None,
             Item::TeamLoadFailure(_) => return None,
             Item::TeamLoadSuccess(_) => return None,
             Item::TeamPractice(_) => return None,
@@ -697,6 +737,24 @@ impl Joinver7 {
     }
 }
 
+impl PlayerFinish {
+    fn decode(_p: &mut Unpacker) -> Result<PlayerFinish, MaybeEnd<Error>> {
+        Ok(PlayerFinish {
+            cid: _p.read_int(&mut Ignore)?,
+            time_ticks: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl<'a> PlayerName<'a> {
+    fn decode(_p: &mut Unpacker<'a>) -> Result<PlayerName<'a>, MaybeEnd<Error>> {
+        Ok(PlayerName {
+            cid: _p.read_int(&mut Ignore)?,
+            name: _p.read_string()?,
+        })
+    }
+}
+
 impl PlayerReady {
     fn decode(_p: &mut Unpacker) -> Result<PlayerReady, MaybeEnd<Error>> {
         Ok(PlayerReady {
@@ -727,6 +785,15 @@ impl PlayerTeam {
         Ok(PlayerTeam {
             cid: _p.read_int(&mut Ignore)?,
             team: _p.read_int(&mut Ignore)?,
+        })
+    }
+}
+
+impl TeamFinish {
+    fn decode(_p: &mut Unpacker) -> Result<TeamFinish, MaybeEnd<Error>> {
+        Ok(TeamFinish {
+            team: _p.read_int(&mut Ignore)?,
+            time_ticks: _p.read_int(&mut Ignore)?,
         })
     }
 }
@@ -798,10 +865,13 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
+            Item::PlayerFinish(ref i) => i.fmt(f),
+            Item::PlayerName(ref i) => i.fmt(f),
             Item::PlayerReady(ref i) => i.fmt(f),
             Item::PlayerRejoin(ref i) => i.fmt(f),
             Item::PlayerSwap(ref i) => i.fmt(f),
             Item::PlayerTeam(ref i) => i.fmt(f),
+            Item::TeamFinish(ref i) => i.fmt(f),
             Item::TeamLoadFailure(ref i) => i.fmt(f),
             Item::TeamLoadSuccess(ref i) => i.fmt(f),
             Item::TeamPractice(ref i) => i.fmt(f),
@@ -879,6 +949,15 @@ impl<'a> fmt::Debug for Ddnetver<'a> {
                 "ddnet_version_str",
                 &pretty::AlmostString::new(&self.ddnet_version_str),
             )
+            .finish()
+    }
+}
+
+impl<'a> fmt::Debug for PlayerName<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PlayerName")
+            .field("cid", &self.cid)
+            .field("name", &pretty::AlmostString::new(&self.name))
             .finish()
     }
 }
@@ -1026,6 +1105,18 @@ impl<'a> From<Joinver7> for Item<'a> {
     }
 }
 
+impl<'a> From<PlayerFinish> for Item<'a> {
+    fn from(i: PlayerFinish) -> Item<'a> {
+        Item::PlayerFinish(i)
+    }
+}
+
+impl<'a> From<PlayerName<'a>> for Item<'a> {
+    fn from(i: PlayerName<'a>) -> Item<'a> {
+        Item::PlayerName(i)
+    }
+}
+
 impl<'a> From<PlayerReady> for Item<'a> {
     fn from(i: PlayerReady) -> Item<'a> {
         Item::PlayerReady(i)
@@ -1047,6 +1138,12 @@ impl<'a> From<PlayerSwap> for Item<'a> {
 impl<'a> From<PlayerTeam> for Item<'a> {
     fn from(i: PlayerTeam) -> Item<'a> {
         Item::PlayerTeam(i)
+    }
+}
+
+impl<'a> From<TeamFinish> for Item<'a> {
+    fn from(i: TeamFinish) -> Item<'a> {
+        Item::TeamFinish(i)
     }
 }
 
