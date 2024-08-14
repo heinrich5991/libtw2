@@ -400,7 +400,7 @@ impl Reader {
             for item in self.item_type_items(type_id) {
                 debug!("  item id={}", item.id);
                 for &data in item.data {
-                    #[cfg_attr(feature = "cargo-clippy", allow(identity_op))]
+                    #[allow(clippy::identity_op)]
                     fn i32_to_bytes(input: i32) -> [u8; 4] {
                         [
                             (((input >> 24) & 0xff) - 0x80) as u8,
