@@ -42,7 +42,6 @@ use libtw2_gamenet::snap_obj::ClientInfo;
 use libtw2_gamenet::snap_obj::GameInfo;
 use libtw2_gamenet::snap_obj::PlayerInfo;
 use libtw2_gamenet::snap_obj::Tick;
-use libtw2_gamenet::snap_obj::TypeId;
 use libtw2_gamenet::SnapObj;
 use libtw2_packer::string_to_ints3;
 use libtw2_packer::string_to_ints4;
