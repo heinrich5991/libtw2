@@ -6,7 +6,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct InvalidSliceLength;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Sha256(pub [u8; 32]);
 
 impl Sha256 {
