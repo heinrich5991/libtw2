@@ -12,6 +12,7 @@ def load_module(name, path):
 VERSION_AUTO="auto"
 VERSION_0_5="0.5"
 VERSION_0_6="0.6"
+VERSION_0_7_5="0.7.5"
 VERSION_0_7="0.7"
 VERSION_DDNET_15_2_5="ddnet-15.2.5"
 VERSION_DDNET_16_2="ddnet-16.2"
@@ -26,11 +27,13 @@ def load_network(path, version):
     return network
 
 TUNE_PARAM_NAMES_0_6 = "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking".split()
+TUNE_PARAM_NAMES_0_7 = "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost PlayerCollision PlayerHooking".split()
 
 TUNE_PARAM_NAMES = {
     VERSION_0_5: TUNE_PARAM_NAMES_0_6,
     VERSION_0_6: TUNE_PARAM_NAMES_0_6,
-    VERSION_0_7: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost PlayerCollision PlayerHooking".split(),
+    VERSION_0_7_5: TUNE_PARAM_NAMES_0_7,
+    VERSION_0_7: TUNE_PARAM_NAMES_0_7,
     VERSION_DDNET_15_2_5: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay".split(),
     VERSION_DDNET_16_2: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay HammerHitFireDelay".split(),
     VERSION_DDNET_16_7_2: "GroundControlSpeed GroundControlAccel GroundFriction GroundJumpImpulse AirJumpImpulse AirControlSpeed AirControlAccel AirFriction HookLength HookFireSpeed HookDragAccel HookDragSpeed Gravity VelrampStart VelrampRange VelrampCurvature GunCurvature GunSpeed GunLifetime ShotgunCurvature ShotgunSpeed ShotgunSpeeddiff ShotgunLifetime GrenadeCurvature GrenadeSpeed GrenadeLifetime LaserReach LaserBounceDelay LaserBounceNum LaserBounceCost LaserDamage PlayerCollision PlayerHooking JetpackStrength ShotgunStrength ExplosionStrength HammerStrength HookDuration HammerFireDelay GunFireDelay ShotgunFireDelay GrenadeFireDelay LaserFireDelay NinjaFireDelay HammerHitFireDelay".split(),
@@ -39,6 +42,7 @@ TUNE_PARAM_NAMES = {
 MAX_CLIENTS = {
     VERSION_0_5: 16,
     VERSION_0_6: 16,
+    VERSION_0_7_5: 64,
     VERSION_0_7: 64,
     VERSION_DDNET_15_2_5: 64,
     VERSION_DDNET_16_2: 64,
@@ -48,6 +52,7 @@ MAX_CLIENTS = {
 NETVERSION = {
     VERSION_0_5: "0.5 b67d1f1a1eea234e",
     VERSION_0_6: "0.6 626fce9a778df4d4",
+    VERSION_0_7_5: "0.7 802f1be60a05665f",
     VERSION_0_7: "0.7 802f1be60a05665f",
     VERSION_DDNET_15_2_5: "0.6 626fce9a778df4d4",
     VERSION_DDNET_16_2: "0.6 626fce9a778df4d4",
@@ -73,6 +78,8 @@ def fix_network(network, version):
                 pass
         elif "NUM_SKINPARTS" in network.RawHeader:
             version = VERSION_0_7
+            if ("spec", "invalidid") in network.GameMsgIDs.values:
+                version = VERSION_0_7_5
 
     network.System = msg_system.SYSTEM_MSGS[version]
 
@@ -109,6 +116,10 @@ def fix_network(network, version):
         network.Constants += [
             Constant("DDNET_VERSION", 17021),
         ]
+    if version == VERSION_0_7_5:
+        network.Constants += [
+            Constant("CLIENT_VERSION", 0x0705),
+        ]
     if version == VERSION_0_7:
         network.Constants += [
             Constant("CLIENT_VERSION", 0x0705),
@@ -141,7 +152,7 @@ def fix_network(network, version):
             Enum("SOUND", "GUN_FIRE SHOTGUN_FIRE GRENADE_FIRE HAMMER_FIRE HAMMER_HIT NINJA_FIRE GRENADE_EXPLODE NINJA_HIT RIFLE_FIRE RIFLE_BOUNCE WEAPON_SWITCH PLAYER_PAIN_SHORT PLAYER_PAIN_LONG BODY_LAND PLAYER_AIRJUMP PLAYER_JUMP PLAYER_DIE PLAYER_SPAWN PLAYER_SKID TEE_CRY HOOK_LOOP HOOK_ATTACH_GROUND HOOK_ATTACH_PLAYER HOOK_NOATTACH PICKUP_HEALTH PICKUP_ARMOR PICKUP_GRENADE PICKUP_SHOTGUN PICKUP_NINJA WEAPON_SPAWN WEAPON_NOAMMO HIT CHAT_SERVER CHAT_CLIENT CTF_DROP CTF_RETURN CTF_GRAB_PL CTF_GRAB_EN CTF_CAPTURE".split()),
         ]
 
-    if version == VERSION_0_7:
+    if version in (VERSION_0_7_5, VERSION_0_7):
         network.Enums += [
             Enum("SPEC", "FREEVIEW PLAYER FLAGRED FLAGBLUE".split()),
             Enum("SKINPART", "BODY MARKING DECORATION HANDS FEET EYES".split()),
@@ -199,7 +210,7 @@ def fix_network(network, version):
                     NetClients("clients"),
                 ]),
             ]
-        if version == VERSION_0_7:
+        if version in (VERSION_0_7_5, VERSION_0_7):
             network.Connless += [
                 NetConnless("Info", "inf3", [
                     NetIntAny("token"),
