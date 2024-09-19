@@ -243,7 +243,7 @@ pub struct Count {
 
 #[derive(Clone, Copy)]
 pub struct RequestInfo {
-    pub token: u8,
+    pub token: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -359,13 +359,13 @@ impl fmt::Debug for Count {
 impl RequestInfo {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RequestInfo, Error> {
         let result = Ok(RequestInfo {
-            token: _p.read_raw(1)?[0],
+            token: _p.read_int(warn)?,
         });
         _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        _p.write_raw(&[self.token])?;
+        _p.write_int(self.token)?;
         Ok(_p.written())
     }
 }

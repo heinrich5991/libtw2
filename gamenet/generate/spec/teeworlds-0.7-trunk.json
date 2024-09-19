@@ -1154,7 +1154,7 @@
 			"id": [255, 255, 255, 255, 103, 105, 101, 51],
 			"name": ["request", "info"],
 			"members": [
-				{"name": ["token"], "type": {"kind": "uint8"}}
+				{"name": ["token"], "type": {"kind": "int32"}}
 			]
 		},
 		{

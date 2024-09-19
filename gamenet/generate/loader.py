@@ -190,10 +190,19 @@ def fix_network(network, version):
             NetConnless("Count", "siz2", [
                 NetBigEndianU16("count"),
             ]),
-            NetConnless("RequestInfo", "gie3", [
-                NetU8("token"),
-            ]),
         ]
+        if version not in (VERSION_0_7_5, VERSION_0_7):
+            network.Connless += [
+                NetConnless("RequestInfo", "gie3", [
+                    NetU8("token"),
+                ]),
+            ]
+        else:
+            network.Connless += [
+                NetConnless("RequestInfo", "gie3", [
+                    NetIntAny("token"),
+                ]),
+            ]
         if version in (VERSION_0_6, VERSION_DDNET_15_2_5, VERSION_DDNET_16_2, VERSION_DDNET_16_7_2, VERSION_DDNET_17_2_1):
             network.Connless += [
                 NetConnless("Info", "inf3", [
