@@ -595,7 +595,7 @@ fn load_external_image(path: &Path) -> Result<Option<Array2<Color>>, Error> {
         }
         _ => {}
     }
-    let image = image_result?.to_rgba();
+    let image = image_result?.to_rgba8();
     let (width, height) = image.dimensions();
     let raw: Vec<u8> = image.into_raw();
     let raw: Vec<Color> = unsafe { vec::transmute(raw) };
