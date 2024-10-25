@@ -279,13 +279,14 @@ impl Tracker {
                     for &version in PROTOCOL_VERSIONS_PRIORITY {
                         let server_addr = ServerAddr::new(version, addr);
                         if let Some(e) = servers.get(&server_addr) {
-                            let protocol =
-                                json::Protocol::from(server_addr.version, e.info_version);
                             assert!(dump
                                 .addresses
                                 .insert(
                                     json::Addr {
-                                        protocol,
+                                        protocol: json::Protocol::from(
+                                            server_addr.version,
+                                            e.info_version
+                                        ),
                                         addr: server_addr.addr,
                                     },
                                     json::AddrInfo {
@@ -293,27 +294,9 @@ impl Tracker {
                                         ping_time: e.ping_time,
                                         location: e.location,
                                         secret,
-                                    }
+                                    },
                                 )
                                 .is_none());
-
-                            if protocol == json::Protocol::Ddper6 {
-                                assert!(dump
-                                    .addresses
-                                    .insert(
-                                        json::Addr {
-                                            protocol: json::Protocol::V6,
-                                            addr: server_addr.addr,
-                                        },
-                                        json::AddrInfo {
-                                            kind: json::EntryKind::Backcompat,
-                                            ping_time: e.ping_time,
-                                            location: e.location,
-                                            secret,
-                                        }
-                                    )
-                                    .is_none());
-                            }
                             entry = Some(e);
                         }
                     }
