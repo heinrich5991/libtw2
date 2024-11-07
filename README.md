@@ -74,7 +74,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [**datafile**](datafile). Low-level file format of Teeworlds/DDNet maps.
 - [**demo**](demo). Low-level file format of Teeworlds/DDNet demos (replays).
 - [**downloader**](downloader). Downloader for maps from game servers.
-- [event\_loop](event_loop). Helper for creating Teeworlds/DDNet protocol
+- [event-loop](event-loop). Helper for creating Teeworlds/DDNet protocol
   clients/servers.
 - [**gamenet**](gamenet). Multiple crates for handling the high-level Teeworlds
   0.6, Teeworlds 0.7 and DDNet network protocols.
@@ -122,5 +122,5 @@ indicate that the libraries or executables might be useful outside of libtw2.
   for Teeworlds 0.6, Teeworlds 0.7 and DDNet.
 - [world](world). Proof-of-concept Teeworlds physics. **You should probably use
   Zwelf's [TwGame](https://gitlab.com/ddnet-rs/twgame) instead.**
-- [zlib-minimal](zlib_minimal). Minimal wrapper around
+- [zlib-minimal](zlib-minimal). Minimal wrapper around
   [zlib](https://zlib.net/).
