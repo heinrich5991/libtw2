@@ -120,6 +120,7 @@ pub struct FlagsType {
     pub id_flags: Vec<FieldId>,
     pub flags: Rc<Flags>,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Int32Type {
     pub id: FieldId,
@@ -130,6 +131,7 @@ pub struct Int32Type {
 pub struct OptionalType {
     pub inner: Box<Type>,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct StringType {
     pub id: FieldId,
