@@ -828,28 +828,36 @@
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 17,
 			"name": ["explosion"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 18,
 			"name": ["spawn"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 19,
 			"name": ["hammer", "hit"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 20,
@@ -858,7 +866,9 @@
 			"members": [
 				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 21,
@@ -867,7 +877,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 22,
@@ -880,7 +892,9 @@
 				{"name": ["armor", "amount"], "type": {"kind": "int32", "min": 0, "max": 9}},
 				{"name": ["self"], "type": {"kind": "boolean"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 23,

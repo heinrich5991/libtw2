@@ -1059,28 +1059,36 @@
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 14,
 			"name": ["explosion"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 15,
 			"name": ["spawn"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 16,
 			"name": ["hammer", "hit"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 17,
@@ -1089,7 +1097,9 @@
 			"members": [
 				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 18,
@@ -1098,7 +1108,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 19,
@@ -1107,7 +1119,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 20,
@@ -1116,7 +1130,9 @@
 			"members": [
 				{"name": ["angle"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": "0c4fd27d-47e3-3871-a226-9f417486a311",

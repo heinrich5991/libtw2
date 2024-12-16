@@ -1099,7 +1099,9 @@ def NetObjectEx(name, ex, values, **kwargs):
     return NetObject(name, values, ex=ex, **kwargs)
 
 class NetEvent(NetObject):
-    pass
+    def __init__(self, name, values, **kwargs):
+        super().__init__(name, values, **kwargs)
+        self.attributes.add("event")
 def NetEventEx(name, ex, values, **kwargs):
     return NetEvent(name, values, ex=ex, **kwargs)
 
