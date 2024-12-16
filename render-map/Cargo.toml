@@ -8,7 +8,7 @@ rust-version = "1.63.0"
 
 [dependencies]
 clap = "2.31.2"
-image = "0.10.1"
+image = { version = "0.24.0", features = ["png", "rayon"], default-features = false }
 libtw2-common = { path = "../common/" }
 libtw2-datafile = { path = "../datafile/" }
 libtw2-logger = { path = "../logger/" }
