@@ -30,7 +30,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # `demo` crate doesn't work with the MSRV.
       - name: Exclude `demo` crate from MSRV
-        run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml; cargo update --workspace
+        run: sed -i -e 's/"demo",//' -e 's/"tools",//' Cargo.toml; cargo update -p libtw2-common
         if: ${{ matrix.rust != 'stable' && matrix.rust != 'nightly' }}
       - run: cargo build --locked
       - run: cargo test --locked
