@@ -1556,6 +1556,19 @@
 				{"name": ["error"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
+		},
+		{
+			"id": "4efe406a-7774-33f1-bfde-1806ff6d1528",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "redirect@ddnet.org"
+			},
+			"name": ["redirect"],
+			"members": [
+				{"name": ["port"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
 		}
 	],
 	"connless_messages": [

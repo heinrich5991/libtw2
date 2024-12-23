@@ -66,6 +66,7 @@ pub const PONG_EX: Uuid = Uuid::from_u128(0xd8295530_14a7_3a0a_b02e_b2cee08d2033
 pub const CHECKSUM_REQUEST: Uuid = Uuid::from_u128(0x60a7cef1_2ecc_3ed4_b138_00fd0c8f5994);
 pub const CHECKSUM_RESPONSE: Uuid = Uuid::from_u128(0x88fc61ec_5a3c_3fc3_8dfa_fd3b715db9e0);
 pub const CHECKSUM_ERROR: Uuid = Uuid::from_u128(0x090960d1_4000_3fd5_9670_4976ae702a6a);
+pub const REDIRECT: Uuid = Uuid::from_u128(0x4efe406a_7774_33f1_bfde_1806ff6d1528);
 
 #[derive(Clone, Copy)]
 pub enum System<'a> {
@@ -101,6 +102,7 @@ pub enum System<'a> {
     ChecksumRequest(ChecksumRequest),
     ChecksumResponse(ChecksumResponse),
     ChecksumError(ChecksumError),
+    Redirect(Redirect),
 }
 
 impl<'a> System<'a> {
@@ -139,6 +141,7 @@ impl<'a> System<'a> {
             Uuid(CHECKSUM_REQUEST) => System::ChecksumRequest(ChecksumRequest::decode(warn, _p)?),
             Uuid(CHECKSUM_RESPONSE) => System::ChecksumResponse(ChecksumResponse::decode(warn, _p)?),
             Uuid(CHECKSUM_ERROR) => System::ChecksumError(ChecksumError::decode(warn, _p)?),
+            Uuid(REDIRECT) => System::Redirect(Redirect::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -176,6 +179,7 @@ impl<'a> System<'a> {
             System::ChecksumRequest(_) => MessageId::from(CHECKSUM_REQUEST),
             System::ChecksumResponse(_) => MessageId::from(CHECKSUM_RESPONSE),
             System::ChecksumError(_) => MessageId::from(CHECKSUM_ERROR),
+            System::Redirect(_) => MessageId::from(REDIRECT),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -212,6 +216,7 @@ impl<'a> System<'a> {
             System::ChecksumRequest(ref i) => i.encode(p),
             System::ChecksumResponse(ref i) => i.encode(p),
             System::ChecksumError(ref i) => i.encode(p),
+            System::Redirect(ref i) => i.encode(p),
         }
     }
 }
@@ -251,6 +256,7 @@ impl<'a> fmt::Debug for System<'a> {
             System::ChecksumRequest(ref i) => i.fmt(f),
             System::ChecksumResponse(ref i) => i.fmt(f),
             System::ChecksumError(ref i) => i.fmt(f),
+            System::Redirect(ref i) => i.fmt(f),
         }
     }
 }
@@ -446,6 +452,12 @@ impl<'a> From<ChecksumError> for System<'a> {
         System::ChecksumError(i)
     }
 }
+
+impl<'a> From<Redirect> for System<'a> {
+    fn from(i: Redirect) -> System<'a> {
+        System::Redirect(i)
+    }
+}
 #[derive(Clone, Copy)]
 pub struct Info<'a> {
     pub version: &'a [u8],
@@ -610,6 +622,11 @@ pub struct ChecksumResponse {
 pub struct ChecksumError {
     pub id: Uuid,
     pub error: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct Redirect {
+    pub port: i32,
 }
 
 impl<'a> Info<'a> {
@@ -1279,6 +1296,27 @@ impl fmt::Debug for ChecksumError {
         f.debug_struct("ChecksumError")
             .field("id", &self.id)
             .field("error", &self.error)
+            .finish()
+    }
+}
+
+impl Redirect {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Redirect, Error> {
+        let result = Ok(Redirect {
+            port: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.port)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for Redirect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Redirect")
+            .field("port", &self.port)
             .finish()
     }
 }
