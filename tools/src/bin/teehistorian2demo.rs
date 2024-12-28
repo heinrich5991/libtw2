@@ -229,6 +229,18 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                         emote: Emote::Normal,
                         attack_tick: 0,
                     };
+                    let ddnet_character = snap_obj::DdnetCharacter {
+                        flags: 0,
+                        freeze_end: snap_obj::Tick(0),
+                        jumps: 0,
+                        tele_checkpoint: -1,
+                        strong_weak_id: 0,
+                        jumped_total: 0,
+                        ninja_activation_tick: snap_obj::Tick(0),
+                        freeze_start: snap_obj::Tick(0),
+                        target_x: input.target_x,
+                        target_y: input.target_y,
+                    };
                     builder
                         .add_item(
                             snap_obj::CLIENT_INFO.into(),
@@ -248,6 +260,13 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                             snap_obj::CHARACTER.into(),
                             cid.assert_u16(),
                             character.encode(),
+                        )
+                        .unwrap();
+                    builder
+                        .add_item(
+                            snap_obj::DDNET_CHARACTER.into(),
+                            cid.assert_u16(),
+                            ddnet_character.encode(),
                         )
                         .unwrap();
 
