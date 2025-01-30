@@ -53,7 +53,7 @@ def annotate_imported_functions(lines, exported_functions):
             m = RE_FUNCTION_NAME.match(line)
             extern_c.append(line)
             if line == "}\n":
-                result.append("#[cfg_attr(windows, link(name = \"lib{}.dll\", kind = \"raw-dylib\"))]\n".format(library))
+                result.append("#[cfg_attr(windows, link(name = \"lib{}\", kind = \"raw-dylib\"))]\n".format(library))
                 result += extern_c
                 extern_c = []
                 library = None
