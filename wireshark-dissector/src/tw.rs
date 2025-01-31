@@ -66,13 +66,13 @@ unsafe extern "C" fn dissect_heur(
     pinfo: *mut sys::packet_info,
     ttree: *mut sys::proto_tree,
     _data: *mut c_void,
-) -> c_int {
+) -> bool {
     if !dissect_heur_impl(tvb).is_ok() {
-        return 0;
+        return false;
     }
     let conversation = sys::find_or_create_conversation(pinfo);
     sys::conversation_set_dissector(conversation, PROTO_PACKET_HANDLE);
-    dissect_impl(tvb, pinfo, ttree).is_ok() as c_int
+    dissect_impl(tvb, pinfo, ttree).is_ok()
 }
 
 unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
@@ -154,7 +154,7 @@ unsafe fn dissect_impl(
     macro_rules! field_boolean {
         ($tree:expr, $hf:expr, $from:expr, $value:expr, $fmt:expr, $($args:tt)*) => {{
             let value: bool = $value;
-            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value as c_uint, $fmt, $($args)*)
+            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value.into(), $fmt, $($args)*)
         }};
     }
     macro_rules! field_uint {

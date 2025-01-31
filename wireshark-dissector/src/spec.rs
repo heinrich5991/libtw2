@@ -414,7 +414,7 @@ impl Spec {
             tvb,
             raw_msg_pos.assert_i32(),
             1,
-            system as c_uint,
+            system.into(),
             PS,
             bformat!(
                 "{} = {}",
@@ -862,7 +862,7 @@ impl Type {
                     tvb,
                     pos.assert_i32(),
                     (p.num_bytes_read() - pos).assert_i32(),
-                    v as c_uint,
+                    v.into(),
                     PS,
                     bformat!("{}: {}", desc, v),
                 );
@@ -957,7 +957,7 @@ impl Type {
                         tvb,
                         pos.assert_i32(),
                         (p.num_bytes_read() - pos).assert_i32(),
-                        (v & flag != 0) as c_uint,
+                        (v & flag != 0).into(),
                         PS,
                         bformat!(
                             "{} = {} {}",
