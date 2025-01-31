@@ -481,7 +481,7 @@ impl<A: Address> Net<A> {
         self.peers.remove_peer(pid);
         result
     }
-    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB) -> Tick<A, CB> {
+    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB) -> Tick<'a, A, CB> {
         Tick {
             iter_mut: self.peers.iter_mut(),
             cb: cb,
