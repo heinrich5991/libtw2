@@ -28,6 +28,7 @@ For rendering, the segments need to be scaled like this (relative to body being
     eyes: 120%
     hand: 93.75%
 
+The right eye needs to be mirrored horizontally (<->).
 The last eye shape `eye_blink` is achieved by scaling `eye_normal` 120%
 horizontally, but 45% vertically.
 
@@ -35,18 +36,15 @@ Then, the images must be positioned like the following (hands or moving feet
 not handled), relative to 64/64 or 1 being the edge length of the body
 segment).
 
-    body: 4/64 up
+    body:
+        x: 4/64 up
     feet:
-        10/64 down
-        7/64 left/right
+        x: 7/64 left/right
+        y: 10/64 down
     eyes:
-        0.125 up
-        0.05 left/right
-
-    eye movement:
         dir = angle of eyes (view angle), right = 0
-        eyes:
-            x: cos(dir) * 0.125
-            y: sin(dir) * 0.1
-        each eye (away from the other):
-            x: abs(cos(dir)) * 0.01
+        eyes_center:
+            x: cos(dir) * 0.125 right
+            y: body.y and then sin(dir) * 0.1 - 0.05 down
+        eyes_offset:
+            x: 0.075 - abs(cos(dir)) * 0.01 left/right
