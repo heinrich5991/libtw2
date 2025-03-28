@@ -34,6 +34,7 @@ use vec_map::VecMap;
 use warn::Ignore;
 
 const TICKS_PER_SECOND: i32 = 50;
+const GAMEINFO_CURVERSION: i32 = 8;
 
 struct Info {
     name: ArrayVec<[u8; 4 * 4 - 1]>,
@@ -288,6 +289,35 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
             builder
                 .add_item(snap_obj::GAME_INFO.into(), 0, game_info.encode())
                 .unwrap();
+
+            let game_info_ex = {
+                use libtw2_gamenet_ddnet::snap_obj::*;
+                GameInfoEx {
+                    flags: GAMEINFOFLAG_TIMESCORE
+                        | GAMEINFOFLAG_GAMETYPE_RACE
+                        | GAMEINFOFLAG_GAMETYPE_DDRACE
+                        | GAMEINFOFLAG_GAMETYPE_DDNET
+                        | GAMEINFOFLAG_UNLIMITED_AMMO
+                        | GAMEINFOFLAG_RACE_RECORD_MESSAGE
+                        | GAMEINFOFLAG_ALLOW_EYE_WHEEL
+                        | GAMEINFOFLAG_ALLOW_HOOK_COLL
+                        | GAMEINFOFLAG_ALLOW_ZOOM
+                        | GAMEINFOFLAG_BUG_DDRACE_GHOST
+                        | GAMEINFOFLAG_BUG_DDRACE_INPUT
+                        | GAMEINFOFLAG_PREDICT_DDRACE
+                        | GAMEINFOFLAG_PREDICT_DDRACE_TILES
+                        | GAMEINFOFLAG_ENTITIES_DDNET
+                        | GAMEINFOFLAG_ENTITIES_DDRACE
+                        | GAMEINFOFLAG_ENTITIES_RACE
+                        | GAMEINFOFLAG_RACE,
+                    version: GAMEINFO_CURVERSION,
+                    flags2: GAMEINFOFLAG2_HUD_DDRACE,
+                }
+            };
+            builder
+                .add_item(snap_obj::GAME_INFO_EX.into(), 0, game_info_ex.encode())
+                .unwrap();
+
             let snap = builder.finish();
 
             encoded.clear();
