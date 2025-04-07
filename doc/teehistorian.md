@@ -114,8 +114,28 @@ The following data types are used:
 * uuid is 16 bytes of a UUID
 
 the UUIDs are version 3 UUIDs, with the teeworlds namespace e05ddaaa-c4e6-4cfb-b642-5d48e80c0029
-a tick is implicit in these messages when a player with lower cid is recorded using any of PLAYER\_DIFF, PLAYER\_NEW, PLAYER\_OLD
-e.g.
-PLAYER\_DIFF cid=0 … PLAYER\_NEW cid=5 … PLAYER\_OLD cid=3 has an implicit tick between the cid=5 and the cid=3 message
-another correction:
-the header is the teehistorian uuid followed by a zero-terminated string containing json in a self-explanatory format
+
+(Implicit) Ticks
+----------------
+
+Teehistorian messages are associated with in-game tick numbers. The tick of a
+message depends on all previous messages. It can't be calculated locally.
+
+* TICK\_SKIP messages explicitly increase the tick by `dt + 1`.
+* PLAYER\_DIFF, PLAYER\_NEW, PLAYER\_OLD can implicity increment the tick by 1.
+They imply a tick increment, if the last message of the three kinds held an
+equal or lower cid and there wasn't a TICK\_SKIP message inbetween.
+
+In Python-like pseudocode:
+```py
+tick = 0
+implicit_cid = None
+for message in messages:
+  if message.kind == TICK_SKIP:
+    tick += message.dt + 1
+    implicit_cid = None
+  if message.kind is in [PLAYER_DIFF, PLAYER_NEW, PLAYER_OLD]:
+    if implicit_cid is not None and message.cid <= implicit_cid:
+      tick += 1
+    implicit_cid = message.cid
+```
