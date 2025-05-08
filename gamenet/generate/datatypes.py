@@ -903,6 +903,13 @@ class Struct(NameValues):
                         and self.values[i].min == "TEAM_SPECTATORS"
                         and self.values[i].max == "TEAM_BLUE"):
                     self.values[i] = NetBool(self.values[i].name)
+        elif self.name == ("character",):
+            for i in range(len(self.values)):
+                if (type(self.values[i]) == NetIntRange
+                        and self.values[i].name == ("ammo", "count")
+                        and self.values[i].min == 0
+                        and self.values[i].max == 10):
+                    self.values[i].min = -1
         self.values = [member.update(self, consts, enums, structs) for member in self.values]
 
         if ("snap" in self.attributes) + ("snap_empty" in self.attributes) + ("snap_single" in self.attributes) > 1:

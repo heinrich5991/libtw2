@@ -863,7 +863,7 @@
 				{"name": ["player", "flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
 				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
 				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
-				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": -1, "max": 10}},
 				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
 				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
 				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}

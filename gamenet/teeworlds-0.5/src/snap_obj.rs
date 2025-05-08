@@ -801,7 +801,7 @@ impl Character {
             player_state: enums::Playerstate::from_i32(_p.read_int()?)?,
             health: in_range(_p.read_int()?, 0, 10)?,
             armor: in_range(_p.read_int()?, 0, 10)?,
-            ammo_count: in_range(_p.read_int()?, 0, 10)?,
+            ammo_count: in_range(_p.read_int()?, -1, 10)?,
             weapon: enums::Weapon::from_i32(_p.read_int()?)?,
             emote: enums::Emote::from_i32(_p.read_int()?)?,
             attack_tick: positive(_p.read_int()?)?,
@@ -811,7 +811,7 @@ impl Character {
         self.character_core.encode();
         assert!(0 <= self.health && self.health <= 10);
         assert!(0 <= self.armor && self.armor <= 10);
-        assert!(0 <= self.ammo_count && self.ammo_count <= 10);
+        assert!(-1 <= self.ammo_count && self.ammo_count <= 10);
         assert!(self.attack_tick >= 0);
         unsafe { slice::transmute(from_ref(self)) }
     }
