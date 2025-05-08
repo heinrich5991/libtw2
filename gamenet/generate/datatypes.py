@@ -1383,11 +1383,11 @@ def evaluate_constant(consts, enums, constant):
     if constant.endswith("-1"):
         constant = constant[:-2]
         offset = -1
-    if constant.startswith("NUM_") and constant.endswith("S"):
-        return len(enums[canonicalize(constant[4:-1])].values) + offset
     c = canonicalize(constant)
     if c in consts:
         return consts[c].value + offset
+    if constant.startswith("NUM_") and constant.endswith("S"):
+        return len(enums[canonicalize(constant[4:-1])].values) + offset
     for i in range(1, len(c))[::-1]:
         if c[:i] in enums:
             try:

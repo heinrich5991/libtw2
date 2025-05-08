@@ -23,7 +23,7 @@ use std::slice;
 use warn::Ignore;
 use zerocopy::FromBytes;
 
-const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-17.2.1.json");
+const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-19.1.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;

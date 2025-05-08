@@ -1,6 +1,9 @@
 use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 16;
+pub const WEAPON_GAME: i32 = -3;
+pub const WEAPON_SELF: i32 = -2;
+pub const WEAPON_WORLD: i32 = -1;
 pub const SPEC_FREEVIEW: i32 = -1;
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;

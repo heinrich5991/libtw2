@@ -1,6 +1,9 @@
 use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 16;
+pub const WEAPON_GAME: i32 = -3;
+pub const WEAPON_SELF: i32 = -2;
+pub const WEAPON_WORLD: i32 = -1;
 pub const VERSION: &'static str = "0.5 b67d1f1a1eea234e";
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";

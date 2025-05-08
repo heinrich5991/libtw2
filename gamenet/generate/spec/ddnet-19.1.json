@@ -1,6 +1,6 @@
 {
 	"constants": [
-		{"name": ["max", "clients"], "type": "int32", "value": 64},
+		{"name": ["max", "clients"], "type": "int32", "value": 128},
 		{"name": ["weapon", "game"], "type": "int32", "value": -3},
 		{"name": ["weapon", "self"], "type": "int32", "value": -2},
 		{"name": ["weapon", "world"], "type": "int32", "value": -1},
@@ -10,7 +10,7 @@
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},
 		{"name": ["version"], "type": "string", "value": "0.6 626fce9a778df4d4"},
-		{"name": ["ddnet", "version"], "type": "int32", "value": 16072},
+		{"name": ["ddnet", "version"], "type": "int32", "value": 19010},
 		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
 		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"},
 		{"name": ["cl", "call", "vote", "type", "spec"], "type": "string", "value": "spec"}
@@ -92,7 +92,41 @@
 				{"value": 0, "name": ["rifle"]},
 				{"value": 1, "name": ["shotgun"]},
 				{"value": 2, "name": ["door"]},
-				{"value": 3, "name": ["freeze"]}
+				{"value": 3, "name": ["freeze"]},
+				{"value": 4, "name": ["dragger"]},
+				{"value": 5, "name": ["gun"]},
+				{"value": 6, "name": ["plasma"]}
+			]
+		},
+		{
+			"name": ["laserdraggertype"],
+			"values": [
+				{"value": 0, "name": ["weak"]},
+				{"value": 1, "name": ["weak", "nw"]},
+				{"value": 2, "name": ["normal"]},
+				{"value": 3, "name": ["normal", "nw"]},
+				{"value": 4, "name": ["strong"]},
+				{"value": 5, "name": ["strong", "nw"]}
+			]
+		},
+		{
+			"name": ["laserguntype"],
+			"values": [
+				{"value": 0, "name": ["unfreeze"]},
+				{"value": 1, "name": ["explosive"]},
+				{"value": 2, "name": ["freeze"]},
+				{"value": 3, "name": ["expfreeze"]}
+			]
+		},
+		{
+			"name": ["team"],
+			"values": [
+				{"value": -2, "name": ["all"]},
+				{"value": -1, "name": ["spectators"]},
+				{"value": 0, "name": ["red"]},
+				{"value": 1, "name": ["blue"]},
+				{"value": 2, "name": ["whisper", "send"]},
+				{"value": 3, "name": ["whisper", "recv"]}
 			]
 		},
 		{
@@ -104,14 +138,6 @@
 				{"value": 3, "name": ["grenade"]},
 				{"value": 4, "name": ["rifle"]},
 				{"value": 5, "name": ["ninja"]}
-			]
-		},
-		{
-			"name": ["team"],
-			"values": [
-				{"value": -1, "name": ["spectators"]},
-				{"value": 0, "name": ["red"]},
-				{"value": 1, "name": ["blue"]}
 			]
 		},
 		{
@@ -169,7 +195,8 @@
 				{"value": 2, "name": ["in", "menu"]},
 				{"value": 4, "name": ["chatting"]},
 				{"value": 8, "name": ["scoreboard"]},
-				{"value": 16, "name": ["aim"]}
+				{"value": 16, "name": ["aim"]},
+				{"value": 32, "name": ["spec", "cam"]}
 			]
 		},
 		{
@@ -213,7 +240,10 @@
 				{"value": 524288, "name": ["weapon", "ninja"]},
 				{"value": 1048576, "name": ["movements", "disabled"]},
 				{"value": 2097152, "name": ["in", "freeze"]},
-				{"value": 4194304, "name": ["practice", "mode"]}
+				{"value": 4194304, "name": ["practice", "mode"]},
+				{"value": 8388608, "name": ["lock", "mode"]},
+				{"value": 16777216, "name": ["team0", "mode"]},
+				{"value": 33554432, "name": ["invincible"]}
 			]
 		},
 		{
@@ -263,7 +293,9 @@
 				{"value": 16, "name": ["hud", "health", "armor"]},
 				{"value": 32, "name": ["hud", "ammo"]},
 				{"value": 64, "name": ["hud", "ddrace"]},
-				{"value": 128, "name": ["no", "weak", "hook"]}
+				{"value": 128, "name": ["no", "weak", "hook"]},
+				{"value": 256, "name": ["no", "skin", "change", "for", "frozen"]},
+				{"value": 512, "name": ["ddrace", "team"]}
 			]
 		},
 		{
@@ -275,7 +307,7 @@
 			]
 		},
 		{
-			"name": ["projectileflag"],
+			"name": ["legacyprojectileflag"],
 			"values": [
 				{"value": 1, "name": ["clientid", "bit0"]},
 				{"value": 2, "name": ["clientid", "bit1"]},
@@ -291,6 +323,22 @@
 				{"value": 2048, "name": ["bounce", "vertical"]},
 				{"value": 4096, "name": ["explosive"]},
 				{"value": 8192, "name": ["freeze"]}
+			]
+		},
+		{
+			"name": ["projectileflag"],
+			"values": [
+				{"value": 1, "name": ["bounce", "horizontal"]},
+				{"value": 2, "name": ["bounce", "vertical"]},
+				{"value": 4, "name": ["explosive"]},
+				{"value": 8, "name": ["freeze"]},
+				{"value": 16, "name": ["normalize", "vel"]}
+			]
+		},
+		{
+			"name": ["laserflag"],
+			"values": [
+				{"value": 1, "name": ["no", "predict"]}
 			]
 		}
 	],
@@ -316,7 +364,7 @@
 			"name": ["sv", "chat"],
 			"members": [
 				{"name": ["team"], "type": {"kind": "int32", "min": -2, "max": 3}},
-				{"name": ["client", "id"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": -1, "max": 127}},
 				{"name": ["message"], "type": {"kind": "string", "disallow_cc": true}}
 			],
 			"attributes": []
@@ -325,8 +373,8 @@
 			"id": 4,
 			"name": ["sv", "kill", "msg"],
 			"members": [
-				{"name": ["killer"], "type": {"kind": "int32", "min": 0, "max": 63}},
-				{"name": ["victim"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["killer"], "type": {"kind": "int32", "min": 0, "max": 127}},
+				{"name": ["victim"], "type": {"kind": "int32", "min": 0, "max": 127}},
 				{"name": ["weapon"], "type": {"kind": "int32", "min": -3, "max": 5}},
 				{"name": ["mode", "special"], "type": {"kind": "int32"}}
 			],
@@ -388,16 +436,16 @@
 				{"name": ["grenade", "fire", "delay"], "type": {"kind": "tune_param"}},
 				{"name": ["laser", "fire", "delay"], "type": {"kind": "tune_param"}},
 				{"name": ["ninja", "fire", "delay"], "type": {"kind": "tune_param"}},
-				{"name": ["hammer", "hit", "fire", "delay"], "type": {"kind": "tune_param"}}
+				{"name": ["hammer", "hit", "fire", "delay"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "elasticity", "x"], "type": {"kind": "tune_param"}},
+				{"name": ["ground", "elasticity", "y"], "type": {"kind": "tune_param"}}
 			],
 			"attributes": []
 		},
 		{
 			"id": 7,
-			"name": ["sv", "extra", "projectile"],
-			"members": [
-				{"name": ["projectile"], "type": {"kind": "snapshot_object", "name": ["projectile"]}}
-			],
+			"name": ["unused"],
+			"members": [],
 			"attributes": []
 		},
 		{
@@ -418,7 +466,7 @@
 			"id": 10,
 			"name": ["sv", "emoticon"],
 			"members": [
-				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 127}},
 				{"name": ["emoticon"], "type": {"kind": "enum", "enum": ["emoticon"]}}
 			],
 			"attributes": []
@@ -458,7 +506,7 @@
 			"id": 15,
 			"name": ["sv", "vote", "set"],
 			"members": [
-				{"name": ["timeout"], "type": {"kind": "int32", "min": 0, "max": 60}},
+				{"name": ["timeout"], "type": {"kind": "int32", "min": 0}},
 				{"name": ["description"], "type": {"kind": "string", "disallow_cc": true}},
 				{"name": ["reason"], "type": {"kind": "string", "disallow_cc": true}}
 			],
@@ -468,10 +516,10 @@
 			"id": 16,
 			"name": ["sv", "vote", "status"],
 			"members": [
-				{"name": ["yes"], "type": {"kind": "int32", "min": 0, "max": 64}},
-				{"name": ["no"], "type": {"kind": "int32", "min": 0, "max": 64}},
-				{"name": ["pass"], "type": {"kind": "int32", "min": 0, "max": 64}},
-				{"name": ["total"], "type": {"kind": "int32", "min": 0, "max": 64}}
+				{"name": ["yes"], "type": {"kind": "int32", "min": 0, "max": 128}},
+				{"name": ["no"], "type": {"kind": "int32", "min": 0, "max": 128}},
+				{"name": ["pass"], "type": {"kind": "int32", "min": 0, "max": 128}},
+				{"name": ["total"], "type": {"kind": "int32", "min": 0, "max": 128}}
 			],
 			"attributes": []
 		},
@@ -498,7 +546,7 @@
 			"id": 19,
 			"name": ["cl", "set", "spectator", "mode"],
 			"members": [
-				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 63}}
+				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 127}}
 			],
 			"attributes": []
 		},
@@ -595,7 +643,7 @@
 		},
 		{
 			"id": 29,
-			"name": ["unused"],
+			"name": ["unused2"],
 			"members": [],
 			"attributes": []
 		},
@@ -603,7 +651,7 @@
 			"id": 30,
 			"name": ["sv", "teams", "state", "legacy"],
 			"members": [
-				{"name": ["teams"], "type": {"kind": "array", "count": 64, "member_type": {"kind": "int32", "min": 0, "max": 64}}}
+				{"name": ["teams"], "type": {"kind": "array", "count": 128, "member_type": {"kind": "int32", "min": 0, "max": 128}}}
 			],
 			"attributes": []
 		},
@@ -656,6 +704,21 @@
 			"attributes": []
 		},
 		{
+			"id": "8c470228-ee11-3808-93b9-c5c87d08b51c",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "camera-info@netmsg.ddnet.org"
+			},
+			"name": ["cl", "camera", "info"],
+			"members": [
+				{"name": ["zoom"], "type": {"kind": "int32"}},
+				{"name": ["deadzone"], "type": {"kind": "int32"}},
+				{"name": ["follow", "factor"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
 			"id": "a091961a-95e8-3744-bb60-5eac9bd563c6",
 			"id_from": {
 				"algorithm": "uuid_v3",
@@ -664,7 +727,7 @@
 			},
 			"name": ["sv", "teams", "state"],
 			"members": [
-				{"name": ["teams"], "type": {"kind": "array", "count": 64, "member_type": {"kind": "int32", "min": 0, "max": 64}}}
+				{"name": ["teams"], "type": {"kind": "array", "count": 128, "member_type": {"kind": "int32", "min": 0, "max": 128}}}
 			],
 			"attributes": []
 		},
@@ -694,6 +757,148 @@
 			"members": [
 				{"name": ["server", "time", "best"], "type": {"kind": "int32"}},
 				{"name": ["player", "time", "best"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "ee610b6f-909f-311e-93f7-11a95f55a086",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "killmsgteam@netmsg.ddnet.tw"
+			},
+			"name": ["sv", "kill", "msg", "team"],
+			"members": [
+				{"name": ["team"], "type": {"kind": "int32", "min": 0, "max": 127}},
+				{"name": ["first"], "type": {"kind": "int32", "min": -1, "max": 127}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "bfd7f0fc-16d5-3e10-8015-a78380f13870",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "yourvote@netmsg.ddnet.org"
+			},
+			"name": ["sv", "your", "vote"],
+			"members": [
+				{"name": ["voted"], "type": {"kind": "int32", "min": -1, "max": 1}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "c915ba68-0a49-3324-915a-7a6220cecf33",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "racefinish@netmsg.ddnet.org"
+			},
+			"name": ["sv", "race", "finish"],
+			"members": [
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 127}},
+				{"name": ["time"], "type": {"kind": "int32"}},
+				{"name": ["diff"], "type": {"kind": "int32"}},
+				{"name": ["record", "personal"], "type": {"kind": "boolean"}},
+				{"name": ["record", "server"], "default": false, "type": {"kind": "boolean"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "90778f65-1b8f-322a-9713-cf741aa44a05",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "commandinfo@netmsg.ddnet.org"
+			},
+			"name": ["sv", "command", "info"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["args", "format"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["help", "text"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "eb2e77ce-e9a2-35aa-94be-235f523ac1aa",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "commandinfo-remove@netmsg.ddnet.org"
+			},
+			"name": ["sv", "command", "info", "remove"],
+			"members": [
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "969d127c-b768-390d-8879-6104993769fa",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-vote-option-group-start@netmsg.ddnet.org"
+			},
+			"name": ["sv", "vote", "option", "group", "start"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "4f096765-39b1-3766-82dc-61b20ccf589a",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-vote-option-group-end@netmsg.ddnet.org"
+			},
+			"name": ["sv", "vote", "option", "group", "end"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "9e220138-d393-3cb0-90f1-e587c00ab1d0",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-commandinfo-group-start@netmsg.ddnet.org"
+			},
+			"name": ["sv", "command", "info", "group", "start"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "054125d8-0062-3891-840b-47462285a01f",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-commandinfo-group-end@netmsg.ddnet.org"
+			},
+			"name": ["sv", "command", "info", "group", "end"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "746cb54c-6b2b-39a7-8cd8-7c7a1c6c3009",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "change-info-cooldown@netmsg.ddnet.org"
+			},
+			"name": ["sv", "change", "info", "cooldown"],
+			"members": [
+				{"name": ["wait", "until"], "type": {"kind": "tick"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "669c9741-695a-369b-856c-a254f6b7f0cb",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "map-sound-global@netmsg.ddnet.org"
+			},
+			"name": ["sv", "map", "sound", "global"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
 		}
@@ -729,9 +934,7 @@
 				{"name": ["type"], "type": {"kind": "enum", "enum": ["weapon"]}},
 				{"name": ["start", "tick"], "type": {"kind": "tick"}}
 			],
-			"attributes": [
-				"msg_encoding"
-			]
+			"attributes": []
 		},
 		{
 			"id": 3,
@@ -787,8 +990,8 @@
 			"members": [
 				{"name": ["teamscore", "red"], "type": {"kind": "int32"}},
 				{"name": ["teamscore", "blue"], "type": {"kind": "int32"}},
-				{"name": ["flag", "carrier", "red"], "type": {"kind": "int32", "min": -3, "max": 63}},
-				{"name": ["flag", "carrier", "blue"], "type": {"kind": "int32", "min": -3, "max": 63}}
+				{"name": ["flag", "carrier", "red"], "type": {"kind": "int32", "min": -3, "max": 127}},
+				{"name": ["flag", "carrier", "blue"], "type": {"kind": "int32", "min": -3, "max": 127}}
 			],
 			"attributes": []
 		},
@@ -804,9 +1007,9 @@
 				{"name": ["angle"], "type": {"kind": "int32"}},
 				{"name": ["direction"], "type": {"kind": "int32", "min": -1, "max": 1}},
 				{"name": ["jumped"], "type": {"kind": "int32", "min": 0, "max": 3}},
-				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["hooked", "player"], "type": {"kind": "int32", "min": -1, "max": 127}},
 				{"name": ["hook", "state"], "type": {"kind": "int32", "min": -1, "max": 5}},
-				{"name": ["hook", "tick"], "type": {"kind": "tick"}},
+				{"name": ["hook", "tick"], "type": {"kind": "int32"}},
 				{"name": ["hook", "x"], "type": {"kind": "int32"}},
 				{"name": ["hook", "y"], "type": {"kind": "int32"}},
 				{"name": ["hook", "dx"], "type": {"kind": "int32"}},
@@ -823,7 +1026,7 @@
 				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
 				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
 				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": -1, "max": 10}},
-				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["weapon"], "type": {"kind": "int32", "min": -1, "max": 5}},
 				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
 				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}
 			],
@@ -834,7 +1037,7 @@
 			"name": ["player", "info"],
 			"members": [
 				{"name": ["local"], "type": {"kind": "int32", "min": 0, "max": 1}},
-				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 127}},
 				{"name": ["team"], "type": {"kind": "enum", "enum": ["team"]}},
 				{"name": ["score"], "type": {"kind": "int32"}},
 				{"name": ["latency"], "type": {"kind": "int32"}}
@@ -859,7 +1062,7 @@
 			"id": 12,
 			"name": ["spectator", "info"],
 			"members": [
-				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 63}},
+				{"name": ["spectator", "id"], "type": {"kind": "int32", "min": -1, "max": 127}},
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}}
 			],
@@ -891,12 +1094,13 @@
 				{"name": ["freeze", "end"], "default": 0, "type": {"kind": "tick"}},
 				{"name": ["jumps"], "default": 2, "type": {"kind": "int32", "min": -1, "max": 255}},
 				{"name": ["tele", "checkpoint"], "default": -1, "type": {"kind": "int32"}},
-				{"name": ["strong", "weak", "id"], "default": 0, "type": {"kind": "int32", "min": 0, "max": 63}},
+				{"name": ["strong", "weak", "id"], "default": 0, "type": {"kind": "int32", "min": 0, "max": 127}},
 				{"name": ["jumped", "total"], "default": -1, "type": {"kind": "int32", "min": -1, "max": 255}},
 				{"name": ["ninja", "activation", "tick"], "default": -1, "type": {"kind": "tick"}},
 				{"name": ["freeze", "start"], "default": -1, "type": {"kind": "tick"}},
 				{"name": ["target", "x"], "default": 0, "type": {"kind": "int32"}},
-				{"name": ["target", "y"], "default": 0, "type": {"kind": "int32"}}
+				{"name": ["target", "y"], "default": 0, "type": {"kind": "int32"}},
+				{"name": ["tune", "zone", "override"], "default": -1, "type": {"kind": "int32", "min": -1, "max": 255}}
 			],
 			"attributes": [
 				"dont_validate_size"
@@ -940,7 +1144,7 @@
 				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
 				"name": "projectile@netobj.ddnet.tw"
 			},
-			"name": ["ddnet", "projectile"],
+			"name": ["ddrace", "projectile"],
 			"members": [
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}},
@@ -965,8 +1169,67 @@
 				{"name": ["from", "x"], "type": {"kind": "int32"}},
 				{"name": ["from", "y"], "type": {"kind": "int32"}},
 				{"name": ["start", "tick"], "type": {"kind": "tick"}},
-				{"name": ["owner"], "type": {"kind": "int32", "min": -1, "max": 63}},
-				{"name": ["type"], "type": {"kind": "int32"}}
+				{"name": ["owner"], "type": {"kind": "int32", "min": -1, "max": 127}},
+				{"name": ["type"], "type": {"kind": "int32"}},
+				{"name": ["switch", "number"], "default": -1, "type": {"kind": "int32"}},
+				{"name": ["subtype"], "default": -1, "type": {"kind": "int32"}},
+				{"name": ["flags"], "default": 0, "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "6550fbce-f317-3b31-8ffe-d2b37f3ab40e",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "ddnet-projectile@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "projectile"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["vel", "x"], "type": {"kind": "int32"}},
+				{"name": ["vel", "y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "enum", "enum": ["weapon"]}},
+				{"name": ["start", "tick"], "type": {"kind": "tick"}},
+				{"name": ["owner"], "type": {"kind": "int32", "min": -1, "max": 127}},
+				{"name": ["switch", "number"], "type": {"kind": "int32"}},
+				{"name": ["tune", "zone"], "type": {"kind": "int32"}},
+				{"name": ["flags"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "ea5e4a51-58fb-3684-96e4-e0d267f4ca65",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "pickup@netobj.ddnet.tw"
+			},
+			"name": ["ddnet", "pickup"],
+			"members": [
+				{"name": ["x"], "type": {"kind": "int32"}},
+				{"name": ["y"], "type": {"kind": "int32"}},
+				{"name": ["type"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["subtype"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["switch", "number"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "d13307b2-9a19-37cb-8f8c-07c718521883",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "spectator-info@netobj.ddnet.org"
+			},
+			"name": ["ddnet", "spectator", "info"],
+			"members": [
+				{"name": ["has", "camera", "info"], "type": {"kind": "boolean"}},
+				{"name": ["zoom"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["deadzone"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["follow", "factor"], "type": {"kind": "int32", "min": 0}},
+				{"name": ["spectator", "count"], "default": 0, "type": {"kind": "int32", "min": 0, "max": 127}}
 			],
 			"attributes": []
 		},
@@ -1013,7 +1276,7 @@
 			"name": ["death"],
 			"super": ["common"],
 			"members": [
-				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
+				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 127}}
 			],
 			"attributes": [
 				"event"
@@ -1048,6 +1311,34 @@
 			"members": [
 				{"name": ["angle"], "type": {"kind": "int32"}}
 			],
+			"attributes": [
+				"event"
+			]
+		},
+		{
+			"id": "1fd35746-6263-358c-b4d6-6ef60e0efaaa",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "birthday@netevent.ddnet.org"
+			},
+			"name": ["birthday"],
+			"super": ["common"],
+			"members": [],
+			"attributes": [
+				"event"
+			]
+		},
+		{
+			"id": "68bf8939-ef55-3878-9082-13527eb0a597",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "finish@netevent.ddnet.org"
+			},
+			"name": ["finish"],
+			"super": ["common"],
+			"members": [],
 			"attributes": [
 				"event"
 			]
@@ -1111,6 +1402,22 @@
 				{"name": ["entity", "class"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
+		},
+		{
+			"id": "54ecad2e-bfad-3be5-8903-621ba052458e",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "map-sound-world@netevent.ddnet.org"
+			},
+			"name": ["map", "sound", "world"],
+			"super": ["common"],
+			"members": [
+				{"name": ["sound", "id"], "type": {"kind": "int32"}}
+			],
+			"attributes": [
+				"event"
+			]
 		}
 	],
 	"system_messages": [
@@ -1473,6 +1780,100 @@
 				{"name": ["id"], "type": {"kind": "uuid"}},
 				{"name": ["error"], "type": {"kind": "int32"}}
 			],
+			"attributes": []
+		},
+		{
+			"id": "4efe406a-7774-33f1-bfde-1806ff6d1528",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "redirect@ddnet.org"
+			},
+			"name": ["redirect"],
+			"members": [
+				{"name": ["port"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "85f67ffe-f1b1-3af3-98c4-26dbf77111b7",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "rcon-cmd-group-start@ddnet.org"
+			},
+			"name": ["rcon", "cmd", "group", "start"],
+			"members": [
+				{"name": ["length"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "5e02c980-6ca1-3c99-a9af-4650ae956252",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "rcon-cmd-group-end@ddnet.org"
+			},
+			"name": ["rcon", "cmd", "group", "end"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "9a9b28a3-19b0-37d9-b1f4-2cccfba05bac",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "map-reload@ddnet.org"
+			},
+			"name": ["map", "reload"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "5f4d5db7-3947-3711-b04e-07a1ff23c970",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "reconnect@ddnet.org"
+			},
+			"name": ["reconnect"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "ca956101-b034-3339-92ca-aa104b20d770",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-maplist-add@ddnet.org"
+			},
+			"name": ["maplist", "add"],
+			"members": [],
+			"attributes": []
+		},
+		{
+			"id": "a35cb887-604d-3ca4-bd3e-fa4720beedf1",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-maplist-group-start@ddnet.org"
+			},
+			"name": ["maplist", "group", "start"],
+			"members": [
+				{"name": ["length"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "d246fb91-5f82-35cf-a1fb-9593e98b57f5",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "sv-maplist-group-end@ddnet.org"
+			},
+			"name": ["maplist", "group", "end"],
+			"members": [],
 			"attributes": []
 		}
 	],

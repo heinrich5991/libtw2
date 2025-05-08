@@ -7,6 +7,7 @@ use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::in_range;
+use libtw2_packer::positive;
 use libtw2_packer::sanitize;
 use libtw2_packer::to_bool;
 use libtw2_packer::with_packer;
@@ -73,10 +74,21 @@ pub const CL_SHOW_OTHERS_LEGACY: i32 = 31;
 pub const SV_MY_OWN_MESSAGE: Uuid = Uuid::from_u128(0x1231e484_f607_3722_a89a_bd85db46f5d2);
 pub const CL_SHOW_DISTANCE: Uuid = Uuid::from_u128(0x53bb28af_4252_3ac9_8fd3_6ccbc2a603e3);
 pub const CL_SHOW_OTHERS: Uuid = Uuid::from_u128(0x7f264cdd_71a2_3962_bbce_0f94bbd81913);
+pub const CL_CAMERA_INFO: Uuid = Uuid::from_u128(0x8c470228_ee11_3808_93b9_c5c87d08b51c);
 pub const SV_TEAMS_STATE: Uuid = Uuid::from_u128(0xa091961a_95e8_3744_bb60_5eac9bd563c6);
 pub const SV_DDRACE_TIME: Uuid = Uuid::from_u128(0x5dde8b3c_6f6f_37ac_a72a_bb341fe76de5);
 pub const SV_RECORD: Uuid = Uuid::from_u128(0x804f149f_9b53_3b0a_897f_59663a1c4eb9);
 pub const SV_KILL_MSG_TEAM: Uuid = Uuid::from_u128(0xee610b6f_909f_311e_93f7_11a95f55a086);
+pub const SV_YOUR_VOTE: Uuid = Uuid::from_u128(0xbfd7f0fc_16d5_3e10_8015_a78380f13870);
+pub const SV_RACE_FINISH: Uuid = Uuid::from_u128(0xc915ba68_0a49_3324_915a_7a6220cecf33);
+pub const SV_COMMAND_INFO: Uuid = Uuid::from_u128(0x90778f65_1b8f_322a_9713_cf741aa44a05);
+pub const SV_COMMAND_INFO_REMOVE: Uuid = Uuid::from_u128(0xeb2e77ce_e9a2_35aa_94be_235f523ac1aa);
+pub const SV_VOTE_OPTION_GROUP_START: Uuid = Uuid::from_u128(0x969d127c_b768_390d_8879_6104993769fa);
+pub const SV_VOTE_OPTION_GROUP_END: Uuid = Uuid::from_u128(0x4f096765_39b1_3766_82dc_61b20ccf589a);
+pub const SV_COMMAND_INFO_GROUP_START: Uuid = Uuid::from_u128(0x9e220138_d393_3cb0_90f1_e587c00ab1d0);
+pub const SV_COMMAND_INFO_GROUP_END: Uuid = Uuid::from_u128(0x054125d8_0062_3891_840b_47462285a01f);
+pub const SV_CHANGE_INFO_COOLDOWN: Uuid = Uuid::from_u128(0x746cb54c_6b2b_39a7_8cd8_7c7a1c6c3009);
+pub const SV_MAP_SOUND_GLOBAL: Uuid = Uuid::from_u128(0x669c9741_695a_369b_856c_a254f6b7f0cb);
 
 #[derive(Clone, Copy)]
 pub enum Game<'a> {
@@ -114,10 +126,21 @@ pub enum Game<'a> {
     SvMyOwnMessage(SvMyOwnMessage),
     ClShowDistance(ClShowDistance),
     ClShowOthers(ClShowOthers),
+    ClCameraInfo(ClCameraInfo),
     SvTeamsState(SvTeamsState),
     SvDdraceTime(SvDdraceTime),
     SvRecord(SvRecord),
     SvKillMsgTeam(SvKillMsgTeam),
+    SvYourVote(SvYourVote),
+    SvRaceFinish(SvRaceFinish),
+    SvCommandInfo(SvCommandInfo<'a>),
+    SvCommandInfoRemove(SvCommandInfoRemove<'a>),
+    SvVoteOptionGroupStart(SvVoteOptionGroupStart),
+    SvVoteOptionGroupEnd(SvVoteOptionGroupEnd),
+    SvCommandInfoGroupStart(SvCommandInfoGroupStart),
+    SvCommandInfoGroupEnd(SvCommandInfoGroupEnd),
+    SvChangeInfoCooldown(SvChangeInfoCooldown),
+    SvMapSoundGlobal(SvMapSoundGlobal),
 }
 
 impl<'a> Game<'a> {
@@ -158,10 +181,21 @@ impl<'a> Game<'a> {
             Uuid(SV_MY_OWN_MESSAGE) => Game::SvMyOwnMessage(SvMyOwnMessage::decode(warn, _p)?),
             Uuid(CL_SHOW_DISTANCE) => Game::ClShowDistance(ClShowDistance::decode(warn, _p)?),
             Uuid(CL_SHOW_OTHERS) => Game::ClShowOthers(ClShowOthers::decode(warn, _p)?),
+            Uuid(CL_CAMERA_INFO) => Game::ClCameraInfo(ClCameraInfo::decode(warn, _p)?),
             Uuid(SV_TEAMS_STATE) => Game::SvTeamsState(SvTeamsState::decode(warn, _p)?),
             Uuid(SV_DDRACE_TIME) => Game::SvDdraceTime(SvDdraceTime::decode(warn, _p)?),
             Uuid(SV_RECORD) => Game::SvRecord(SvRecord::decode(warn, _p)?),
             Uuid(SV_KILL_MSG_TEAM) => Game::SvKillMsgTeam(SvKillMsgTeam::decode(warn, _p)?),
+            Uuid(SV_YOUR_VOTE) => Game::SvYourVote(SvYourVote::decode(warn, _p)?),
+            Uuid(SV_RACE_FINISH) => Game::SvRaceFinish(SvRaceFinish::decode(warn, _p)?),
+            Uuid(SV_COMMAND_INFO) => Game::SvCommandInfo(SvCommandInfo::decode(warn, _p)?),
+            Uuid(SV_COMMAND_INFO_REMOVE) => Game::SvCommandInfoRemove(SvCommandInfoRemove::decode(warn, _p)?),
+            Uuid(SV_VOTE_OPTION_GROUP_START) => Game::SvVoteOptionGroupStart(SvVoteOptionGroupStart::decode(warn, _p)?),
+            Uuid(SV_VOTE_OPTION_GROUP_END) => Game::SvVoteOptionGroupEnd(SvVoteOptionGroupEnd::decode(warn, _p)?),
+            Uuid(SV_COMMAND_INFO_GROUP_START) => Game::SvCommandInfoGroupStart(SvCommandInfoGroupStart::decode(warn, _p)?),
+            Uuid(SV_COMMAND_INFO_GROUP_END) => Game::SvCommandInfoGroupEnd(SvCommandInfoGroupEnd::decode(warn, _p)?),
+            Uuid(SV_CHANGE_INFO_COOLDOWN) => Game::SvChangeInfoCooldown(SvChangeInfoCooldown::decode(warn, _p)?),
+            Uuid(SV_MAP_SOUND_GLOBAL) => Game::SvMapSoundGlobal(SvMapSoundGlobal::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -201,10 +235,21 @@ impl<'a> Game<'a> {
             Game::SvMyOwnMessage(_) => MessageId::from(SV_MY_OWN_MESSAGE),
             Game::ClShowDistance(_) => MessageId::from(CL_SHOW_DISTANCE),
             Game::ClShowOthers(_) => MessageId::from(CL_SHOW_OTHERS),
+            Game::ClCameraInfo(_) => MessageId::from(CL_CAMERA_INFO),
             Game::SvTeamsState(_) => MessageId::from(SV_TEAMS_STATE),
             Game::SvDdraceTime(_) => MessageId::from(SV_DDRACE_TIME),
             Game::SvRecord(_) => MessageId::from(SV_RECORD),
             Game::SvKillMsgTeam(_) => MessageId::from(SV_KILL_MSG_TEAM),
+            Game::SvYourVote(_) => MessageId::from(SV_YOUR_VOTE),
+            Game::SvRaceFinish(_) => MessageId::from(SV_RACE_FINISH),
+            Game::SvCommandInfo(_) => MessageId::from(SV_COMMAND_INFO),
+            Game::SvCommandInfoRemove(_) => MessageId::from(SV_COMMAND_INFO_REMOVE),
+            Game::SvVoteOptionGroupStart(_) => MessageId::from(SV_VOTE_OPTION_GROUP_START),
+            Game::SvVoteOptionGroupEnd(_) => MessageId::from(SV_VOTE_OPTION_GROUP_END),
+            Game::SvCommandInfoGroupStart(_) => MessageId::from(SV_COMMAND_INFO_GROUP_START),
+            Game::SvCommandInfoGroupEnd(_) => MessageId::from(SV_COMMAND_INFO_GROUP_END),
+            Game::SvChangeInfoCooldown(_) => MessageId::from(SV_CHANGE_INFO_COOLDOWN),
+            Game::SvMapSoundGlobal(_) => MessageId::from(SV_MAP_SOUND_GLOBAL),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -243,10 +288,21 @@ impl<'a> Game<'a> {
             Game::SvMyOwnMessage(ref i) => i.encode(p),
             Game::ClShowDistance(ref i) => i.encode(p),
             Game::ClShowOthers(ref i) => i.encode(p),
+            Game::ClCameraInfo(ref i) => i.encode(p),
             Game::SvTeamsState(ref i) => i.encode(p),
             Game::SvDdraceTime(ref i) => i.encode(p),
             Game::SvRecord(ref i) => i.encode(p),
             Game::SvKillMsgTeam(ref i) => i.encode(p),
+            Game::SvYourVote(ref i) => i.encode(p),
+            Game::SvRaceFinish(ref i) => i.encode(p),
+            Game::SvCommandInfo(ref i) => i.encode(p),
+            Game::SvCommandInfoRemove(ref i) => i.encode(p),
+            Game::SvVoteOptionGroupStart(ref i) => i.encode(p),
+            Game::SvVoteOptionGroupEnd(ref i) => i.encode(p),
+            Game::SvCommandInfoGroupStart(ref i) => i.encode(p),
+            Game::SvCommandInfoGroupEnd(ref i) => i.encode(p),
+            Game::SvChangeInfoCooldown(ref i) => i.encode(p),
+            Game::SvMapSoundGlobal(ref i) => i.encode(p),
         }
     }
 }
@@ -288,10 +344,21 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::SvMyOwnMessage(ref i) => i.fmt(f),
             Game::ClShowDistance(ref i) => i.fmt(f),
             Game::ClShowOthers(ref i) => i.fmt(f),
+            Game::ClCameraInfo(ref i) => i.fmt(f),
             Game::SvTeamsState(ref i) => i.fmt(f),
             Game::SvDdraceTime(ref i) => i.fmt(f),
             Game::SvRecord(ref i) => i.fmt(f),
             Game::SvKillMsgTeam(ref i) => i.fmt(f),
+            Game::SvYourVote(ref i) => i.fmt(f),
+            Game::SvRaceFinish(ref i) => i.fmt(f),
+            Game::SvCommandInfo(ref i) => i.fmt(f),
+            Game::SvCommandInfoRemove(ref i) => i.fmt(f),
+            Game::SvVoteOptionGroupStart(ref i) => i.fmt(f),
+            Game::SvVoteOptionGroupEnd(ref i) => i.fmt(f),
+            Game::SvCommandInfoGroupStart(ref i) => i.fmt(f),
+            Game::SvCommandInfoGroupEnd(ref i) => i.fmt(f),
+            Game::SvChangeInfoCooldown(ref i) => i.fmt(f),
+            Game::SvMapSoundGlobal(ref i) => i.fmt(f),
         }
     }
 }
@@ -500,6 +567,12 @@ impl<'a> From<ClShowOthers> for Game<'a> {
     }
 }
 
+impl<'a> From<ClCameraInfo> for Game<'a> {
+    fn from(i: ClCameraInfo) -> Game<'a> {
+        Game::ClCameraInfo(i)
+    }
+}
+
 impl<'a> From<SvTeamsState> for Game<'a> {
     fn from(i: SvTeamsState) -> Game<'a> {
         Game::SvTeamsState(i)
@@ -521,6 +594,66 @@ impl<'a> From<SvRecord> for Game<'a> {
 impl<'a> From<SvKillMsgTeam> for Game<'a> {
     fn from(i: SvKillMsgTeam) -> Game<'a> {
         Game::SvKillMsgTeam(i)
+    }
+}
+
+impl<'a> From<SvYourVote> for Game<'a> {
+    fn from(i: SvYourVote) -> Game<'a> {
+        Game::SvYourVote(i)
+    }
+}
+
+impl<'a> From<SvRaceFinish> for Game<'a> {
+    fn from(i: SvRaceFinish) -> Game<'a> {
+        Game::SvRaceFinish(i)
+    }
+}
+
+impl<'a> From<SvCommandInfo<'a>> for Game<'a> {
+    fn from(i: SvCommandInfo<'a>) -> Game<'a> {
+        Game::SvCommandInfo(i)
+    }
+}
+
+impl<'a> From<SvCommandInfoRemove<'a>> for Game<'a> {
+    fn from(i: SvCommandInfoRemove<'a>) -> Game<'a> {
+        Game::SvCommandInfoRemove(i)
+    }
+}
+
+impl<'a> From<SvVoteOptionGroupStart> for Game<'a> {
+    fn from(i: SvVoteOptionGroupStart) -> Game<'a> {
+        Game::SvVoteOptionGroupStart(i)
+    }
+}
+
+impl<'a> From<SvVoteOptionGroupEnd> for Game<'a> {
+    fn from(i: SvVoteOptionGroupEnd) -> Game<'a> {
+        Game::SvVoteOptionGroupEnd(i)
+    }
+}
+
+impl<'a> From<SvCommandInfoGroupStart> for Game<'a> {
+    fn from(i: SvCommandInfoGroupStart) -> Game<'a> {
+        Game::SvCommandInfoGroupStart(i)
+    }
+}
+
+impl<'a> From<SvCommandInfoGroupEnd> for Game<'a> {
+    fn from(i: SvCommandInfoGroupEnd) -> Game<'a> {
+        Game::SvCommandInfoGroupEnd(i)
+    }
+}
+
+impl<'a> From<SvChangeInfoCooldown> for Game<'a> {
+    fn from(i: SvChangeInfoCooldown) -> Game<'a> {
+        Game::SvChangeInfoCooldown(i)
+    }
+}
+
+impl<'a> From<SvMapSoundGlobal> for Game<'a> {
+    fn from(i: SvMapSoundGlobal) -> Game<'a> {
+        Game::SvMapSoundGlobal(i)
     }
 }
 #[derive(Clone, Copy)]
@@ -736,7 +869,7 @@ pub struct Unused2;
 
 #[derive(Clone, Copy)]
 pub struct SvTeamsStateLegacy {
-    pub teams: [i32; 64],
+    pub teams: [i32; 128],
 }
 
 #[derive(Clone, Copy)]
@@ -761,8 +894,15 @@ pub struct ClShowOthers {
 }
 
 #[derive(Clone, Copy)]
+pub struct ClCameraInfo {
+    pub zoom: i32,
+    pub deadzone: i32,
+    pub follow_factor: i32,
+}
+
+#[derive(Clone, Copy)]
 pub struct SvTeamsState {
-    pub teams: [i32; 64],
+    pub teams: [i32; 128],
 }
 
 #[derive(Clone, Copy)]
@@ -782,6 +922,54 @@ pub struct SvRecord {
 pub struct SvKillMsgTeam {
     pub team: i32,
     pub first: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvYourVote {
+    pub voted: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvRaceFinish {
+    pub client_id: i32,
+    pub time: i32,
+    pub diff: i32,
+    pub record_personal: bool,
+    pub record_server: bool,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvCommandInfo<'a> {
+    pub name: &'a [u8],
+    pub args_format: &'a [u8],
+    pub help_text: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct SvCommandInfoRemove<'a> {
+    pub name: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct SvVoteOptionGroupStart;
+
+#[derive(Clone, Copy)]
+pub struct SvVoteOptionGroupEnd;
+
+#[derive(Clone, Copy)]
+pub struct SvCommandInfoGroupStart;
+
+#[derive(Clone, Copy)]
+pub struct SvCommandInfoGroupEnd;
+
+#[derive(Clone, Copy)]
+pub struct SvChangeInfoCooldown {
+    pub wait_until: crate::snap_obj::Tick,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvMapSoundGlobal {
+    pub sound_id: i32,
 }
 
 impl<'a> SvMotd<'a> {
@@ -830,7 +1018,7 @@ impl<'a> SvChat<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvChat<'a>, Error> {
         let result = Ok(SvChat {
             team: in_range(_p.read_int(warn)?, -2, 3)?,
-            client_id: in_range(_p.read_int(warn)?, -1, 63)?,
+            client_id: in_range(_p.read_int(warn)?, -1, 127)?,
             message: sanitize(warn, _p.read_string()?)?,
         });
         _p.finish(wrap(warn));
@@ -838,7 +1026,7 @@ impl<'a> SvChat<'a> {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         assert!(-2 <= self.team && self.team <= 3);
-        assert!(-1 <= self.client_id && self.client_id <= 63);
+        assert!(-1 <= self.client_id && self.client_id <= 127);
         sanitize(&mut Panic, self.message).unwrap();
         _p.write_int(self.team)?;
         _p.write_int(self.client_id)?;
@@ -859,8 +1047,8 @@ impl<'a> fmt::Debug for SvChat<'a> {
 impl SvKillMsg {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvKillMsg, Error> {
         let result = Ok(SvKillMsg {
-            killer: in_range(_p.read_int(warn)?, 0, 63)?,
-            victim: in_range(_p.read_int(warn)?, 0, 63)?,
+            killer: in_range(_p.read_int(warn)?, 0, 127)?,
+            victim: in_range(_p.read_int(warn)?, 0, 127)?,
             weapon: in_range(_p.read_int(warn)?, -3, 5)?,
             mode_special: _p.read_int(warn)?,
         });
@@ -868,8 +1056,8 @@ impl SvKillMsg {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.killer && self.killer <= 63);
-        assert!(0 <= self.victim && self.victim <= 63);
+        assert!(0 <= self.killer && self.killer <= 127);
+        assert!(0 <= self.victim && self.victim <= 127);
         assert!(-3 <= self.weapon && self.weapon <= 5);
         _p.write_int(self.killer)?;
         _p.write_int(self.victim)?;
@@ -1127,14 +1315,14 @@ impl fmt::Debug for SvWeaponPickup {
 impl SvEmoticon {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvEmoticon, Error> {
         let result = Ok(SvEmoticon {
-            client_id: in_range(_p.read_int(warn)?, 0, 63)?,
+            client_id: in_range(_p.read_int(warn)?, 0, 127)?,
             emoticon: enums::Emoticon::from_i32(_p.read_int(warn)?)?,
         });
         _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.client_id && self.client_id <= 63);
+        assert!(0 <= self.client_id && self.client_id <= 127);
         _p.write_int(self.client_id)?;
         _p.write_int(self.emoticon.to_i32())?;
         Ok(_p.written())
@@ -1259,7 +1447,7 @@ impl<'a> fmt::Debug for SvVoteOptionRemove<'a> {
 impl<'a> SvVoteSet<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvVoteSet<'a>, Error> {
         let result = Ok(SvVoteSet {
-            timeout: in_range(_p.read_int(warn)?, 0, 60)?,
+            timeout: positive(_p.read_int(warn)?)?,
             description: sanitize(warn, _p.read_string()?)?,
             reason: sanitize(warn, _p.read_string()?)?,
         });
@@ -1267,7 +1455,7 @@ impl<'a> SvVoteSet<'a> {
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.timeout && self.timeout <= 60);
+        assert!(self.timeout >= 0);
         sanitize(&mut Panic, self.description).unwrap();
         sanitize(&mut Panic, self.reason).unwrap();
         _p.write_int(self.timeout)?;
@@ -1289,19 +1477,19 @@ impl<'a> fmt::Debug for SvVoteSet<'a> {
 impl SvVoteStatus {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteStatus, Error> {
         let result = Ok(SvVoteStatus {
-            yes: in_range(_p.read_int(warn)?, 0, 64)?,
-            no: in_range(_p.read_int(warn)?, 0, 64)?,
-            pass: in_range(_p.read_int(warn)?, 0, 64)?,
-            total: in_range(_p.read_int(warn)?, 0, 64)?,
+            yes: in_range(_p.read_int(warn)?, 0, 128)?,
+            no: in_range(_p.read_int(warn)?, 0, 128)?,
+            pass: in_range(_p.read_int(warn)?, 0, 128)?,
+            total: in_range(_p.read_int(warn)?, 0, 128)?,
         });
         _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.yes && self.yes <= 64);
-        assert!(0 <= self.no && self.no <= 64);
-        assert!(0 <= self.pass && self.pass <= 64);
-        assert!(0 <= self.total && self.total <= 64);
+        assert!(0 <= self.yes && self.yes <= 128);
+        assert!(0 <= self.no && self.no <= 128);
+        assert!(0 <= self.pass && self.pass <= 128);
+        assert!(0 <= self.total && self.total <= 128);
         _p.write_int(self.yes)?;
         _p.write_int(self.no)?;
         _p.write_int(self.pass)?;
@@ -1369,13 +1557,13 @@ impl fmt::Debug for ClSetTeam {
 impl ClSetSpectatorMode {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClSetSpectatorMode, Error> {
         let result = Ok(ClSetSpectatorMode {
-            spectator_id: in_range(_p.read_int(warn)?, -1, 63)?,
+            spectator_id: in_range(_p.read_int(warn)?, -1, 127)?,
         });
         _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(-1 <= self.spectator_id && self.spectator_id <= 63);
+        assert!(-1 <= self.spectator_id && self.spectator_id <= 127);
         _p.write_int(self.spectator_id)?;
         Ok(_p.written())
     }
@@ -1656,70 +1844,134 @@ impl SvTeamsStateLegacy {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsStateLegacy, Error> {
         let result = Ok(SvTeamsStateLegacy {
             teams: [
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
             ],
         });
         _p.finish(wrap(warn));
@@ -1727,7 +1979,7 @@ impl SvTeamsStateLegacy {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         for &e in &self.teams {
-            assert!(0 <= e && e <= 64);
+            assert!(0 <= e && e <= 128);
         }
         for &e in &self.teams {
             _p.write_int(e)?;
@@ -1831,74 +2083,165 @@ impl fmt::Debug for ClShowOthers {
     }
 }
 
+impl ClCameraInfo {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClCameraInfo, Error> {
+        let result = Ok(ClCameraInfo {
+            zoom: _p.read_int(warn)?,
+            deadzone: _p.read_int(warn)?,
+            follow_factor: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.zoom)?;
+        _p.write_int(self.deadzone)?;
+        _p.write_int(self.follow_factor)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for ClCameraInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClCameraInfo")
+            .field("zoom", &self.zoom)
+            .field("deadzone", &self.deadzone)
+            .field("follow_factor", &self.follow_factor)
+            .finish()
+    }
+}
+
 impl SvTeamsState {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvTeamsState, Error> {
         let result = Ok(SvTeamsState {
             teams: [
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
-                in_range(_p.read_int(warn)?, 0, 64)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
+                in_range(_p.read_int(warn)?, 0, 128)?,
             ],
         });
         _p.finish(wrap(warn));
@@ -1906,7 +2249,7 @@ impl SvTeamsState {
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
         for &e in &self.teams {
-            assert!(0 <= e && e <= 64);
+            assert!(0 <= e && e <= 128);
         }
         for &e in &self.teams {
             _p.write_int(e)?;
@@ -1977,15 +2320,15 @@ impl fmt::Debug for SvRecord {
 impl SvKillMsgTeam {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvKillMsgTeam, Error> {
         let result = Ok(SvKillMsgTeam {
-            team: in_range(_p.read_int(warn)?, 0, 63)?,
-            first: in_range(_p.read_int(warn)?, -1, 63)?,
+            team: in_range(_p.read_int(warn)?, 0, 127)?,
+            first: in_range(_p.read_int(warn)?, -1, 127)?,
         });
         _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        assert!(0 <= self.team && self.team <= 63);
-        assert!(-1 <= self.first && self.first <= 63);
+        assert!(0 <= self.team && self.team <= 127);
+        assert!(-1 <= self.first && self.first <= 127);
         _p.write_int(self.team)?;
         _p.write_int(self.first)?;
         Ok(_p.written())
@@ -1996,6 +2339,224 @@ impl fmt::Debug for SvKillMsgTeam {
         f.debug_struct("SvKillMsgTeam")
             .field("team", &self.team)
             .field("first", &self.first)
+            .finish()
+    }
+}
+
+impl SvYourVote {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvYourVote, Error> {
+        let result = Ok(SvYourVote {
+            voted: in_range(_p.read_int(warn)?, -1, 1)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(-1 <= self.voted && self.voted <= 1);
+        _p.write_int(self.voted)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvYourVote {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvYourVote")
+            .field("voted", &self.voted)
+            .finish()
+    }
+}
+
+impl SvRaceFinish {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvRaceFinish, Error> {
+        let result = Ok(SvRaceFinish {
+            client_id: in_range(_p.read_int(warn)?, 0, 127)?,
+            time: _p.read_int(warn)?,
+            diff: _p.read_int(warn)?,
+            record_personal: to_bool(_p.read_int(warn)?)?,
+            record_server: to_bool(_p.read_int(warn)?)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(0 <= self.client_id && self.client_id <= 127);
+        _p.write_int(self.client_id)?;
+        _p.write_int(self.time)?;
+        _p.write_int(self.diff)?;
+        _p.write_int(self.record_personal as i32)?;
+        _p.write_int(self.record_server as i32)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvRaceFinish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvRaceFinish")
+            .field("client_id", &self.client_id)
+            .field("time", &self.time)
+            .field("diff", &self.diff)
+            .field("record_personal", &self.record_personal)
+            .field("record_server", &self.record_server)
+            .finish()
+    }
+}
+
+impl<'a> SvCommandInfo<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvCommandInfo<'a>, Error> {
+        let result = Ok(SvCommandInfo {
+            name: sanitize(warn, _p.read_string()?)?,
+            args_format: sanitize(warn, _p.read_string()?)?,
+            help_text: sanitize(warn, _p.read_string()?)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        sanitize(&mut Panic, self.name).unwrap();
+        sanitize(&mut Panic, self.args_format).unwrap();
+        sanitize(&mut Panic, self.help_text).unwrap();
+        _p.write_string(self.name)?;
+        _p.write_string(self.args_format)?;
+        _p.write_string(self.help_text)?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvCommandInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvCommandInfo")
+            .field("name", &pretty::Bytes::new(&self.name))
+            .field("args_format", &pretty::Bytes::new(&self.args_format))
+            .field("help_text", &pretty::Bytes::new(&self.help_text))
+            .finish()
+    }
+}
+
+impl<'a> SvCommandInfoRemove<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvCommandInfoRemove<'a>, Error> {
+        let result = Ok(SvCommandInfoRemove {
+            name: sanitize(warn, _p.read_string()?)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        sanitize(&mut Panic, self.name).unwrap();
+        _p.write_string(self.name)?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvCommandInfoRemove<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvCommandInfoRemove")
+            .field("name", &pretty::Bytes::new(&self.name))
+            .finish()
+    }
+}
+
+impl SvVoteOptionGroupStart {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteOptionGroupStart, Error> {
+        let result = Ok(SvVoteOptionGroupStart);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvVoteOptionGroupStart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteOptionGroupStart")
+            .finish()
+    }
+}
+
+impl SvVoteOptionGroupEnd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvVoteOptionGroupEnd, Error> {
+        let result = Ok(SvVoteOptionGroupEnd);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvVoteOptionGroupEnd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvVoteOptionGroupEnd")
+            .finish()
+    }
+}
+
+impl SvCommandInfoGroupStart {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvCommandInfoGroupStart, Error> {
+        let result = Ok(SvCommandInfoGroupStart);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvCommandInfoGroupStart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvCommandInfoGroupStart")
+            .finish()
+    }
+}
+
+impl SvCommandInfoGroupEnd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvCommandInfoGroupEnd, Error> {
+        let result = Ok(SvCommandInfoGroupEnd);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvCommandInfoGroupEnd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvCommandInfoGroupEnd")
+            .finish()
+    }
+}
+
+impl SvChangeInfoCooldown {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvChangeInfoCooldown, Error> {
+        let result = Ok(SvChangeInfoCooldown {
+            wait_until: crate::snap_obj::Tick(_p.read_int(warn)?),
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.wait_until.0)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvChangeInfoCooldown {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvChangeInfoCooldown")
+            .field("wait_until", &self.wait_until)
+            .finish()
+    }
+}
+
+impl SvMapSoundGlobal {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvMapSoundGlobal, Error> {
+        let result = Ok(SvMapSoundGlobal {
+            sound_id: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.sound_id)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvMapSoundGlobal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvMapSoundGlobal")
+            .field("sound_id", &self.sound_id)
             .finish()
     }
 }

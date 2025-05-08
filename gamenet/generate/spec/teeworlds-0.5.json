@@ -1,6 +1,9 @@
 {
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 16},
+		{"name": ["weapon", "game"], "type": "int32", "value": -3},
+		{"name": ["weapon", "self"], "type": "int32", "value": -2},
+		{"name": ["weapon", "world"], "type": "int32", "value": -1},
 		{"name": ["version"], "type": "string", "value": "0.5 b67d1f1a1eea234e"},
 		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
 		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"}

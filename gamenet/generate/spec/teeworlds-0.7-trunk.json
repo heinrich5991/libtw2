@@ -1,6 +1,9 @@
 {
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 64},
+		{"name": ["weapon", "game"], "type": "int32", "value": -3},
+		{"name": ["weapon", "self"], "type": "int32", "value": -2},
+		{"name": ["weapon", "world"], "type": "int32", "value": -1},
 		{"name": ["flag", "missing"], "type": "int32", "value": -3},
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},

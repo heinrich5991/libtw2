@@ -4,8 +4,8 @@ use libtw2_demo::DemoKind;
 use libtw2_demo::Writer;
 use libtw2_gamenet_ddnet::enums::Emote;
 use libtw2_gamenet_ddnet::enums::Team;
-use libtw2_gamenet_ddnet::enums::Weapon;
 use libtw2_gamenet_ddnet::enums::VERSION;
+use libtw2_gamenet_ddnet::enums::WEAPON_HAMMER;
 use libtw2_gamenet_ddnet::msg::game as game_ddnet;
 use libtw2_gamenet_ddnet::msg::Game as GameDdnet;
 use libtw2_gamenet_ddnet::snap_obj;
@@ -216,7 +216,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                             jumped: (input.jump != 0) as i32,
                             hooked_player: 0,
                             hook_state: -1,
-                            hook_tick: snap_obj::Tick(0),
+                            hook_tick: 0,
                             hook_x: 0,
                             hook_y: 0,
                             hook_dx: 0,
@@ -226,7 +226,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                         health: 10,
                         armor: 10,
                         ammo_count: 0,
-                        weapon: Weapon::Hammer,
+                        weapon: WEAPON_HAMMER,
                         emote: Emote::Normal,
                         attack_tick: 0,
                     };
@@ -241,6 +241,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                         freeze_start: snap_obj::Tick(0),
                         target_x: input.target_x,
                         target_y: input.target_y,
+                        tune_zone_override: -1,
                     };
                     builder
                         .add_item(
