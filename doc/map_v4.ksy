@@ -170,6 +170,7 @@ types:
             item_kind::group: group_item
             item_kind::layer: layer_item
             item_kind::env_points: env_points_item
+            item_kind::sound: sound_item
             item_kind::ex_type_index: ex_type_index_item
             _: unknown_item
         size: data_size
@@ -211,6 +212,7 @@ types:
       - id: data_index
         enum: optional
         type: s4
+
   envelope_item:
     seq:
       - id: version
@@ -454,6 +456,18 @@ types:
       - id: bezier
         type: bezier
   
+  sound_item:
+    seq:
+      - id: version
+        type: s4
+      - id: external
+        enum: bool
+        type: s4
+      - id: name
+        type: optional_string_data_index
+      - id: data_index
+        type: s4
+
   ex_type_index_item:
     seq:
       - id: uuid
