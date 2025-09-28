@@ -80,6 +80,12 @@ indicate that the libraries or executables might be useful outside of libtw2.
   0.6, Teeworlds 0.7 and DDNet network protocols.
 - [**gamenet/generate/spec**](gamenet/generate/spec). JSON files describing the
   high-level Teeworlds 0.6, Teeworlds 0.7 and DDNet protocol.
+- [httphook](httphook). Helper library to register Teeworlds/DDNet game servers
+  with the DDNet masterserver, for those that don't support it natively.
+- [**httphook-ldpreload**](httphook-ldpreload). Library that you can insert
+  into Teeworlds/DDNet servers using `LD_PRELOAD` that automatically registers
+  them with the DDNet masterserver, even if the game server itself doesn't
+  support it.
 - [**huffman**](huffman). Homebrew compression format using [Huffman
   coding](https://en.wikipedia.org/wiki/Huffman_coding), used in demos and over
   the network. Alternative: Ryozuki's
@@ -93,6 +99,8 @@ indicate that the libraries or executables might be useful outside of libtw2.
   formats. See also Ryozuki's [teeint](https://github.com/edg-l/teeint) for
   another implementation of Teeworlds/DDNet's [variable-length
   integers](https://en.wikipedia.org/wiki/Variable-length_quantity).
+- [**register**](register). Register game servers with DDNet's masterserver
+  (https://master1.ddnet.org/ddnet/15/servers.json).
 - [**render-map**](render-map). Render Teeworlds/DDNet maps to images. **You
   should probably use Patiga's [TwGpu](https://gitlab.com/Patiga/twgpu)
   instead.**

@@ -46,6 +46,7 @@ pub const INFO_6_DDPER: Header = b"dp\0\0\0\0\xff\xff\xff\xffinf3";
 pub const INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 pub const INFO_6_EX: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
 pub const INFO_6_EX_MORE: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
+pub const CHALLENGE_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffchal";
 
 pub const TOKEN_7: &'static [u8; 8] = b"\x04\0\0\xff\xff\xff\xff\x05";
 pub const REQUEST_LIST_7: &'static [u8; 17] =

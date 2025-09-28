@@ -1,0 +1,17 @@
+[package]
+name = "libtw2-httphook-ldpreload"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+rust-version = "1.63.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hexdump = "0.1.1"
+libc = "0.2.16"
+libtw2-httphook = { path = "../httphook/" }
+log = "0.3.1"
+redhook = "2.0"

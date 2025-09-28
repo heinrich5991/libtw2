@@ -1,0 +1,18 @@
+[package]
+name = "libtw2-register"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+rust-version = "1.63.0"
+
+[dependencies]
+libtw2-packer = { path = "../packer/" }
+libtw2-serverbrowse = { path = "../serverbrowse/" }
+log = "0.3.1"
+reqwest = "0.11.27"
+serde = { version = "1.0.23", features = ["rc"] }
+serde_derive = "1.0.27"
+serde_json = "1.0.7"
+tokio = { version = "1.38.1", features = ["macros", "time"] }
+uuid = { version = "0.8.1", features = ["v4"] }
