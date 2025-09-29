@@ -420,7 +420,7 @@ impl Buffer {
         let raw_self: *mut Buffer = self;
         unsafe {
             loop {
-                let mut p = Unpacker::new(&(*raw_self).buffer[self.offset..]);
+                let mut p = Unpacker::new(&(&(*raw_self).buffer)[self.offset..]);
                 match kind.decode_rest(&mut p) {
                     Ok(x) => {
                         self.offset += p.num_bytes_read();
