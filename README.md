@@ -99,6 +99,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
   formats. See also Ryozuki's [teeint](https://github.com/edg-l/teeint) for
   another implementation of Teeworlds/DDNet's [variable-length
   integers](https://en.wikipedia.org/wiki/Variable-length_quantity).
+- [polyfill-1-63](polyfill-1-63). Some helpers for Rust 1.63 compatibility.
 - [**register**](register). Register game servers with DDNet's masterserver
   (https://master1.ddnet.org/ddnet/15/servers.json).
 - [**render-map**](render-map). Render Teeworlds/DDNet maps to images. **You
