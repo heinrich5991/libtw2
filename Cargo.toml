@@ -23,6 +23,7 @@ members = [
     "net",
     "packer",
     "register",
+    "polyfill-1-63",
     "render-map",
     "server",
     "serverbrowse",

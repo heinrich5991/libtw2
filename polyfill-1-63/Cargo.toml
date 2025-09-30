@@ -1,0 +1,10 @@
+[package]
+name = "libtw2-polyfill-1-63"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+rust-version = "1.63.0"
+
+[dependencies]
+once_cell = "1.20.3"
