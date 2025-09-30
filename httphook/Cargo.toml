@@ -9,6 +9,7 @@ rust-version = "1.63.0"
 [dependencies]
 env_logger = "0.3.0"
 envy = "0.4.2"
+libtw2-polyfill-1-63 = { path = "../polyfill-1-63/" }
 libtw2-register = { path = "../register/" }
 libtw2-serverbrowse = { path = "../serverbrowse/" }
 log = "0.3.1"

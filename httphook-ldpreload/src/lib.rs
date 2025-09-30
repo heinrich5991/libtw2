@@ -79,7 +79,8 @@ redhook::hook! {
             return result;
         }
         if type_ == libc::SOCK_DGRAM && protocol == libc::IPPROTO_IP {
-            LAST_UDP_SOCKET.set(result);
+            // TODO (MSRV 1.63): Remove `with`.
+            LAST_UDP_SOCKET.with(|s| s.set(result));
         }
         result
     }
@@ -91,7 +92,8 @@ redhook::hook! {
         if result != 0 {
             return result;
         }
-        let last_udp_socket = LAST_UDP_SOCKET.replace(-1);
+        // TODO (MSRV 1.63): Remove `with`.
+        let last_udp_socket = LAST_UDP_SOCKET.with(|s| s.replace(-1));
         if let Some(addr) = unsafe { from_sockaddr(addr, addrlen) } {
             if last_udp_socket == sockfd {
                 on_udp_socket(sockfd, addr);

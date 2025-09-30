@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate log;
 
+use libtw2_polyfill_1_63::OnceLock;
 use libtw2_register::Register;
 use libtw2_serverbrowse::protocol as browse_protocol;
 use libtw2_serverbrowse::protocol::Response;
@@ -14,7 +15,6 @@ use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Once;
-use std::sync::OnceLock;
 use std::sync::RwLock;
 use std::time::Duration;
 use tokio::net::UdpSocket;
@@ -39,13 +39,16 @@ fn config() -> &'static Config {
     CONFIG.get_or_init(|| envy::prefixed("LIBTW2_HTTPHOOK_").from_env().unwrap())
 }
 
-static REGISTERS: RwLock<BTreeMap<u16, Arc<OnceLock<Register>>>> = RwLock::new(BTreeMap::new());
+// TODO (MSRV 1.63): Remove the `Option`.
+static REGISTERS: RwLock<Option<BTreeMap<u16, Arc<OnceLock<Register>>>>> = RwLock::new(None);
 
 pub fn on_packet(data: &[u8]) {
     if data.starts_with(browse_protocol::CHALLENGE_6) {
-        for register in REGISTERS.read().unwrap().values() {
-            if let Some(register) = register.get() {
-                register.on_udp_packet(data);
+        if let Some(registers) = &*REGISTERS.read().unwrap() {
+            for register in registers.values() {
+                if let Some(register) = register.get() {
+                    register.on_udp_packet(data);
+                }
             }
         }
     }
@@ -82,7 +85,12 @@ pub fn register_server_6(port: u16) {
         error!("can't register server on port 0");
         return;
     }
-    let register = match REGISTERS.write().unwrap().entry(port) {
+    let register = match REGISTERS
+        .write()
+        .unwrap()
+        .get_or_insert_with(BTreeMap::new)
+        .entry(port)
+    {
         btree_map::Entry::Occupied(_) => return, // already started
         btree_map::Entry::Vacant(v) => v.insert(Arc::new(OnceLock::new())).clone(),
     };

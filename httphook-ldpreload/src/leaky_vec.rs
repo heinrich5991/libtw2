@@ -25,12 +25,12 @@ impl<T: Clone + 'static> LeakyVec<T> {
         write.push(element);
         self.read.store(leak(&write), atomic::Ordering::Release);
     }
-    #[expect(dead_code)]
+    #[allow(dead_code)] // TODO (MSRV 1.63): Replace with #[expect(dead_code)].
     pub fn push(&self, element: T) {
         let mut write = self.write.lock().unwrap();
         write.push(element);
     }
-    #[expect(dead_code)]
+    #[allow(dead_code)] // TODO (MSRV 1.63): Replace with #[expect(dead_code)].
     pub fn commit(&self) {
         let write = self.write.lock().unwrap();
         self.read.store(leak(&write), atomic::Ordering::Release);

@@ -4,14 +4,16 @@
 extern crate log;
 
 use libtw2_packer::Unpacker;
+#[allow(unused_imports)]
+use libtw2_polyfill_1_63::OptionExt as _;
 use libtw2_serverbrowse::protocol as browse_protocol;
 use serde_derive::Deserialize;
-use std::pin::pin;
 use std::str;
 use std::str::FromStr as _;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use tokio::pin;
 use tokio::select;
 use tokio::sync::futures::Notified;
 use tokio::sync::Notify;
@@ -293,7 +295,14 @@ async fn register_task(shared: Arc<RegisterShared>, task: Arc<RegisterTaskShared
             let next_register = {
                 let task_data = task.data.lock().unwrap();
                 // consume notification
-                Notified::enable(pin!(task.next_register_changed.notified()));
+                {
+                    pin! {
+                        let notified = task.next_register_changed.notified();
+                    }
+                    Notified::enable(notified);
+                }
+                // with Rust 1.63 (MSRV), the following is still unstable:
+                //Notified::enable(pin!(task.next_register_changed.notified()));
                 task_data.next_register
             };
             match next_register {

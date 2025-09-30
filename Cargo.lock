@@ -949,6 +949,7 @@ version = "0.0.1"
 dependencies = [
  "env_logger",
  "envy",
+ "libtw2-polyfill-1-63",
  "libtw2-register",
  "libtw2-serverbrowse",
  "log 0.3.9",
@@ -1063,6 +1064,7 @@ name = "libtw2-register"
 version = "0.0.1"
 dependencies = [
  "libtw2-packer",
+ "libtw2-polyfill-1-63",
  "libtw2-serverbrowse",
  "log 0.3.9",
  "reqwest",
