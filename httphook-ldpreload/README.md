@@ -45,6 +45,9 @@ registration process:
 - `LIBTW2_HTTPHOOK_LOG` (default: `info`): Specify log level of the library.
   Examples: `debug`, `error`. [Documentation of the
   syntax](https://docs.rs/env_logger/0.3.5/env_logger/#enabling-logging).
+- `LIBTW2_HTTPHOOK_OVERRIDE_REQUIRES_LOGIN` (unset by default): Populate the
+  `"requires_login"` field in the server info with this. Possible values:
+  `true`, `false`.
 - `LIBTW2_HTTPHOOK_REGISTER_URL` (default:
   `https://master1.ddnet.org/ddnet/15/register`): Contact the mastersrv given
   by this URL. Example: `http://localhost:8080/ddnet/15/register` for local testing.

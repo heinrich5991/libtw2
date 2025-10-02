@@ -31,6 +31,7 @@ mod runtime;
 struct Config {
     community_token: Option<Box<str>>,
     log: Option<Box<str>>,
+    override_requires_login: Option<bool>,
     register_url: Option<Box<str>>,
 }
 
@@ -177,6 +178,12 @@ fn build_register(port: u16, info: Arc<str>) -> Register {
     builder.build(port, info.into())
 }
 
+fn apply_overrides(mut info: json::Server) -> json::Server {
+    let config = &config();
+    info.requires_login = config.override_requires_login.or(info.requires_login);
+    info
+}
+
 async fn register_server_6_impl(port: u16, register: Arc<OnceLock<Register>>) {
     let socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
     const LOCALHOST: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
@@ -197,7 +204,7 @@ async fn register_server_6_impl(port: u16, register: Arc<OnceLock<Register>>) {
             Ok(info) => info,
             Err(_) => continue,
         };
-        let info = serde_json::to_string(&json::Server::from(&info)).unwrap();
+        let info = serde_json::to_string(&apply_overrides(json::Server::from(&info))).unwrap();
 
         if let Some(register) = register.get() {
             register.on_new_info(info.into());
