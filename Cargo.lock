@@ -1063,6 +1063,7 @@ dependencies = [
 name = "libtw2-register"
 version = "0.0.1"
 dependencies = [
+ "bitflags 2.9.4",
  "libtw2-packer",
  "libtw2-polyfill-1-63",
  "libtw2-serverbrowse",

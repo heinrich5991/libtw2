@@ -33,6 +33,7 @@ struct Config {
     log: Option<Box<str>>,
     override_requires_login: Option<bool>,
     register_url: Option<Box<str>>,
+    protocols: Option<libtw2_register::Protocols>,
 }
 
 fn config() -> &'static Config {
@@ -174,6 +175,9 @@ fn build_register(port: u16, info: Arc<str>) -> Register {
     }
     if let Some(register_url) = &config.register_url {
         builder = builder.register_url((&**register_url).into());
+    }
+    if let Some(protocols) = config.protocols {
+        builder = builder.protocols(protocols);
     }
     builder.build(port, info.into())
 }

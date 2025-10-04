@@ -21,10 +21,10 @@ use tokio::time::sleep_until;
 use tokio::time::Instant;
 use uuid::Uuid;
 
-mod ip_version;
+mod protocols;
 
-use self::ip_version::IpVersion;
-use self::ip_version::IP_VERSIONS;
+use self::protocols::Protocol;
+pub use self::protocols::Protocols;
 
 const INTERVAL_HEARTBEAT: Duration = Duration::from_secs(15);
 const INTERVAL_INFO_CHANGE: Duration = Duration::from_secs(1);
@@ -137,7 +137,7 @@ struct RegisterTaskShared {
     // If you want to have both the `RegisterShared` and this lock, take the
     // `RegisterShared` lock first, to avoid deadlocks.
     data: Mutex<RegisterTaskData>,
-    ip_version: IpVersion,
+    protocol: Protocol,
     next_register_changed: Notify,
 }
 
@@ -188,6 +188,7 @@ impl RegisterTaskData {
 pub struct RegisterBuilder {
     require_external_heartbeats: bool,
     register_url: Option<String>,
+    protocols: Option<Protocols>,
     user_agent: Option<String>,
     community_token: Option<String>,
 }
@@ -201,6 +202,11 @@ impl RegisterBuilder {
     pub fn register_url(mut self, register_url: String) -> RegisterBuilder {
         assert!(self.register_url.is_none());
         self.register_url = Some(register_url);
+        self
+    }
+    pub fn protocols(mut self, protocols: Protocols) -> RegisterBuilder {
+        assert!(self.protocols.is_none());
+        self.protocols = Some(protocols);
         self
     }
     pub fn user_agent(mut self, user_agent: String) -> RegisterBuilder {
@@ -220,18 +226,18 @@ impl RegisterBuilder {
 
 pub struct Register {
     shared: Arc<RegisterShared>,
-    tasks: [Arc<RegisterTaskShared>; 2],
+    tasks: [Option<Arc<RegisterTaskShared>>; 2],
 }
 
 async fn register_task(shared: Arc<RegisterShared>, task: Arc<RegisterTaskShared>) -> ! {
     let client = reqwest::Client::builder()
         .user_agent(&*shared.user_agent)
-        .local_address(task.ip_version.bind_all())
+        .local_address(task.protocol.bind_all_addr())
         .build()
         .unwrap();
 
     let challenge_secret: Box<str> =
-        format!("{}:{}", shared.challenge_secret, task.ip_version).into();
+        format!("{}:{}", shared.challenge_secret, task.protocol).into();
 
     loop {
         // send register
@@ -334,6 +340,7 @@ impl Register {
         RegisterBuilder {
             require_external_heartbeats,
             register_url,
+            protocols,
             user_agent,
             community_token,
         }: RegisterBuilder,
@@ -345,6 +352,7 @@ impl Register {
         } else {
             Some(INTERVAL_HEARTBEAT)
         };
+        let protocols = protocols.unwrap_or(Protocols::all());
 
         let challenge_secret = Uuid::new_v4().to_string();
         let challenge_packet_prefix: Vec<u8> = [
@@ -380,7 +388,10 @@ impl Register {
         });
 
         let now = Instant::now();
-        let tasks = IP_VERSIONS.map(|ip_version| {
+        let tasks = protocols::ALL.map(|protocol| {
+            if !protocols.contains(protocol) {
+                return None;
+            }
             let task = Arc::new(RegisterTaskShared {
                 data: Mutex::new(RegisterTaskData {
                     token: None,
@@ -390,11 +401,11 @@ impl Register {
                     prev_register: now,
                     next_register: period.map(|p| now + p),
                 }),
-                ip_version,
+                protocol,
                 next_register_changed: Notify::new(),
             });
             let _ = tokio::spawn(register_task(shared.clone(), task.clone()));
-            task
+            Some(task)
         });
 
         Register { shared, tasks }
@@ -408,21 +419,37 @@ impl Register {
         data.info = info;
 
         // Lock all the task data once.
-        let mut task_data: Vec<_> = self.tasks.iter().map(|t| t.data.lock().unwrap()).collect();
+        let mut task_data: Vec<_> = self
+            .tasks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, t)| t.as_ref().map(|t| (i, t.data.lock().unwrap())))
+            .collect();
+
+        if task_data.is_empty() {
+            return;
+        }
+
         // Expedite the next register that is closest to execution, but don't
         // move it closer than `INTERVAL_INFO_CHANGE` from the previous
         // register.
         let minimum_next_register_idx = task_data
             .iter()
-            .enumerate()
-            .filter_map(|(i, d)| d.next_register.map(|n| (i, n)))
+            .filter_map(|&(i, ref d)| d.next_register.map(|n| (i, n)))
             .min_by_key(|&(_, n)| n)
             .map(|(i, _)| i)
-            .unwrap_or(0);
-        let maximum_prev_register = task_data.iter().map(|d| d.prev_register).max().unwrap();
-        task_data[minimum_next_register_idx].set_next_register(
+            .unwrap_or(task_data.first().unwrap().0);
+        let maximum_prev_register = task_data
+            .iter()
+            .map(|(_, d)| d.prev_register)
+            .max()
+            .unwrap();
+        task_data[minimum_next_register_idx].1.set_next_register(
             maximum_prev_register + INTERVAL_INFO_CHANGE,
-            &self.tasks[minimum_next_register_idx].next_register_changed,
+            &self.tasks[minimum_next_register_idx]
+                .as_ref()
+                .unwrap()
+                .next_register_changed,
         );
     }
     pub fn on_udp_packet(&self, data: &[u8]) {
@@ -433,34 +460,37 @@ impl Register {
                     .read_string()
                     .ok()
                     .and_then(|s| str::from_utf8(s).ok())
-                    .and_then(|s| IpVersion::from_str(s).ok()),
+                    .and_then(|s| Protocol::from_str(s).ok()),
                 unpacker
                     .read_string()
                     .ok()
                     .and_then(|s| str::from_utf8(s).ok()),
             ) {
-                (Some(ip_version), Some(token)) => self.on_token(ip_version, token),
+                (Some(protocol), Some(token)) => self.on_token(protocol, token),
                 _ => error!("invalid challenge packet from mastersrv"),
             }
         }
     }
-    fn on_token(&self, ip_version: IpVersion, token: &str) {
-        debug!("{ip_version} challenge_token={token:?}");
-        let task = &self.tasks[ip_version.index()];
-        let mut task_data = task.data.lock().unwrap();
-        if Some(token) != task_data.token.as_deref() {
-            task_data.token = Some(String::from(token).into_boxed_str().into());
-            if let Some(RegisterResult::NeedChallenge) = task_data.prev_result {
-                task_data.set_wait_time(INTERVAL_TOKEN_REQUIRED, &task.next_register_changed);
+    fn on_token(&self, protocol: Protocol, token: &str) {
+        debug!("{protocol} challenge_token={token:?}");
+        if let Some(task) = &self.tasks[protocol.index()] {
+            let mut task_data = task.data.lock().unwrap();
+            if Some(token) != task_data.token.as_deref() {
+                task_data.token = Some(String::from(token).into_boxed_str().into());
+                if let Some(RegisterResult::NeedChallenge) = task_data.prev_result {
+                    task_data.set_wait_time(INTERVAL_TOKEN_REQUIRED, &task.next_register_changed);
+                }
             }
         }
     }
     pub fn on_heartbeat(&self) {
         for task in &self.tasks {
-            task.data
-                .lock()
-                .unwrap()
-                .set_wait_time(INTERVAL_HEARTBEAT, &task.next_register_changed);
+            if let Some(task) = task {
+                task.data
+                    .lock()
+                    .unwrap()
+                    .set_wait_time(INTERVAL_HEARTBEAT, &task.next_register_changed);
+            }
         }
     }
 }

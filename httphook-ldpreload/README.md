@@ -48,9 +48,12 @@ registration process:
 - `LIBTW2_HTTPHOOK_OVERRIDE_REQUIRES_LOGIN` (unset by default): Populate the
   `"requires_login"` field in the server info with this. Possible values:
   `true`, `false`.
+- `LIBTW2_HTTPHOOK_PROTOCOLS` (default: `all`): Which protocols to register the
+  server for. Posible values: `none`, `ipv4`, `ipv6`, `all`.
 - `LIBTW2_HTTPHOOK_REGISTER_URL` (default:
   `https://master1.ddnet.org/ddnet/15/register`): Contact the mastersrv given
-  by this URL. Example: `http://localhost:8080/ddnet/15/register` for local testing.
+  by this URL. Example: `http://localhost:8080/ddnet/15/register` for local
+  testing.
 
 Example:
 ```
