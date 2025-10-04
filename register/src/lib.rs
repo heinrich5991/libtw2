@@ -416,10 +416,10 @@ impl Register {
             .iter()
             .enumerate()
             .filter_map(|(i, d)| d.next_register.map(|n| (i, n)))
-            .max_by_key(|&(_, n)| n)
+            .min_by_key(|&(_, n)| n)
             .map(|(i, _)| i)
             .unwrap_or(0);
-        let maximum_prev_register = task_data.iter().map(|d| d.prev_register).min().unwrap();
+        let maximum_prev_register = task_data.iter().map(|d| d.prev_register).max().unwrap();
         task_data[minimum_next_register_idx].set_next_register(
             maximum_prev_register + INTERVAL_INFO_CHANGE,
             &self.tasks[minimum_next_register_idx].next_register_changed,
