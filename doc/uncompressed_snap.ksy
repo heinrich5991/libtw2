@@ -12,7 +12,7 @@ seq:
     repeat-expr: header.num_items
   - id: items
     type: item
-    size: (_index == header.num_items - 1 ? header.data_size : offsets[_index + 1]) - offsets[_index]
+    size: '(_index == header.num_items - 1 ? header.data_size : offsets[_index + 1]) - offsets[_index]'
     repeat: expr
     repeat-expr: header.num_items
 types:

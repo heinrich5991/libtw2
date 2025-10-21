@@ -30,7 +30,7 @@ seq:
   - id: data_items
     process: zlib
     type: dummy
-    size: (_index == header.num_data - 1 ? header.data_size : data_offsets[_index + 1]) - data_offsets[_index]
+    size: '(_index == header.num_data - 1 ? header.data_size : data_offsets[_index + 1]) - data_offsets[_index]'
     repeat: expr
     repeat-expr: header.num_data
 types:
@@ -238,10 +238,8 @@ types:
         type: s4
       - id: offset
         type: fixed_point(32.)
-        type: s4
       - id: parallax
         type: fixed_point(100.)
-        type: s4
       - id: first_layer_index
         type: s4
       - id: layer_amount
@@ -256,7 +254,6 @@ types:
       - id: clip_size
         if: version >= 2
         type: fixed_point(32.)
-        type: s4
       - id: name
         type: i32x3_string
   
