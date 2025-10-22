@@ -31,6 +31,7 @@ mod runtime;
 struct Config {
     community_token: Option<Box<str>>,
     log: Option<Box<str>>,
+    override_country: Option<json::Iso3166_1Numeric>,
     override_requires_login: Option<bool>,
     register_url: Option<Box<str>>,
     protocols: Option<libtw2_register::Protocols>,
@@ -184,6 +185,7 @@ fn build_register(port: u16, info: Arc<str>) -> Register {
 
 fn apply_overrides(mut info: json::Server) -> json::Server {
     let config = &config();
+    info.country = config.override_country.or(info.country);
     info.requires_login = config.override_requires_login.or(info.requires_login);
     info
 }

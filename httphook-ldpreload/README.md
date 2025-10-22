@@ -45,6 +45,12 @@ registration process:
 - `LIBTW2_HTTPHOOK_LOG` (default: `info`): Specify log level of the library.
   Examples: `debug`, `error`. [Documentation of the
   syntax](https://docs.rs/env_logger/0.3.5/env_logger/#enabling-logging).
+- `LIBTW2_HTTPHOOK_OVERRIDE_COUNTRY` (unset by default): Populate the
+  `"country"` field in the server info with this. Possible values are drawn
+  from [ISO 3166-1 numeric](https://en.wikipedia.org/wiki/ISO_3166-1_numeric),
+  with DDNet's own additions, in
+  [data/countryflags/index.txt](https://github.com/ddnet/ddnet/blob/c1ba856f321a36dc32ff9fc67cf3df1cbf285f12/data/countryflags/index.txt).
+  Example: 276 for Germany or 905 for the EU.
 - `LIBTW2_HTTPHOOK_OVERRIDE_REQUIRES_LOGIN` (unset by default): Populate the
   `"requires_login"` field in the server info with this. Possible values:
   `true`, `false`.
