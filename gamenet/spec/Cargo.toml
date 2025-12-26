@@ -10,4 +10,4 @@ rust-version = "1.63.0"
 libtw2-gamenet-common = { path = "../common/" }
 serde = "1.0.23"
 serde_derive = "1.0.7"
-uuid = { version = "0.8.1", features = ["serde"] }
+uuid = { version = ">=0.8.1,<2.0.0", features = ["serde"] }

@@ -12,7 +12,7 @@ libtw2-common = { path = "../common/" }
 libtw2-gamenet-common = { path = "../gamenet/common/" }
 libtw2-gamenet-snap = { path = "../gamenet/snap/" }
 libtw2-packer = { path = "../packer/" }
-uuid = "0.8.1"
+uuid = ">=0.8.1,<2.0.0"
 vec_map = "0.8.0"
 warn = ">=0.1.1,<0.3.0"
 
