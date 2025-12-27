@@ -89,6 +89,11 @@ pub const SV_COMMAND_INFO_GROUP_START: Uuid = Uuid::from_u128(0x9e220138_d393_3c
 pub const SV_COMMAND_INFO_GROUP_END: Uuid = Uuid::from_u128(0x054125d8_0062_3891_840b_47462285a01f);
 pub const SV_CHANGE_INFO_COOLDOWN: Uuid = Uuid::from_u128(0x746cb54c_6b2b_39a7_8cd8_7c7a1c6c3009);
 pub const SV_MAP_SOUND_GLOBAL: Uuid = Uuid::from_u128(0x669c9741_695a_369b_856c_a254f6b7f0cb);
+pub const SV_PRE_INPUT: Uuid = Uuid::from_u128(0xb5d3a686_ad59_382c_b3de_d9fedc3320ae);
+pub const SV_SAVE_CODE: Uuid = Uuid::from_u128(0xdc9edffb_266a_3bd6_b101_a949fa44e16b);
+pub const SV_SERVER_ALERT: Uuid = Uuid::from_u128(0x035206dc_9f8b_315c_9abf_5ab9153a857c);
+pub const SV_MODERATOR_ALERT: Uuid = Uuid::from_u128(0xd7c55683_7983_32f0_8d9a_877434ea19d5);
+pub const CL_ENABLE_SPECTATOR_COUNT: Uuid = Uuid::from_u128(0xe19b66e8_0646_351b_aa03_d4aba7b9545f);
 
 #[derive(Clone, Copy)]
 pub enum Game<'a> {
@@ -141,6 +146,11 @@ pub enum Game<'a> {
     SvCommandInfoGroupEnd(SvCommandInfoGroupEnd),
     SvChangeInfoCooldown(SvChangeInfoCooldown),
     SvMapSoundGlobal(SvMapSoundGlobal),
+    SvPreInput(SvPreInput),
+    SvSaveCode(SvSaveCode<'a>),
+    SvServerAlert(SvServerAlert<'a>),
+    SvModeratorAlert(SvModeratorAlert<'a>),
+    ClEnableSpectatorCount(ClEnableSpectatorCount),
 }
 
 impl<'a> Game<'a> {
@@ -196,6 +206,11 @@ impl<'a> Game<'a> {
             Uuid(SV_COMMAND_INFO_GROUP_END) => Game::SvCommandInfoGroupEnd(SvCommandInfoGroupEnd::decode(warn, _p)?),
             Uuid(SV_CHANGE_INFO_COOLDOWN) => Game::SvChangeInfoCooldown(SvChangeInfoCooldown::decode(warn, _p)?),
             Uuid(SV_MAP_SOUND_GLOBAL) => Game::SvMapSoundGlobal(SvMapSoundGlobal::decode(warn, _p)?),
+            Uuid(SV_PRE_INPUT) => Game::SvPreInput(SvPreInput::decode(warn, _p)?),
+            Uuid(SV_SAVE_CODE) => Game::SvSaveCode(SvSaveCode::decode(warn, _p)?),
+            Uuid(SV_SERVER_ALERT) => Game::SvServerAlert(SvServerAlert::decode(warn, _p)?),
+            Uuid(SV_MODERATOR_ALERT) => Game::SvModeratorAlert(SvModeratorAlert::decode(warn, _p)?),
+            Uuid(CL_ENABLE_SPECTATOR_COUNT) => Game::ClEnableSpectatorCount(ClEnableSpectatorCount::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -250,6 +265,11 @@ impl<'a> Game<'a> {
             Game::SvCommandInfoGroupEnd(_) => MessageId::from(SV_COMMAND_INFO_GROUP_END),
             Game::SvChangeInfoCooldown(_) => MessageId::from(SV_CHANGE_INFO_COOLDOWN),
             Game::SvMapSoundGlobal(_) => MessageId::from(SV_MAP_SOUND_GLOBAL),
+            Game::SvPreInput(_) => MessageId::from(SV_PRE_INPUT),
+            Game::SvSaveCode(_) => MessageId::from(SV_SAVE_CODE),
+            Game::SvServerAlert(_) => MessageId::from(SV_SERVER_ALERT),
+            Game::SvModeratorAlert(_) => MessageId::from(SV_MODERATOR_ALERT),
+            Game::ClEnableSpectatorCount(_) => MessageId::from(CL_ENABLE_SPECTATOR_COUNT),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -303,6 +323,11 @@ impl<'a> Game<'a> {
             Game::SvCommandInfoGroupEnd(ref i) => i.encode(p),
             Game::SvChangeInfoCooldown(ref i) => i.encode(p),
             Game::SvMapSoundGlobal(ref i) => i.encode(p),
+            Game::SvPreInput(ref i) => i.encode(p),
+            Game::SvSaveCode(ref i) => i.encode(p),
+            Game::SvServerAlert(ref i) => i.encode(p),
+            Game::SvModeratorAlert(ref i) => i.encode(p),
+            Game::ClEnableSpectatorCount(ref i) => i.encode(p),
         }
     }
 }
@@ -359,6 +384,11 @@ impl<'a> fmt::Debug for Game<'a> {
             Game::SvCommandInfoGroupEnd(ref i) => i.fmt(f),
             Game::SvChangeInfoCooldown(ref i) => i.fmt(f),
             Game::SvMapSoundGlobal(ref i) => i.fmt(f),
+            Game::SvPreInput(ref i) => i.fmt(f),
+            Game::SvSaveCode(ref i) => i.fmt(f),
+            Game::SvServerAlert(ref i) => i.fmt(f),
+            Game::SvModeratorAlert(ref i) => i.fmt(f),
+            Game::ClEnableSpectatorCount(ref i) => i.fmt(f),
         }
     }
 }
@@ -654,6 +684,36 @@ impl<'a> From<SvChangeInfoCooldown> for Game<'a> {
 impl<'a> From<SvMapSoundGlobal> for Game<'a> {
     fn from(i: SvMapSoundGlobal) -> Game<'a> {
         Game::SvMapSoundGlobal(i)
+    }
+}
+
+impl<'a> From<SvPreInput> for Game<'a> {
+    fn from(i: SvPreInput) -> Game<'a> {
+        Game::SvPreInput(i)
+    }
+}
+
+impl<'a> From<SvSaveCode<'a>> for Game<'a> {
+    fn from(i: SvSaveCode<'a>) -> Game<'a> {
+        Game::SvSaveCode(i)
+    }
+}
+
+impl<'a> From<SvServerAlert<'a>> for Game<'a> {
+    fn from(i: SvServerAlert<'a>) -> Game<'a> {
+        Game::SvServerAlert(i)
+    }
+}
+
+impl<'a> From<SvModeratorAlert<'a>> for Game<'a> {
+    fn from(i: SvModeratorAlert<'a>) -> Game<'a> {
+        Game::SvModeratorAlert(i)
+    }
+}
+
+impl<'a> From<ClEnableSpectatorCount> for Game<'a> {
+    fn from(i: ClEnableSpectatorCount) -> Game<'a> {
+        Game::ClEnableSpectatorCount(i)
     }
 }
 #[derive(Clone, Copy)]
@@ -970,6 +1030,47 @@ pub struct SvChangeInfoCooldown {
 #[derive(Clone, Copy)]
 pub struct SvMapSoundGlobal {
     pub sound_id: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvPreInput {
+    pub direction: i32,
+    pub target_x: i32,
+    pub target_y: i32,
+    pub jump: i32,
+    pub fire: i32,
+    pub hook: i32,
+    pub wanted_weapon: i32,
+    pub next_weapon: i32,
+    pub prev_weapon: i32,
+    pub owner: i32,
+    pub intended_tick: crate::snap_obj::Tick,
+}
+
+#[derive(Clone, Copy)]
+pub struct SvSaveCode<'a> {
+    pub state: i32,
+    pub error: &'a [u8],
+    pub save_requester: &'a [u8],
+    pub server_name: &'a [u8],
+    pub generated_code: &'a [u8],
+    pub code: &'a [u8],
+    pub team_members: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct SvServerAlert<'a> {
+    pub message: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct SvModeratorAlert<'a> {
+    pub message: &'a [u8],
+}
+
+#[derive(Clone, Copy)]
+pub struct ClEnableSpectatorCount {
+    pub enable: bool,
 }
 
 impl<'a> SvMotd<'a> {
@@ -2557,6 +2658,167 @@ impl fmt::Debug for SvMapSoundGlobal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("SvMapSoundGlobal")
             .field("sound_id", &self.sound_id)
+            .finish()
+    }
+}
+
+impl SvPreInput {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<SvPreInput, Error> {
+        let result = Ok(SvPreInput {
+            direction: _p.read_int(warn)?,
+            target_x: _p.read_int(warn)?,
+            target_y: _p.read_int(warn)?,
+            jump: _p.read_int(warn)?,
+            fire: _p.read_int(warn)?,
+            hook: _p.read_int(warn)?,
+            wanted_weapon: _p.read_int(warn)?,
+            next_weapon: _p.read_int(warn)?,
+            prev_weapon: _p.read_int(warn)?,
+            owner: in_range(_p.read_int(warn)?, 0, 127)?,
+            intended_tick: crate::snap_obj::Tick(_p.read_int(warn)?),
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(0 <= self.owner && self.owner <= 127);
+        _p.write_int(self.direction)?;
+        _p.write_int(self.target_x)?;
+        _p.write_int(self.target_y)?;
+        _p.write_int(self.jump)?;
+        _p.write_int(self.fire)?;
+        _p.write_int(self.hook)?;
+        _p.write_int(self.wanted_weapon)?;
+        _p.write_int(self.next_weapon)?;
+        _p.write_int(self.prev_weapon)?;
+        _p.write_int(self.owner)?;
+        _p.write_int(self.intended_tick.0)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for SvPreInput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvPreInput")
+            .field("direction", &self.direction)
+            .field("target_x", &self.target_x)
+            .field("target_y", &self.target_y)
+            .field("jump", &self.jump)
+            .field("fire", &self.fire)
+            .field("hook", &self.hook)
+            .field("wanted_weapon", &self.wanted_weapon)
+            .field("next_weapon", &self.next_weapon)
+            .field("prev_weapon", &self.prev_weapon)
+            .field("owner", &self.owner)
+            .field("intended_tick", &self.intended_tick)
+            .finish()
+    }
+}
+
+impl<'a> SvSaveCode<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvSaveCode<'a>, Error> {
+        let result = Ok(SvSaveCode {
+            state: in_range(_p.read_int(warn)?, 0, 4)?,
+            error: sanitize(warn, _p.read_string()?)?,
+            save_requester: sanitize(warn, _p.read_string()?)?,
+            server_name: sanitize(warn, _p.read_string()?)?,
+            generated_code: sanitize(warn, _p.read_string()?)?,
+            code: sanitize(warn, _p.read_string()?)?,
+            team_members: sanitize(warn, _p.read_string()?)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        assert!(0 <= self.state && self.state <= 4);
+        sanitize(&mut Panic, self.error).unwrap();
+        sanitize(&mut Panic, self.save_requester).unwrap();
+        sanitize(&mut Panic, self.server_name).unwrap();
+        sanitize(&mut Panic, self.generated_code).unwrap();
+        sanitize(&mut Panic, self.code).unwrap();
+        sanitize(&mut Panic, self.team_members).unwrap();
+        _p.write_int(self.state)?;
+        _p.write_string(self.error)?;
+        _p.write_string(self.save_requester)?;
+        _p.write_string(self.server_name)?;
+        _p.write_string(self.generated_code)?;
+        _p.write_string(self.code)?;
+        _p.write_string(self.team_members)?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvSaveCode<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvSaveCode")
+            .field("state", &self.state)
+            .field("error", &pretty::Bytes::new(&self.error))
+            .field("save_requester", &pretty::Bytes::new(&self.save_requester))
+            .field("server_name", &pretty::Bytes::new(&self.server_name))
+            .field("generated_code", &pretty::Bytes::new(&self.generated_code))
+            .field("code", &pretty::Bytes::new(&self.code))
+            .field("team_members", &pretty::Bytes::new(&self.team_members))
+            .finish()
+    }
+}
+
+impl<'a> SvServerAlert<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvServerAlert<'a>, Error> {
+        let result = Ok(SvServerAlert {
+            message: _p.read_string()?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_string(self.message)?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvServerAlert<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvServerAlert")
+            .field("message", &pretty::Bytes::new(&self.message))
+            .finish()
+    }
+}
+
+impl<'a> SvModeratorAlert<'a> {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<SvModeratorAlert<'a>, Error> {
+        let result = Ok(SvModeratorAlert {
+            message: _p.read_string()?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_string(self.message)?;
+        Ok(_p.written())
+    }
+}
+impl<'a> fmt::Debug for SvModeratorAlert<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SvModeratorAlert")
+            .field("message", &pretty::Bytes::new(&self.message))
+            .finish()
+    }
+}
+
+impl ClEnableSpectatorCount {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ClEnableSpectatorCount, Error> {
+        let result = Ok(ClEnableSpectatorCount {
+            enable: to_bool(_p.read_int(warn)?)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.enable as i32)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for ClEnableSpectatorCount {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ClEnableSpectatorCount")
+            .field("enable", &self.enable)
             .finish()
     }
 }

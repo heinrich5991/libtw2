@@ -72,9 +72,11 @@ SYSTEM_MSGS_DDNET_19_1 = SYSTEM_MSGS_DDNET_17_2_1 + [
     ("map-reload@ddnet.org", "map_reload", "vital", ""),
     ("reconnect@ddnet.org", "reconnect", "vital", ""),
     ("sv-maplist-add@ddnet.org", "maplist_add", "vital", ""),
-    ("sv-maplist-group-start@ddnet.org", "maplist_group_start", "vital", "i:length"),
-    ("sv-maplist-group-end@ddnet.org", "maplist_group_end", "vital", ""),
+    ("sv-maplist-start@ddnet.org", "maplist_group_start", "vital", "i:length"),
+    ("sv-maplist-end@ddnet.org", "maplist_group_end", "vital", ""),
 ]
+
+SYSTEM_MSGS_DDNET_19_6 = SYSTEM_MSGS_DDNET_19_1
 
 SYSTEM_MSGS_0_7 = [
     ( 1, "info", "vital", "s:version s?:password i?:client_version"),
@@ -160,6 +162,7 @@ SYSTEM_MSGS = {
     "ddnet-16.7.2": make_msgs(SYSTEM_MSGS_DDNET_16_2),
     "ddnet-17.2.1": make_msgs(SYSTEM_MSGS_DDNET_17_2_1),
     "ddnet-19.1": make_msgs(SYSTEM_MSGS_DDNET_19_1),
+    "ddnet-19.6": make_msgs(SYSTEM_MSGS_DDNET_19_6),
     "0.7.5": make_msgs(SYSTEM_MSGS_0_7),
     "0.7": make_msgs(SYSTEM_MSGS_0_7),
 }

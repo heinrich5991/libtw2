@@ -6,11 +6,13 @@
 		{"name": ["weapon", "world"], "type": "int32", "value": -1},
 		{"name": ["spec", "freeview"], "type": "int32", "value": -1},
 		{"name": ["num", "tunezones"], "type": "int32", "value": 256},
+		{"name": ["tune", "zone", "override", "none"], "type": "int32", "value": -1},
+		{"name": ["tune", "zone", "num"], "type": "int32", "value": 256},
 		{"name": ["flag", "missing"], "type": "int32", "value": -3},
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},
 		{"name": ["version"], "type": "string", "value": "0.6 626fce9a778df4d4"},
-		{"name": ["ddnet", "version"], "type": "int32", "value": 19010},
+		{"name": ["ddnet", "version"], "type": "int32", "value": 19060},
 		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
 		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"},
 		{"name": ["cl", "call", "vote", "type", "spec"], "type": "string", "value": "spec"}
@@ -130,6 +132,16 @@
 			]
 		},
 		{
+			"name": ["savestate"],
+			"values": [
+				{"value": 0, "name": ["pending"]},
+				{"value": 1, "name": ["done"]},
+				{"value": 2, "name": ["fallbackfile"]},
+				{"value": 3, "name": ["warning"]},
+				{"value": 4, "name": ["error"]}
+			]
+		},
+		{
 			"name": ["weapon"],
 			"values": [
 				{"value": 0, "name": ["hammer"]},
@@ -196,7 +208,9 @@
 				{"value": 4, "name": ["chatting"]},
 				{"value": 8, "name": ["scoreboard"]},
 				{"value": 16, "name": ["aim"]},
-				{"value": 32, "name": ["spec", "cam"]}
+				{"value": 32, "name": ["spec", "cam"]},
+				{"value": 64, "name": ["input", "absolute"]},
+				{"value": 128, "name": ["input", "manual"]}
 			]
 		},
 		{
@@ -339,6 +353,15 @@
 			"name": ["laserflag"],
 			"values": [
 				{"value": 1, "name": ["no", "predict"]}
+			]
+		},
+		{
+			"name": ["pickupflag"],
+			"values": [
+				{"value": 1, "name": ["xflip"]},
+				{"value": 2, "name": ["yflip"]},
+				{"value": 4, "name": ["rotate"]},
+				{"value": 8, "name": ["no", "predict"]}
 			]
 		}
 	],
@@ -901,6 +924,87 @@
 				{"name": ["sound", "id"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
+		},
+		{
+			"id": "b5d3a686-ad59-382c-b3de-d9fedc3320ae",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "preinput@netmsg.ddnet.org"
+			},
+			"name": ["sv", "pre", "input"],
+			"members": [
+				{"name": ["direction"], "type": {"kind": "int32"}},
+				{"name": ["target", "x"], "type": {"kind": "int32"}},
+				{"name": ["target", "y"], "type": {"kind": "int32"}},
+				{"name": ["jump"], "type": {"kind": "int32"}},
+				{"name": ["fire"], "type": {"kind": "int32"}},
+				{"name": ["hook"], "type": {"kind": "int32"}},
+				{"name": ["wanted", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["next", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["prev", "weapon"], "type": {"kind": "int32"}},
+				{"name": ["owner"], "type": {"kind": "int32", "min": 0, "max": 127}},
+				{"name": ["intended", "tick"], "type": {"kind": "tick"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "dc9edffb-266a-3bd6-b101-a949fa44e16b",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "save-code@netmsg.ddnet.org"
+			},
+			"name": ["sv", "save", "code"],
+			"members": [
+				{"name": ["state"], "type": {"kind": "int32", "min": 0, "max": 4}},
+				{"name": ["error"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["save", "requester"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["server", "name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["generated", "code"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["code"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["team", "members"], "type": {"kind": "string", "disallow_cc": true}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "035206dc-9f8b-315c-9abf-5ab9153a857c",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "server-alert@netmsg.ddnet.org"
+			},
+			"name": ["sv", "server", "alert"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "d7c55683-7983-32f0-8d9a-877434ea19d5",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "moderator-alert@netmsg.ddnet.org"
+			},
+			"name": ["sv", "moderator", "alert"],
+			"members": [
+				{"name": ["message"], "type": {"kind": "string", "disallow_cc": false}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "e19b66e8-0646-351b-aa03-d4aba7b9545f",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "enable-spectator-count@netmsg.ddnet.org"
+			},
+			"name": ["cl", "enable", "spectator", "count"],
+			"members": [
+				{"name": ["enable"], "type": {"kind": "boolean"}}
+			],
+			"attributes": []
 		}
 	],
 	"snapshot_objects": [
@@ -1048,10 +1152,10 @@
 			"id": 11,
 			"name": ["client", "info"],
 			"members": [
-				{"name": ["name"], "type": {"kind": "array", "count": 4, "member_type": {"kind": "int32"}}},
-				{"name": ["clan"], "type": {"kind": "array", "count": 3, "member_type": {"kind": "int32"}}},
+				{"name": ["name"], "type": {"kind": "int32_twstring", "count": 4}},
+				{"name": ["clan"], "type": {"kind": "int32_twstring", "count": 3}},
 				{"name": ["country"], "type": {"kind": "int32"}},
-				{"name": ["skin"], "type": {"kind": "array", "count": 6, "member_type": {"kind": "int32"}}},
+				{"name": ["skin"], "type": {"kind": "int32_twstring", "count": 6}},
 				{"name": ["use", "custom", "color"], "type": {"kind": "int32", "min": 0, "max": 1}},
 				{"name": ["color", "body"], "type": {"kind": "int32"}},
 				{"name": ["color", "feet"], "type": {"kind": "int32"}}
@@ -1100,7 +1204,7 @@
 				{"name": ["freeze", "start"], "default": -1, "type": {"kind": "tick"}},
 				{"name": ["target", "x"], "default": 0, "type": {"kind": "int32"}},
 				{"name": ["target", "y"], "default": 0, "type": {"kind": "int32"}},
-				{"name": ["tune", "zone", "override"], "default": -1, "type": {"kind": "int32", "min": -1, "max": 255}}
+				{"name": ["tune", "zone", "override"], "default": "TuneZone::OVERRIDE_NONE", "type": {"kind": "int32", "min": -1, "max": 255}}
 			],
 			"attributes": [
 				"dont_validate_size"
@@ -1212,7 +1316,8 @@
 				{"name": ["y"], "type": {"kind": "int32"}},
 				{"name": ["type"], "type": {"kind": "int32", "min": 0}},
 				{"name": ["subtype"], "type": {"kind": "int32", "min": 0}},
-				{"name": ["switch", "number"], "type": {"kind": "int32"}}
+				{"name": ["switch", "number"], "type": {"kind": "int32"}},
+				{"name": ["flags"], "default": 0, "type": {"kind": "int32"}}
 			],
 			"attributes": []
 		},
@@ -1230,6 +1335,19 @@
 				{"name": ["deadzone"], "type": {"kind": "int32", "min": 0}},
 				{"name": ["follow", "factor"], "type": {"kind": "int32", "min": 0}},
 				{"name": ["spectator", "count"], "default": 0, "type": {"kind": "int32", "min": 0, "max": 127}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "5e5ca96f-c728-30fd-bfb3-155b07692556",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "spectator-count@netobj.ddnet.org"
+			},
+			"name": ["spectator", "count"],
+			"members": [
+				{"name": ["num", "spectators"], "type": {"kind": "int32", "min": 0}}
 			],
 			"attributes": []
 		},

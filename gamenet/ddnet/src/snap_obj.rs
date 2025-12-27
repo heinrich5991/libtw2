@@ -25,6 +25,8 @@ pub const PLAYERFLAG_CHATTING: i32 = 1 << 2;
 pub const PLAYERFLAG_SCOREBOARD: i32 = 1 << 3;
 pub const PLAYERFLAG_AIM: i32 = 1 << 4;
 pub const PLAYERFLAG_SPEC_CAM: i32 = 1 << 5;
+pub const PLAYERFLAG_INPUT_ABSOLUTE: i32 = 1 << 6;
+pub const PLAYERFLAG_INPUT_MANUAL: i32 = 1 << 7;
 
 pub const GAMEFLAG_TEAMS: i32 = 1 << 0;
 pub const GAMEFLAG_FLAGS: i32 = 1 << 1;
@@ -132,6 +134,11 @@ pub const PROJECTILEFLAG_NORMALIZE_VEL: i32 = 1 << 4;
 
 pub const LASERFLAG_NO_PREDICT: i32 = 1 << 0;
 
+pub const PICKUPFLAG_XFLIP: i32 = 1 << 0;
+pub const PICKUPFLAG_YFLIP: i32 = 1 << 1;
+pub const PICKUPFLAG_ROTATE: i32 = 1 << 2;
+pub const PICKUPFLAG_NO_PREDICT: i32 = 1 << 3;
+
 pub const PLAYER_INPUT: u16 = 1;
 pub const PROJECTILE: u16 = 2;
 pub const LASER: u16 = 3;
@@ -153,6 +160,7 @@ pub const DDNET_LASER: Uuid = Uuid::from_u128(0x29de68a2_6928_31b8_8360_a2307e0d
 pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x6550fbce_f317_3b31_8ffe_d2b37f3ab40e);
 pub const DDNET_PICKUP: Uuid = Uuid::from_u128(0xea5e4a51_58fb_3684_96e4_e0d267f4ca65);
 pub const DDNET_SPECTATOR_INFO: Uuid = Uuid::from_u128(0xd13307b2_9a19_37cb_8f8c_07c718521883);
+pub const SPECTATOR_COUNT: Uuid = Uuid::from_u128(0x5e5ca96f_c728_30fd_bfb3_155b07692556);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -192,6 +200,7 @@ pub enum SnapObj {
     DdnetProjectile(DdnetProjectile),
     DdnetPickup(DdnetPickup),
     DdnetSpectatorInfo(DdnetSpectatorInfo),
+    SpectatorCount(SpectatorCount),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -234,6 +243,7 @@ impl SnapObj {
             Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
             Uuid(DDNET_PICKUP) => SnapObj::DdnetPickup(DdnetPickup::decode(warn, _p)?),
             Uuid(DDNET_SPECTATOR_INFO) => SnapObj::DdnetSpectatorInfo(DdnetSpectatorInfo::decode(warn, _p)?),
+            Uuid(SPECTATOR_COUNT) => SnapObj::SpectatorCount(SpectatorCount::decode(warn, _p)?),
             Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
             Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
             Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
@@ -275,6 +285,7 @@ impl SnapObj {
             SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
             SnapObj::DdnetPickup(_) => TypeId::from(DDNET_PICKUP),
             SnapObj::DdnetSpectatorInfo(_) => TypeId::from(DDNET_SPECTATOR_INFO),
+            SnapObj::SpectatorCount(_) => TypeId::from(SPECTATOR_COUNT),
             SnapObj::Common(_) => TypeId::from(COMMON),
             SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
             SnapObj::Spawn(_) => TypeId::from(SPAWN),
@@ -315,6 +326,7 @@ impl SnapObj {
             SnapObj::DdnetProjectile(ref i) => i.encode(),
             SnapObj::DdnetPickup(ref i) => i.encode(),
             SnapObj::DdnetSpectatorInfo(ref i) => i.encode(),
+            SnapObj::SpectatorCount(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -358,6 +370,7 @@ impl fmt::Debug for SnapObj {
             SnapObj::DdnetProjectile(ref i) => i.fmt(f),
             SnapObj::DdnetPickup(ref i) => i.fmt(f),
             SnapObj::DdnetSpectatorInfo(ref i) => i.fmt(f),
+            SnapObj::SpectatorCount(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -500,6 +513,12 @@ impl From<DdnetPickup> for SnapObj {
 impl From<DdnetSpectatorInfo> for SnapObj {
     fn from(i: DdnetSpectatorInfo) -> SnapObj {
         SnapObj::DdnetSpectatorInfo(i)
+    }
+}
+
+impl From<SpectatorCount> for SnapObj {
+    fn from(i: SpectatorCount) -> SnapObj {
+        SnapObj::SpectatorCount(i)
     }
 }
 
@@ -817,6 +836,7 @@ pub struct DdnetPickup {
     pub type_: i32,
     pub subtype: i32,
     pub switch_number: i32,
+    pub flags: i32,
 }
 
 #[repr(C)]
@@ -827,6 +847,12 @@ pub struct DdnetSpectatorInfo {
     pub deadzone: i32,
     pub follow_factor: i32,
     pub spectator_count: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SpectatorCount {
+    pub num_spectators: i32,
 }
 
 #[repr(C)]
@@ -1660,6 +1686,7 @@ impl fmt::Debug for DdnetPickup {
             .field("type_", &self.type_)
             .field("subtype", &self.subtype)
             .field("switch_number", &self.switch_number)
+            .field("flags", &self.flags)
             .finish()
     }
 }
@@ -1676,6 +1703,7 @@ impl DdnetPickup {
             type_: positive(_p.read_int()?)?,
             subtype: positive(_p.read_int()?)?,
             switch_number: _p.read_int()?,
+            flags: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1716,6 +1744,30 @@ impl DdnetSpectatorInfo {
         assert!(self.deadzone >= 0);
         assert!(self.follow_factor >= 0);
         assert!(0 <= self.spectator_count && self.spectator_count <= 127);
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for SpectatorCount {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SpectatorCount")
+            .field("num_spectators", &self.num_spectators)
+            .finish()
+    }
+}
+impl SpectatorCount {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SpectatorCount, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpectatorCount, Error> {
+        Ok(SpectatorCount {
+            num_spectators: positive(_p.read_int()?)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(self.num_spectators >= 0);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }

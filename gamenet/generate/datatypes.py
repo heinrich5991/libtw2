@@ -2,6 +2,9 @@ from collections import namedtuple
 import uuid
 import threading
 
+def flatten(l):
+    return [y for x in l for y in x]
+
 def title(c):
     return "".join(p.title() for p in c)
 
@@ -22,6 +25,9 @@ def canonicalize(s):
         return s
     if s.isdigit():
         s = "v{}".format(s)
+    split = s.split("::")
+    if len(split) > 1:
+        return tuple(flatten(canonicalize(s) for s in split))
     if s.isupper() or s.islower():
         return tuple(p.lower() for p in s.split("_"))
     PREFIXES=sorted(["m_", "m_a", "m_aa", "m_ap", "m_p"], key=len, reverse=True)
@@ -1368,6 +1374,28 @@ class NetIntAny(Member):
         else:
             return NetIntAny(name)
 
+class NetTwIntString(Member):
+    kind = "int32_twstring"
+    def __init__(self, name, size):
+        super().__init__(name)
+        if size % 4 != 0:
+            raise ValueError("size must be divisible by 4, but isn't: {}".format(count))
+        self.count = size // 4
+        self.type_ = "[i32; {}]".format(self.count)
+    def decode_int_expr(self):
+        return "[\n{}]".format("".join("    _p.read_int()?,\n" for _ in range(self.count)))
+    def int_size(self):
+        return self.count
+    def serialize_type(self):
+        return {
+            "kind": self.kind,
+            "count": self.count,
+        }
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetTwIntString(name, json_obj["count"] * 4)
+
+
 def import_consts(value):
     value = str(value)
     for const in "FLAG_MISSING MAX_CLIENTS SPEC_FREEVIEW TEAM_BLUE TEAM_RED".split():
@@ -1698,6 +1726,7 @@ MEMBER_TYPES = [
     NetSha256,
     NetUuid,
     NetIntAny,
+    NetTwIntString,
     NetEnum,
     NetFlag,
     NetBool,

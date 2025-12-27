@@ -72,8 +72,8 @@ pub const RCON_CMD_GROUP_END: Uuid = Uuid::from_u128(0x5e02c980_6ca1_3c99_a9af_4
 pub const MAP_RELOAD: Uuid = Uuid::from_u128(0x9a9b28a3_19b0_37d9_b1f4_2cccfba05bac);
 pub const RECONNECT: Uuid = Uuid::from_u128(0x5f4d5db7_3947_3711_b04e_07a1ff23c970);
 pub const MAPLIST_ADD: Uuid = Uuid::from_u128(0xca956101_b034_3339_92ca_aa104b20d770);
-pub const MAPLIST_GROUP_START: Uuid = Uuid::from_u128(0xa35cb887_604d_3ca4_bd3e_fa4720beedf1);
-pub const MAPLIST_GROUP_END: Uuid = Uuid::from_u128(0xd246fb91_5f82_35cf_a1fb_9593e98b57f5);
+pub const MAPLIST_GROUP_START: Uuid = Uuid::from_u128(0xd2fafec0_5cd2_319a_a84d_480f2072dee4);
+pub const MAPLIST_GROUP_END: Uuid = Uuid::from_u128(0x43fd0a8b_8b23_350d_b3f6_0de549246a70);
 
 #[derive(Clone, Copy)]
 pub enum System<'a> {
