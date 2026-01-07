@@ -28,7 +28,7 @@ All sizes are specified in bits, from the highest bit in a byte to the lowest.
 As specified, an encoded `int` can have a size of 1 to 5 bytes. Some bytes have
 the `flag_extend` variable which specifies whether they're followed by another
 byte. The bits of the final integer are the `bits` fields combined, with a
-little-endian order. If we call our bits 0 to r, with 0 being the least
+little-endian order. If we call our bits 0 to u, with 0 being the least
 significant bit, then it looks like this:
 
     ES54 3210  Ecba 9876  Ejih gfed  Eqpo nmlk  PPPP utsr
