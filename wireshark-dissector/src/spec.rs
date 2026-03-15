@@ -628,7 +628,7 @@ impl Message {
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
         let item = sys::proto_tree_add_none_format(tree, self.id.get(), tvb, 0, 0, c("\0"));
-        if !item.is_null() {
+        if !item.is_null() && !(*item).finfo.is_null() {
             (*(*item).finfo).flags |= sys::FI_HIDDEN;
         }
         for m in &self.members {
