@@ -1,4 +1,5 @@
 use crate::snap::Error;
+use crate::ReadInt;
 use buffer::CapacityError;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
@@ -120,20 +121,35 @@ pub struct DeltaHeader {
 }
 
 impl DeltaHeader {
-    pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<DeltaHeader, Error> {
+    pub(crate) fn decode_impl<W: Warn<Warning>, R: ReadInt>(
+        warn: &mut W,
+        reader: &mut R,
+    ) -> Result<DeltaHeader, Error> {
         let result = DeltaHeader {
-            num_deleted_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
-            num_updated_items: libtw2_packer::positive(p.read_int(wrap(warn))?)?,
+            num_deleted_items: libtw2_packer::positive(reader.read_int(warn)?)?,
+            num_updated_items: libtw2_packer::positive(reader.read_int(warn)?)?,
         };
-        if p.read_int(wrap(warn))? != 0 {
+        if reader.read_int(warn)? != 0 {
             warn.warn(Warning::NonZeroPadding);
         }
         Ok(result)
     }
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, p: &mut Unpacker) -> Result<DeltaHeader, Error> {
+        DeltaHeader::decode_impl(warn, p)
+    }
+    pub fn decode_obj<W: Warn<Warning>>(
+        warn: &mut W,
+        p: &mut IntUnpacker,
+    ) -> Result<DeltaHeader, Error> {
+        DeltaHeader::decode_impl(warn, p)
+    }
     pub fn encode<'d, 's>(&self, mut p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
-        p.write_int(self.num_deleted_items)?;
-        p.write_int(self.num_updated_items)?;
-        p.write_int(0)?;
+        for int in self.encode_obj() {
+            p.write_int(int)?;
+        }
         Ok(p.written())
+    }
+    pub fn encode_obj(&self) -> [i32; 3] {
+        [self.num_deleted_items, self.num_updated_items, 0]
     }
 }

@@ -12,12 +12,12 @@ use crate::format::Warning;
 use crate::format::OFFSET_EXTENDED_TYPE_ID;
 use crate::format::TYPE_ID_EX;
 use crate::to_usize;
+use crate::ReadInt;
 use buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_gamenet_snap as msg;
 use libtw2_gamenet_snap::SnapMsg;
 use libtw2_gamenet_snap::MAX_SNAPSHOT_PACKSIZE;
-use libtw2_packer::with_packer;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::UnexpectedEnd;
@@ -400,8 +400,12 @@ impl RawSnap {
     }
 }
 
-fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, w: &mut W, e: Error) -> Result<i32, Error> {
-    p.read_int(wrap(w)).map_err(|_| e)
+fn read_int_err<R: ReadInt, W: Warn<Warning>>(
+    reader: &mut R,
+    w: &mut W,
+    e: Error,
+) -> Result<i32, Error> {
+    reader.read_int(w).map_err(|_| e)
 }
 
 pub struct RawItems<'a> {
@@ -694,57 +698,81 @@ impl Delta {
             create_delta(from_data, data, out_delta);
         }
     }
-    pub fn write<'d, 's, O>(
-        &self,
-        object_size: O,
-        mut p: Packer<'d, 's>,
-    ) -> Result<&'d [u8], CapacityError>
+
+    fn write_impl<O, F>(&self, mut object_size: O, mut write_int: F) -> Result<(), CapacityError>
     where
         O: FnMut(u16) -> Option<u32>,
+        F: FnMut(i32) -> Result<(), CapacityError>,
     {
-        let mut object_size = object_size;
-        with_packer(&mut p, |p| {
-            DeltaHeader {
+        {
+            let header = DeltaHeader {
                 num_deleted_items: self.deleted_items.len().assert_i32(),
                 num_updated_items: self.updated_items.len().assert_i32(),
+            };
+            for int in header.encode_obj() {
+                write_int(int)?;
             }
-            .encode(p)
-        })?;
+        }
         for &key in &self.deleted_items {
-            p.write_int(key)?;
+            write_int(key)?;
         }
         for (&key, range) in &self.updated_items {
             let data = &self.buf[to_usize(range.clone())];
             let raw_type_id = key_to_raw_type_id(key);
             let id = key_to_id(key);
-            p.write_int(raw_type_id.i32())?;
-            p.write_int(id.i32())?;
+            write_int(raw_type_id.i32())?;
+            write_int(id.i32())?;
             match object_size(raw_type_id) {
                 Some(size) => assert!(size.usize() == data.len()),
-                None => p.write_int(data.len().assert_i32())?,
+                None => write_int(data.len().assert_i32())?,
             }
             for &d in data {
-                p.write_int(d)?;
+                write_int(d)?;
             }
         }
+        Ok(())
+    }
+    pub fn write<'d, 's, O>(
+        &self,
+        object_size: O,
+        p: Packer<'d, 's>,
+    ) -> Result<&'d [u8], CapacityError>
+    where
+        O: FnMut(u16) -> Option<u32>,
+    {
+        let mut p = p;
+        self.write_impl(object_size, |int| p.write_int(int))?;
         Ok(p.written())
     }
-
-    pub fn read<W, O>(
-        &mut self,
-        warn: &mut W,
+    pub fn write_to_ints<'a, O>(
+        &self,
         object_size: O,
-        p: &mut Unpacker,
-    ) -> Result<(), Error>
+        result: &'a mut [i32],
+    ) -> Result<&'a [i32], CapacityError>
+    where
+        O: FnMut(u16) -> Option<u32>,
+    {
+        let mut iter = result.iter_mut();
+        self.write_impl(object_size, |int| {
+            *iter.next().ok_or(CapacityError)? = int;
+            Ok(())
+        })?;
+        let remaining = iter.len();
+        let len = result.len() - remaining;
+        Ok(&result[..len])
+    }
+
+    fn read_impl<W, O, R>(&mut self, warn: &mut W, object_size: O, p: &mut R) -> Result<(), Error>
     where
         W: Warn<Warning>,
         O: FnMut(u16) -> Option<u32>,
+        R: ReadInt,
     {
         self.clear();
 
         let mut object_size = object_size;
 
-        let header = DeltaHeader::decode(warn, p)?;
+        let header = DeltaHeader::decode_impl(warn, p)?;
 
         for _ in 0..header.num_deleted_items {
             self.deleted_items
@@ -797,6 +825,31 @@ impl Delta {
         }
 
         Ok(())
+    }
+    pub fn read_from_ints<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        p: &mut IntUnpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
+    {
+        self.read_impl(warn, object_size, p)
+    }
+
+    pub fn read<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        p: &mut Unpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
+    {
+        self.read_impl(warn, object_size, p)
     }
 }
 

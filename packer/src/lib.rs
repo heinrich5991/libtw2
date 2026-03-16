@@ -277,14 +277,21 @@ impl<'a> IntUnpacker<'a> {
     pub fn new(slice: &[i32]) -> IntUnpacker<'_> {
         IntUnpacker { iter: slice.iter() }
     }
+    pub fn is_empty(&self) -> bool {
+        self.iter.len() == 0
+    }
+    fn use_up(&mut self) {
+        // Advance the iterator to the end.
+        self.iter.by_ref().count();
+    }
     pub fn read_int(&mut self) -> Result<i32, UnexpectedEnd> {
         self.iter.next().copied().ok_or(UnexpectedEnd)
     }
     pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
-        // TODO: replace with !self.is_empty()
-        if self.iter.len() != 0 {
+        if !self.is_empty() {
             warn.warn(ExcessData);
         }
+        self.use_up();
     }
     pub fn as_slice(&self) -> &'a [i32] {
         self.iter.as_slice()
