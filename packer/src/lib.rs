@@ -181,17 +181,17 @@ pub struct Unpacker<'a> {
 }
 
 impl<'a> Unpacker<'a> {
-    fn new_impl(data: &[u8], demo: bool) -> Unpacker {
+    fn new_impl(data: &[u8], demo: bool) -> Unpacker<'_> {
         Unpacker {
             original: data,
             iter: data.iter(),
             demo: demo,
         }
     }
-    pub fn new(data: &[u8]) -> Unpacker {
+    pub fn new(data: &[u8]) -> Unpacker<'_> {
         Unpacker::new_impl(data, false)
     }
-    pub fn new_from_demo(data: &[u8]) -> Unpacker {
+    pub fn new_from_demo(data: &[u8]) -> Unpacker<'_> {
         assert!(
             data.len() % 4 == 0,
             "demo data must be padded to a multiple of four bytes"
@@ -274,7 +274,7 @@ pub struct IntUnpacker<'a> {
 }
 
 impl<'a> IntUnpacker<'a> {
-    pub fn new(slice: &[i32]) -> IntUnpacker {
+    pub fn new(slice: &[i32]) -> IntUnpacker<'_> {
         IntUnpacker { iter: slice.iter() }
     }
     pub fn read_int(&mut self) -> Result<i32, UnexpectedEnd> {
