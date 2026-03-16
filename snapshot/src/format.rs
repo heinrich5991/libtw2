@@ -82,7 +82,7 @@ pub struct RawItem<'a> {
 }
 
 impl<'a> RawItem<'a> {
-    pub fn from_key(key: i32, data: &[i32]) -> RawItem {
+    pub fn from_key(key: i32, data: &'a [i32]) -> RawItem<'a> {
         RawItem {
             raw_type_id: key_to_raw_type_id(key),
             id: key_to_id(key),

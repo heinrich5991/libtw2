@@ -73,7 +73,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::SnapEmpty,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -97,7 +97,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::SnapSingle,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -122,7 +122,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::Snap,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }

@@ -152,7 +152,7 @@ impl RawSnap {
             .get(&key(raw_type_id, id))
             .map(|o| &self.buf[to_usize(o.clone())])
     }
-    pub fn items(&self) -> RawItems {
+    pub fn items(&self) -> RawItems<'_> {
         RawItems {
             snap: self,
             iter: self.offsets.iter(),
@@ -480,7 +480,7 @@ impl Snap {
     pub fn item(&self, type_id: TypeId, id: u16) -> Option<&[i32]> {
         self.raw.item(self.raw_type_id(type_id)?, id)
     }
-    pub fn items(&self) -> Items {
+    pub fn items(&self) -> Items<'_> {
         let raw = self.raw.items();
         let remaining = self.raw.items().len() - self.extended_types.len();
         Items {
@@ -922,7 +922,7 @@ impl Builder {
     }
 }
 
-pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks {
+pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks<'_> {
     DeltaChunks {
         tick: tick,
         delta_tick: tick - delta_tick,
