@@ -458,7 +458,7 @@ impl Snap {
     fn raw_type_id(&self, type_id: TypeId) -> Option<u16> {
         match type_id {
             TypeId::Ordinal(ordinal) => {
-                assert!(ordinal < OFFSET_EXTENDED_TYPE_ID);
+                assert!(0 < ordinal && ordinal < OFFSET_EXTENDED_TYPE_ID);
                 Some(ordinal)
             }
             TypeId::Uuid(uuid) => self.extended_types.get(&uuid).copied(),
@@ -980,5 +980,34 @@ impl<'a> Iterator for DeltaChunks<'a> {
         };
         self.cur_part += 1;
         Some(result)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Builder;
+    use super::Item;
+    use uuid::Uuid;
+
+    #[test]
+    fn smoke_test() {
+        let uuid: Uuid = "1a3fcc94-1e53-461e-912e-21200882024b".parse().unwrap();
+
+        let mut builder = Builder::new();
+        builder
+            .add_item(uuid.into(), 1337, &[0x1234, 0x567890ab])
+            .unwrap();
+        let snap = builder.finish();
+
+        assert_eq!(
+            snap.item(uuid.into(), 1337),
+            Some(&[0x1234, 0x567890ab][..])
+        );
+        let item = Item {
+            type_id: uuid.into(),
+            id: 1337,
+            data: &[0x1234, 0x567890ab],
+        };
+        assert_eq!(snap.items().collect::<Vec<_>>(), &[item][..]);
     }
 }

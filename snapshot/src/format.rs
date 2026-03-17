@@ -67,14 +67,14 @@ pub fn item_data_to_uuid<W: Warn<Warning>>(warn: &mut W, mut data: &[i32]) -> Op
     Some(Uuid::from_bytes(result))
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Item<'a> {
     pub type_id: TypeId,
     pub id: u16,
     pub data: &'a [i32],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RawItem<'a> {
     pub raw_type_id: u16,
     pub id: u16,
