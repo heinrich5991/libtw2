@@ -1,8 +1,11 @@
+use crate::format::apply_item_delta;
+use crate::format::create_item_delta;
 use crate::format::item_data_to_uuid;
 use crate::format::key;
 use crate::format::key_to_id;
 use crate::format::key_to_raw_type_id;
 use crate::format::uuid_to_item_data;
+use crate::format::DeltaDifferingSizes;
 use crate::format::DeltaHeader;
 use crate::format::Item;
 use crate::format::RawItem;
@@ -74,6 +77,12 @@ impl From<BuilderError> for Error {
     }
 }
 
+impl From<DeltaDifferingSizes> for Error {
+    fn from(DeltaDifferingSizes: DeltaDifferingSizes) -> Error {
+        Error::DeltaDifferingSizes
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TooLongSnap;
 
@@ -98,35 +107,6 @@ impl From<libtw2_packer::IntOutOfRange> for Error {
 impl From<UnexpectedEnd> for Error {
     fn from(UnexpectedEnd: UnexpectedEnd) -> Error {
         Error::UnexpectedEnd
-    }
-}
-
-fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32]) -> Result<(), Error> {
-    assert!(delta.len() == out.len());
-    match in_ {
-        Some(in_) => {
-            if in_.len() != out.len() {
-                return Err(Error::DeltaDifferingSizes);
-            }
-            for i in 0..out.len() {
-                out[i] = in_[i].wrapping_add(delta[i]);
-            }
-        }
-        None => out.copy_from_slice(delta),
-    }
-    Ok(())
-}
-
-fn create_delta(from: Option<&[i32]>, to: &[i32], out: &mut [i32]) {
-    assert!(to.len() == out.len());
-    match from {
-        Some(from) => {
-            assert!(from.len() == to.len());
-            for i in 0..out.len() {
-                out[i] = to[i].wrapping_sub(from[i]);
-            }
-        }
-        None => out.copy_from_slice(to),
     }
 }
 
@@ -322,7 +302,7 @@ impl RawSnap {
             let out = self.prepare_item(raw_type_id, id, diff.len())?;
             let in_ = from.item(raw_type_id, id);
 
-            apply_delta(in_, diff, out)?;
+            apply_item_delta(in_, diff, out)?;
         }
         Ok(())
     }
@@ -695,7 +675,9 @@ impl Delta {
         {
             let from_data = from.item(raw_type_id, id);
             let out_delta = self.prepare_update_item(raw_type_id, id, data.len());
-            create_delta(from_data, data, out_delta);
+            create_item_delta(from_data, data, out_delta)
+                .expect("item sizes can't be mismatched for self-created snapshots");
+            // but they can be different for snapshots received over the network…
         }
     }
 

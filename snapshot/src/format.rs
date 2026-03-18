@@ -9,6 +9,9 @@ use warn::wrap;
 use warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeltaDifferingSizes;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
     Packer(libtw2_packer::Warning),
     NonZeroPadding,
@@ -152,4 +155,92 @@ impl DeltaHeader {
     pub fn encode_obj(&self) -> [i32; 3] {
         [self.num_deleted_items, self.num_updated_items, 0]
     }
+}
+
+/// Applies an item delta, which is a format internal to a snapshot delta.
+///
+/// `delta` and `out` must be of equal length.
+///
+/// # Errors
+///
+/// Returns [`DeltaDifferingSizes`] if `in_`'s length is different from `out.len()`.
+///
+/// # Panics
+///
+/// Panics if `delta.len() != out.len()`.
+///
+/// # Examples
+///
+/// ```
+/// use libtw2_snapshot::format::apply_item_delta;
+/// let mut out = [0; 4];
+///
+/// apply_item_delta(Some(&[0, 1337, 42, 0x7fff_ffff]), &[0, 1, -21, 1], &mut out);
+/// assert_eq!(out, [0, 1338, 21, -0x8000_0000]);
+///
+/// apply_item_delta(None, &[0, 1, -21, 1], &mut out);
+/// assert_eq!(out, [0, 1, -21, 1]);
+/// ```
+pub fn apply_item_delta(
+    in_: Option<&[i32]>,
+    delta: &[i32],
+    out: &mut [i32],
+) -> Result<(), DeltaDifferingSizes> {
+    assert!(delta.len() == out.len());
+    match in_ {
+        Some(in_) => {
+            if in_.len() != out.len() {
+                return Err(DeltaDifferingSizes);
+            }
+            for i in 0..out.len() {
+                out[i] = in_[i].wrapping_add(delta[i]);
+            }
+        }
+        None => out.copy_from_slice(delta),
+    }
+    Ok(())
+}
+
+/// Creates an item delta, which is a format internal to a snapshot delta.
+///
+/// `delta` and `out` must be of equal length.
+///
+/// # Errors
+///
+/// Returns [`DeltaDifferingSizes`] if `in_`'s length is different from `out.len()`.
+///
+/// # Panics
+///
+/// Panics if `delta.len() != out.len()`.
+///
+/// # Examples
+///
+/// ```
+/// use libtw2_snapshot::format::create_item_delta;
+/// let mut out = [0; 4];
+///
+/// create_item_delta(Some(&[0, 1337, 42, 0x7fff_ffff]), &[0, 1338, 21, -0x8000_0000], &mut out);
+/// assert_eq!(out, [0, 1, -21, 1]);
+///
+/// create_item_delta(None, &[0, 1338, 21, -0x8000_0000], &mut out);
+/// assert_eq!(out, [0, 1338, 21, -0x8000_0000]);
+/// ```
+pub fn create_item_delta(
+    from: Option<&[i32]>,
+    to: &[i32],
+    out: &mut [i32],
+) -> Result<(), DeltaDifferingSizes> {
+    assert!(to.len() == out.len());
+    match from {
+        Some(from) => {
+            if from.len() != to.len() {
+                return Err(DeltaDifferingSizes);
+            }
+            for i in 0..out.len() {
+                out[i] = to[i].wrapping_sub(from[i]);
+            }
+        }
+        None => out.copy_from_slice(to),
+    }
+    Ok(())
 }
