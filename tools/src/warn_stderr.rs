@@ -1,5 +1,5 @@
+use libtw2_warn::Warn;
 use std::fmt;
-use warn::Warn;
 
 pub struct Stderr;
 

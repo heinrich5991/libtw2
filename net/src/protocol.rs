@@ -9,12 +9,12 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_common::unwrap_or_return;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::fmt;
 use std::io::Write as _;
 use std::str;
-use warn::Ignore;
-use warn::Warn;
 use zerocopy::AsBytes as _;
 use zerocopy_derive::AsBytes;
 use zerocopy_derive::FromBytes;
@@ -921,10 +921,10 @@ mod test {
     use super::PACKET_FLAGS_BITS;
     use super::SEQUENCE_BITS;
     use libtw2_common::bytes::FromBytesExt;
+    use libtw2_warn::Ignore;
+    use libtw2_warn::Panic;
+    use libtw2_warn::Warn;
     use quickcheck::quickcheck;
-    use warn::Ignore;
-    use warn::Panic;
-    use warn::Warn;
     use zerocopy::AsBytes as _;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);
@@ -1043,6 +1043,7 @@ mod test {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_no_token {
+    use libtw2_warn::Ignore;
     use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
@@ -1050,7 +1051,6 @@ mod test_no_token {
     use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
-    use warn::Ignore;
 
     fn assert_warn(input: &[u8], warning: Warning) {
         super::test::assert_warn(false, false, input, warning);
@@ -1109,6 +1109,7 @@ mod test_no_token {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_token {
+    use libtw2_warn::Ignore;
     use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
@@ -1116,7 +1117,6 @@ mod test_token {
     use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
-    use warn::Ignore;
 
     fn assert_warn(input: &[u8], warning: Warning) {
         super::test::assert_warn(true, false, input, warning);

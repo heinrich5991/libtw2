@@ -4,10 +4,10 @@ use libtw2_common::digest::Sha256;
 use libtw2_common::num::Cast;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
 use libtw2_packer::Unpacker;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use std::io;
 use thiserror::Error;
-use warn::wrap;
-use warn::Warn;
 
 use crate::format::TickMarker;
 use crate::format::Warning;

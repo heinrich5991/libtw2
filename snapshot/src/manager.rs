@@ -9,8 +9,8 @@ use crate::Snap;
 use crate::Storage;
 use libtw2_gamenet_snap as msg;
 use libtw2_packer::Unpacker;
-use warn::wrap;
-use warn::Warn;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {

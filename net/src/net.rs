@@ -14,12 +14,12 @@ use arrayvec::ArrayVec;
 use libtw2_buffer::with_buffer;
 use libtw2_buffer::Buffer;
 use libtw2_buffer::BufferRef;
+use libtw2_warn::Panic;
+use libtw2_warn::Warn;
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
-use warn::Panic;
-use warn::Warn;
 
 pub use crate::connection::Error;
 
@@ -580,10 +580,10 @@ mod test {
     use crate::protocol;
     use crate::Timestamp;
     use itertools::Itertools;
+    use libtw2_warn::Panic;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
-    use warn::Panic;
 
     #[test]
     fn establish_connection() {

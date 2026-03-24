@@ -9,10 +9,10 @@ use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::in_range;
 use libtw2_packer::positive;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use std::slice::from_ref;
-use warn::Warn;
-use warn::wrap;
 
 pub use libtw2_gamenet_common::snap_obj::Tick;
 pub use libtw2_gamenet_common::snap_obj::TypeId;

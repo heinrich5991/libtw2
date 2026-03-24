@@ -49,6 +49,7 @@ use libtw2_packer::string_to_ints6;
 use libtw2_packer::with_packer;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::snap;
+use libtw2_warn as warn;
 use libtw2_world::vec2;
 use log::LogLevel;
 use ndarray::Array2;

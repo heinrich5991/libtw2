@@ -10,12 +10,12 @@ use libtw2_teehistorian::Buffer;
 use libtw2_teehistorian::Error;
 use libtw2_teehistorian::Item;
 use libtw2_teehistorian::Reader;
+use libtw2_warn::Ignore;
 use std::path::Path;
 use std::process;
 use std::str;
 use uuid::Uuid;
 use vec_map::VecMap;
-use warn::Ignore;
 
 #[allow(unused)]
 struct Info {

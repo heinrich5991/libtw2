@@ -11,4 +11,4 @@ libtw2-buffer = { path = "../../buffer/" }
 libtw2-common = { path = "../../common" }
 libtw2-gamenet-common = { path = "../common" }
 libtw2-packer = { path = "../../packer/", features = ["uuid"] }
-warn = ">=0.1.1,<0.3.0"
+libtw2-warn = { path = "../../warn/" }

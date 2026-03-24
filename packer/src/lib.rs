@@ -6,11 +6,11 @@ use libtw2_buffer::BufferRef;
 use libtw2_buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_common::unwrap_or_return;
+use libtw2_warn::Warn;
 use std::mem;
 use std::slice;
 #[cfg(feature = "uuid")]
 use uuid::Uuid;
-use warn::Warn;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
@@ -414,6 +414,8 @@ fn string_to_bytes_buffer_ref<'d, 's>(
 #[rustfmt::skip]
 mod test {
     use arrayvec::ArrayVec;
+    use libtw2_warn::Ignore;
+    use libtw2_warn::Panic;
     use quickcheck::quickcheck;
     use std::i32;
     use super::ExcessData;
@@ -421,8 +423,6 @@ mod test {
     use super::Warning::*;
     use super::Warning;
     use super::with_packer;
-    use warn::Ignore;
-    use warn::Panic;
 
     fn assert_int_err(bytes: &[u8]) {
         let mut unpacker = Unpacker::new(bytes);

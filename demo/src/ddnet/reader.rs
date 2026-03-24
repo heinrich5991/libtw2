@@ -10,13 +10,13 @@ use libtw2_snapshot::format::Item as SnapItem;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
 use libtw2_snapshot::Snap;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use std::io;
 use std::marker::PhantomData;
 use std::mem;
 use std::slice;
 use thiserror::Error;
-use warn::wrap;
-use warn::Warn;
 
 use crate::format;
 use crate::reader;

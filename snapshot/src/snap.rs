@@ -25,6 +25,9 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::UnexpectedEnd;
 use libtw2_packer::Unpacker;
+use libtw2_warn::wrap;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::collections::btree_map;
 use std::collections::BTreeMap;
@@ -34,9 +37,6 @@ use std::iter;
 use std::mem;
 use std::ops;
 use uuid::Uuid;
-use warn::wrap;
-use warn::Ignore;
-use warn::Warn;
 
 // TODO: Actually obey this the same way as Teeworlds does.
 pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB

@@ -227,8 +227,8 @@ def emit_header_msg_system():
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "super::SystemOrGame",
-        "warn::Warn",
     )
     print("""\
 impl<'a> System<'a> {
@@ -259,8 +259,8 @@ def emit_header_msg_game():
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "super::SystemOrGame",
-        "warn::Warn",
     )
     print("""\
 pub use libtw2_gamenet_common::msg::TuneParam;
@@ -295,8 +295,8 @@ def emit_header_msg_connless(structs):
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     print("""\
@@ -376,9 +376,9 @@ def emit_enum_msg(name, structs):
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
+        "libtw2_warn::Warn",
         "std::fmt",
         "super::MessageId",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -460,8 +460,8 @@ def emit_enum_obj(name, structs):
         "crate::error::Error",
         "libtw2_packer::ExcessData",
         "libtw2_packer::IntUnpacker",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -526,8 +526,8 @@ def emit_enum_connless(name, structs):
         "crate::error::Error",
         "libtw2_buffer::CapacityError",
         "libtw2_packer::Warning",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -616,8 +616,8 @@ libtw2-common = {{ path = "../../common/" }}
 libtw2-gamenet-common = {{ path = "../common/" }}
 libtw2-gamenet-snap = {{ path = "../snap/" }}
 libtw2-packer = {{ path = "../../packer/", features = ["uuid"] }}
-uuid = ">=0.8.1,<2.0.0"
-warn = ">=0.1.1,<0.3.0"\
+libtw2-warn = {{ path = "../../warn/" }}
+uuid = ">=0.8.1,<2.0.0"\
 """.format(name))
 
 def emit_main_lib():
@@ -642,7 +642,7 @@ def emit_msg_module():
         "libtw2_gamenet_common::error::Error",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
-        "warn::Warn",
+        "libtw2_warn::Warn",
     )
     print("""\
 pub mod connless;
@@ -711,7 +711,7 @@ def emit_traits_module():
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
-        "warn::Warn",
+        "libtw2_warn::Warn",
     )
     print("""\
 pub struct Protocol(());
@@ -967,9 +967,9 @@ class Struct(NameValues):
             "libtw2_packer::Packer",
             "libtw2_packer::Unpacker",
             "libtw2_packer::Warning",
+            "libtw2_warn::Warn",
+            "libtw2_warn::wrap",
             "std::fmt",
-            "warn::Warn",
-            "warn::wrap",
         )
         if suffix:
             suffix = "_msg"
@@ -1069,8 +1069,8 @@ class NetObject(Struct):
             "libtw2_common::slice",
             "libtw2_packer::ExcessData",
             "libtw2_packer::IntUnpacker",
+            "libtw2_warn::Warn",
             "std::slice::from_ref",
-            "warn::Warn",
         )
         if self.super:
             super = self.structs[self.super]
@@ -1282,7 +1282,7 @@ class NetStringStrict(NetString):
     def assert_expr(self, self_expr):
         import_(
             "libtw2_packer::sanitize",
-            "warn::Panic",
+            "libtw2_warn::Panic",
         )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
     def serialize_type(self):
@@ -1612,7 +1612,7 @@ class NetAddrs(Member):
     def decode_expr(self):
         import_(
             "libtw2_gamenet_common::msg::AddrPackedSliceExt",
-            "warn::wrap",
+            "libtw2_warn::wrap",
         )
         return "AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?)"
     def encode_expr(self, self_expr):

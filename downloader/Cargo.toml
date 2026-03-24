@@ -17,7 +17,7 @@ libtw2-gamenet = { package = "libtw2-gamenet-teeworlds-0-6", path = "../gamenet/
 libtw2-logger = { path = "../logger/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-snapshot = { path = "../snapshot/" }
+libtw2-warn = { path = "../warn/" }
 log = "0.3.1"
 rand = "0.8.3"
 tempfile = "3.0.0"
-warn = ">=0.1.1,<0.3.0"

@@ -6,9 +6,9 @@ use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::with_packer;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
-use warn::Warn;
-use warn::wrap;
 
 impl Connless {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Connless, Error> {

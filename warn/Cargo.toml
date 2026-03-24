@@ -1,0 +1,10 @@
+[package]
+name = "libtw2-warn"
+description = "A library for a warning callback trait"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2015"
+
+[dependencies]
+log = "0.3.0"

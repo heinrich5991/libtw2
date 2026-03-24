@@ -4,9 +4,9 @@ use libtw2_buffer::CapacityError;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use uuid::Uuid;
-use warn::wrap;
-use warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeltaDifferingSizes;

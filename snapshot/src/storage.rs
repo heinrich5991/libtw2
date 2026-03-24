@@ -3,9 +3,9 @@ use crate::snap;
 use crate::snap::Builder;
 use crate::snap::Delta;
 use crate::snap::Snap;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use std::collections::VecDeque;
-use warn::wrap;
-use warn::Warn;
 
 // TODO: Separate server storage from client storage.
 // TODO: Delete snapshots over time.

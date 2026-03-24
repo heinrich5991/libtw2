@@ -2,6 +2,7 @@ use clap::App;
 use clap::Arg;
 use libtw2_demo::ddnet;
 use libtw2_gamenet_ddnet::Protocol as DDNet;
+use libtw2_warn as warn;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;

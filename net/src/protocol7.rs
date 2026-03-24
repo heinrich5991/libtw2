@@ -7,10 +7,10 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_common::unwrap_or_return;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::fmt;
-use warn::Ignore;
-use warn::Warn;
 use zerocopy::AsBytes;
 use zerocopy_derive::AsBytes;
 use zerocopy_derive::FromBytes;
@@ -694,6 +694,8 @@ boilerplate_packed!(
 #[rustfmt::skip]
 mod test {
     use libtw2_common::bytes::FromBytesExt as _;
+    use libtw2_warn::Panic;
+    use libtw2_warn::Warn;
     use quickcheck::quickcheck;
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
@@ -715,8 +717,6 @@ mod test {
     use super::Token;
     use super::Warning::*;
     use super::Warning;
-    use warn::Panic;
-    use warn::Warn;
     use zerocopy::AsBytes as _;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);

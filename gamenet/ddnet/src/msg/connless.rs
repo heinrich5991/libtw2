@@ -9,12 +9,12 @@ use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::sanitize;
 use libtw2_packer::with_packer;
+use libtw2_warn::Panic;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use super::AddrPacked;
 use super::ClientsData;
-use warn::Panic;
-use warn::Warn;
-use warn::wrap;
 
 impl<'a> Connless<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Connless<'a>, Error> {

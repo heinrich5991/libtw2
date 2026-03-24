@@ -14,11 +14,11 @@ use arrayvec::ArrayVec;
 use libtw2_buffer::with_buffer;
 use libtw2_buffer::Buffer;
 use libtw2_buffer::BufferRef;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
 use std::time::Duration;
-use warn::Warn;
 
 // TODO: Implement receive timeout.
 // TODO: Don't allow for unbounded backlog of vital messages.
@@ -811,10 +811,10 @@ mod test {
     use crate::Timestamp;
     use hexdump::hexdump;
     use itertools::Itertools;
+    use libtw2_warn::Panic;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
-    use warn::Panic;
 
     #[test]
     fn sequence_compare() {

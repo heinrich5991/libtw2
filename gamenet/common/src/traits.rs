@@ -9,7 +9,7 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
-use warn::Warn;
+use libtw2_warn::Warn;
 
 pub trait SnapObj: Sized {
     fn decode_obj<W: Warn<ExcessData>>(

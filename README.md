@@ -128,6 +128,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [uniffi](uniffi). Python bindings for huffman using Mozilla's
   [uniffi](https://github.com/mozilla/uniffi-rs/):
   [**libtw2-huffman**](https://pypi.org/project/libtw2-huffman/).
+- [warn](warn). Small helper to communicate non-standard values while parsing.
 - [**wireshark-dissector**](wireshark-dissector). Working Wireshark dissector
   for Teeworlds 0.6, Teeworlds 0.7 and DDNet.
 - [world](world). Proof-of-concept Teeworlds physics. **You should probably use

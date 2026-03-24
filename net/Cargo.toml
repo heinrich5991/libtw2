@@ -11,10 +11,10 @@ arrayvec = "0.5.2"
 libtw2-buffer = { path = "../buffer/" }
 libtw2-common = { path = "../common/" }
 libtw2-huffman = { path = "../huffman/" }
+libtw2-warn = { path = "../warn/" }
 linear-map = "1.0.0"
 optional = "0.0.12"
 void = ">=0.0.4,<2.0.0"
-warn = ">=0.1.1,<0.3.0"
 zerocopy = "0.7.32"
 zerocopy-derive = "0.7.32"
 

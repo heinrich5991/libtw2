@@ -1,7 +1,7 @@
 use libtw2_gamenet_common::error::Error;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
-use warn::Warn;
+use libtw2_warn::Warn;
 
 pub mod connless;
 pub mod game;

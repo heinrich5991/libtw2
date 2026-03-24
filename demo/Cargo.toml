@@ -14,5 +14,5 @@ libtw2-gamenet-common = { path = "../gamenet/common/" }
 libtw2-huffman = { path = "../huffman/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-snapshot = { path = "../snapshot/" }
+libtw2-warn = { path = "../warn/" }
 thiserror = "1.0.0"
-warn = "0.2.1"

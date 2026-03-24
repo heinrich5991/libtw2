@@ -11,8 +11,8 @@ arrayvec = "0.5.2"
 libtw2-buffer = { path = "../../buffer/" }
 libtw2-common = { path = "../../common" }
 libtw2-packer = { path = "../../packer/", features = ["uuid"] }
+libtw2-warn = { path = "../../warn/" }
 serde = "1.0.23"
 serde_derive = "1.0.7"
 uuid = { version = ">=0.8.1,<2.0.0", features = ["serde"] }
-warn = ">=0.1.1,<0.3.0"
 zerocopy = "0.7.32"

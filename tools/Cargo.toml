@@ -28,6 +28,7 @@ libtw2-serverbrowse = { path = "../serverbrowse/" }
 libtw2-snapshot = { path = "../snapshot/" }
 libtw2-teehistorian = { path = "../teehistorian/" }
 libtw2-world = { path = "../world/" }
+libtw2-warn = { path = "../warn/" }
 log = "0.3.1"
 rmp = "0.8.5"
 serde = "1.0.23"
@@ -37,4 +38,3 @@ uuid = { version = ">=0.8.1,<2.0.0", features = ["serde"] }
 vec_map = "0.8.0"
 void = "1.0.2"
 walkdir = "2.0.1"
-warn = "0.2.2"

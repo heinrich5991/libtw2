@@ -2,8 +2,8 @@ use crate::format::Warning;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::UnexpectedEnd;
 use libtw2_packer::Unpacker;
-use warn::wrap;
-use warn::Warn;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 
 pub trait ReadInt {
     fn is_empty(&self) -> bool;

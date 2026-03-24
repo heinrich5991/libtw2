@@ -18,10 +18,10 @@ libtw2-gamenet-spec = { path = "../gamenet/spec/" }
 libtw2-huffman = { path = "../huffman/" }
 libtw2-net = { path = "../net/" }
 libtw2-packer = { path = "../packer/", features = ["uuid"] }
+libtw2-warn = { path = "../warn/" }
 libtw2-wireshark-dissector-sys = { path = "sys" }
 serde_json = "1.0.7"
 uuid = ">=0.8.1,<2.0.0"
-warn = "0.2.2"
 zerocopy = "0.7.32"
 
 [build-dependencies]

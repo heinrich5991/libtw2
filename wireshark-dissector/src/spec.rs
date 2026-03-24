@@ -18,6 +18,7 @@ use libtw2_common::pretty::AlmostString;
 use libtw2_common::unwrap_or;
 use libtw2_gamenet_spec::MessageId;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -31,7 +32,6 @@ use std::os::raw::c_int;
 use std::os::raw::c_uint;
 use std::rc::Rc;
 use std::str;
-use warn::Ignore;
 
 #[derive(Debug)]
 pub struct Spec {

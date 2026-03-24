@@ -33,6 +33,7 @@ members = [
     "stats-browser",
     "teehistorian",
     "tools",
+    "warn",
     "wireshark-dissector",
     "world",
     "zlib-minimal",

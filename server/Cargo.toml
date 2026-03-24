@@ -19,7 +19,7 @@ libtw2-map = { path = "../map/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-snapshot = { path = "../snapshot/" }
 libtw2-socket = { path = "../socket/" }
+libtw2-warn = { path = "../warn/" }
 libtw2-world = { path = "../world/" }
 log = "0.3.1"
 ndarray = "0.9.1"
-warn = ">=0.1.1,<0.3.0"

@@ -4,9 +4,9 @@ use libtw2_gamenet_common::error::Error;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use std::fmt;
-use warn::wrap;
-use warn::Warn;
 
 pub const MAX_SNAPSHOT_PACKSIZE: i32 = 900;
 

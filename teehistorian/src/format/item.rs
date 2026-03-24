@@ -3,12 +3,12 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_packer::positive;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use serde::ser::SerializeSeq;
 use serde::Serialize as _;
 use serde_derive::Serialize;
 use std::fmt;
 use uuid::Uuid;
-use warn::Ignore;
 
 use super::MaybeEnd;
 use super::Version;

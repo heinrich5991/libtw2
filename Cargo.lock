@@ -810,8 +810,8 @@ dependencies = [
  "libtw2-huffman",
  "libtw2-packer",
  "libtw2-snapshot",
+ "libtw2-warn",
  "thiserror",
- "warn",
 ]
 
 [[package]]
@@ -828,10 +828,10 @@ dependencies = [
  "libtw2-logger",
  "libtw2-packer",
  "libtw2-snapshot",
+ "libtw2-warn",
  "log 0.3.9",
  "rand 0.8.3",
  "tempfile",
- "warn",
 ]
 
 [[package]]
@@ -845,8 +845,8 @@ dependencies = [
  "libtw2-logger",
  "libtw2-net",
  "libtw2-socket",
+ "libtw2-warn",
  "log 0.3.9",
- "warn",
 ]
 
 [[package]]
@@ -857,10 +857,10 @@ dependencies = [
  "libtw2-buffer",
  "libtw2-common",
  "libtw2-packer",
+ "libtw2-warn",
  "serde",
  "serde_derive",
  "uuid",
- "warn",
  "zerocopy",
 ]
 
@@ -874,8 +874,8 @@ dependencies = [
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-packer",
+ "libtw2-warn",
  "uuid",
- "warn",
 ]
 
 [[package]]
@@ -886,7 +886,7 @@ dependencies = [
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-packer",
- "warn",
+ "libtw2-warn",
 ]
 
 [[package]]
@@ -909,8 +909,8 @@ dependencies = [
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-packer",
+ "libtw2-warn",
  "uuid",
- "warn",
 ]
 
 [[package]]
@@ -923,8 +923,8 @@ dependencies = [
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-packer",
+ "libtw2-warn",
  "uuid",
- "warn",
 ]
 
 [[package]]
@@ -937,8 +937,8 @@ dependencies = [
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-packer",
+ "libtw2-warn",
  "uuid",
- "warn",
 ]
 
 [[package]]
@@ -1028,11 +1028,11 @@ dependencies = [
  "libtw2-buffer",
  "libtw2-common",
  "libtw2-huffman",
+ "libtw2-warn",
  "linear-map",
  "optional",
  "quickcheck",
  "void",
- "warn",
  "zerocopy",
  "zerocopy-derive",
 ]
@@ -1044,9 +1044,9 @@ dependencies = [
  "arrayvec",
  "libtw2-buffer",
  "libtw2-common",
+ "libtw2-warn",
  "quickcheck",
  "uuid",
- "warn",
 ]
 
 [[package]]
@@ -1103,10 +1103,10 @@ dependencies = [
  "libtw2-packer",
  "libtw2-snapshot",
  "libtw2-socket",
+ "libtw2-warn",
  "libtw2-world",
  "log 0.3.9",
  "ndarray",
- "warn",
 ]
 
 [[package]]
@@ -1117,9 +1117,9 @@ dependencies = [
  "libtw2-common",
  "libtw2-logger",
  "libtw2-packer",
+ "libtw2-warn",
  "log 0.3.9",
  "time",
- "warn",
  "zerocopy",
  "zerocopy-derive",
 ]
@@ -1134,9 +1134,9 @@ dependencies = [
  "libtw2-gamenet-snap",
  "libtw2-gamenet-teeworlds-0-6",
  "libtw2-packer",
+ "libtw2-warn",
  "uuid",
  "vec_map",
- "warn",
 ]
 
 [[package]]
@@ -1187,12 +1187,12 @@ dependencies = [
  "libtw2-buffer",
  "libtw2-common",
  "libtw2-packer",
+ "libtw2-warn",
  "serde",
  "serde_derive",
  "serde_json",
  "uuid",
  "vec_map",
- "warn",
 ]
 
 [[package]]
@@ -1220,6 +1220,7 @@ dependencies = [
  "libtw2-serverbrowse",
  "libtw2-snapshot",
  "libtw2-teehistorian",
+ "libtw2-warn",
  "libtw2-world",
  "log 0.3.9",
  "rmp",
@@ -1230,7 +1231,13 @@ dependencies = [
  "vec_map",
  "void",
  "walkdir",
- "warn",
+]
+
+[[package]]
+name = "libtw2-warn"
+version = "0.0.1"
+dependencies = [
+ "log 0.3.9",
 ]
 
 [[package]]
@@ -1247,10 +1254,10 @@ dependencies = [
  "libtw2-huffman",
  "libtw2-net",
  "libtw2-packer",
+ "libtw2-warn",
  "libtw2-wireshark-dissector-sys",
  "serde_json",
  "uuid",
- "warn",
  "zerocopy",
 ]
 
@@ -2419,15 +2426,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
-]
-
-[[package]]
-name = "warn"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f2638072850e7fde2e4e96d78204024000382e5666876bd8a3e7e9db6ed22cb"
-dependencies = [
- "log 0.3.9",
 ]
 
 [[package]]

@@ -24,6 +24,7 @@ use libtw2_teehistorian::Buffer;
 use libtw2_teehistorian::Item;
 use libtw2_teehistorian::Pos;
 use libtw2_teehistorian::Reader;
+use libtw2_warn::Ignore;
 use libtw2_world::vec2;
 use std::ffi::OsString;
 use std::fs::File;
@@ -31,7 +32,6 @@ use std::io::BufWriter;
 use std::path::Path;
 use std::process;
 use vec_map::VecMap;
-use warn::Ignore;
 
 const TICKS_PER_SECOND: i32 = 50;
 const GAMEINFO_CURVERSION: i32 = 8;

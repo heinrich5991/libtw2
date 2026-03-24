@@ -11,6 +11,7 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_net::protocol7 as protocol;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Write;
@@ -20,7 +21,6 @@ use std::os::raw::c_void;
 use std::ptr;
 use std::ptr::addr_of_mut;
 use std::slice;
-use warn::Ignore;
 use zerocopy::FromBytes;
 
 const SERIALIZED_SPEC: &'static str =

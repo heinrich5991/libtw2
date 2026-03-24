@@ -48,6 +48,8 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::format::Item as SnapItem;
 use libtw2_snapshot::Snap;
+use libtw2_warn as warn;
+use libtw2_warn::Log;
 use log::LogLevel;
 use std::borrow::Cow;
 use std::cmp;
@@ -62,7 +64,6 @@ use std::str;
 use std::time::Duration;
 use std::u32;
 use tempfile::NamedTempFile;
-use warn::Log;
 
 fn hexdump(level: LogLevel, data: &[u8]) {
     if log_enabled!(level) {

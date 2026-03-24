@@ -8,12 +8,12 @@ use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::to_bool;
 use libtw2_packer::with_packer;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use super::MessageId;
 use super::SystemOrGame;
 use uuid::Uuid;
-use warn::Warn;
-use warn::wrap;
 
 impl<'a> System<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>

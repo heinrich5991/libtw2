@@ -10,8 +10,8 @@ rust-version = "1.63.0"
 arrayvec = "0.5.2"
 libtw2-buffer = { path = "../buffer/" }
 libtw2-common = { path = "../common/" }
+libtw2-warn = { path = "../warn/" }
 uuid = { version = ">=0.8.1,<2.0.0", optional = true }
-warn = ">=0.1.1,<0.3.0"
 
 [dev-dependencies]
 quickcheck = "0.4.1"

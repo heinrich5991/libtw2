@@ -10,12 +10,12 @@ use libtw2_packer::in_range;
 use libtw2_packer::sanitize;
 use libtw2_packer::to_bool;
 use libtw2_packer::with_packer;
+use libtw2_warn::Panic;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use super::MessageId;
 use super::SystemOrGame;
-use warn::Panic;
-use warn::Warn;
-use warn::wrap;
 
 pub use libtw2_gamenet_common::msg::TuneParam;
 

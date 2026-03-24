@@ -18,6 +18,7 @@ mod test {
 use intern::intern;
 use intern::Interned;
 use libtw2_gamenet_spec::Identifier;
+use libtw2_warn as warn;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
