@@ -14,5 +14,4 @@ uuid = { version = ">=0.8.1,<2.0.0", optional = true }
 warn = ">=0.1.1,<0.3.0"
 
 [dev-dependencies]
-hexdump = "0.1.1"
 quickcheck = "0.4.1"

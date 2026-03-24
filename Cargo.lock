@@ -1042,7 +1042,6 @@ name = "libtw2-packer"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "hexdump",
  "libtw2-buffer",
  "libtw2-common",
  "quickcheck",
