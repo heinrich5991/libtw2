@@ -1,8 +1,9 @@
 use arrayvec::ArrayVec;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
-use buffer::CapacityError;
+use libtw2_buffer as buffer;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
+use libtw2_buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_common::unwrap_or_return;
 use std::mem;

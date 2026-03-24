@@ -221,8 +221,8 @@ pub use libtw2_gamenet_common::snap_obj::TypeId;
 
 def emit_header_msg_system():
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
@@ -253,8 +253,8 @@ impl<'a> System<'a> {
 
 def emit_header_msg_game():
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
@@ -287,8 +287,8 @@ impl<'a> Game<'a> {
 
 def emit_header_msg_connless(structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_common::pretty",
         "libtw2_gamenet_common::msg::string_from_int",
         "libtw2_packer::Packer",
@@ -371,8 +371,8 @@ def emit_enum_from(name, structs):
 
 def emit_enum_msg(name, structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
@@ -523,8 +523,8 @@ def emit_enum_obj_module(name, structs, flags):
 
 def emit_enum_connless(name, structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Warning",
         "std::fmt",
         "warn::Warn",
@@ -611,7 +611,7 @@ rust-version = "1.63.0"
 
 [dependencies]
 arrayvec = "0.5.2"
-buffer = "0.1.9"
+libtw2-buffer = {{ path = "../../buffer/" }}
 libtw2-common = {{ path = "../../common/" }}
 libtw2-gamenet-common = {{ path = "../common/" }}
 libtw2-gamenet-snap = {{ path = "../snap/" }}
@@ -699,9 +699,9 @@ pub fn decode_msg<'a, W>(warn: &mut W, id: SystemOrGame<MessageId, MessageId>, p
 
 def emit_traits_module():
     import_(
-        "buffer::CapacityError",
         "crate::msg",
         "crate::snap_obj",
+        "libtw2_buffer::CapacityError",
         "libtw2_gamenet_common::error::Error",
         "libtw2_gamenet_common::msg::MessageId",
         "libtw2_gamenet_common::msg::SystemOrGame",
@@ -962,8 +962,8 @@ class Struct(NameValues):
         if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
             return
         import_(
-            "buffer::CapacityError",
             "crate::error::Error",
+            "libtw2_buffer::CapacityError",
             "libtw2_packer::Packer",
             "libtw2_packer::Unpacker",
             "libtw2_packer::Warning",

@@ -69,6 +69,7 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [\_old](_old). Unmaintained implementation of the low-level file format of
   Teeworlds/DDNet maps ("datafiles"), written in C, before libtw2 turned to
   Rust.
+- [buffer](buffer). Helpers for writing to uninitialized byte buffers.
 - [common](common). Utilities for all the other crates. Number conversion, byte
   strings, etc.
 - [**datafile**](datafile). Low-level file format of Teeworlds/DDNet maps.

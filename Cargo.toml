@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "buffer",
     "common",
     "datafile",
     "demo",

@@ -8,7 +8,7 @@ rust-version = "1.63.0"
 
 [dependencies]
 arrayvec = "0.5.2"
-buffer = "0.1.9"
+libtw2-buffer = { path = "../buffer/" }
 libtw2-common = { path = "../common/" }
 libtw2-huffman = { path = "../huffman/" }
 linear-map = "1.0.0"

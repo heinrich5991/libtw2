@@ -1,8 +1,9 @@
 extern crate libtw2_huffman_reference_sys as sys;
 
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use libtw2_buffer as buffer;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
 use libtw2_common::num::Cast;
 
 pub struct Huffman {

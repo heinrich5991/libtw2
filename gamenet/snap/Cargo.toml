@@ -7,7 +7,7 @@ edition = "2021"
 rust-version = "1.63.0"
 
 [dependencies]
-buffer = "0.1.9"
+libtw2-buffer = { path = "../../buffer/" }
 libtw2-common = { path = "../../common" }
 libtw2-gamenet-common = { path = "../common" }
 libtw2-packer = { path = "../../packer/", features = ["uuid"] }

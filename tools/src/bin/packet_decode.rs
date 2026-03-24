@@ -1,8 +1,8 @@
 extern crate libtw2_gamenet_teeworlds_0_6 as libtw2_gamenet;
 
 use arrayvec::ArrayVec;
-use buffer::ReadBuffer;
 use hexdump::hexdump;
+use libtw2_buffer::ReadBuffer;
 use libtw2_gamenet::msg;
 use libtw2_gamenet::msg::Connless;
 use libtw2_net::protocol::ChunksIter;

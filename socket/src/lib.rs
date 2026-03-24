@@ -1,11 +1,11 @@
 #[macro_use]
 extern crate log;
 
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
 use hexdump::hexdump_iter;
 use itertools::Itertools;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
 use libtw2_common::unwrap_or_return;
 use libtw2_net::net::Callback;
 use libtw2_net::Timestamp;

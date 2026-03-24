@@ -155,16 +155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "buffer"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aab7228d32b5d95be40adeba1d9461c8547b5dadf5f9cbfba09b6d578991df28"
-dependencies = [
- "arrayvec",
- "mac",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -777,6 +767,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtw2-buffer"
+version = "0.0.1"
+dependencies = [
+ "arrayvec",
+ "mac",
+]
+
+[[package]]
 name = "libtw2-common"
 version = "0.0.1"
 dependencies = [
@@ -806,7 +804,7 @@ version = "0.0.1"
 dependencies = [
  "arrayvec",
  "binrw",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-huffman",
@@ -856,7 +854,7 @@ name = "libtw2-gamenet-common"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-packer",
  "serde",
@@ -871,7 +869,7 @@ name = "libtw2-gamenet-ddnet"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
@@ -884,7 +882,7 @@ dependencies = [
 name = "libtw2-gamenet-snap"
 version = "0.0.1"
 dependencies = [
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-packer",
@@ -906,7 +904,7 @@ name = "libtw2-gamenet-teeworlds-0-5"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
@@ -920,7 +918,7 @@ name = "libtw2-gamenet-teeworlds-0-6"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
@@ -934,7 +932,7 @@ name = "libtw2-gamenet-teeworlds-0-7"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
@@ -977,8 +975,8 @@ version = "0.0.1"
 dependencies = [
  "arrayvec",
  "bencher",
- "buffer",
  "itertools 0.4.19",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-huffman-reference",
  "quickcheck",
@@ -988,8 +986,8 @@ dependencies = [
 name = "libtw2-huffman-reference"
 version = "0.0.1"
 dependencies = [
- "buffer",
  "libc",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-huffman",
  "libtw2-huffman-reference-sys",
@@ -1025,9 +1023,9 @@ name = "libtw2-net"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
  "hexdump",
  "itertools 0.4.19",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-huffman",
  "linear-map",
@@ -1044,8 +1042,8 @@ name = "libtw2-packer"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
  "hexdump",
+ "libtw2-buffer",
  "libtw2-common",
  "quickcheck",
  "uuid",
@@ -1131,7 +1129,7 @@ dependencies = [
 name = "libtw2-snapshot"
 version = "0.0.1"
 dependencies = [
- "buffer",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
@@ -1146,10 +1144,10 @@ dependencies = [
 name = "libtw2-socket"
 version = "0.0.1"
 dependencies = [
- "buffer",
  "hexdump",
  "itertools 0.4.19",
  "libc",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-net",
  "log 0.3.9",
@@ -1185,9 +1183,9 @@ name = "libtw2-teehistorian"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
  "chrono",
  "itertools 0.7.11",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-packer",
  "serde",
@@ -1203,12 +1201,12 @@ name = "libtw2-tools"
 version = "0.0.1"
 dependencies = [
  "arrayvec",
- "buffer",
  "chrono",
  "clap",
  "csv",
  "hexdump",
  "itertools 0.7.11",
+ "libtw2-buffer",
  "libtw2-common",
  "libtw2-datafile",
  "libtw2-demo",

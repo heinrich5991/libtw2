@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::error::InvalidIntString;
 use arrayvec::ArrayVec;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::slice;
 use libtw2_packer::ExcessData;
 use libtw2_packer::Packer;

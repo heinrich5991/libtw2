@@ -16,7 +16,7 @@ use crate::format::OFFSET_EXTENDED_TYPE_ID;
 use crate::format::TYPE_ID_EX;
 use crate::to_usize;
 use crate::ReadInt;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_gamenet_snap as msg;
 use libtw2_gamenet_snap::SnapMsg;

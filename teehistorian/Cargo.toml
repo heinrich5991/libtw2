@@ -8,9 +8,9 @@ rust-version = "1.63.0"
 
 [dependencies]
 arrayvec = { version = "0.5.2", features = ["serde"] }
-buffer = "0.1.9"
 chrono = "0.4.0"
 itertools = "0.7.4"
+libtw2-buffer = { path = "../buffer/" }
 libtw2-common = { path = "../common/", features = ["serde"] }
 libtw2-packer = { path = "../packer/", features = ["uuid"] }
 serde = "1.0.23"

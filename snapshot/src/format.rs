@@ -1,6 +1,6 @@
 use crate::snap::Error;
 use crate::ReadInt;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;

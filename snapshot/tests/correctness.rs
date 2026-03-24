@@ -1,4 +1,4 @@
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_gamenet::snap_obj::obj_size;
 use libtw2_packer::with_packer;
 use libtw2_packer::Unpacker;

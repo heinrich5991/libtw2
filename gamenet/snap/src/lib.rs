@@ -1,4 +1,4 @@
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::pretty;
 use libtw2_gamenet_common::error::Error;
 use libtw2_packer::Packer;

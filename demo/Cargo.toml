@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 arrayvec = "0.5.2"
 binrw = "0.11.1"
-buffer = "0.1.9"
+libtw2-buffer = { path = "../buffer/" }
 libtw2-common = { path = "../common/" }
 libtw2-gamenet-common = { path = "../gamenet/common/" }
 libtw2-huffman = { path = "../huffman/" }

@@ -1,6 +1,6 @@
 use crate::msg;
 use crate::snap_obj;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_gamenet_common::error::Error;
 use libtw2_gamenet_common::msg::MessageId;
 use libtw2_gamenet_common::msg::SystemOrGame;
