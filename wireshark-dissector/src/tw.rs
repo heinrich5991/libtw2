@@ -773,6 +773,7 @@ fn load_spec() -> anyhow::Result<Spec> {
     Spec::load(intern_static_with_nul("tw\0"), SERIALIZED_SPEC)
 }
 
+#[allow(unused_unsafe)] // TODO (MSRV 1.63): Remove.
 fn register_chunk_protocol(spec: &Spec) {
     unsafe {
         PROTO_CHUNK = sys::proto_register_protocol(

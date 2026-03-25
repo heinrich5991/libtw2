@@ -6,7 +6,7 @@ use std::mem;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str;
-use std::sync::atomic;
+use std::sync::Mutex;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Interned(NonNull<u8>);
@@ -114,6 +114,8 @@ impl Ord for Interned {
         self.as_str().cmp(other.as_str())
     }
 }
+unsafe impl Send for Interned {}
+unsafe impl Sync for Interned {}
 impl fmt::Debug for Interned {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_str().fmt(f)
@@ -125,25 +127,18 @@ impl fmt::Display for Interned {
     }
 }
 
-static mut INTERNER: Option<Interner> = None;
-static INTERNER_IN_USE: atomic::AtomicBool = atomic::AtomicBool::new(false);
+static INTERNER: Mutex<Option<Interner>> = Mutex::new(None);
 pub fn intern(s: &str) -> Interned {
-    let result;
-    assert!(!INTERNER_IN_USE.swap(true, atomic::Ordering::SeqCst));
-    unsafe {
-        result = INTERNER.get_or_insert(Interner::new()).intern(s);
-    }
-    INTERNER_IN_USE.store(false, atomic::Ordering::SeqCst);
-    result
+    INTERNER
+        .try_lock()
+        .unwrap()
+        .get_or_insert_with(Interner::new)
+        .intern(s)
 }
 pub fn intern_static_with_nul(s: &'static str) -> Interned {
-    let result;
-    assert!(!INTERNER_IN_USE.swap(true, atomic::Ordering::SeqCst));
-    unsafe {
-        result = INTERNER
-            .get_or_insert(Interner::new())
-            .intern_static_with_nul(s);
-    }
-    INTERNER_IN_USE.store(false, atomic::Ordering::SeqCst);
-    result
+    INTERNER
+        .try_lock()
+        .unwrap()
+        .get_or_insert_with(Interner::new)
+        .intern_static_with_nul(s)
 }

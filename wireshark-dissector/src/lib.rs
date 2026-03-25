@@ -3,7 +3,9 @@ extern crate libtw2_wireshark_dissector_sys as sys;
 mod format;
 mod intern;
 mod spec;
+#[allow(static_mut_refs)]
 mod tw;
+#[allow(static_mut_refs)]
 mod tw7;
 
 #[cfg(test)]
