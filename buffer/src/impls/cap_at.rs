@@ -1,8 +1,8 @@
+use crate::Buffer;
+use crate::BufferRef;
+use crate::CapAtImpl;
+use crate::ToBufferRef;
 use std::marker::PhantomData;
-use Buffer;
-use BufferRef;
-use CapAtImpl;
-use ToBufferRef;
 
 /// The result of a `cap_at` call on a buffer.
 ///

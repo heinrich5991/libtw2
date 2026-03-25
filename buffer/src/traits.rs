@@ -1,11 +1,11 @@
+use crate::with_buffer;
+use crate::Buffer;
+use crate::BufferRef;
 use std::fs;
 use std::io;
 use std::io::Read;
 use std::net;
 use std::process;
-use with_buffer;
-use Buffer;
-use BufferRef;
 
 /// A utility function for unsafely implementing `ReadBufferRef` for readers
 /// that don't read the buffer passed to `Read::read`.
@@ -13,7 +13,7 @@ pub unsafe fn read_buffer_ref<'d, 's, T: Read>(
     reader: &mut T,
     mut buf: BufferRef<'d, 's>,
 ) -> io::Result<&'d [u8]> {
-    let read = try!(reader.read(buf.uninitialized_mut()));
+    let read = reader.read(buf.uninitialized_mut())?;
     buf.advance(read);
     Ok(buf.initialized())
 }

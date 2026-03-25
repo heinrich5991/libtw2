@@ -1,7 +1,7 @@
-use wildly_unsafe;
-use Buffer;
-use BufferRef;
-use ToBufferRef;
+use crate::wildly_unsafe;
+use crate::Buffer;
+use crate::BufferRef;
+use crate::ToBufferRef;
 
 /// The intermediate step from a `BufferRef` to another `BufferRef`.
 pub struct BufferRefBuffer<'ref_, 'data: 'ref_, 'size: 'ref_> {
@@ -50,7 +50,7 @@ impl<'r, 'd, 's> ToBufferRef<'d> for BufferRefBuffer<'r, 'd, 's> {
 
 #[cfg(test)]
 mod test {
-    use with_buffer;
+    use crate::with_buffer;
 
     #[test]
     fn buffer_ref_remaining() {

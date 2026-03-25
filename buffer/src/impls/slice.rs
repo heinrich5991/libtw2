@@ -1,7 +1,7 @@
-use wildly_unsafe;
-use Buffer;
-use BufferRef;
-use ToBufferRef;
+use crate::wildly_unsafe;
+use crate::Buffer;
+use crate::BufferRef;
+use crate::ToBufferRef;
 
 /// The intermediate step from a byte slice to a `BufferRef`.
 pub struct SliceBuffer<'data> {

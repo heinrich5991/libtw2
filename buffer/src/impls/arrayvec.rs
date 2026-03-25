@@ -2,10 +2,10 @@ extern crate arrayvec;
 
 use self::arrayvec::Array;
 use self::arrayvec::ArrayVec;
+use crate::Buffer;
+use crate::BufferRef;
+use crate::ToBufferRef;
 use std::slice;
-use Buffer;
-use BufferRef;
-use ToBufferRef;
 
 /// The intermediate step from a `ArrayVec` to a `BufferRef`.
 pub struct ArrayVecBuffer<'data, A: 'data + Array<Item = u8>> {
