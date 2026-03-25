@@ -2,7 +2,8 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 use std::any::Any;
 use std::fmt;
@@ -36,7 +37,7 @@ impl<W> Warn<W> for Ignore {
 #[derive(Clone, Copy, Debug, Eq, Ord, Hash, PartialEq, PartialOrd)]
 pub struct Panic;
 
-impl<W: Any+fmt::Debug+Send> Warn<W> for Panic {
+impl<W: Any + fmt::Debug + Send> Warn<W> for Panic {
     fn warn(&mut self, warning: W) {
         panic!("{:?}", warning);
     }
@@ -64,8 +65,9 @@ pub struct RevMap<'a, WF, WT, W: Warn<WT> + 'a, F: FnMut(WF) -> WT> {
 /// Applies a function to all warnings passed to this, before passing it to the
 /// underlying warn object.
 pub fn rev_map<WF, WT, W, F>(warn: &mut W, fn_: F) -> RevMap<WF, WT, W, F>
-    where W: Warn<WT>,
-          F: FnMut(WF) -> WT,
+where
+    W: Warn<WT>,
+    F: FnMut(WF) -> WT,
 {
     RevMap {
         warn: warn,
@@ -88,9 +90,7 @@ pub struct Closure<W, F: FnMut(W)> {
 
 /// Applies a function to all warnings passed to this object.
 pub fn closure<W, F: FnMut(W)>(fn_: &mut F) -> &mut Closure<W, F> {
-    unsafe {
-        &mut *(fn_ as *mut _ as *mut _)
-    }
+    unsafe { &mut *(fn_ as *mut _ as *mut _) }
 }
 
 impl<W, F: FnMut(W)> Warn<W> for Closure<W, F> {
@@ -107,9 +107,7 @@ pub struct Wrap<WT, W: Warn<WT>> {
 
 /// Wraps a `Warn` struct so it can receive more warning types.
 pub fn wrap<WT, W: Warn<WT>>(warn: &mut W) -> &mut Wrap<WT, W> {
-    unsafe {
-        &mut *(warn as *mut _ as *mut _)
-    }
+    unsafe { &mut *(warn as *mut _ as *mut _) }
 }
 
 impl<WT, WF: Into<WT>, W: Warn<WT>> Warn<WF> for Wrap<WT, W> {
@@ -129,19 +127,19 @@ mod test {
     const WARNING2: &'static str = "unique_no2";
 
     #[test]
-    #[should_panic(expected="unique_string")]
+    #[should_panic(expected = "unique_string")]
     fn panic() {
         Panic.warn(WARNING);
     }
 
     #[test]
-    #[should_panic(expected="unique_no2")]
+    #[should_panic(expected = "unique_no2")]
     fn rev_map() {
         super::rev_map(&mut Panic, |_| WARNING2).warn(WARNING);
     }
 
     #[test]
-    #[should_panic(expected="unique_no2")]
+    #[should_panic(expected = "unique_no2")]
     fn closure_panic() {
         super::closure(&mut |_| panic!(WARNING2)).warn(WARNING);
     }
