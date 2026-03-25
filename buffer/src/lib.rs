@@ -26,10 +26,10 @@ pub use impls::cap_at::CapAtBuffer;
 pub use impls::slice::SliceBuffer;
 pub use impls::slice_ref::SliceRefBuffer;
 pub use impls::vec::VecBuffer;
+pub use traits::read_buffer_ref;
 pub use traits::ReadBuffer;
 pub use traits::ReadBufferMarker;
 pub use traits::ReadBufferRef;
-pub use traits::read_buffer_ref;
 
 mod impls;
 mod traits;
@@ -76,7 +76,8 @@ impl<'d, 's> BufferRef<'d, 's> {
     /// If the iterator yields more bytes than the buffer can contain, a
     /// `CapacityError` is returned.
     pub fn extend<I>(&mut self, bytes: I) -> Result<(), CapacityError>
-        where I: Iterator<Item=u8>
+    where
+        I: Iterator<Item = u8>,
     {
         let mut buf_iter = (&mut self.buffer[*self.initialized_..]).into_iter();
         for b in bytes {
@@ -121,7 +122,8 @@ impl<'d, 's> BufferRef<'d, 's> {
 
 /// Convenience function that converts a `T: Buffer` into a `BufferRef`.
 pub fn with_buffer<'a, T: Buffer<'a>, F, R>(buffer: T, f: F) -> R
-    where F: for<'b> FnOnce(BufferRef<'a, 'b>) -> R
+where
+    F: for<'b> FnOnce(BufferRef<'a, 'b>) -> R,
 {
     let mut intermediate = buffer.to_to_buffer_ref();
     f(intermediate.to_buffer_ref())
@@ -140,7 +142,10 @@ pub trait Buffer<'data> {
     /// Caps the buffer at the specified byte index.
     ///
     /// This means that no more than `len` bytes will be written to the buffer.
-    fn cap_at(self, len: usize) -> CapAt<'data, Self> where Self: Sized {
+    fn cap_at(self, len: usize) -> CapAt<'data, Self>
+    where
+        Self: Sized,
+    {
         self.cap_at_impl(len)
     }
 }
@@ -153,5 +158,7 @@ pub trait ToBufferRef<'data> {
 }
 
 trait CapAtImpl<'data>: Buffer<'data> {
-    fn cap_at_impl(self, len: usize) -> CapAt<'data, Self> where Self: Sized;
+    fn cap_at_impl(self, len: usize) -> CapAt<'data, Self>
+    where
+        Self: Sized;
 }

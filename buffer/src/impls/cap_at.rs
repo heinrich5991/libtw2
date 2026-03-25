@@ -1,8 +1,8 @@
+use std::marker::PhantomData;
 use Buffer;
 use BufferRef;
 use CapAtImpl;
 use ToBufferRef;
-use std::marker::PhantomData;
 
 /// The result of a `cap_at` call on a buffer.
 ///
@@ -31,9 +31,7 @@ pub struct CapAtBuffer<'data, T: ToBufferRef<'data>> {
 }
 
 impl<'data, T: ToBufferRef<'data>> CapAtBuffer<'data, T> {
-    fn new<U: Buffer<'data, Intermediate=T>>(cap_at: CapAt<'data, U>)
-        -> CapAtBuffer<'data, T>
-    {
+    fn new<U: Buffer<'data, Intermediate = T>>(cap_at: CapAt<'data, U>) -> CapAtBuffer<'data, T> {
         CapAtBuffer {
             intermediate: cap_at.buf.to_to_buffer_ref(),
             cap_at: cap_at.cap_at,

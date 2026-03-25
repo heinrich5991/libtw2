@@ -1,7 +1,7 @@
+use std::slice;
 use Buffer;
 use BufferRef;
 use ToBufferRef;
-use std::slice;
 
 /// The intermediate step from a `Vec` to a `BufferRef`.
 pub struct VecBuffer<'data> {
@@ -26,8 +26,10 @@ impl<'data> VecBuffer<'data> {
             // This is unsafe, we now have two unique (mutable) references to
             // the same `Vec`. However, we will only access `self.vec.len`
             // through `self` and only the contents through the `BufferRef`.
-            BufferRef::new(slice::from_raw_parts_mut(start, remaining),
-                           &mut self.initialized)
+            BufferRef::new(
+                slice::from_raw_parts_mut(start, remaining),
+                &mut self.initialized,
+            )
         }
     }
 }

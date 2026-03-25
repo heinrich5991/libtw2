@@ -1,7 +1,7 @@
+use wildly_unsafe;
 use Buffer;
 use BufferRef;
 use ToBufferRef;
-use wildly_unsafe;
 
 /// The intermediate step from a `BufferRef` to another `BufferRef`.
 pub struct BufferRefBuffer<'ref_, 'data: 'ref_, 'size: 'ref_> {
@@ -21,8 +21,10 @@ impl<'r, 'd, 's> BufferRefBuffer<'r, 'd, 's> {
     fn buffer<'a>(&'a mut self) -> BufferRef<'d, 'a> {
         let len = *self.buffer.initialized_;
         unsafe {
-            BufferRef::new(wildly_unsafe(&mut self.buffer.buffer[len..]),
-                           &mut self.initialized)
+            BufferRef::new(
+                wildly_unsafe(&mut self.buffer.buffer[len..]),
+                &mut self.initialized,
+            )
         }
     }
 }

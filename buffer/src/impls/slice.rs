@@ -1,7 +1,7 @@
+use wildly_unsafe;
 use Buffer;
 use BufferRef;
 use ToBufferRef;
-use wildly_unsafe;
 
 /// The intermediate step from a byte slice to a `BufferRef`.
 pub struct SliceBuffer<'data> {
