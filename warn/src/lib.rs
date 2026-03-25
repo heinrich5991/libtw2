@@ -64,7 +64,7 @@ pub struct RevMap<'a, WF, WT, W: Warn<WT> + 'a, F: FnMut(WF) -> WT> {
 
 /// Applies a function to all warnings passed to this, before passing it to the
 /// underlying warn object.
-pub fn rev_map<WF, WT, W, F>(warn: &mut W, fn_: F) -> RevMap<WF, WT, W, F>
+pub fn rev_map<WF, WT, W, F>(warn: &mut W, fn_: F) -> RevMap<'_, WF, WT, W, F>
 where
     W: Warn<WT>,
     F: FnMut(WF) -> WT,
@@ -141,12 +141,12 @@ mod test {
     #[test]
     #[should_panic(expected = "unique_no2")]
     fn closure_panic() {
-        super::closure(&mut |_| panic!(WARNING2)).warn(WARNING);
+        super::closure(&mut |_| panic!("{}", WARNING2)).warn(WARNING);
     }
 
     #[test]
     fn closure_nopanic() {
-        super::closure(&mut |()| panic!(WARNING2));
+        super::closure(&mut |()| panic!("{}", WARNING2));
     }
 
     #[test]
