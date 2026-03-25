@@ -138,13 +138,27 @@ impl RawSnap {
             iter: self.offsets.iter(),
         }
     }
+    fn serialized_ints_size(num_items: usize, num_item_data_i32s: usize) -> usize {
+        // snapshot:
+        //     [ 4] data_size
+        //     [ 4] num_items
+        //     [*4] item_offsets
+        //     [  ] items
+        //
+        // item:
+        //     [ 2] id
+        //     [ 2] type_id
+        //     [  ] data
+        mem::size_of::<i32>() * (2 + num_items + num_items + num_item_data_i32s)
+    }
     fn prepare_item_vacant<'a>(
+        num_items: usize,
         entry: btree_map::VacantEntry<'a, i32, ops::Range<u32>>,
         buf: &mut Vec<i32>,
         size: usize,
     ) -> Result<&'a mut ops::Range<u32>, TooLongSnap> {
         let offset = buf.len();
-        if offset + size > MAX_SNAPSHOT_SIZE {
+        if RawSnap::serialized_ints_size(num_items + 1, offset + size) > MAX_SNAPSHOT_SIZE {
             return Err(TooLongSnap);
         }
         let start = offset.assert_u32();
@@ -158,9 +172,12 @@ impl RawSnap {
         id: u16,
         size: usize,
     ) -> Result<&mut [i32], BuilderError> {
+        let num_items = self.offsets.len();
         let offset = match self.offsets.entry(key(raw_type_id, id)) {
             btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            btree_map::Entry::Vacant(v) => RawSnap::prepare_item_vacant(v, &mut self.buf, size)?,
+            btree_map::Entry::Vacant(v) => {
+                RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
+            }
         }
         .clone();
         Ok(&mut self.buf[to_usize(offset)])
@@ -176,9 +193,12 @@ impl RawSnap {
         id: u16,
         size: usize,
     ) -> Result<&mut [i32], Error> {
+        let num_items = self.offsets.len();
         let offset = match self.offsets.entry(key(raw_type_id, id)) {
             btree_map::Entry::Occupied(o) => o.into_mut(),
-            btree_map::Entry::Vacant(v) => RawSnap::prepare_item_vacant(v, &mut self.buf, size)?,
+            btree_map::Entry::Vacant(v) => {
+                RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
+            }
         }
         .clone();
         Ok(&mut self.buf[to_usize(offset)])
@@ -311,6 +331,11 @@ impl RawSnap {
         buf: &mut Vec<i32>,
         mut write_int: F,
     ) -> Result<(), CapacityError> {
+        let mut written = 0;
+        let mut write_int = |i| {
+            written += mem::size_of::<i32>();
+            write_int(i)
+        };
         let keys = buf;
         keys.clear();
         keys.extend(self.offsets.keys().cloned());
@@ -347,6 +372,7 @@ impl RawSnap {
                 write_int(i)?;
             }
         }
+        assert!(written <= MAX_SNAPSHOT_SIZE);
         Ok(())
     }
     pub fn write<'d, 's>(
