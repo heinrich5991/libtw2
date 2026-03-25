@@ -164,7 +164,7 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::Ready(iter::once(())),
         }
     }
-    fn connless(data: &[u8]) -> ReceivePacket {
+    fn connless(data: &'a [u8]) -> ReceivePacket<'a> {
         ReceivePacket {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
@@ -196,7 +196,7 @@ impl<'a> ReceivePacket<'a> {
             }),
         }
     }
-    fn disconnect(reason: &[u8]) -> ReceivePacket {
+    fn disconnect(reason: &'a [u8]) -> ReceivePacket<'a> {
         ReceivePacket {
             type_: ReceivePacketType::Close(iter::once(reason)),
         }

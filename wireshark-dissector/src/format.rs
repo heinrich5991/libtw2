@@ -9,7 +9,7 @@ pub struct Bitfield<'a> {
 }
 
 impl<'a> Bitfield<'a> {
-    pub fn new(bytes: &[u8], mask: u64) -> Bitfield {
+    pub fn new(bytes: &'a [u8], mask: u64) -> Bitfield<'a> {
         assert!(bytes.len() <= mem::size_of_val(&mask));
         Bitfield {
             bytes: bytes,

@@ -87,7 +87,7 @@ pub struct StatsBrowser<'a> {
 }
 
 impl<'a> StatsBrowser<'a> {
-    pub fn new(cb: &mut dyn StatsBrowserCb) -> Option<StatsBrowser> {
+    pub fn new(cb: &'a mut dyn StatsBrowserCb) -> Option<StatsBrowser<'a>> {
         const MASTER_MIN: u32 = 1;
         const MASTER_MAX: u32 = 4;
         StatsBrowser::new_without_masters(cb).map(|mut browser| {
@@ -97,7 +97,7 @@ impl<'a> StatsBrowser<'a> {
             browser
         })
     }
-    pub fn new_without_masters(cb: &mut dyn StatsBrowserCb) -> Option<StatsBrowser> {
+    pub fn new_without_masters(cb: &'a mut dyn StatsBrowserCb) -> Option<StatsBrowser<'a>> {
         let socket = match UdpSocket::open() {
             Ok(s) => s,
             Err(e) => {
