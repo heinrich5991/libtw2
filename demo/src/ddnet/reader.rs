@@ -133,7 +133,7 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
     pub fn next_chunk<W: Warn<Warning>>(
         &mut self,
         warn: &mut W,
-    ) -> Result<Option<Chunk<P>>, ReadError> {
+    ) -> Result<Option<Chunk<'_, P>>, ReadError> {
         match self.raw.read_chunk(wrap(warn))? {
             None => return Ok(None),
             Some(RawChunk::Unknown) => Ok(Some(Chunk::Invalid)),

@@ -35,10 +35,10 @@ impl PeerSet {
     pub fn is_empty(&self) -> bool {
         self.set.is_empty()
     }
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         Iter(self.set.iter())
     }
-    pub fn drain(&mut self) -> Drain {
+    pub fn drain(&mut self) -> Drain<'_> {
         Drain(self.set.drain())
     }
     pub fn insert(&mut self, pid: PeerId) -> bool {

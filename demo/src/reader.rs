@@ -106,7 +106,7 @@ impl<'a> Reader<'a> {
             .as_ref()
             .map(|sha| Sha256(sha.sha_256))
     }
-    pub fn read_chunk<W>(&mut self, warn: &mut W) -> Result<Option<format::RawChunk>, ReadError>
+    pub fn read_chunk<W>(&mut self, warn: &mut W) -> Result<Option<format::RawChunk<'_>>, ReadError>
     where
         W: Warn<Warning>,
     {

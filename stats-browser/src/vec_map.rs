@@ -57,7 +57,7 @@ impl<I: Index, T> VecMap<I, T> {
         self.vec.push(Some(element));
         Index::from_usize(index)
     }
-    pub fn iter(&self) -> Iter<I, T> {
+    pub fn iter(&self) -> Iter<'_, I, T> {
         fn indexify_filter<I: Index, T>((idx, elem): (usize, &Option<T>)) -> Option<(I, &T)> {
             let elem = unwrap_or_return!(elem.as_ref(), None);
             Some((Index::from_usize(idx), elem))

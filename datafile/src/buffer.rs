@@ -118,28 +118,28 @@ impl Buffer {
         item_type.start..item_type.start + item_type.num
     }
 
-    pub fn items(&self) -> Items {
+    pub fn items(&self) -> Items<'_> {
         fn map_fn<'a>(i: usize, &mut self_: &mut &'a Buffer) -> ItemView<'a> {
             self_.item(i)
         }
         MapIterator::new(self, 0..self.num_items(), map_fn)
     }
 
-    pub fn item_types(&self) -> ItemTypes {
+    pub fn item_types(&self) -> ItemTypes<'_> {
         fn map_fn<'a>(i: usize, &mut self_: &mut &'a Buffer) -> u16 {
             self_.item_type(i)
         }
         MapIterator::new(self, 0..self.num_item_types(), map_fn)
     }
 
-    pub fn item_type_items(&self, item_type: u16) -> ItemTypeItems {
+    pub fn item_type_items(&self, item_type: u16) -> ItemTypeItems<'_> {
         fn map_fn<'a>(i: usize, &mut self_: &mut &'a Buffer) -> ItemView<'a> {
             self_.item(i)
         }
         MapIterator::new(self, self.item_type_indices(item_type), map_fn)
     }
 
-    pub fn data_iter(&self) -> DataIter {
+    pub fn data_iter(&self) -> DataIter<'_> {
         fn map_fn<'a>(i: usize, &mut self_: &mut &'a Buffer) -> &'a [u8] {
             self_.data(i)
         }

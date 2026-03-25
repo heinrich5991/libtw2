@@ -454,7 +454,7 @@ struct WarnCallback<'a, W: Warn<Warning> + 'a> {
     warn: &'a mut W,
 }
 
-fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<W> {
+fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<'_, W> {
     WarnCallback { warn: warn }
 }
 

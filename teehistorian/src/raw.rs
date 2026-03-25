@@ -29,7 +29,7 @@ macro_rules! unexp_end {
 
 const BUFFER_SIZE: usize = 8192;
 
-pub fn read_header(data: &[u8]) -> Result<Option<(usize, Header)>, format::HeaderError> {
+pub fn read_header(data: &[u8]) -> Result<Option<(usize, Header<'_>)>, format::HeaderError> {
     let mut p = Unpacker::new(data);
     unexp_end!(format::read_magic(&mut p))?;
     let header = unexp_end!(format::read_header(&mut p))?;

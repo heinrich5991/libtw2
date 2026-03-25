@@ -60,13 +60,13 @@ impl<T> TimedWorkQueue<T> {
         }
         None
     }
-    pub fn iter_now(&self) -> IterNow<T> {
+    pub fn iter_now(&self) -> IterNow<'_, T> {
         IterNow {
             iter: self.now_queue.iter(),
         }
     }
-    pub fn iter_other(&self) -> IterOther<T> {
-        fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<T> {
+    pub fn iter_other(&self) -> IterOther<'_, T> {
+        fn ringbuf_iter<T>(vec_deque: &VecDeque<T>) -> vec_deque::Iter<'_, T> {
             vec_deque.iter()
         }
         let map_fn: fn(&VecDeque<Timed<T>>) -> vec_deque::Iter<Timed<T>> = ringbuf_iter;

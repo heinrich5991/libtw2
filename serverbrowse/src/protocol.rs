@@ -807,7 +807,7 @@ fn parse_count(data: &[u8]) -> Option<u16> {
     Some(((data[0] as u16) << 8) | (data[1] as u16))
 }
 
-pub fn parse_response(data: &[u8]) -> Option<Response> {
+pub fn parse_response(data: &[u8]) -> Option<Response<'_>> {
     match data.first() {
         Some(0x04) => {
             if data.len() < TOKEN_7.len() {

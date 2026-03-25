@@ -450,7 +450,7 @@ impl Huffman {
             Err(n.to_symbol_repr())
         }
     }
-    pub fn repr(&self) -> Repr {
+    pub fn repr(&self) -> Repr<'_> {
         Repr {
             repr: &self.nodes[..NUM_SYMBOLS.usize()],
         }

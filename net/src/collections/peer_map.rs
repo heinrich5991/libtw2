@@ -42,19 +42,19 @@ impl<T> PeerMap<T> {
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
-    pub fn iter(&self) -> Iter<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
         Iter(self.map.iter())
     }
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut(self.map.iter_mut())
     }
-    pub fn keys(&self) -> Keys<T> {
+    pub fn keys(&self) -> Keys<'_, T> {
         Keys(self.map.keys())
     }
-    pub fn values(&self) -> Values<T> {
+    pub fn values(&self) -> Values<'_, T> {
         Values(self.map.values())
     }
-    pub fn drain(&mut self) -> Drain<T> {
+    pub fn drain(&mut self) -> Drain<'_, T> {
         Drain(self.map.drain())
     }
     pub fn insert(&mut self, pid: PeerId, value: T) -> Option<T> {
@@ -71,7 +71,7 @@ impl<T> PeerMap<T> {
     pub fn get_mut(&mut self, pid: PeerId) -> Option<&mut T> {
         self.map.get_mut(&pid)
     }
-    pub fn entry(&mut self, pid: PeerId) -> Entry<T> {
+    pub fn entry(&mut self, pid: PeerId) -> Entry<'_, T> {
         match self.map.entry(pid) {
             linear_map::Entry::Occupied(o) => Entry::Occupied(OccupiedEntry(o)),
             linear_map::Entry::Vacant(v) => Entry::Vacant(VacantEntry(v)),

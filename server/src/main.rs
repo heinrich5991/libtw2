@@ -146,7 +146,7 @@ impl Default for MapContents {
 }
 
 impl MapContents {
-    fn serve_request(&self, rmd: system::RequestMapData) -> Option<system::MapData> {
+    fn serve_request(&self, rmd: system::RequestMapData) -> Option<system::MapData<'_>> {
         let chunk = unwrap_or_return!(rmd.chunk.try_u64());
         let offset = chunk * MAPDOWNLOAD_CHUNK_SIZE;
         if offset >= self.contents.len().u64() {
