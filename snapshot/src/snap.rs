@@ -38,8 +38,8 @@ use std::mem;
 use std::ops;
 use uuid::Uuid;
 
-// TODO: Actually obey this the same way as Teeworlds does.
 pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB
+pub const MAX_SNAPSHOT_ITEMS: usize = 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -52,6 +52,7 @@ pub enum Error {
     NegativeSize,
     TooLongDiff,
     TooLongSnap,
+    TooManyItems,
     DeltaDifferingSizes,
     OffsetsUnpacking,
     InvalidOffset,
@@ -66,6 +67,7 @@ pub enum Error {
 pub enum BuilderError {
     DuplicateKey,
     TooLongSnap,
+    TooManyItems,
 }
 
 impl From<BuilderError> for Error {
@@ -73,6 +75,7 @@ impl From<BuilderError> for Error {
         match err {
             BuilderError::DuplicateKey => Error::DuplicateKey,
             BuilderError::TooLongSnap => Error::TooLongSnap,
+            BuilderError::TooManyItems => Error::TooManyItems,
         }
     }
 }
@@ -80,21 +83,6 @@ impl From<BuilderError> for Error {
 impl From<DeltaDifferingSizes> for Error {
     fn from(DeltaDifferingSizes: DeltaDifferingSizes) -> Error {
         Error::DeltaDifferingSizes
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct TooLongSnap;
-
-impl From<TooLongSnap> for Error {
-    fn from(_: TooLongSnap) -> Error {
-        Error::TooLongSnap
-    }
-}
-
-impl From<TooLongSnap> for BuilderError {
-    fn from(_: TooLongSnap) -> BuilderError {
-        BuilderError::TooLongSnap
     }
 }
 
@@ -156,10 +144,13 @@ impl RawSnap {
         entry: btree_map::VacantEntry<'a, i32, ops::Range<u32>>,
         buf: &mut Vec<i32>,
         size: usize,
-    ) -> Result<&'a mut ops::Range<u32>, TooLongSnap> {
+    ) -> Result<&'a mut ops::Range<u32>, BuilderError> {
         let offset = buf.len();
+        if num_items + 1 > MAX_SNAPSHOT_ITEMS {
+            return Err(BuilderError::TooManyItems);
+        }
         if RawSnap::serialized_ints_size(num_items + 1, offset + size) > MAX_SNAPSHOT_SIZE {
-            return Err(TooLongSnap);
+            return Err(BuilderError::TooLongSnap);
         }
         let start = offset.assert_u32();
         let end = (offset + size).assert_u32();
@@ -331,6 +322,7 @@ impl RawSnap {
         buf: &mut Vec<i32>,
         mut write_int: F,
     ) -> Result<(), CapacityError> {
+        assert!(self.offsets.len() <= MAX_SNAPSHOT_ITEMS);
         let mut written = 0;
         let mut write_int = |i| {
             written += mem::size_of::<i32>();
