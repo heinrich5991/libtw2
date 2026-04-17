@@ -297,17 +297,17 @@ pub fn write_chunk_impl<'d, 's>(
     Ok(buffer.initialized())
 }
 
-fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B) -> Result<&'a [u8], Error> {
-    fn inner<'d, 's>(bytes: &[u8], mut buffer: BufferRef<'d, 's>) -> Result<&'d [u8], Error> {
-        if bytes.len() > MAX_PAYLOAD {
+fn write_connless_packet<'a, B: Buffer<'a>>(payload: &[u8], buffer: B) -> Result<&'a [u8], Error> {
+    fn inner<'d, 's>(payload: &[u8], mut buffer: BufferRef<'d, 's>) -> Result<&'d [u8], Error> {
+        if payload.len() > MAX_PAYLOAD {
             return Err(Error::TooLongData);
         }
         buffer.write(&[b'\xff'; HEADER_SIZE + PADDING_SIZE_CONNLESS])?;
-        buffer.write(bytes)?;
+        buffer.write(payload)?;
         Ok(buffer.initialized())
     }
 
-    with_buffer(buffer, |b| inner(bytes, b))
+    with_buffer(buffer, |b| inner(payload, b))
 }
 
 fn has_token_heuristic(control: bool, num_chunks: u8, payload: &[u8]) -> bool {

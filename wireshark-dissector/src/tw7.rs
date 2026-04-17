@@ -99,6 +99,7 @@ unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
             let mut iter = protocol::ChunksIter::new(chunks_data, num_chunks);
@@ -399,6 +400,7 @@ unsafe fn dissect_impl(
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Control(ctrl),
         }) => {
             use self::protocol::ControlPacket::*;
@@ -453,6 +455,7 @@ unsafe fn dissect_impl(
         }
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
             let data = &data[7..];
@@ -599,7 +602,11 @@ unsafe fn dissect_impl(
             let info = CString::new(summaries).unwrap();
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         }
-        protocol::Packet::Connless(message) => {
+        protocol::Packet::Connless(protocol::ConnlessPacket {
+            payload,
+            token: _,
+            response_token: _,
+        }) => {
             let ti = sys::proto_tree_add_item(
                 ttree,
                 PROTO_CHUNK,
@@ -610,7 +617,7 @@ unsafe fn dissect_impl(
             );
             let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
-            let mut p = Unpacker::new(message);
+            let mut p = Unpacker::new(payload);
             let mut summaries = String::new();
             let mut first_summary = true;
             spec.dissect_connless(tree, tvb, &mut p, &mut |summary| {
