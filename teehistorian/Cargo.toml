@@ -4,23 +4,24 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "libtw2_teehistorian"
 
 [dependencies]
 arrayvec = { version = "0.5.2", features = ["serde"] }
-buffer = "0.1.9"
 chrono = "0.4.0"
 itertools = "0.7.4"
+pre-rfc3243-libtw2-buffer = { path = "../buffer/" }
 pre-rfc3243-libtw2-common = { path = "../common/", features = ["serde"] }
 pre-rfc3243-libtw2-packer = { path = "../packer/", features = ["uuid"] }
+pre-rfc3243-libtw2-warn = { path = "../warn/" }
 serde = "1.0.23"
 serde_derive = "1.0.7"
 serde_json = "1.0.7"
-uuid = { version = "0.8.1", features = ["serde"] }
+uuid = { version = ">=0.8.1,<2.0.0", features = ["serde"] }
 vec_map = "0.8.0"
-warn = "0.2.2"
 
 [dev-dependencies]
-uuid = { version = "0.8.1", features = ["v3"] }
+uuid = { version = ">=0.8.1,<2.0.0", features = ["v3"] }

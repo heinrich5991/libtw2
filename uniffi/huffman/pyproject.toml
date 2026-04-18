@@ -1,5 +1,6 @@
 [project]
 name = "libtw2-huffman"
+version = "0.2.1"
 
 [project.urls]
 repository = "https://github.com/heinrich5991/libtw2"

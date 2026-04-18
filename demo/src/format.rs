@@ -3,9 +3,9 @@ use binrw::BinRead;
 use binrw::BinWrite;
 use libtw2_common::digest::Sha256;
 use libtw2_common::num::Cast;
+use libtw2_warn::Warn;
 use std::convert::TryFrom;
 use std::io;
-use warn::Warn;
 
 pub const MAX_SNAPSHOT_SIZE: usize = 65536;
 

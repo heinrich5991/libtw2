@@ -640,7 +640,7 @@ pub struct SettingsIter<'a> {
 }
 
 impl Settings {
-    pub fn iter(&self) -> SettingsIter {
+    pub fn iter(&self) -> SettingsIter<'_> {
         SettingsIter {
             settings: &self.raw,
             pos: 0,

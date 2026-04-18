@@ -1,9 +1,9 @@
 use crate::to_usize;
 use libtw2_common::num::Cast;
 use libtw2_gamenet_snap as msg;
+use libtw2_warn::Warn;
 use std::ops;
 use vec_map::VecMap;
-use warn::Warn;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Warning {
@@ -73,7 +73,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::SnapEmpty,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -97,7 +97,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::SnapSingle,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -122,7 +122,7 @@ impl DeltaReceiver {
         &mut self,
         warn: &mut W,
         snap: msg::Snap,
-    ) -> Result<Option<ReceivedDelta>, Error> {
+    ) -> Result<Option<ReceivedDelta<'_>>, Error> {
         if !self.can_receive(snap.tick) {
             return Err(Error::OldDelta);
         }
@@ -207,7 +207,7 @@ mod test {
     use libtw2_gamenet_snap::Snap;
     use libtw2_gamenet_snap::SnapEmpty;
     use libtw2_gamenet_snap::SnapSingle;
-    use warn::Panic;
+    use libtw2_warn::Panic;
 
     #[test]
     fn old() {

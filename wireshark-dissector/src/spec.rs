@@ -18,6 +18,7 @@ use libtw2_common::pretty::AlmostString;
 use libtw2_common::unwrap_or;
 use libtw2_gamenet_spec::MessageId;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -31,7 +32,6 @@ use std::os::raw::c_int;
 use std::os::raw::c_uint;
 use std::rc::Rc;
 use std::str;
-use warn::Ignore;
 
 #[derive(Debug)]
 pub struct Spec {
@@ -120,6 +120,7 @@ pub struct FlagsType {
     pub id_flags: Vec<FieldId>,
     pub flags: Rc<Flags>,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Int32Type {
     pub id: FieldId,
@@ -130,6 +131,7 @@ pub struct Int32Type {
 pub struct OptionalType {
     pub inner: Box<Type>,
 }
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct StringType {
     pub id: FieldId,
@@ -180,6 +182,22 @@ impl Default for Spec {
     }
 }
 
+macro_rules! bformat_impl {
+    ($arrayvec:expr, $vec:expr, $fmt:expr, $($args:tt)*) => {{
+        let arrayvec = &mut $arrayvec;
+        let vec = &mut $vec;
+        arrayvec.clear();
+        let success = write!(arrayvec, $fmt, $($args)*).is_ok();
+        let success = success && arrayvec.try_push(0).is_ok();
+        if success {
+            CStr::from_bytes_with_nul(&arrayvec).unwrap().as_ptr()
+        } else {
+            write!(vec, $fmt, $($args)*).unwrap();
+            vec.push(0);
+            CStr::from_bytes_with_nul(&vec).unwrap().as_ptr()
+        }
+    }};
+}
 const PERCENT_S: &'static [u8] = b"%s\0";
 const PS: *const c_char = PERCENT_S.as_ptr() as *const _;
 
@@ -334,13 +352,11 @@ impl Spec {
         summary: &mut dyn FnMut(&str),
     ) {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
-            ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
-            }};
+            ($fmt:expr, $($args:tt)*) => {
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
+            };
         }
 
         let original_data = p.as_slice();
@@ -398,7 +414,7 @@ impl Spec {
             tvb,
             raw_msg_pos.assert_i32(),
             1,
-            system as c_uint,
+            system.into(),
             PS,
             bformat!(
                 "{} = {}",
@@ -442,12 +458,10 @@ impl Spec {
         summary: &mut dyn FnMut(&str),
     ) {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
             }};
         }
 
@@ -614,7 +628,7 @@ impl Message {
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
         let item = sys::proto_tree_add_none_format(tree, self.id.get(), tvb, 0, 0, c("\0"));
-        if !item.is_null() {
+        if !item.is_null() && !(*item).finfo.is_null() {
             (*(*item).finfo).flags |= sys::FI_HIDDEN;
         }
         for m in &self.members {
@@ -811,12 +825,10 @@ impl Type {
         p: &mut Unpacker<'a>,
     ) -> Result<(), ()> {
         let mut buffer: ArrayVec<[u8; 1024]> = ArrayVec::new();
+        let mut buffer2 = Vec::new();
         macro_rules! bformat {
             ($fmt:expr, $($args:tt)*) => {{
-                buffer.clear();
-                write!(buffer, $fmt, $($args)*).unwrap();
-                buffer.push(0);
-                CStr::from_bytes_with_nul(&buffer).unwrap().as_ptr()
+                bformat_impl!(buffer, buffer2, $fmt, $($args)*)
             }};
         }
 
@@ -850,7 +862,7 @@ impl Type {
                     tvb,
                     pos.assert_i32(),
                     (p.num_bytes_read() - pos).assert_i32(),
-                    v as c_uint,
+                    v.into(),
                     PS,
                     bformat!("{}: {}", desc, v),
                 );
@@ -945,7 +957,7 @@ impl Type {
                         tvb,
                         pos.assert_i32(),
                         (p.num_bytes_read() - pos).assert_i32(),
-                        (v & flag != 0) as c_uint,
+                        (v & flag != 0).into(),
                         PS,
                         bformat!(
                             "{} = {} {}",

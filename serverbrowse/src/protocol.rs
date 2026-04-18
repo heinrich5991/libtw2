@@ -4,13 +4,14 @@ use libtw2_common::slice;
 use libtw2_common::str::truncated_arraystring;
 use libtw2_common::unwrap_or_return;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::default::Default;
 use std::fmt;
 use std::mem;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::str;
-use warn::Ignore;
 use zerocopy::byteorder::big_endian;
 use zerocopy::byteorder::little_endian;
 use zerocopy::FromZeroes;
@@ -41,9 +42,11 @@ pub const REQUEST_INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
 pub const REQUEST_INFO_6_EX: Header = b"xe\0\0\0\0\xff\xff\xff\xffgie3";
 pub const INFO_5: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf2";
 pub const INFO_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffinf3";
+pub const INFO_6_DDPER: Header = b"dp\0\0\0\0\xff\xff\xff\xffinf3";
 pub const INFO_6_64: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffdtsf";
 pub const INFO_6_EX: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiext";
 pub const INFO_6_EX_MORE: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffiex+";
+pub const CHALLENGE_6: Header = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xffchal";
 
 pub const TOKEN_7: &'static [u8; 8] = b"\x04\0\0\xff\xff\xff\xff\x05";
 pub const REQUEST_LIST_7: &'static [u8; 17] =
@@ -219,6 +222,7 @@ pub const CLIENTINFO_FLAG_BOT: i32 = 1 << 1;
 pub enum ServerInfoVersion {
     V5,
     V6,
+    V6Ddper,
     V664,
     V6Ex,
     V7,
@@ -255,6 +259,7 @@ impl ServerInfoVersion {
         Some(match self {
             ServerInfoVersion::V5 => MAX_CLIENTS_5,
             ServerInfoVersion::V6 => MAX_CLIENTS_5,
+            ServerInfoVersion::V6Ddper => MAX_CLIENTS_5,
             ServerInfoVersion::V664 => MAX_CLIENTS_6_64,
             ServerInfoVersion::V6Ex => return None,
             ServerInfoVersion::V7 => MAX_CLIENTS_7,
@@ -264,6 +269,7 @@ impl ServerInfoVersion {
         Some(match self {
             ServerInfoVersion::V5 => 16,
             ServerInfoVersion::V6 => 16,
+            ServerInfoVersion::V6Ddper => 16,
             ServerInfoVersion::V664 => 24,
             ServerInfoVersion::V6Ex => return None,
             ServerInfoVersion::V7 => 16,
@@ -649,6 +655,23 @@ impl<'a> Info6Response<'a> {
     }
 }
 
+impl<'a> Info6DdperResponse<'a> {
+    pub fn parse(self) -> Option<ServerInfo> {
+        let Info6DdperResponse(slice) = self;
+        let mut unpacker = Unpacker::new(slice);
+        parse_server_info(
+            &mut unpacker,
+            info_read_int_v5,
+            info_read_str,
+            ReceivedServerInfoVersion::Normal(ServerInfoVersion::V6Ddper),
+        )
+        .map(|mut raw| {
+            raw.info.sort_clients();
+            raw.info
+        })
+    }
+}
+
 impl<'a> Info664Response<'a> {
     pub fn parse(self) -> Option<PartialServerInfo> {
         let Info664Response(slice) = self;
@@ -710,6 +733,8 @@ pub struct Info5Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct Info6Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
+pub struct Info6DdperResponse<'a>(pub &'a [u8]);
+#[derive(Copy, Clone)]
 pub struct Info664Response<'a>(pub &'a [u8]);
 #[derive(Copy, Clone)]
 pub struct Info6ExResponse<'a>(pub &'a [u8]);
@@ -739,6 +764,7 @@ pub enum Response<'a> {
     Count7(Count7Response),
     Info5(Info5Response<'a>),
     Info6(Info6Response<'a>),
+    Info6Ddper(Info6DdperResponse<'a>),
     Info664(Info664Response<'a>),
     Info6Ex(Info6ExResponse<'a>),
     Info6ExMore(Info6ExMoreResponse<'a>),
@@ -781,7 +807,7 @@ fn parse_count(data: &[u8]) -> Option<u16> {
     Some(((data[0] as u16) << 8) | (data[1] as u16))
 }
 
-pub fn parse_response(data: &[u8]) -> Option<Response> {
+pub fn parse_response(data: &[u8]) -> Option<Response<'_>> {
     match data.first() {
         Some(0x04) => {
             if data.len() < TOKEN_7.len() {
@@ -843,34 +869,26 @@ pub fn parse_response(data: &[u8]) -> Option<Response> {
     }
     let (header, data) = data.split_at(HEADER_LEN);
     let mut header: [u8; HEADER_LEN] = *unsafe { &*(header.as_ptr() as *const [u8; HEADER_LEN]) };
-    for b in &mut header[..6] {
-        *b = 0xff;
+    if header[..2] != *b"dp" || header[6..] != INFO_6_DDPER[6..] {
+        for b in &mut header[..6] {
+            *b = 0xff;
+        }
+    } else {
+        for b in &mut header[2..6] {
+            *b = 0;
+        }
     }
     match &header {
         LIST_5 => Some(Response::List5(List5Response(parse_list5(data)))),
         LIST_6 => Some(Response::List6(List6Response(parse_list6(data)))),
         INFO_5 => Some(Response::Info5(Info5Response(data))),
         INFO_6 => Some(Response::Info6(Info6Response(data))),
+        INFO_6_DDPER => Some(Response::Info6Ddper(Info6DdperResponse(data))),
         INFO_6_64 => Some(Response::Info664(Info664Response(data))),
         INFO_6_EX => Some(Response::Info6Ex(Info6ExResponse(data))),
         INFO_6_EX_MORE => Some(Response::Info6ExMore(Info6ExMoreResponse(data))),
         COUNT => parse_count(data).map(|x| Response::Count(CountResponse(x))),
         _ => None,
-    }
-}
-
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum IpAddr {
-    V4(Ipv4Addr),
-    V6(Ipv6Addr),
-}
-
-impl IpAddr {
-    fn new_v4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
-        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
-    }
-    fn new_v6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> IpAddr {
-        IpAddr::V6(Ipv6Addr::new(a, b, c, d, e, f, g, h))
     }
 }
 
@@ -882,15 +900,9 @@ pub struct Addr {
 
 impl fmt::Debug for Addr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.ip_address, self.port)
-    }
-}
-
-impl fmt::Debug for IpAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            IpAddr::V4(i) => write!(f, "{}", i),
-            IpAddr::V6(i) => write!(f, "[{}]", i),
+        match self.ip_address {
+            IpAddr::V4(..) => write!(f, "{}:{}", self.ip_address, self.port),
+            IpAddr::V6(..) => write!(f, "[{}]:{}", self.ip_address, self.port),
         }
     }
 }
@@ -919,12 +931,6 @@ impl fmt::Display for Addr {
     }
 }
 
-impl fmt::Display for IpAddr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
-}
-
 #[test]
 fn check_alignment_addr5_packed() {
     assert_eq!(mem::align_of::<Addr5Packed>(), 1);
@@ -934,7 +940,8 @@ impl Addr5Packed {
     pub fn unpack(self) -> Addr {
         let Addr5Packed { ip_address, port } = self;
         Addr {
-            ip_address: IpAddr::new_v4(ip_address[0], ip_address[1], ip_address[2], ip_address[3]),
+            ip_address: Ipv4Addr::new(ip_address[0], ip_address[1], ip_address[2], ip_address[3])
+                .into(),
             port: port.get(),
         }
     }
@@ -951,7 +958,7 @@ impl Addr6Packed {
         let (maybe_ipv4_mapping, ipv4_address) = ip_address.split_at(IPV4_MAPPING.len());
         let new_address = if maybe_ipv4_mapping != IPV4_MAPPING {
             let ip_address: [big_endian::U16; 8] = unsafe { mem::transmute(ip_address) };
-            IpAddr::new_v6(
+            Ipv6Addr::new(
                 ip_address[0].get(),
                 ip_address[1].get(),
                 ip_address[2].get(),
@@ -961,13 +968,15 @@ impl Addr6Packed {
                 ip_address[6].get(),
                 ip_address[7].get(),
             )
+            .into()
         } else {
-            IpAddr::new_v4(
+            Ipv4Addr::new(
                 ipv4_address[0],
                 ipv4_address[1],
                 ipv4_address[2],
                 ipv4_address[3],
             )
+            .into()
         };
         Addr {
             ip_address: new_address,

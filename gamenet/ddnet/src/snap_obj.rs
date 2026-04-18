@@ -1,6 +1,6 @@
 use crate::enums;
 use crate::error::Error;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::slice;
 use libtw2_packer::ExcessData;
 use libtw2_packer::IntUnpacker;
@@ -9,10 +9,12 @@ use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::in_range;
 use libtw2_packer::positive;
+use libtw2_packer::to_bool;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use std::slice::from_ref;
 use uuid::Uuid;
-use warn::Warn;
 
 pub use libtw2_gamenet_common::snap_obj::Tick;
 pub use libtw2_gamenet_common::snap_obj::TypeId;
@@ -22,6 +24,9 @@ pub const PLAYERFLAG_IN_MENU: i32 = 1 << 1;
 pub const PLAYERFLAG_CHATTING: i32 = 1 << 2;
 pub const PLAYERFLAG_SCOREBOARD: i32 = 1 << 3;
 pub const PLAYERFLAG_AIM: i32 = 1 << 4;
+pub const PLAYERFLAG_SPEC_CAM: i32 = 1 << 5;
+pub const PLAYERFLAG_INPUT_ABSOLUTE: i32 = 1 << 6;
+pub const PLAYERFLAG_INPUT_MANUAL: i32 = 1 << 7;
 
 pub const GAMEFLAG_TEAMS: i32 = 1 << 0;
 pub const GAMEFLAG_FLAGS: i32 = 1 << 1;
@@ -54,6 +59,9 @@ pub const CHARACTERFLAG_WEAPON_NINJA: i32 = 1 << 19;
 pub const CHARACTERFLAG_MOVEMENTS_DISABLED: i32 = 1 << 20;
 pub const CHARACTERFLAG_IN_FREEZE: i32 = 1 << 21;
 pub const CHARACTERFLAG_PRACTICE_MODE: i32 = 1 << 22;
+pub const CHARACTERFLAG_LOCK_MODE: i32 = 1 << 23;
+pub const CHARACTERFLAG_TEAM0_MODE: i32 = 1 << 24;
+pub const CHARACTERFLAG_INVINCIBLE: i32 = 1 << 25;
 
 pub const GAMEINFOFLAG_TIMESCORE: i32 = 1 << 0;
 pub const GAMEINFOFLAG_GAMETYPE_RACE: i32 = 1 << 1;
@@ -96,6 +104,8 @@ pub const GAMEINFOFLAG2_HUD_HEALTH_ARMOR: i32 = 1 << 4;
 pub const GAMEINFOFLAG2_HUD_AMMO: i32 = 1 << 5;
 pub const GAMEINFOFLAG2_HUD_DDRACE: i32 = 1 << 6;
 pub const GAMEINFOFLAG2_NO_WEAK_HOOK: i32 = 1 << 7;
+pub const GAMEINFOFLAG2_NO_SKIN_CHANGE_FOR_FROZEN: i32 = 1 << 8;
+pub const GAMEINFOFLAG2_DDRACE_TEAM: i32 = 1 << 9;
 
 pub const EXPLAYERFLAG_AFK: i32 = 1 << 0;
 pub const EXPLAYERFLAG_PAUSED: i32 = 1 << 1;
@@ -122,6 +132,13 @@ pub const PROJECTILEFLAG_EXPLOSIVE: i32 = 1 << 2;
 pub const PROJECTILEFLAG_FREEZE: i32 = 1 << 3;
 pub const PROJECTILEFLAG_NORMALIZE_VEL: i32 = 1 << 4;
 
+pub const LASERFLAG_NO_PREDICT: i32 = 1 << 0;
+
+pub const PICKUPFLAG_XFLIP: i32 = 1 << 0;
+pub const PICKUPFLAG_YFLIP: i32 = 1 << 1;
+pub const PICKUPFLAG_ROTATE: i32 = 1 << 2;
+pub const PICKUPFLAG_NO_PREDICT: i32 = 1 << 3;
+
 pub const PLAYER_INPUT: u16 = 1;
 pub const PROJECTILE: u16 = 2;
 pub const LASER: u16 = 3;
@@ -142,6 +159,8 @@ pub const DDRACE_PROJECTILE: Uuid = Uuid::from_u128(0x0e6db85c_2b61_386f_bbf2_d0
 pub const DDNET_LASER: Uuid = Uuid::from_u128(0x29de68a2_6928_31b8_8360_a2307e0d844f);
 pub const DDNET_PROJECTILE: Uuid = Uuid::from_u128(0x6550fbce_f317_3b31_8ffe_d2b37f3ab40e);
 pub const DDNET_PICKUP: Uuid = Uuid::from_u128(0xea5e4a51_58fb_3684_96e4_e0d267f4ca65);
+pub const DDNET_SPECTATOR_INFO: Uuid = Uuid::from_u128(0xd13307b2_9a19_37cb_8f8c_07c718521883);
+pub const SPECTATOR_COUNT: Uuid = Uuid::from_u128(0x5e5ca96f_c728_30fd_bfb3_155b07692556);
 pub const COMMON: u16 = 13;
 pub const EXPLOSION: u16 = 14;
 pub const SPAWN: u16 = 15;
@@ -150,10 +169,13 @@ pub const DEATH: u16 = 17;
 pub const SOUND_GLOBAL: u16 = 18;
 pub const SOUND_WORLD: u16 = 19;
 pub const DAMAGE_IND: u16 = 20;
+pub const BIRTHDAY: Uuid = Uuid::from_u128(0x1fd35746_6263_358c_b4d6_6ef60e0efaaa);
+pub const FINISH: Uuid = Uuid::from_u128(0x68bf8939_ef55_3878_9082_13527eb0a597);
 pub const MY_OWN_EVENT: Uuid = Uuid::from_u128(0x0c4fd27d_47e3_3871_a226_9f417486a311);
 pub const SPEC_CHAR: Uuid = Uuid::from_u128(0x4b801c74_e24c_3ce0_b92c_b754d02cfc8a);
 pub const SWITCH_STATE: Uuid = Uuid::from_u128(0xec15e669_ce11_3367_ae8e_b90e5b27b9d5);
 pub const ENTITY_EX: Uuid = Uuid::from_u128(0x2de9aec3_32e4_3986_8f7e_e7459da7f535);
+pub const MAP_SOUND_WORLD: Uuid = Uuid::from_u128(0x54ecad2e_bfad_3be5_8903_621ba052458e);
 
 #[derive(Clone, Copy)]
 pub enum SnapObj {
@@ -177,6 +199,8 @@ pub enum SnapObj {
     DdnetLaser(DdnetLaser),
     DdnetProjectile(DdnetProjectile),
     DdnetPickup(DdnetPickup),
+    DdnetSpectatorInfo(DdnetSpectatorInfo),
+    SpectatorCount(SpectatorCount),
     Common(Common),
     Explosion(Explosion),
     Spawn(Spawn),
@@ -185,10 +209,13 @@ pub enum SnapObj {
     SoundGlobal(SoundGlobal),
     SoundWorld(SoundWorld),
     DamageInd(DamageInd),
+    Birthday(Birthday),
+    Finish(Finish),
     MyOwnEvent(MyOwnEvent),
     SpecChar(SpecChar),
     SwitchState(SwitchState),
     EntityEx(EntityEx),
+    MapSoundWorld(MapSoundWorld),
 }
 
 impl SnapObj {
@@ -215,6 +242,8 @@ impl SnapObj {
             Uuid(DDNET_LASER) => SnapObj::DdnetLaser(DdnetLaser::decode(warn, _p)?),
             Uuid(DDNET_PROJECTILE) => SnapObj::DdnetProjectile(DdnetProjectile::decode(warn, _p)?),
             Uuid(DDNET_PICKUP) => SnapObj::DdnetPickup(DdnetPickup::decode(warn, _p)?),
+            Uuid(DDNET_SPECTATOR_INFO) => SnapObj::DdnetSpectatorInfo(DdnetSpectatorInfo::decode(warn, _p)?),
+            Uuid(SPECTATOR_COUNT) => SnapObj::SpectatorCount(SpectatorCount::decode(warn, _p)?),
             Ordinal(COMMON) => SnapObj::Common(Common::decode(warn, _p)?),
             Ordinal(EXPLOSION) => SnapObj::Explosion(Explosion::decode(warn, _p)?),
             Ordinal(SPAWN) => SnapObj::Spawn(Spawn::decode(warn, _p)?),
@@ -223,10 +252,13 @@ impl SnapObj {
             Ordinal(SOUND_GLOBAL) => SnapObj::SoundGlobal(SoundGlobal::decode(warn, _p)?),
             Ordinal(SOUND_WORLD) => SnapObj::SoundWorld(SoundWorld::decode(warn, _p)?),
             Ordinal(DAMAGE_IND) => SnapObj::DamageInd(DamageInd::decode(warn, _p)?),
+            Uuid(BIRTHDAY) => SnapObj::Birthday(Birthday::decode(warn, _p)?),
+            Uuid(FINISH) => SnapObj::Finish(Finish::decode(warn, _p)?),
             Uuid(MY_OWN_EVENT) => SnapObj::MyOwnEvent(MyOwnEvent::decode(warn, _p)?),
             Uuid(SPEC_CHAR) => SnapObj::SpecChar(SpecChar::decode(warn, _p)?),
             Uuid(SWITCH_STATE) => SnapObj::SwitchState(SwitchState::decode(warn, _p)?),
             Uuid(ENTITY_EX) => SnapObj::EntityEx(EntityEx::decode(warn, _p)?),
+            Uuid(MAP_SOUND_WORLD) => SnapObj::MapSoundWorld(MapSoundWorld::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -252,6 +284,8 @@ impl SnapObj {
             SnapObj::DdnetLaser(_) => TypeId::from(DDNET_LASER),
             SnapObj::DdnetProjectile(_) => TypeId::from(DDNET_PROJECTILE),
             SnapObj::DdnetPickup(_) => TypeId::from(DDNET_PICKUP),
+            SnapObj::DdnetSpectatorInfo(_) => TypeId::from(DDNET_SPECTATOR_INFO),
+            SnapObj::SpectatorCount(_) => TypeId::from(SPECTATOR_COUNT),
             SnapObj::Common(_) => TypeId::from(COMMON),
             SnapObj::Explosion(_) => TypeId::from(EXPLOSION),
             SnapObj::Spawn(_) => TypeId::from(SPAWN),
@@ -260,10 +294,13 @@ impl SnapObj {
             SnapObj::SoundGlobal(_) => TypeId::from(SOUND_GLOBAL),
             SnapObj::SoundWorld(_) => TypeId::from(SOUND_WORLD),
             SnapObj::DamageInd(_) => TypeId::from(DAMAGE_IND),
+            SnapObj::Birthday(_) => TypeId::from(BIRTHDAY),
+            SnapObj::Finish(_) => TypeId::from(FINISH),
             SnapObj::MyOwnEvent(_) => TypeId::from(MY_OWN_EVENT),
             SnapObj::SpecChar(_) => TypeId::from(SPEC_CHAR),
             SnapObj::SwitchState(_) => TypeId::from(SWITCH_STATE),
             SnapObj::EntityEx(_) => TypeId::from(ENTITY_EX),
+            SnapObj::MapSoundWorld(_) => TypeId::from(MAP_SOUND_WORLD),
         }
     }
     pub fn encode(&self) -> &[i32] {
@@ -288,6 +325,8 @@ impl SnapObj {
             SnapObj::DdnetLaser(ref i) => i.encode(),
             SnapObj::DdnetProjectile(ref i) => i.encode(),
             SnapObj::DdnetPickup(ref i) => i.encode(),
+            SnapObj::DdnetSpectatorInfo(ref i) => i.encode(),
+            SnapObj::SpectatorCount(ref i) => i.encode(),
             SnapObj::Common(ref i) => i.encode(),
             SnapObj::Explosion(ref i) => i.encode(),
             SnapObj::Spawn(ref i) => i.encode(),
@@ -296,10 +335,13 @@ impl SnapObj {
             SnapObj::SoundGlobal(ref i) => i.encode(),
             SnapObj::SoundWorld(ref i) => i.encode(),
             SnapObj::DamageInd(ref i) => i.encode(),
+            SnapObj::Birthday(ref i) => i.encode(),
+            SnapObj::Finish(ref i) => i.encode(),
             SnapObj::MyOwnEvent(ref i) => i.encode(),
             SnapObj::SpecChar(ref i) => i.encode(),
             SnapObj::SwitchState(ref i) => i.encode(),
             SnapObj::EntityEx(ref i) => i.encode(),
+            SnapObj::MapSoundWorld(ref i) => i.encode(),
         }
     }
 }
@@ -327,6 +369,8 @@ impl fmt::Debug for SnapObj {
             SnapObj::DdnetLaser(ref i) => i.fmt(f),
             SnapObj::DdnetProjectile(ref i) => i.fmt(f),
             SnapObj::DdnetPickup(ref i) => i.fmt(f),
+            SnapObj::DdnetSpectatorInfo(ref i) => i.fmt(f),
+            SnapObj::SpectatorCount(ref i) => i.fmt(f),
             SnapObj::Common(ref i) => i.fmt(f),
             SnapObj::Explosion(ref i) => i.fmt(f),
             SnapObj::Spawn(ref i) => i.fmt(f),
@@ -335,10 +379,13 @@ impl fmt::Debug for SnapObj {
             SnapObj::SoundGlobal(ref i) => i.fmt(f),
             SnapObj::SoundWorld(ref i) => i.fmt(f),
             SnapObj::DamageInd(ref i) => i.fmt(f),
+            SnapObj::Birthday(ref i) => i.fmt(f),
+            SnapObj::Finish(ref i) => i.fmt(f),
             SnapObj::MyOwnEvent(ref i) => i.fmt(f),
             SnapObj::SpecChar(ref i) => i.fmt(f),
             SnapObj::SwitchState(ref i) => i.fmt(f),
             SnapObj::EntityEx(ref i) => i.fmt(f),
+            SnapObj::MapSoundWorld(ref i) => i.fmt(f),
         }
     }
 }
@@ -463,6 +510,18 @@ impl From<DdnetPickup> for SnapObj {
     }
 }
 
+impl From<DdnetSpectatorInfo> for SnapObj {
+    fn from(i: DdnetSpectatorInfo) -> SnapObj {
+        SnapObj::DdnetSpectatorInfo(i)
+    }
+}
+
+impl From<SpectatorCount> for SnapObj {
+    fn from(i: SpectatorCount) -> SnapObj {
+        SnapObj::SpectatorCount(i)
+    }
+}
+
 impl From<Common> for SnapObj {
     fn from(i: Common) -> SnapObj {
         SnapObj::Common(i)
@@ -511,6 +570,18 @@ impl From<DamageInd> for SnapObj {
     }
 }
 
+impl From<Birthday> for SnapObj {
+    fn from(i: Birthday) -> SnapObj {
+        SnapObj::Birthday(i)
+    }
+}
+
+impl From<Finish> for SnapObj {
+    fn from(i: Finish) -> SnapObj {
+        SnapObj::Finish(i)
+    }
+}
+
 impl From<MyOwnEvent> for SnapObj {
     fn from(i: MyOwnEvent) -> SnapObj {
         SnapObj::MyOwnEvent(i)
@@ -532,6 +603,12 @@ impl From<SwitchState> for SnapObj {
 impl From<EntityEx> for SnapObj {
     fn from(i: EntityEx) -> SnapObj {
         SnapObj::EntityEx(i)
+    }
+}
+
+impl From<MapSoundWorld> for SnapObj {
+    fn from(i: MapSoundWorld) -> SnapObj {
+        SnapObj::MapSoundWorld(i)
     }
 }
 
@@ -623,7 +700,7 @@ pub struct CharacterCore {
     pub jumped: i32,
     pub hooked_player: i32,
     pub hook_state: i32,
-    pub hook_tick: crate::snap_obj::Tick,
+    pub hook_tick: i32,
     pub hook_x: i32,
     pub hook_y: i32,
     pub hook_dx: i32,
@@ -638,7 +715,7 @@ pub struct Character {
     pub health: i32,
     pub armor: i32,
     pub ammo_count: i32,
-    pub weapon: enums::Weapon,
+    pub weapon: i32,
     pub emote: enums::Emote,
     pub attack_tick: i32,
 }
@@ -692,6 +769,7 @@ pub struct DdnetCharacter {
     pub freeze_start: crate::snap_obj::Tick,
     pub target_x: i32,
     pub target_y: i32,
+    pub tune_zone_override: i32,
 }
 
 #[repr(C)]
@@ -732,6 +810,7 @@ pub struct DdnetLaser {
     pub type_: i32,
     pub switch_number: i32,
     pub subtype: i32,
+    pub flags: i32,
 }
 
 #[repr(C)]
@@ -757,6 +836,23 @@ pub struct DdnetPickup {
     pub type_: i32,
     pub subtype: i32,
     pub switch_number: i32,
+    pub flags: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DdnetSpectatorInfo {
+    pub has_camera_info: bool,
+    pub zoom: i32,
+    pub deadzone: i32,
+    pub follow_factor: i32,
+    pub spectator_count: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SpectatorCount {
+    pub num_spectators: i32,
 }
 
 #[repr(C)]
@@ -814,6 +910,18 @@ pub struct DamageInd {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct Birthday {
+    pub common: Common,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Finish {
+    pub common: Common,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct MyOwnEvent {
     pub test: i32,
 }
@@ -840,6 +948,13 @@ pub struct EntityEx {
     pub switch_number: i32,
     pub layer: i32,
     pub entity_class: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct MapSoundWorld {
+    pub common: Common,
+    pub sound_id: i32,
 }
 
 impl fmt::Debug for PlayerInput {
@@ -896,7 +1011,7 @@ impl PlayerInput {
             next_weapon: _p.read_int(warn)?,
             prev_weapon: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode_msg<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1100,13 +1215,13 @@ impl GameData {
         Ok(GameData {
             teamscore_red: _p.read_int()?,
             teamscore_blue: _p.read_int()?,
-            flag_carrier_red: in_range(_p.read_int()?, -3, 63)?,
-            flag_carrier_blue: in_range(_p.read_int()?, -3, 63)?,
+            flag_carrier_red: in_range(_p.read_int()?, -3, 127)?,
+            flag_carrier_blue: in_range(_p.read_int()?, -3, 127)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(-3 <= self.flag_carrier_red && self.flag_carrier_red <= 63);
-        assert!(-3 <= self.flag_carrier_blue && self.flag_carrier_blue <= 63);
+        assert!(-3 <= self.flag_carrier_red && self.flag_carrier_red <= 127);
+        assert!(-3 <= self.flag_carrier_blue && self.flag_carrier_blue <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1148,9 +1263,9 @@ impl CharacterCore {
             angle: _p.read_int()?,
             direction: in_range(_p.read_int()?, -1, 1)?,
             jumped: in_range(_p.read_int()?, 0, 3)?,
-            hooked_player: in_range(_p.read_int()?, -1, 63)?,
+            hooked_player: in_range(_p.read_int()?, -1, 127)?,
             hook_state: in_range(_p.read_int()?, -1, 5)?,
-            hook_tick: crate::snap_obj::Tick(_p.read_int()?),
+            hook_tick: _p.read_int()?,
             hook_x: _p.read_int()?,
             hook_y: _p.read_int()?,
             hook_dx: _p.read_int()?,
@@ -1160,7 +1275,7 @@ impl CharacterCore {
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.direction && self.direction <= 1);
         assert!(0 <= self.jumped && self.jumped <= 3);
-        assert!(-1 <= self.hooked_player && self.hooked_player <= 63);
+        assert!(-1 <= self.hooked_player && self.hooked_player <= 127);
         assert!(-1 <= self.hook_state && self.hook_state <= 5);
         unsafe { slice::transmute(from_ref(self)) }
     }
@@ -1192,8 +1307,8 @@ impl Character {
             player_flags: in_range(_p.read_int()?, 0, 256)?,
             health: in_range(_p.read_int()?, 0, 10)?,
             armor: in_range(_p.read_int()?, 0, 10)?,
-            ammo_count: in_range(_p.read_int()?, 0, 10)?,
-            weapon: enums::Weapon::from_i32(_p.read_int()?)?,
+            ammo_count: in_range(_p.read_int()?, -1, 10)?,
+            weapon: in_range(_p.read_int()?, -1, 5)?,
             emote: enums::Emote::from_i32(_p.read_int()?)?,
             attack_tick: positive(_p.read_int()?)?,
         })
@@ -1203,7 +1318,8 @@ impl Character {
         assert!(0 <= self.player_flags && self.player_flags <= 256);
         assert!(0 <= self.health && self.health <= 10);
         assert!(0 <= self.armor && self.armor <= 10);
-        assert!(0 <= self.ammo_count && self.ammo_count <= 10);
+        assert!(-1 <= self.ammo_count && self.ammo_count <= 10);
+        assert!(-1 <= self.weapon && self.weapon <= 5);
         assert!(self.attack_tick >= 0);
         unsafe { slice::transmute(from_ref(self)) }
     }
@@ -1229,7 +1345,7 @@ impl PlayerInfo {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<PlayerInfo, Error> {
         Ok(PlayerInfo {
             local: in_range(_p.read_int()?, 0, 1)?,
-            client_id: in_range(_p.read_int()?, 0, 63)?,
+            client_id: in_range(_p.read_int()?, 0, 127)?,
             team: enums::Team::from_i32(_p.read_int()?)?,
             score: _p.read_int()?,
             latency: _p.read_int()?,
@@ -1237,7 +1353,7 @@ impl PlayerInfo {
     }
     pub fn encode(&self) -> &[i32] {
         assert!(0 <= self.local && self.local <= 1);
-        assert!(0 <= self.client_id && self.client_id <= 63);
+        assert!(0 <= self.client_id && self.client_id <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1311,13 +1427,13 @@ impl SpectatorInfo {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpectatorInfo, Error> {
         Ok(SpectatorInfo {
-            spectator_id: in_range(_p.read_int()?, -1, 63)?,
+            spectator_id: in_range(_p.read_int()?, -1, 127)?,
             x: _p.read_int()?,
             y: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(-1 <= self.spectator_id && self.spectator_id <= 63);
+        assert!(-1 <= self.spectator_id && self.spectator_id <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1358,6 +1474,7 @@ impl fmt::Debug for DdnetCharacter {
             .field("freeze_start", &self.freeze_start)
             .field("target_x", &self.target_x)
             .field("target_y", &self.target_y)
+            .field("tune_zone_override", &self.tune_zone_override)
             .finish()
     }
 }
@@ -1373,18 +1490,20 @@ impl DdnetCharacter {
             freeze_end: crate::snap_obj::Tick(_p.read_int()?),
             jumps: in_range(_p.read_int()?, -1, 255)?,
             tele_checkpoint: _p.read_int()?,
-            strong_weak_id: in_range(_p.read_int()?, 0, 63)?,
+            strong_weak_id: in_range(_p.read_int()?, 0, 127)?,
             jumped_total: in_range(_p.read_int()?, -1, 255)?,
             ninja_activation_tick: crate::snap_obj::Tick(_p.read_int()?),
             freeze_start: crate::snap_obj::Tick(_p.read_int()?),
             target_x: _p.read_int()?,
             target_y: _p.read_int()?,
+            tune_zone_override: in_range(_p.read_int()?, -1, 255)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         assert!(-1 <= self.jumps && self.jumps <= 255);
-        assert!(0 <= self.strong_weak_id && self.strong_weak_id <= 63);
+        assert!(0 <= self.strong_weak_id && self.strong_weak_id <= 127);
         assert!(-1 <= self.jumped_total && self.jumped_total <= 255);
+        assert!(-1 <= self.tune_zone_override && self.tune_zone_override <= 255);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1487,6 +1606,7 @@ impl fmt::Debug for DdnetLaser {
             .field("type_", &self.type_)
             .field("switch_number", &self.switch_number)
             .field("subtype", &self.subtype)
+            .field("flags", &self.flags)
             .finish()
     }
 }
@@ -1503,14 +1623,15 @@ impl DdnetLaser {
             from_x: _p.read_int()?,
             from_y: _p.read_int()?,
             start_tick: crate::snap_obj::Tick(_p.read_int()?),
-            owner: in_range(_p.read_int()?, -1, 63)?,
+            owner: in_range(_p.read_int()?, -1, 127)?,
             type_: _p.read_int()?,
             switch_number: _p.read_int()?,
             subtype: _p.read_int()?,
+            flags: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(-1 <= self.owner && self.owner <= 63);
+        assert!(-1 <= self.owner && self.owner <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1545,14 +1666,14 @@ impl DdnetProjectile {
             vel_y: _p.read_int()?,
             type_: enums::Weapon::from_i32(_p.read_int()?)?,
             start_tick: crate::snap_obj::Tick(_p.read_int()?),
-            owner: in_range(_p.read_int()?, -1, 63)?,
+            owner: in_range(_p.read_int()?, -1, 127)?,
             switch_number: _p.read_int()?,
             tune_zone: _p.read_int()?,
             flags: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
-        assert!(-1 <= self.owner && self.owner <= 63);
+        assert!(-1 <= self.owner && self.owner <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1565,6 +1686,7 @@ impl fmt::Debug for DdnetPickup {
             .field("type_", &self.type_)
             .field("subtype", &self.subtype)
             .field("switch_number", &self.switch_number)
+            .field("flags", &self.flags)
             .finish()
     }
 }
@@ -1581,11 +1703,71 @@ impl DdnetPickup {
             type_: positive(_p.read_int()?)?,
             subtype: positive(_p.read_int()?)?,
             switch_number: _p.read_int()?,
+            flags: _p.read_int()?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         assert!(self.type_ >= 0);
         assert!(self.subtype >= 0);
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for DdnetSpectatorInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DdnetSpectatorInfo")
+            .field("has_camera_info", &self.has_camera_info)
+            .field("zoom", &self.zoom)
+            .field("deadzone", &self.deadzone)
+            .field("follow_factor", &self.follow_factor)
+            .field("spectator_count", &self.spectator_count)
+            .finish()
+    }
+}
+impl DdnetSpectatorInfo {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<DdnetSpectatorInfo, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetSpectatorInfo, Error> {
+        Ok(DdnetSpectatorInfo {
+            has_camera_info: to_bool(_p.read_int()?)?,
+            zoom: positive(_p.read_int()?)?,
+            deadzone: positive(_p.read_int()?)?,
+            follow_factor: positive(_p.read_int()?)?,
+            spectator_count: in_range(_p.read_int()?, 0, 127)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(self.zoom >= 0);
+        assert!(self.deadzone >= 0);
+        assert!(self.follow_factor >= 0);
+        assert!(0 <= self.spectator_count && self.spectator_count <= 127);
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for SpectatorCount {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SpectatorCount")
+            .field("num_spectators", &self.num_spectators)
+            .finish()
+    }
+}
+impl SpectatorCount {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<SpectatorCount, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SpectatorCount, Error> {
+        Ok(SpectatorCount {
+            num_spectators: positive(_p.read_int()?)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        assert!(self.num_spectators >= 0);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1704,12 +1886,12 @@ impl Death {
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Death, Error> {
         Ok(Death {
             common: Common::decode_inner(_p)?,
-            client_id: in_range(_p.read_int()?, 0, 63)?,
+            client_id: in_range(_p.read_int()?, 0, 127)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
         self.common.encode();
-        assert!(0 <= self.client_id && self.client_id <= 63);
+        assert!(0 <= self.client_id && self.client_id <= 127);
         unsafe { slice::transmute(from_ref(self)) }
     }
 }
@@ -1784,6 +1966,54 @@ impl DamageInd {
         Ok(DamageInd {
             common: Common::decode_inner(_p)?,
             angle: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for Birthday {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Birthday")
+            .field("common", &self.common)
+            .finish()
+    }
+}
+impl Birthday {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Birthday, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Birthday, Error> {
+        Ok(Birthday {
+            common: Common::decode_inner(_p)?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for Finish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Finish")
+            .field("common", &self.common)
+            .finish()
+    }
+}
+impl Finish {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<Finish, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<Finish, Error> {
+        Ok(Finish {
+            common: Common::decode_inner(_p)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1911,6 +2141,32 @@ impl EntityEx {
         })
     }
     pub fn encode(&self) -> &[i32] {
+        unsafe { slice::transmute(from_ref(self)) }
+    }
+}
+
+impl fmt::Debug for MapSoundWorld {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MapSoundWorld")
+            .field("common", &self.common)
+            .field("sound_id", &self.sound_id)
+            .finish()
+    }
+}
+impl MapSoundWorld {
+    pub fn decode<W: Warn<ExcessData>>(warn: &mut W, p: &mut IntUnpacker) -> Result<MapSoundWorld, Error> {
+        let result = Self::decode_inner(p)?;
+        p.finish(warn);
+        Ok(result)
+    }
+    pub fn decode_inner(_p: &mut IntUnpacker) -> Result<MapSoundWorld, Error> {
+        Ok(MapSoundWorld {
+            common: Common::decode_inner(_p)?,
+            sound_id: _p.read_int()?,
+        })
+    }
+    pub fn encode(&self) -> &[i32] {
+        self.common.encode();
         unsafe { slice::transmute(from_ref(self)) }
     }
 }

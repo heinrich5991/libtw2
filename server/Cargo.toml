@@ -4,6 +4,7 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [dependencies]
 arrayvec = "0.5.2"
@@ -18,7 +19,7 @@ pre-rfc3243-libtw2-map = { path = "../map/" }
 pre-rfc3243-libtw2-packer = { path = "../packer/" }
 pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }
 pre-rfc3243-libtw2-socket = { path = "../socket/" }
+pre-rfc3243-libtw2-warn = { path = "../warn/" }
 pre-rfc3243-libtw2-world = { path = "../world/" }
 log = "0.3.1"
 ndarray = "0.9.1"
-warn = ">=0.1.1,<0.3.0"

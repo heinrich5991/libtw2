@@ -1,6 +1,9 @@
 {
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 16},
+		{"name": ["weapon", "game"], "type": "int32", "value": -3},
+		{"name": ["weapon", "self"], "type": "int32", "value": -2},
+		{"name": ["weapon", "world"], "type": "int32", "value": -1},
 		{"name": ["version"], "type": "string", "value": "0.5 b67d1f1a1eea234e"},
 		{"name": ["cl", "call", "vote", "type", "option"], "type": "string", "value": "option"},
 		{"name": ["cl", "call", "vote", "type", "kick"], "type": "string", "value": "kick"}
@@ -471,7 +474,7 @@
 				{"name": ["player", "state"], "type": {"kind": "enum", "enum": ["playerstate"]}},
 				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
 				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
-				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": -1, "max": 10}},
 				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
 				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
 				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}
@@ -510,28 +513,36 @@
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 12,
 			"name": ["explosion"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 13,
 			"name": ["spawn"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 14,
 			"name": ["hammer", "hit"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 15,
@@ -540,7 +551,9 @@
 			"members": [
 				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 15}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 16,
@@ -549,7 +562,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 17,
@@ -558,7 +573,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 18,
@@ -567,7 +584,9 @@
 			"members": [
 				{"name": ["angle"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		}
 	],
 	"system_messages": [

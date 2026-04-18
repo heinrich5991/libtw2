@@ -11,6 +11,7 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_net::protocol;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Write;
@@ -20,10 +21,9 @@ use std::os::raw::c_void;
 use std::ptr;
 use std::ptr::addr_of_mut;
 use std::slice;
-use warn::Ignore;
 use zerocopy::FromBytes;
 
-const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-17.2.1.json");
+const SERIALIZED_SPEC: &'static str = include_str!("../../gamenet/generate/spec/ddnet-19.1.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;
@@ -66,13 +66,13 @@ unsafe extern "C" fn dissect_heur(
     pinfo: *mut sys::packet_info,
     ttree: *mut sys::proto_tree,
     _data: *mut c_void,
-) -> c_int {
+) -> bool {
     if !dissect_heur_impl(tvb).is_ok() {
-        return 0;
+        return false;
     }
     let conversation = sys::find_or_create_conversation(pinfo);
     sys::conversation_set_dissector(conversation, PROTO_PACKET_HANDLE);
-    dissect_impl(tvb, pinfo, ttree).is_ok() as c_int
+    dissect_impl(tvb, pinfo, ttree).is_ok()
 }
 
 unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
@@ -154,7 +154,7 @@ unsafe fn dissect_impl(
     macro_rules! field_boolean {
         ($tree:expr, $hf:expr, $from:expr, $value:expr, $fmt:expr, $($args:tt)*) => {{
             let value: bool = $value;
-            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value as c_uint, $fmt, $($args)*)
+            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value.into(), $fmt, $($args)*)
         }};
     }
     macro_rules! field_uint {
@@ -773,6 +773,7 @@ fn load_spec() -> anyhow::Result<Spec> {
     Spec::load(intern_static_with_nul("tw\0"), SERIALIZED_SPEC)
 }
 
+#[allow(unused_unsafe)] // TODO (MSRV 1.63): Remove.
 fn register_chunk_protocol(spec: &Spec) {
     unsafe {
         PROTO_CHUNK = sys::proto_register_protocol(

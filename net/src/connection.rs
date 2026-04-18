@@ -11,14 +11,14 @@ use crate::protocol::TOKEN_NONE;
 use crate::Timeout;
 use crate::Timestamp;
 use arrayvec::ArrayVec;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::collections::VecDeque;
 use std::iter;
 use std::time::Duration;
-use warn::Warn;
 
 // TODO: Implement receive timeout.
 // TODO: Don't allow for unbounded backlog of vital messages.
@@ -164,7 +164,7 @@ impl<'a> ReceivePacket<'a> {
             type_: ReceivePacketType::Ready(iter::once(())),
         }
     }
-    fn connless(data: &[u8]) -> ReceivePacket {
+    fn connless(data: &'a [u8]) -> ReceivePacket<'a> {
         ReceivePacket {
             type_: ReceivePacketType::Connless(iter::once(data)),
         }
@@ -196,7 +196,7 @@ impl<'a> ReceivePacket<'a> {
             }),
         }
     }
-    fn disconnect(reason: &[u8]) -> ReceivePacket {
+    fn disconnect(reason: &'a [u8]) -> ReceivePacket<'a> {
         ReceivePacket {
             type_: ReceivePacketType::Close(iter::once(reason)),
         }
@@ -454,7 +454,7 @@ struct WarnCallback<'a, W: Warn<Warning> + 'a> {
     warn: &'a mut W,
 }
 
-fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<W> {
+fn w<W: Warn<Warning>>(warn: &mut W) -> WarnCallback<'_, W> {
     WarnCallback { warn: warn }
 }
 
@@ -811,10 +811,10 @@ mod test {
     use crate::Timestamp;
     use hexdump::hexdump;
     use itertools::Itertools;
+    use libtw2_warn::Panic;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
-    use warn::Panic;
 
     #[test]
     fn sequence_compare() {

@@ -51,19 +51,34 @@ Snapshots
         [*4] item_offsets
         [  ] items
 
-Snapshots provide the full game state. In demos, they are used to provide
-additional entry points for the stream of snapshot deltas.
+Snapshots provide the full game state. They're only used in demos, to provide
+additional entry points for the stream of snapshot deltas, like
+[B-frames](https://en.wikipedia.org/wiki/B-frame).
 
-- `data_size` is a positive signed 32-bit integer describing the amount of
-bytes in the `items` segment.
-- `num_items` is a positive signed 32-bit integer describing the amount of
-items present in the snapshot.
-- `item_offsets` is an array of `num_item` positive signed 32-bit integers
-which describe the offsets for all items contained in the snapshot. They must
-be monotonically increasing and the first one should be 0.
+- `data_size` is a nonnegative signed 32-bit integer describing the amount of
+  bytes in the `items` segment.
+- `num_items` is a nonnegative signed 32-bit integer describing the amount of
+  items present in the snapshot.
+- `item_offsets` is an array of `num_item` nonnegative signed 32-bit integers
+  which describe the offsets, in bytes, starting from 0 for the beginning of
+  `items`, for all items contained in the snapshot. They must increase
+  monotonically and the first one must be 0.
 - `items` is a concatenation of `num_items` items. The `item_offsets` describe
-the positions: the `n`th offset is the start of the `n`th item (and the end of
-the `n-1`th item). The end of the last item is `data_size`.
+  the positions: the `n`th offset is the start of the `n`th item (and the end
+  of the `n-1`th item). The end of the last item is `data_size`.
+
+
+Items
+-----
+
+    item:
+        [ 2] id
+        [ 2] type_id
+        [  ] data
+
+- `id` is a 16-bit integer containing the id of the item.
+- `type_id` is a 16-bit integer containing the type id of the item.
+- `data` is an array of 32-bit signed integers containing the item data.
 
 
 Snapshot deltas
@@ -80,12 +95,13 @@ Snapshot deltas are used to describe the differences between two snapshots, the
 "old" and the "new" one. You can use the delta together with the old snapshot
 to construct the new one. Note that the reverse does not work, because the
 values of snapshot items present in the old but not the new snapshot are not
-recorded in the delta.
+recorded in the delta. This works similarly to a
+[P-frame](https://en.wikipedia.org/wiki/P-frame).
 
-- `num_removed_items` is a positive signed 32-bit integer describing the length
-  of the `removed_item_keys` array.
-- `num_item_deltas` is a positive signed 32-bit integer describing the number
-  of item deltas in the `item_deltas` field.
+- `num_removed_items` is a nonnegative signed 32-bit integer describing the
+  length of the `removed_item_keys` array.
+- `num_item_deltas` is a nonnegative signed 32-bit integer describing the
+  number of item deltas in the `item_deltas` field.
 - `_zero` is a padding field which must be zeroed by any snapshot delta writer
   and ignored by any snapshot delta reader.
 - `removed_item_keys` is an array of `num_removed_items` item keys that are
@@ -149,7 +165,9 @@ The following describes the 0.6 protocol of Teeworlds.
 |       20  |     3  | event_damage_indicator |
 
 The following describes the 0.7 protocol of Teeworlds.
-There were more items added after the initial 0.7 release, but they're not "pre-agreed item sizes" to stay backward compatible.
+
+There were more items added after the initial 0.7 release, but they're not
+"pre-agreed item sizes" to stay backward compatible.
 
 | `type_id` | `size` | name                   |
 | --------: | -----: | ---------------------- |

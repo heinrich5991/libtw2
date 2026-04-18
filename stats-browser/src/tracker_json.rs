@@ -2,10 +2,10 @@ use crate::addr::ProtocolVersion;
 use crate::addr::ServerAddr;
 use crate::StatsBrowserCb;
 use arrayvec::ArrayString;
-use ipnet::Ipv4Net;
+use libloc::Locations;
 use libtw2_serverbrowse::protocol::ClientInfo;
-use libtw2_serverbrowse::protocol::IpAddr;
 use libtw2_serverbrowse::protocol::ServerInfo;
+use libtw2_serverbrowse::protocol::ServerInfoVersion;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::BTreeMap;
@@ -37,8 +37,19 @@ mod json {
     use std::fmt::Write;
     use uuid::Uuid;
 
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub enum Protocol {
+        V5,
+        V6,
+        V7,
+        Ddper6,
+    }
+
     #[derive(Eq, Hash, Ord, PartialEq, PartialOrd)]
-    pub struct Addr(pub addr::ServerAddr);
+    pub struct Addr {
+        pub protocol: Protocol,
+        pub addr: addr::Addr,
+    }
 
     #[derive(Serialize)]
     #[serde(rename_all = "snake_case")]
@@ -90,18 +101,34 @@ mod json {
         pub is_player: bool,
     }
 
+    impl Protocol {
+        pub fn from(
+            protocol_version: addr::ProtocolVersion,
+            info_version: protocol::ServerInfoVersion,
+        ) -> Protocol {
+            use self::Protocol::*;
+            match (protocol_version, info_version) {
+                (addr::ProtocolVersion::V5, _) => V5,
+                (addr::ProtocolVersion::V6, protocol::ServerInfoVersion::V6Ddper) => Ddper6,
+                (addr::ProtocolVersion::V6, _) => V6,
+                (addr::ProtocolVersion::V7, _) => V7,
+            }
+        }
+    }
+
     impl serde::Serialize for Addr {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {
             let mut result: ArrayString<[u8; 64]> = ArrayString::new();
-            result.push_str(match self.0.version {
-                addr::ProtocolVersion::V5 => "tw-0.5+udp://",
-                addr::ProtocolVersion::V6 => "tw-0.6+udp://",
-                addr::ProtocolVersion::V7 => "tw-0.7+udp://",
+            result.push_str(match self.protocol {
+                Protocol::V5 => "tw-0.5+udp://",
+                Protocol::V6 => "tw-0.6+udp://",
+                Protocol::V7 => "tw-0.7+udp://",
+                Protocol::Ddper6 => "ddper-0.6+udp://",
             });
-            write!(result, "{}", self.0.addr).unwrap();
+            write!(result, "{}", self.addr).unwrap();
             serializer.serialize_str(&result)
         }
     }
@@ -168,21 +195,16 @@ impl Timekeeper {
     }
 }
 
-#[derive(Deserialize)]
-struct LocationRecord {
-    network: Ipv4Net,
-    location: ArrayString<[u8; 15]>,
-}
-
 pub struct ServerEntry {
     location: Option<ArrayString<[u8; 15]>>,
     info: Option<json::ServerInfo>,
+    info_version: ServerInfoVersion,
     ping_time: Timestamp,
 }
 
 pub struct Tracker {
     filename: String,
-    locations: Vec<LocationRecord>,
+    locations: Option<Locations>,
     secret_seed: Uuid,
     servers: Arc<Mutex<HashMap<ServerAddr, ServerEntry>>>,
     timekeeper: Timekeeper,
@@ -200,16 +222,10 @@ impl Tracker {
         locations_filename: Option<String>,
         secret_seed: Option<Uuid>,
     ) -> Tracker {
-        let locations: Result<Vec<_>, _>;
-        if let Some(l) = locations_filename {
-            let mut locations_reader = csv::Reader::from_path(l).unwrap();
-            locations = locations_reader.deserialize().collect();
-        } else {
-            locations = Ok(Vec::new());
-        }
+        let locations = locations_filename.map(|filename| Locations::open(filename).unwrap());
         Tracker {
             filename,
-            locations: locations.unwrap(),
+            locations,
             secret_seed: secret_seed.unwrap_or_else(Uuid::new_v4),
             servers: Default::default(),
             timekeeper: Timekeeper::new(),
@@ -218,7 +234,7 @@ impl Tracker {
     pub fn start(&mut self) {
         let mut tracker_thread = Tracker {
             filename: mem::replace(&mut self.filename, String::new()),
-            locations: Vec::new(),
+            locations: None,
             secret_seed: self.secret_seed,
             servers: self.servers.clone(),
             timekeeper: self.timekeeper,
@@ -226,16 +242,17 @@ impl Tracker {
         thread::spawn(move || tracker_thread.handle_writeout());
     }
     fn lookup_location(&self, addr: ServerAddr) -> Option<ArrayString<[u8; 15]>> {
-        let ip_addr = match addr.addr.to_srvbrowse_addr().ip_address {
-            IpAddr::V4(a) => a,
-            IpAddr::V6(_) => return None, // sad smiley
-        };
-        for LocationRecord { network, location } in &self.locations {
-            if network.contains(&ip_addr) {
-                return Some(*location);
-            }
-        }
-        None
+        self.locations.as_ref().and_then(|locations| {
+            let ip_addr = addr.addr.to_srvbrowse_addr().ip_address;
+            let country_code = locations.lookup(ip_addr)?.country_code();
+            let continent_code = locations.country(country_code)?.continent_code();
+            let mut result = ArrayString::new();
+            result.push_str(continent_code);
+            result.push_str(":");
+            result.push_str(country_code);
+            result.make_ascii_lowercase();
+            Some(result)
+        })
     }
     fn handle_writeout(&mut self) {
         let temp_filename = format!("{}.tmp.{}", self.filename, process::id());
@@ -265,13 +282,19 @@ impl Tracker {
                             assert!(dump
                                 .addresses
                                 .insert(
-                                    json::Addr(server_addr),
+                                    json::Addr {
+                                        protocol: json::Protocol::from(
+                                            server_addr.version,
+                                            e.info_version
+                                        ),
+                                        addr: server_addr.addr,
+                                    },
                                     json::AddrInfo {
                                         kind: json::EntryKind::Backcompat,
                                         ping_time: e.ping_time,
                                         location: e.location,
                                         secret,
-                                    }
+                                    },
                                 )
                                 .is_none());
                             entry = Some(e);
@@ -290,8 +313,7 @@ impl Tracker {
                 }
 
                 {
-                    let temp_file = File::create(&temp_filename).unwrap();
-                    let mut temp_file = BufWriter::new(temp_file);
+                    let mut temp_file = BufWriter::new(File::create(&temp_filename).unwrap());
                     serde_json::to_writer(&mut temp_file, &dump).unwrap();
                     temp_file.flush().unwrap();
                     // Drop the temporary file.
@@ -315,6 +337,7 @@ impl Tracker {
 impl StatsBrowserCb for Tracker {
     fn on_server_new(&mut self, addr: ServerAddr, info: &ServerInfo) {
         let mut servers = self.servers.lock().unwrap();
+        let info_version = info.info_version;
         let info = json::ServerInfo::try_from(info).ok();
         assert!(servers
             .insert(
@@ -322,6 +345,7 @@ impl StatsBrowserCb for Tracker {
                 ServerEntry {
                     location: self.lookup_location(addr),
                     info,
+                    info_version,
                     ping_time: self.timekeeper.now(),
                 }
             )
@@ -331,6 +355,7 @@ impl StatsBrowserCb for Tracker {
         let mut servers = self.servers.lock().unwrap();
         let server = servers.get_mut(&addr).unwrap();
         server.info = json::ServerInfo::try_from(new).ok();
+        server.info_version = new.info_version;
         server.ping_time = self.timekeeper.now();
     }
     fn on_server_remove(&mut self, addr: ServerAddr, _last: &ServerInfo) {

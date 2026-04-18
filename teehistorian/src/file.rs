@@ -67,7 +67,7 @@ impl Reader {
     pub fn open<'a, P: AsRef<Path>>(
         path: P,
         buffer: &'a mut Buffer,
-    ) -> Result<(Header, Reader), Error> {
+    ) -> Result<(Header<'a>, Reader), Error> {
         fn inner<'a>(path: &Path, buffer: &'a mut Buffer) -> Result<(Header<'a>, Reader), Error> {
             Reader::new_impl(File::open(path)?, buffer)
         }

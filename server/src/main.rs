@@ -42,7 +42,6 @@ use libtw2_gamenet::snap_obj::ClientInfo;
 use libtw2_gamenet::snap_obj::GameInfo;
 use libtw2_gamenet::snap_obj::PlayerInfo;
 use libtw2_gamenet::snap_obj::Tick;
-use libtw2_gamenet::snap_obj::TypeId;
 use libtw2_gamenet::SnapObj;
 use libtw2_packer::string_to_ints3;
 use libtw2_packer::string_to_ints4;
@@ -50,14 +49,14 @@ use libtw2_packer::string_to_ints6;
 use libtw2_packer::with_packer;
 use libtw2_packer::Unpacker;
 use libtw2_snapshot::snap;
+use libtw2_warn as warn;
 use libtw2_world::vec2;
 use log::LogLevel;
 use ndarray::Array2;
 use std::cell::Cell;
 use std::fmt;
 use std::fmt::Write;
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::time::Duration;
 
 const TICKS_PER_SECOND: u32 = 50;
@@ -125,12 +124,9 @@ trait SnapBuilderExt {
 impl SnapBuilderExt for snap::Builder {
     fn add<O: Into<SnapObj>>(&mut self, id: u16, obj: O) {
         fn inner(builder: &mut snap::Builder, id: u16, obj: SnapObj) {
-            use self::TypeId::*;
-            let obj_type_id = match obj.obj_type_id() {
-                Ordinal(i) => i,
-                Uuid(_) => panic!("server doesn't support extended IDs yet"),
-            };
-            builder.add_item(obj_type_id, id, obj.encode()).unwrap();
+            builder
+                .add_item(obj.obj_type_id(), id, obj.encode())
+                .unwrap();
         }
         inner(self, id, obj.into())
     }
@@ -143,15 +139,14 @@ struct MapContents {
 
 impl Default for MapContents {
     fn default() -> MapContents {
-        let mut file = File::open("dm1.map").unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        MapContents { contents: contents }
+        MapContents {
+            contents: fs::read("dm1.map").unwrap(),
+        }
     }
 }
 
 impl MapContents {
-    fn serve_request(&self, rmd: system::RequestMapData) -> Option<system::MapData> {
+    fn serve_request(&self, rmd: system::RequestMapData) -> Option<system::MapData<'_>> {
         let chunk = unwrap_or_return!(rmd.chunk.try_u64());
         let offset = chunk * MAPDOWNLOAD_CHUNK_SIZE;
         if offset >= self.contents.len().u64() {

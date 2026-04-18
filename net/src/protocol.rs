@@ -1,19 +1,20 @@
 use arrayvec::ArrayVec;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use libtw2_buffer as buffer;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
 use libtw2_common::boilerplate_packed;
 use libtw2_common::bytes::FromBytesExt as _;
 use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_common::unwrap_or_return;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::fmt;
 use std::io::Write as _;
 use std::str;
-use warn::Ignore;
-use warn::Warn;
 use zerocopy::AsBytes as _;
 use zerocopy_derive::AsBytes;
 use zerocopy_derive::FromBytes;
@@ -296,17 +297,17 @@ pub fn write_chunk_impl<'d, 's>(
     Ok(buffer.initialized())
 }
 
-fn write_connless_packet<'a, B: Buffer<'a>>(bytes: &[u8], buffer: B) -> Result<&'a [u8], Error> {
-    fn inner<'d, 's>(bytes: &[u8], mut buffer: BufferRef<'d, 's>) -> Result<&'d [u8], Error> {
-        if bytes.len() > MAX_PAYLOAD {
+fn write_connless_packet<'a, B: Buffer<'a>>(payload: &[u8], buffer: B) -> Result<&'a [u8], Error> {
+    fn inner<'d, 's>(payload: &[u8], mut buffer: BufferRef<'d, 's>) -> Result<&'d [u8], Error> {
+        if payload.len() > MAX_PAYLOAD {
             return Err(Error::TooLongData);
         }
         buffer.write(&[b'\xff'; HEADER_SIZE + PADDING_SIZE_CONNLESS])?;
-        buffer.write(bytes)?;
+        buffer.write(payload)?;
         Ok(buffer.initialized())
     }
 
-    with_buffer(buffer, |b| inner(bytes, b))
+    with_buffer(buffer, |b| inner(payload, b))
 }
 
 fn has_token_heuristic(control: bool, num_chunks: u8, payload: &[u8]) -> bool {
@@ -370,6 +371,9 @@ impl<'a> Packet<'a> {
         let (header, payload) =
             unwrap_or_return!(PacketHeaderPacked::ref_and_rest_from(packet), false);
         let header = header.unpack_warn(&mut Ignore);
+        if header.flags & PACKETFLAG_CONNLESS != 0 {
+            return true;
+        }
         let ctrl = payload.first().copied();
         header.flags & !PACKETFLAG_REQUEST_RESEND == PACKETFLAG_CONTROL
             && (ctrl == Some(CTRLMSG_CONNECT) || ctrl == Some(CTRLMSG_ACCEPT))
@@ -917,10 +921,10 @@ mod test {
     use super::PACKET_FLAGS_BITS;
     use super::SEQUENCE_BITS;
     use libtw2_common::bytes::FromBytesExt;
+    use libtw2_warn::Ignore;
+    use libtw2_warn::Panic;
+    use libtw2_warn::Warn;
     use quickcheck::quickcheck;
-    use warn::Ignore;
-    use warn::Panic;
-    use warn::Warn;
     use zerocopy::AsBytes as _;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);
@@ -1039,6 +1043,7 @@ mod test {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_no_token {
+    use libtw2_warn::Ignore;
     use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
@@ -1046,7 +1051,6 @@ mod test_no_token {
     use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
-    use warn::Ignore;
 
     fn assert_warn(input: &[u8], warning: Warning) {
         super::test::assert_warn(false, false, input, warning);
@@ -1105,6 +1109,7 @@ mod test_no_token {
 #[cfg(test)]
 #[rustfmt::skip]
 mod test_token {
+    use libtw2_warn::Ignore;
     use quickcheck::quickcheck;
     use super::MAX_PACKETSIZE;
     use super::Packet;
@@ -1112,7 +1117,6 @@ mod test_token {
     use super::PacketReadError;
     use super::Warning::*;
     use super::Warning;
-    use warn::Ignore;
 
     fn assert_warn(input: &[u8], warning: Warning) {
         super::test::assert_warn(true, false, input, warning);

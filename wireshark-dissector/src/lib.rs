@@ -3,7 +3,9 @@ extern crate libtw2_wireshark_dissector_sys as sys;
 mod format;
 mod intern;
 mod spec;
+#[allow(static_mut_refs)]
 mod tw;
+#[allow(static_mut_refs)]
 mod tw7;
 
 #[cfg(test)]
@@ -18,6 +20,7 @@ mod test {
 use intern::intern;
 use intern::Interned;
 use libtw2_gamenet_spec::Identifier;
+use libtw2_warn as warn;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::os::raw::c_int;
@@ -30,7 +33,7 @@ pub static plugin_want_major: c_int = 4;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
-pub static plugin_want_minor: c_int = 2;
+pub static plugin_want_minor: c_int = 6;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]

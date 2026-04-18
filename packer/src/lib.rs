@@ -1,16 +1,16 @@
 use arrayvec::ArrayVec;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
-use buffer::CapacityError;
+use libtw2_buffer as buffer;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
+use libtw2_buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_common::unwrap_or_return;
-use std::iter;
+use libtw2_warn::Warn;
 use std::mem;
 use std::slice;
 #[cfg(feature = "uuid")]
 use uuid::Uuid;
-use warn::Warn;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Warning {
@@ -182,17 +182,17 @@ pub struct Unpacker<'a> {
 }
 
 impl<'a> Unpacker<'a> {
-    fn new_impl(data: &[u8], demo: bool) -> Unpacker {
+    fn new_impl(data: &[u8], demo: bool) -> Unpacker<'_> {
         Unpacker {
             original: data,
             iter: data.iter(),
             demo: demo,
         }
     }
-    pub fn new(data: &[u8]) -> Unpacker {
+    pub fn new(data: &[u8]) -> Unpacker<'_> {
         Unpacker::new_impl(data, false)
     }
-    pub fn new_from_demo(data: &[u8]) -> Unpacker {
+    pub fn new_from_demo(data: &[u8]) -> Unpacker<'_> {
         assert!(
             data.len() % 4 == 0,
             "demo data must be padded to a multiple of four bytes"
@@ -249,15 +249,15 @@ impl<'a> Unpacker<'a> {
     pub fn read_uuid(&mut self) -> Result<Uuid, UnexpectedEnd> {
         Ok(Uuid::from_slice(self.read_raw(mem::size_of::<Uuid>())?).unwrap())
     }
-    pub fn finish<W: Warn<Warning>>(&mut self, warn: &mut W) {
+    pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
         if !self.demo {
             if !self.is_empty() {
-                warn.warn(Warning::ExcessData);
+                warn.warn(ExcessData);
             }
         } else {
             let rest = self.as_slice();
             if rest.len() >= 4 || rest.iter().any(|&b| b != 0) {
-                warn.warn(Warning::ExcessData);
+                warn.warn(ExcessData);
             }
         }
         self.use_up();
@@ -271,23 +271,31 @@ impl<'a> Unpacker<'a> {
 }
 
 pub struct IntUnpacker<'a> {
-    iter: iter::Cloned<slice::Iter<'a, i32>>,
+    iter: slice::Iter<'a, i32>,
 }
 
 impl<'a> IntUnpacker<'a> {
-    pub fn new(slice: &[i32]) -> IntUnpacker {
-        IntUnpacker {
-            iter: slice.iter().cloned(),
-        }
+    pub fn new(slice: &[i32]) -> IntUnpacker<'_> {
+        IntUnpacker { iter: slice.iter() }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.iter.len() == 0
+    }
+    fn use_up(&mut self) {
+        // Advance the iterator to the end.
+        self.iter.by_ref().count();
     }
     pub fn read_int(&mut self) -> Result<i32, UnexpectedEnd> {
-        self.iter.next().ok_or(UnexpectedEnd)
+        self.iter.next().copied().ok_or(UnexpectedEnd)
     }
     pub fn finish<W: Warn<ExcessData>>(&mut self, warn: &mut W) {
-        // TODO: replace with !self.is_empty()
-        if self.iter.len() != 0 {
+        if !self.is_empty() {
             warn.warn(ExcessData);
         }
+        self.use_up();
+    }
+    pub fn as_slice(&self) -> &'a [i32] {
+        self.iter.as_slice()
     }
 }
 
@@ -366,16 +374,6 @@ pub fn string_to_ints6(string: &[u8]) -> [i32; 6] {
     result
 }
 
-pub fn ints_to_bytes(result: &mut [u8], input: &[i32]) {
-    assert!(result.len() == input.len() * mem::size_of::<i32>());
-    for (output, input) in result.chunks_mut(mem::size_of::<i32>()).zip(input) {
-        output[0] = (((input >> 24) & 0xff) - 0x80) as u8;
-        output[1] = (((input >> 16) & 0xff) - 0x80) as u8;
-        output[2] = (((input >> 8) & 0xff) - 0x80) as u8;
-        output[3] = (((input >> 0) & 0xff) - 0x80) as u8;
-    }
-}
-
 pub fn bytes_to_string<'a, W>(warn: &mut W, bytes: &'a [u8]) -> &'a [u8]
 where
     W: Warn<WeirdStringTermination>,
@@ -416,14 +414,15 @@ fn string_to_bytes_buffer_ref<'d, 's>(
 #[rustfmt::skip]
 mod test {
     use arrayvec::ArrayVec;
+    use libtw2_warn::Ignore;
+    use libtw2_warn::Panic;
     use quickcheck::quickcheck;
     use std::i32;
+    use super::ExcessData;
     use super::Unpacker;
     use super::Warning::*;
     use super::Warning;
     use super::with_packer;
-    use warn::Ignore;
-    use warn::Panic;
 
     fn assert_int_err(bytes: &[u8]) {
         let mut unpacker = Unpacker::new(bytes);

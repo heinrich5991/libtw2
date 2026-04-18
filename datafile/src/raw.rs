@@ -343,7 +343,7 @@ impl Reader {
             Ok(())
         }
     }
-    pub fn item(&self, index: usize) -> ItemView {
+    pub fn item(&self, index: usize) -> ItemView<'_> {
         let item_header = self.item_header(index);
         let data = &self.items_raw
             [relative_size_of_mult::<u8, i32>(self.item_offsets[index].assert_usize())..]
@@ -379,7 +379,7 @@ impl Reader {
         self.header.hr.num_item_types.assert_usize()
     }
 
-    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView> {
+    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView<'_>> {
         for item in self.item_type_items(type_id) {
             if item.id == item_id {
                 return Some(item);
@@ -400,7 +400,7 @@ impl Reader {
             for item in self.item_type_items(type_id) {
                 debug!("  item id={}", item.id);
                 for &data in item.data {
-                    #[cfg_attr(feature = "cargo-clippy", allow(identity_op))]
+                    #[allow(clippy::identity_op)]
                     fn i32_to_bytes(input: i32) -> [u8; 4] {
                         [
                             (((input >> 24) & 0xff) - 0x80) as u8,
@@ -436,19 +436,19 @@ impl Reader {
         Ok(())
     }
 
-    pub fn items(&self) -> Items {
+    pub fn items(&self) -> Items<'_> {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> ItemView<'a> {
             self_.item(i)
         }
         MapIterator::new(self, 0..self.num_items(), map_fn)
     }
-    pub fn item_types(&self) -> ItemTypes {
+    pub fn item_types(&self) -> ItemTypes<'_> {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> u16 {
             self_.item_type(i)
         }
         MapIterator::new(self, 0..self.num_item_types(), map_fn)
     }
-    pub fn item_type_items(&self, type_id: u16) -> ItemTypeItems {
+    pub fn item_type_items(&self, type_id: u16) -> ItemTypeItems<'_> {
         fn map_fn<'a>(i: usize, self_: &mut &'a Reader) -> ItemView<'a> {
             self_.item(i)
         }

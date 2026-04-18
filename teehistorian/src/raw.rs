@@ -29,7 +29,7 @@ macro_rules! unexp_end {
 
 const BUFFER_SIZE: usize = 8192;
 
-pub fn read_header(data: &[u8]) -> Result<Option<(usize, Header)>, format::HeaderError> {
+pub fn read_header(data: &[u8]) -> Result<Option<(usize, Header<'_>)>, format::HeaderError> {
     let mut p = Unpacker::new(data);
     unexp_end!(format::read_magic(&mut p))?;
     let header = unexp_end!(format::read_header(&mut p))?;
@@ -270,10 +270,13 @@ impl Reader {
             format::Item::DdnetverOld(i) => Item::DdnetverOld(i),
             format::Item::Joinver6(i) => Item::Joinver6(i),
             format::Item::Joinver7(i) => Item::Joinver7(i),
+            format::Item::PlayerFinish(i) => Item::PlayerFinish(i),
+            format::Item::PlayerName(i) => Item::PlayerName(i),
             format::Item::PlayerReady(i) => Item::PlayerReady(i),
             format::Item::PlayerRejoin(i) => Item::PlayerRejoin(i),
             format::Item::PlayerSwap(i) => Item::PlayerSwap(i),
             format::Item::PlayerTeam(i) => Item::PlayerTeam(i),
+            format::Item::TeamFinish(i) => Item::TeamFinish(i),
             format::Item::TeamLoadFailure(i) => Item::TeamLoadFailure(i),
             format::Item::TeamLoadSuccess(i) => Item::TeamLoadSuccess(i),
             format::Item::TeamPractice(i) => Item::TeamPractice(i),
@@ -417,7 +420,7 @@ impl Buffer {
         let raw_self: *mut Buffer = self;
         unsafe {
             loop {
-                let mut p = Unpacker::new(&(*raw_self).buffer[self.offset..]);
+                let mut p = Unpacker::new(&(&(*raw_self).buffer)[self.offset..]);
                 match kind.decode_rest(&mut p) {
                     Ok(x) => {
                         self.offset += p.num_bytes_read();
@@ -472,10 +475,13 @@ pub enum Item<'a> {
     DdnetverOld(item::DdnetverOld),
     Joinver6(item::Joinver6),
     Joinver7(item::Joinver7),
+    PlayerFinish(item::PlayerFinish),
+    PlayerName(item::PlayerName<'a>),
     PlayerReady(item::PlayerReady),
     PlayerRejoin(item::PlayerRejoin),
     PlayerSwap(item::PlayerSwap),
     PlayerTeam(item::PlayerTeam),
+    TeamFinish(item::TeamFinish),
     TeamLoadFailure(item::TeamLoadFailure),
     TeamLoadSuccess(item::TeamLoadSuccess<'a>),
     TeamPractice(item::TeamPractice),
@@ -518,10 +524,13 @@ impl<'a> fmt::Debug for Item<'a> {
             Item::DdnetverOld(ref i) => i.fmt(f),
             Item::Joinver6(ref i) => i.fmt(f),
             Item::Joinver7(ref i) => i.fmt(f),
+            Item::PlayerFinish(ref i) => i.fmt(f),
+            Item::PlayerName(ref i) => i.fmt(f),
             Item::PlayerReady(ref i) => i.fmt(f),
             Item::PlayerRejoin(ref i) => i.fmt(f),
             Item::PlayerSwap(ref i) => i.fmt(f),
             Item::PlayerTeam(ref i) => i.fmt(f),
+            Item::TeamFinish(ref i) => i.fmt(f),
             Item::TeamLoadFailure(ref i) => i.fmt(f),
             Item::TeamLoadSuccess(ref i) => i.fmt(f),
             Item::TeamPractice(ref i) => i.fmt(f),

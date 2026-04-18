@@ -5,19 +5,20 @@ version = "0.1.0"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "libtw2_net"
 
 [dependencies]
 arrayvec = "0.5.2"
-buffer = "0.1.9"
+pre-rfc3243-libtw2-buffer = { version = "0.1", path = "../buffer/" }
 pre-rfc3243-libtw2-common = { version = "0.1", path = "../common/" }
 pre-rfc3243-libtw2-huffman = { version = "0.1", path = "../huffman/" }
+pre-rfc3243-libtw2-warn = { version = "0.1", path = "../warn/" }
 linear-map = "1.0.0"
 optional = "0.0.12"
 void = ">=0.0.4,<2.0.0"
-warn = ">=0.1.1,<0.3.0"
 zerocopy = "0.7.32"
 zerocopy-derive = "0.7.32"
 

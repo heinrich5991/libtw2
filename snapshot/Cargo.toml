@@ -5,17 +5,20 @@ version = "0.1.0"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "libtw2_snapshot"
 
 [dependencies]
-buffer = "0.1.9"
+pre-rfc3243-libtw2-buffer = { version = "0.1", path = "../buffer/" }
 pre-rfc3243-libtw2-common = { version = "0.1", path = "../common/" }
+pre-rfc3243-libtw2-gamenet-common = { version = "0.1", path = "../gamenet/common/" }
 pre-rfc3243-libtw2-gamenet-snap = { version = "0.1", path = "../gamenet/snap/" }
 pre-rfc3243-libtw2-packer = { version = "0.1", path = "../packer/" }
+pre-rfc3243-libtw2-warn = { version = "0.1", path = "../warn/" }
+uuid = ">=0.8.1,<2.0.0"
 vec_map = "0.8.0"
-warn = ">=0.1.1,<0.3.0"
 
 [dev-dependencies]
 libtw2-gamenet = { package = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6", path = "../gamenet/teeworlds-0.6/" }

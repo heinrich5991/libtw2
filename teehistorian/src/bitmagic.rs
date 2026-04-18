@@ -1,7 +1,7 @@
 use crate::raw::Callback;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
 use libtw2_common::unwrap_or_return;
 
 pub trait CallbackExt: Callback {

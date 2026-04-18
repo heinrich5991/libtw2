@@ -4,15 +4,16 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "libtw2_socket"
 
 [dependencies]
-buffer = "0.1.9"
 hexdump = "0.1.1"
 itertools = ">=0.3.0,<0.5.0"
 libc = "0.2.16"
+pre-rfc3243-libtw2-buffer = { path = "../buffer/" }
 pre-rfc3243-libtw2-common = { path = "../common/" }
 pre-rfc3243-libtw2-net = { path = "../net/" }
 log = "0.3.1"

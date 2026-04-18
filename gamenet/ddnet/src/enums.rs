@@ -1,12 +1,18 @@
 use libtw2_packer::IntOutOfRange;
 
-pub const MAX_CLIENTS: i32 = 64;
+pub const MAX_CLIENTS: i32 = 128;
+pub const WEAPON_GAME: i32 = -3;
+pub const WEAPON_SELF: i32 = -2;
+pub const WEAPON_WORLD: i32 = -1;
 pub const SPEC_FREEVIEW: i32 = -1;
+pub const NUM_TUNEZONES: i32 = 256;
+pub const TUNE_ZONE_OVERRIDE_NONE: i32 = -1;
+pub const TUNE_ZONE_NUM: i32 = 256;
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
 pub const VERSION: &'static str = "0.6 626fce9a778df4d4";
-pub const DDNET_VERSION: i32 = 17021;
+pub const DDNET_VERSION: i32 = 19060;
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
@@ -183,6 +189,40 @@ pub enum Laserguntype {
     Expfreeze,
 }
 
+pub const TEAM_ALL: i32 = -2;
+pub const TEAM_SPECTATORS: i32 = -1;
+pub const TEAM_RED: i32 = 0;
+pub const TEAM_BLUE: i32 = 1;
+pub const TEAM_WHISPER_SEND: i32 = 2;
+pub const TEAM_WHISPER_RECV: i32 = 3;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Team {
+    All = -2,
+    Spectators,
+    Red,
+    Blue,
+    WhisperSend,
+    WhisperRecv,
+}
+
+pub const SAVESTATE_PENDING: i32 = 0;
+pub const SAVESTATE_DONE: i32 = 1;
+pub const SAVESTATE_FALLBACKFILE: i32 = 2;
+pub const SAVESTATE_WARNING: i32 = 3;
+pub const SAVESTATE_ERROR: i32 = 4;
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Savestate {
+    Pending,
+    Done,
+    Fallbackfile,
+    Warning,
+    Error,
+}
+
 pub const WEAPON_HAMMER: i32 = 0;
 pub const WEAPON_PISTOL: i32 = 1;
 pub const WEAPON_SHOTGUN: i32 = 2;
@@ -199,18 +239,6 @@ pub enum Weapon {
     Grenade,
     Rifle,
     Ninja,
-}
-
-pub const TEAM_SPECTATORS: i32 = -1;
-pub const TEAM_RED: i32 = 0;
-pub const TEAM_BLUE: i32 = 1;
-
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-pub enum Team {
-    Spectators = -1,
-    Red,
-    Blue,
 }
 
 pub const SOUND_GUN_FIRE: i32 = 0;
@@ -537,6 +565,56 @@ impl Laserguntype {
     }
 }
 
+impl Team {
+    pub fn from_i32(i: i32) -> Result<Team, IntOutOfRange> {
+        use self::Team::*;
+        Ok(match i {
+            TEAM_ALL => All,
+            TEAM_SPECTATORS => Spectators,
+            TEAM_RED => Red,
+            TEAM_BLUE => Blue,
+            TEAM_WHISPER_SEND => WhisperSend,
+            TEAM_WHISPER_RECV => WhisperRecv,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Team::*;
+        match self {
+            All => TEAM_ALL,
+            Spectators => TEAM_SPECTATORS,
+            Red => TEAM_RED,
+            Blue => TEAM_BLUE,
+            WhisperSend => TEAM_WHISPER_SEND,
+            WhisperRecv => TEAM_WHISPER_RECV,
+        }
+    }
+}
+
+impl Savestate {
+    pub fn from_i32(i: i32) -> Result<Savestate, IntOutOfRange> {
+        use self::Savestate::*;
+        Ok(match i {
+            SAVESTATE_PENDING => Pending,
+            SAVESTATE_DONE => Done,
+            SAVESTATE_FALLBACKFILE => Fallbackfile,
+            SAVESTATE_WARNING => Warning,
+            SAVESTATE_ERROR => Error,
+            _ => return Err(IntOutOfRange),
+        })
+    }
+    pub fn to_i32(self) -> i32 {
+        use self::Savestate::*;
+        match self {
+            Pending => SAVESTATE_PENDING,
+            Done => SAVESTATE_DONE,
+            Fallbackfile => SAVESTATE_FALLBACKFILE,
+            Warning => SAVESTATE_WARNING,
+            Error => SAVESTATE_ERROR,
+        }
+    }
+}
+
 impl Weapon {
     pub fn from_i32(i: i32) -> Result<Weapon, IntOutOfRange> {
         use self::Weapon::*;
@@ -559,26 +637,6 @@ impl Weapon {
             Grenade => WEAPON_GRENADE,
             Rifle => WEAPON_RIFLE,
             Ninja => WEAPON_NINJA,
-        }
-    }
-}
-
-impl Team {
-    pub fn from_i32(i: i32) -> Result<Team, IntOutOfRange> {
-        use self::Team::*;
-        Ok(match i {
-            TEAM_SPECTATORS => Spectators,
-            TEAM_RED => Red,
-            TEAM_BLUE => Blue,
-            _ => return Err(IntOutOfRange),
-        })
-    }
-    pub fn to_i32(self) -> i32 {
-        use self::Team::*;
-        match self {
-            Spectators => TEAM_SPECTATORS,
-            Red => TEAM_RED,
-            Blue => TEAM_BLUE,
         }
     }
 }

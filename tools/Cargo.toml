@@ -10,12 +10,12 @@ name = "libtw2_tools"
 
 [dependencies]
 arrayvec = "0.5.2"
-buffer = "0.1.9"
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.23.1"
 csv = "1.1.6"
 hexdump = "0.1.1"
 itertools = "0.7.4"
+pre-rfc3243-libtw2-buffer = { path = "../buffer/" }
 pre-rfc3243-libtw2-common = { path = "../common/" }
 pre-rfc3243-libtw2-datafile = { path = "../datafile/" }
 pre-rfc3243-libtw2-demo = { path = "../demo/" }
@@ -31,13 +31,13 @@ pre-rfc3243-libtw2-serverbrowse = { path = "../serverbrowse/" }
 pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }
 pre-rfc3243-libtw2-teehistorian = { path = "../teehistorian/" }
 pre-rfc3243-libtw2-world = { path = "../world/" }
+pre-rfc3243-libtw2-warn = { path = "../warn/" }
 log = "0.3.1"
 rmp = "0.8.5"
 serde = "1.0.23"
 serde_derive = "1.0.27"
 serde_json = "1.0.7"
-uuid = { version = "0.8.1", features = ["serde"] }
+uuid = { version = ">=0.8.1,<2.0.0", features = ["serde"] }
 vec_map = "0.8.0"
 void = "1.0.2"
 walkdir = "2.0.1"
-warn = "0.2.2"

@@ -12,10 +12,10 @@ use libtw2_teehistorian::Error;
 use libtw2_teehistorian::Input;
 use libtw2_teehistorian::Item;
 use libtw2_teehistorian::Reader;
+use libtw2_warn::Ignore;
 use std::path::Path;
 use std::process;
 use vec_map::VecMap;
-use warn::Ignore;
 
 struct Info {
     name: ArrayVec<[u8; 4 * 4 - 1]>,

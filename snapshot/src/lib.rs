@@ -1,3 +1,4 @@
+use self::read_int::ReadInt;
 use libtw2_common::num::Cast;
 use std::ops;
 
@@ -12,8 +13,9 @@ pub use self::receiver::DeltaReceiver;
 pub use self::receiver::ReceivedDelta;
 pub use self::snap::Delta;
 pub use self::snap::Snap;
-pub use self::snap::SnapReader;
 pub use self::storage::Storage;
+
+mod read_int;
 
 fn to_usize(r: ops::Range<u32>) -> ops::Range<usize> {
     r.start.usize()..r.end.usize()

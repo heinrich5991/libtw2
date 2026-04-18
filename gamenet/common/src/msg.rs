@@ -1,12 +1,13 @@
 use crate::error::Error;
 use crate::error::InvalidIntString;
 use arrayvec::ArrayVec;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::slice;
 use libtw2_packer::ExcessData;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
+use libtw2_warn::Warn;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::fmt;
@@ -14,7 +15,6 @@ use std::io::Write;
 use std::mem;
 use std::str;
 use uuid::Uuid;
-use warn::Warn;
 use zerocopy::byteorder::big_endian;
 
 pub const CLIENTS_DATA_NONE: ClientsData<'static> = ClientsData { inner: b"" };
@@ -25,7 +25,7 @@ pub struct ClientsData<'a> {
 }
 
 impl<'a> ClientsData<'a> {
-    pub fn from_bytes(bytes: &[u8]) -> ClientsData {
+    pub fn from_bytes(bytes: &[u8]) -> ClientsData<'_> {
         ClientsData { inner: bytes }
     }
     pub fn as_bytes(&self) -> &[u8] {

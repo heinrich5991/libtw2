@@ -97,7 +97,7 @@ types:
       # tick
       - id: tick_absolute
         type: s4
-        if: is_tick and (_root.header.version >= 5 ? not inline_tick_delta : tick_delta_v3 == 0)
+        if: 'is_tick and (_root.header.version >= 5 ? not inline_tick_delta : tick_delta_v3 == 0)'
 
       # non-tick
       - id: size_extern_8
@@ -111,8 +111,8 @@ types:
 
     instances:
       tick_delta:
-        value: _root.header.version >= 5 ? tick_delta_v5 : tick_delta_v3
-        if: is_tick and (_root.header.version >= 5 ? inline_tick_delta : tick_delta_v3 != 0)
+        value: '_root.header.version >= 5 ? tick_delta_v5 : tick_delta_v3'
+        if: 'is_tick and (_root.header.version >= 5 ? inline_tick_delta : tick_delta_v3 != 0)'
       size:
-        value: size_inline == 31 ? size_extern_16 : size_inline == 30 ? size_extern_8 : size_inline
+        value: 'size_inline == 31 ? size_extern_16 : size_inline == 30 ? size_extern_8 : size_inline'
         if: not is_tick

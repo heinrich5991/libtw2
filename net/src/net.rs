@@ -11,15 +11,15 @@ use crate::Connection;
 use crate::Timeout;
 use crate::Timestamp;
 use arrayvec::ArrayVec;
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
+use libtw2_warn::Panic;
+use libtw2_warn::Warn;
 use std::fmt;
 use std::hash::Hash;
 use std::iter;
 use std::ops;
-use warn::Panic;
-use warn::Warn;
 
 pub use crate::connection::Error;
 
@@ -118,10 +118,10 @@ impl<A: Address> Peers<A> {
             }
         }
     }
-    fn iter(&self) -> peer_map::Iter<Peer<A>> {
+    fn iter(&self) -> peer_map::Iter<'_, Peer<A>> {
         self.peers.iter()
     }
-    fn iter_mut(&mut self) -> peer_map::IterMut<Peer<A>> {
+    fn iter_mut(&mut self) -> peer_map::IterMut<'_, Peer<A>> {
         self.peers.iter_mut()
     }
     fn remove_peer(&mut self, pid: PeerId) {
@@ -308,7 +308,7 @@ struct ConnectionCallback<'a, A: Address, CB: Callback<A> + 'a> {
 }
 
 // Create `ConnectionCallback`.
-fn cc<A: Address, CB: Callback<A>>(cb: &mut CB, addr: A) -> ConnectionCallback<A, CB> {
+fn cc<A: Address, CB: Callback<A>>(cb: &mut CB, addr: A) -> ConnectionCallback<'_, A, CB> {
     ConnectionCallback { cb: cb, addr: addr }
 }
 
@@ -332,7 +332,7 @@ struct WarnCallback<'a, A: Address, W: Warn<Warning<A>> + 'a> {
     addr: A,
 }
 
-fn w<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A) -> WarnCallback<A, W> {
+fn w<A: Address, W: Warn<Warning<A>>>(warn: &mut W, addr: A) -> WarnCallback<'_, A, W> {
     WarnCallback {
         warn: warn,
         addr: addr,
@@ -355,7 +355,7 @@ fn wp<A: Address, W: Warn<Warning<A>>>(
     warn: &mut W,
     addr: A,
     pid: PeerId,
-) -> WarnPeerCallback<A, W> {
+) -> WarnPeerCallback<'_, A, W> {
     WarnPeerCallback {
         warn: warn,
         addr: addr,
@@ -481,7 +481,7 @@ impl<A: Address> Net<A> {
         self.peers.remove_peer(pid);
         result
     }
-    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB) -> Tick<A, CB> {
+    pub fn tick<'a, CB: Callback<A>>(&'a mut self, cb: &'a mut CB) -> Tick<'a, A, CB> {
         Tick {
             iter_mut: self.peers.iter_mut(),
             cb: cb,
@@ -580,10 +580,10 @@ mod test {
     use crate::protocol;
     use crate::Timestamp;
     use itertools::Itertools;
+    use libtw2_warn::Panic;
     use std::collections::VecDeque;
     use void::ResultVoidExt;
     use void::Void;
-    use warn::Panic;
 
     #[test]
     fn establish_connection() {

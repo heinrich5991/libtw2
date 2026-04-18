@@ -1,7 +1,7 @@
 use libtw2_gamenet_common::error::Error;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
-use warn::Warn;
+use libtw2_warn::Warn;
 
 pub mod connless;
 pub mod game;
@@ -44,3 +44,12 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
     libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
 
+pub fn decode_msg<'a, W>(warn: &mut W, id: SystemOrGame<MessageId, MessageId>, p: &mut Unpacker<'a>)
+    -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
+    where W: Warn<Warning>
+{
+    Ok(match id {
+        SystemOrGame::System(id) => SystemOrGame::System(System::decode_msg(warn, id, p)?),
+        SystemOrGame::Game(id) => SystemOrGame::Game(Game::decode_msg(warn, id, p)?),
+    })
+}

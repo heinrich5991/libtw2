@@ -2,8 +2,11 @@ use clap::App;
 use clap::Arg;
 use libtw2_demo::ddnet;
 use libtw2_gamenet_ddnet::Protocol as DDNet;
+use libtw2_warn as warn;
 use std::error::Error;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::BufWriter;
 use std::process;
 
 fn main() {
@@ -44,8 +47,8 @@ fn main() {
 }
 
 fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
-    let input_file = fs::File::open(input)?;
-    let output_file = fs::File::create(output)?;
+    let input_file = BufReader::new(File::open(input)?);
+    let output_file = BufWriter::new(File::create(output)?);
     let mut reader = libtw2_demo::Reader::new(input_file, &mut warn::Ignore)?;
     let mut writer = libtw2_demo::Writer::new(
         output_file,
@@ -65,19 +68,19 @@ fn read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
-    let input_file = fs::File::open(input)?;
-    let output_file = fs::File::create(output)?;
+    let input_file = BufReader::new(File::open(input)?);
+    let output_file = BufWriter::new(File::create(output)?);
     let mut reader = ddnet::DemoReader::<DDNet>::new(input_file, &mut warn::Log)?;
     let mut writer = ddnet::DemoWriter::<DDNet>::new(
         output_file,
-        reader.inner().net_version(),
-        reader.inner().map_name(),
-        reader.inner().map_sha256(),
-        reader.inner().map_crc(),
-        reader.inner().kind(),
-        reader.inner().length(),
-        reader.inner().timestamp(),
-        reader.inner().map_data(),
+        reader.net_version(),
+        reader.map_name(),
+        reader.map_sha256(),
+        reader.map_crc(),
+        reader.kind(),
+        reader.length(),
+        reader.timestamp(),
+        reader.map_data(),
     )?;
     let mut last_tick = None;
     while let Some(chunk) = reader.next_chunk(&mut warn::Log)? {

@@ -1,16 +1,19 @@
-use buffer::with_buffer;
-use buffer::Buffer;
-use buffer::BufferRef;
+use arrayvec::ArrayVec;
+use libtw2_buffer as buffer;
+use libtw2_buffer::with_buffer;
+use libtw2_buffer::Buffer;
+use libtw2_buffer::BufferRef;
 use libtw2_common::boilerplate_packed;
 use libtw2_common::bytes::FromBytesExt as _;
 use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_common::unwrap_or_return;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
 use std::fmt;
-use warn::Ignore;
-use warn::Warn;
+use std::mem;
 use zerocopy::AsBytes;
 use zerocopy_derive::AsBytes;
 use zerocopy_derive::FromBytes;
@@ -53,6 +56,18 @@ pub const PACKET_FLAGS_BITS: u32 = 4;
 pub const SEQUENCE_BITS: u32 = 10;
 pub const SEQUENCE_MODULUS: u16 = 1 << SEQUENCE_BITS;
 pub const VERSION_BITS: u32 = 2;
+
+#[derive(Debug)]
+pub enum Error {
+    Capacity(buffer::CapacityError),
+    TooLongData,
+}
+
+impl From<buffer::CapacityError> for Error {
+    fn from(e: buffer::CapacityError) -> Error {
+        Error::Capacity(e)
+    }
+}
 
 pub fn chunk_header_size(vital: bool) -> usize {
     if vital {
@@ -130,6 +145,196 @@ impl fmt::Display for Token {
     }
 }
 
+impl Token {
+    pub fn random<F: FnMut(&mut [u8])>(mut f: F) -> Token {
+        loop {
+            let mut token = TOKEN_NONE;
+            f(&mut token.0);
+            if token != TOKEN_NONE {
+                return token;
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConnlessPacket<'a> {
+    pub payload: &'a [u8],
+    pub token: Token,
+    pub response_token: Token,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConnectedPacket<'a> {
+    pub ack: u16, // u10
+    pub token: Token,
+    pub type_: ConnectedPacketType<'a>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ConnectedPacketType<'a> {
+    // Chunks(request_resend, num_chunks, payload)
+    Chunks(bool, u8, &'a [u8]),
+    Control(ControlPacket<'a>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Packet<'a> {
+    Connless(ConnlessPacket<'a>),
+    Connected(ConnectedPacket<'a>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Chunk<'a> {
+    pub data: &'a [u8],
+    // vital: Some((sequence, resend))
+    pub vital: Option<(u16, bool)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ChunksIter<'a> {
+    data: &'a [u8],
+    initial_len: usize,
+    num_remaining_chunks: i32,
+    checked_num_chunks_warning: bool,
+}
+
+impl<'a> ChunksIter<'a> {
+    pub fn new(data: &'a [u8], num_chunks: u8) -> ChunksIter<'a> {
+        ChunksIter {
+            data: data,
+            initial_len: data.len(),
+            num_remaining_chunks: num_chunks.i32(),
+            checked_num_chunks_warning: false,
+        }
+    }
+    fn excess_data<W: Warn<Warning>>(&mut self, warn: &mut W) -> Option<Chunk<'static>> {
+        warn.warn(Warning::ChunksUnknownData);
+        self.data = &[];
+        None
+    }
+    pub fn pos(&self) -> usize {
+        self.initial_len - self.data.len()
+    }
+    pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
+    where
+        W: Warn<Warning>,
+    {
+        if self.data.len() == 0 {
+            if !self.checked_num_chunks_warning {
+                self.checked_num_chunks_warning = true;
+                if self.num_remaining_chunks != 0 {
+                    warn.warn(Warning::ChunksNumChunks);
+                }
+            }
+            return None;
+        }
+        let (header, sequence, chunk_data_and_rest) =
+            unwrap_or_return!(read_chunk_header(warn, self.data), self.excess_data(warn));
+        let vital = sequence.map(|s| (s, header.flags & CHUNKFLAG_RESEND != 0));
+        let size = header.size.usize();
+        if chunk_data_and_rest.len() < size {
+            return self.excess_data(warn);
+        }
+        let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
+        self.data = rest;
+        self.num_remaining_chunks -= 1;
+        Some(Chunk {
+            data: chunk_data,
+            vital: vital,
+        })
+    }
+}
+
+impl<'a> Iterator for ChunksIter<'a> {
+    type Item = Chunk<'a>;
+    fn next(&mut self) -> Option<Chunk<'a>> {
+        self.next_warn(&mut Ignore)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.clone().count();
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for ChunksIter<'a> {}
+
+// TODO: Make this a member function of `Chunk`
+// vital: Some((sequence, resend))
+pub fn write_chunk<'a, B: Buffer<'a>>(
+    bytes: &[u8],
+    vital: Option<(u16, bool)>,
+    buffer: B,
+) -> Result<&'a [u8], buffer::CapacityError> {
+    with_buffer(buffer, |b| write_chunk_impl(bytes, vital, b))
+}
+
+pub fn write_chunk_impl<'d, 's>(
+    bytes: &[u8],
+    vital: Option<(u16, bool)>,
+    mut buffer: BufferRef<'d, 's>,
+) -> Result<&'d [u8], buffer::CapacityError> {
+    assert!(bytes.len() >> CHUNK_SIZE_BITS == 0);
+    let size = bytes.len().assert_u16();
+
+    let (sequence, resend) = vital.unwrap_or((0, false));
+    let resend_flag = if resend { CHUNKFLAG_RESEND } else { 0 };
+    let vital_flag = if vital.is_some() { CHUNKFLAG_VITAL } else { 0 };
+    let flags = vital_flag | resend_flag;
+
+    let header_nonvital = ChunkHeader {
+        flags: flags,
+        size: size,
+    };
+
+    let header1;
+    let header2;
+    let header: &[u8] = if vital.is_some() {
+        header1 = ChunkHeaderVital {
+            h: header_nonvital,
+            sequence: sequence,
+        }
+        .pack();
+        header1.as_bytes()
+    } else {
+        header2 = header_nonvital.pack();
+        header2.as_bytes()
+    };
+    buffer.write(header)?;
+    buffer.write(bytes)?;
+    Ok(buffer.initialized())
+}
+
+fn write_connless_packet<'a, B: Buffer<'a>>(
+    packet: &ConnlessPacket<'_>,
+    buffer: B,
+) -> Result<&'a [u8], Error> {
+    fn inner<'d, 's>(
+        packet: &ConnlessPacket<'_>,
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], Error> {
+        let ConnlessPacket {
+            payload,
+            token,
+            response_token,
+        } = *packet;
+        if payload.len() > MAX_PAYLOAD {
+            return Err(Error::TooLongData);
+        }
+        let header = PacketHeaderConnless {
+            flags: PACKETFLAG_CONNLESS,
+            version: CONNLESS_VERSION,
+            token,
+            response_token,
+        };
+        buffer.write(header.pack().as_bytes())?;
+        buffer.write(payload)?;
+        Ok(buffer.initialized())
+    }
+
+    with_buffer(buffer, |b| inner(packet, b))
+}
+
 impl<'a> Packet<'a> {
     fn needs_decompression(packet: &[u8]) -> bool {
         if packet.len() > MAX_PACKETSIZE {
@@ -199,7 +404,11 @@ impl<'a> Packet<'a> {
                 warn.warn(Warning::ConnlessFlags);
             }
 
-            return Ok(Packet::Connless(payload));
+            return Ok(Packet::Connless(ConnlessPacket {
+                payload,
+                token: header.token,
+                response_token: header.response_token,
+            }));
         }
 
         let payload = if header.flags & PACKETFLAG_COMPRESSION != 0 {
@@ -292,6 +501,7 @@ impl<'a> Packet<'a> {
 
         Ok(Packet::Connected(ConnectedPacket {
             ack: ack,
+            token: header.token,
             type_: type_,
         }))
     }
@@ -343,101 +553,113 @@ impl<'a> Packet<'a> {
 
         Ok(buffer.initialized())
     }
-}
 
-#[derive(Clone, Copy, Debug)]
-pub struct ConnectedPacket<'a> {
-    pub ack: u16, // u10
-    pub type_: ConnectedPacketType<'a>,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ConnectedPacketType<'a> {
-    // Chunks(request_resend, num_chunks, payload)
-    Chunks(bool, u8, &'a [u8]),
-    Control(ControlPacket<'a>),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum Packet<'a> {
-    Connless(&'a [u8]),
-    Connected(ConnectedPacket<'a>),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Chunk<'a> {
-    pub data: &'a [u8],
-    // vital: Some((sequence, resend))
-    pub vital: Option<(u16, bool)>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ChunksIter<'a> {
-    data: &'a [u8],
-    initial_len: usize,
-    num_remaining_chunks: i32,
-    checked_num_chunks_warning: bool,
-}
-
-impl<'a> ChunksIter<'a> {
-    pub fn new(data: &'a [u8], num_chunks: u8) -> ChunksIter<'a> {
-        ChunksIter {
-            data: data,
-            initial_len: data.len(),
-            num_remaining_chunks: num_chunks.i32(),
-            checked_num_chunks_warning: false,
+    pub fn write<'b, B: Buffer<'b>>(&self, buffer: B) -> Result<&'b [u8], Error> {
+        match *self {
+            Packet::Connected(ref p) => with_buffer(buffer, |b| p.write_impl(b)),
+            Packet::Connless(ref d) => write_connless_packet(d, buffer),
         }
     }
-    fn excess_data<W: Warn<Warning>>(&mut self, warn: &mut W) -> Option<Chunk<'static>> {
-        warn.warn(Warning::ChunksUnknownData);
-        self.data = &[];
-        None
+}
+
+impl<'a> ConnectedPacket<'a> {
+    pub fn write<'b, B: Buffer<'b>>(&self, buffer: B) -> Result<&'b [u8], Error> {
+        with_buffer(buffer, |b| self.write_impl(b))
     }
-    pub fn pos(&self) -> usize {
-        self.initial_len - self.data.len()
+
+    fn write_impl<'d, 's>(&self, mut buffer: BufferRef<'d, 's>) -> Result<&'d [u8], Error> {
+        match self.type_ {
+            ConnectedPacketType::Chunks(request_resend, num_chunks, payload) => {
+                let mut compression_buffer: ArrayVec<[u8; 2048]> = ArrayVec::new();
+                let mut compression = 0;
+                let comp_result = HUFFMAN.compress(payload, &mut compression_buffer);
+                if comp_result
+                    .map(|s| s.len() < payload.len())
+                    .unwrap_or(false)
+                {
+                    compression = PACKETFLAG_COMPRESSION;
+                }
+                let request_resend = if request_resend {
+                    PACKETFLAG_REQUEST_RESEND
+                } else {
+                    0
+                };
+                buffer.write(
+                    PacketHeader {
+                        flags: request_resend | compression,
+                        ack: self.ack,
+                        num_chunks: num_chunks,
+                        token: self.token,
+                    }
+                    .pack()
+                    .as_bytes(),
+                )?;
+                buffer.write(if compression != 0 {
+                    &compression_buffer
+                } else {
+                    payload
+                })?;
+                Ok(buffer.initialized())
+            }
+            ConnectedPacketType::Control(c) => c.write(self.token, self.ack, buffer),
+        }
     }
-    pub fn next_warn<W>(&mut self, warn: &mut W) -> Option<Chunk<'a>>
-    where
-        W: Warn<Warning>,
-    {
-        if self.data.len() == 0 {
-            if !self.checked_num_chunks_warning {
-                self.checked_num_chunks_warning = true;
-                if self.num_remaining_chunks != 0 {
-                    warn.warn(Warning::ChunksNumChunks);
+}
+
+impl<'a> ControlPacket<'a> {
+    fn write<'d, 's>(
+        &self,
+        token: Token,
+        ack: u16,
+        mut buffer: BufferRef<'d, 's>,
+    ) -> Result<&'d [u8], Error> {
+        buffer.write(
+            PacketHeader {
+                flags: PACKETFLAG_CONTROL,
+                ack: ack,
+                num_chunks: 0,
+                token: token,
+            }
+            .pack()
+            .as_bytes(),
+        )?;
+        let magic = match *self {
+            ControlPacket::KeepAlive => CTRLMSG_KEEPALIVE,
+            ControlPacket::Connect(..) => CTRLMSG_CONNECT,
+            ControlPacket::Accept => CTRLMSG_ACCEPT,
+            ControlPacket::Close(..) => CTRLMSG_CLOSE,
+            ControlPacket::Token(..) => CTRLMSG_TOKEN,
+        };
+        buffer.write(&[magic])?;
+        match *self {
+            ControlPacket::KeepAlive => {}
+            ControlPacket::Connect(response_token) => {
+                assert!(response_token != TOKEN_NONE);
+                buffer.write(&response_token.0)?;
+            }
+            ControlPacket::Accept => {}
+            ControlPacket::Close(m) => {
+                assert!(m.iter().all(|&b| b != 0));
+                buffer.write(m)?;
+                buffer.write(&[0])?;
+            }
+            ControlPacket::Token(response_token) => {
+                assert!(response_token != TOKEN_NONE);
+                buffer.write(&response_token.0)?;
+                if token == TOKEN_NONE {
+                    const ADDITIONAL: usize = TOKEN_REQUEST_PACKET_SIZE
+                        - mem::size_of::<PacketHeaderPacked>()
+                        - 1
+                        - mem::size_of::<Token>();
+                    buffer.write(&[0; ADDITIONAL])?;
                 }
             }
-            return None;
         }
-        let (header, sequence, chunk_data_and_rest) =
-            unwrap_or_return!(read_chunk_header(warn, self.data), self.excess_data(warn));
-        let vital = sequence.map(|s| (s, header.flags & CHUNKFLAG_RESEND != 0));
-        let size = header.size.usize();
-        if chunk_data_and_rest.len() < size {
-            return self.excess_data(warn);
-        }
-        let (chunk_data, rest) = chunk_data_and_rest.split_at(size);
-        self.data = rest;
-        self.num_remaining_chunks -= 1;
-        Some(Chunk {
-            data: chunk_data,
-            vital: vital,
-        })
+        let result = buffer.initialized();
+        assert!(result.len() <= MAX_PACKETSIZE);
+        Ok(result)
     }
 }
-
-impl<'a> Iterator for ChunksIter<'a> {
-    type Item = Chunk<'a>;
-    fn next(&mut self) -> Option<Chunk<'a>> {
-        self.next_warn(&mut Ignore)
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.clone().count();
-        (len, Some(len))
-    }
-}
-
-impl<'a> ExactSizeIterator for ChunksIter<'a> {}
 
 #[repr(C, packed)]
 #[derive(AsBytes, Clone, Copy, FromBytes, FromZeroes)]
@@ -694,6 +916,8 @@ boilerplate_packed!(
 #[rustfmt::skip]
 mod test {
     use libtw2_common::bytes::FromBytesExt as _;
+    use libtw2_warn::Panic;
+    use libtw2_warn::Warn;
     use quickcheck::quickcheck;
     use super::CHUNK_FLAGS_BITS;
     use super::CHUNK_SIZE_BITS;
@@ -715,8 +939,6 @@ mod test {
     use super::Token;
     use super::Warning::*;
     use super::Warning;
-    use warn::Panic;
-    use warn::Warn;
     use zerocopy::AsBytes as _;
 
     struct WarnVec<'a>(&'a mut Vec<Warning>);

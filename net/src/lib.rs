@@ -1,5 +1,6 @@
 pub mod collections;
 pub mod connection;
+pub mod connection7;
 pub mod net;
 pub mod protocol;
 pub mod protocol7;

@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use binrw::BinWrite;
+use libtw2_buffer as buffer;
 use libtw2_common::digest::Sha256;
 use libtw2_common::num::Cast;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
@@ -32,8 +33,8 @@ impl WriteError {
     }
 }
 
-pub struct Writer {
-    file: Box<dyn SeekableWrite>,
+pub struct Writer<'a> {
+    file: Box<dyn SeekableWrite + 'a>,
     header: Header,
     prev_tick: Option<i32>,
     huffman: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
@@ -46,8 +47,8 @@ const WRITER_VERSION_DDNET: Version = Version::V6Ddnet;
 pub(crate) trait SeekableWrite: io::Write + io::Seek {}
 impl<T: io::Write + io::Seek> SeekableWrite for T {}
 
-impl Writer {
-    pub fn new<W: io::Write + io::Seek + 'static>(
+impl<'a> Writer<'a> {
+    pub fn new<W: io::Write + io::Seek + 'a>(
         file: W,
         net_version: &[u8],
         map_name: &[u8],
@@ -57,7 +58,7 @@ impl Writer {
         length: i32,
         timestamp: &[u8],
         map: &[u8],
-    ) -> Result<Writer, WriteError> {
+    ) -> Result<Writer<'a>, WriteError> {
         let mut writer = Writer {
             file: Box::new(file),
             header: Header {

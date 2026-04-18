@@ -122,7 +122,7 @@ impl Reader {
             .retrieve(&mut self.callback_data.error)?;
         Ok(self.callback_data.buffer.take().unwrap())
     }
-    pub fn item(&self, index: usize) -> ItemView {
+    pub fn item(&self, index: usize) -> ItemView<'_> {
         self.raw.item(index)
     }
     pub fn num_items(&self) -> usize {
@@ -141,20 +141,20 @@ impl Reader {
         self.raw.num_item_types()
     }
 
-    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView> {
+    pub fn find_item(&self, type_id: u16, item_id: u16) -> Option<ItemView<'_>> {
         self.raw.find_item(type_id, item_id)
     }
 
-    pub fn items(&self) -> raw::Items {
+    pub fn items(&self) -> raw::Items<'_> {
         self.raw.items()
     }
-    pub fn item_types(&self) -> raw::ItemTypes {
+    pub fn item_types(&self) -> raw::ItemTypes<'_> {
         self.raw.item_types()
     }
-    pub fn item_type_items(&self, type_id: u16) -> raw::ItemTypeItems {
+    pub fn item_type_items(&self, type_id: u16) -> raw::ItemTypeItems<'_> {
         self.raw.item_type_items(type_id)
     }
-    pub fn data_iter(&mut self) -> DataIter {
+    pub fn data_iter(&mut self) -> DataIter<'_> {
         fn map_fn(i: usize, self_: &mut &mut Reader) -> Result<Vec<u8>, Error> {
             self_.read_data(i)
         }

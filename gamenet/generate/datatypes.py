@@ -2,6 +2,9 @@ from collections import namedtuple
 import uuid
 import threading
 
+def flatten(l):
+    return [y for x in l for y in x]
+
 def title(c):
     return "".join(p.title() for p in c)
 
@@ -22,6 +25,9 @@ def canonicalize(s):
         return s
     if s.isdigit():
         s = "v{}".format(s)
+    split = s.split("::")
+    if len(split) > 1:
+        return tuple(flatten(canonicalize(s) for s in split))
     if s.isupper() or s.islower():
         return tuple(p.lower() for p in s.split("_"))
     PREFIXES=sorted(["m_", "m_a", "m_aa", "m_ap", "m_p"], key=len, reverse=True)
@@ -215,14 +221,14 @@ pub use libtw2_gamenet_common::snap_obj::TypeId;
 
 def emit_header_msg_system():
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "super::SystemOrGame",
-        "warn::Warn",
     )
     print("""\
 impl<'a> System<'a> {
@@ -247,14 +253,14 @@ impl<'a> System<'a> {
 
 def emit_header_msg_game():
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "super::SystemOrGame",
-        "warn::Warn",
     )
     print("""\
 pub use libtw2_gamenet_common::msg::TuneParam;
@@ -281,16 +287,16 @@ impl<'a> Game<'a> {
 
 def emit_header_msg_connless(structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_common::pretty",
         "libtw2_gamenet_common::msg::string_from_int",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
         "libtw2_packer::with_packer",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
     print("""\
@@ -365,14 +371,14 @@ def emit_enum_from(name, structs):
 
 def emit_enum_msg(name, structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
+        "libtw2_warn::Warn",
         "std::fmt",
         "super::MessageId",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -454,8 +460,8 @@ def emit_enum_obj(name, structs):
         "crate::error::Error",
         "libtw2_packer::ExcessData",
         "libtw2_packer::IntUnpacker",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -517,11 +523,11 @@ def emit_enum_obj_module(name, structs, flags):
 
 def emit_enum_connless(name, structs):
     import_(
-        "buffer::CapacityError",
         "crate::error::Error",
+        "libtw2_buffer::CapacityError",
         "libtw2_packer::Warning",
+        "libtw2_warn::Warn",
         "std::fmt",
-        "warn::Warn",
     )
     name = canonicalize(name)
     lifetime = "<'a>" if any(s.lifetime() for s in structs) else ""
@@ -602,19 +608,20 @@ version = "0.1.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "{}"
 
 [dependencies]
 arrayvec = "0.5.2"
-buffer = "0.1.9"
+pre-rfc3243-libtw2-buffer = {{ version = "0.1", path = "../../buffer/" }}
 pre-rfc3243-libtw2-common = {{ version = "0.1", path = "../../common/" }}
-pre-rfc3243-libtw2-gamenet-common = {{ version = "0.1.1", path = "../common/" }}
+pre-rfc3243-libtw2-gamenet-common = {{ version = "0.1", path = "../common/" }}
 pre-rfc3243-libtw2-gamenet-snap = {{ version = "0.1", path = "../snap/" }}
 pre-rfc3243-libtw2-packer = {{ version = "0.1", path = "../../packer/", features = ["uuid"] }}
-uuid = "0.8.1"
-warn = ">=0.1.1,<0.3.0"\
+pre-rfc3243-libtw2-warn = {{ version = "0.1", path = "../../warn/" }}
+uuid = ">=0.8.1,<2.0.0"\
 """.format(name, name, name.replace("-", "_")))
 
 def emit_main_lib():
@@ -639,7 +646,7 @@ def emit_msg_module():
         "libtw2_gamenet_common::error::Error",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
-        "warn::Warn",
+        "libtw2_warn::Warn",
     )
     print("""\
 pub mod connless;
@@ -682,13 +689,23 @@ pub fn decode<'a, W>(warn: &mut W, p: &mut Unpacker<'a>)
 {
     libtw2_gamenet_common::msg::decode(warn, Protocol, p)
 }
+
+pub fn decode_msg<'a, W>(warn: &mut W, id: SystemOrGame<MessageId, MessageId>, p: &mut Unpacker<'a>)
+    -> Result<SystemOrGame<System<'a>, Game<'a>>, Error>
+    where W: Warn<Warning>
+{
+    Ok(match id {
+        SystemOrGame::System(id) => SystemOrGame::System(System::decode_msg(warn, id, p)?),
+        SystemOrGame::Game(id) => SystemOrGame::Game(Game::decode_msg(warn, id, p)?),
+    })
+}\
 """)
 
 def emit_traits_module():
     import_(
-        "buffer::CapacityError",
         "crate::msg",
         "crate::snap_obj",
+        "libtw2_buffer::CapacityError",
         "libtw2_gamenet_common::error::Error",
         "libtw2_gamenet_common::msg::MessageId",
         "libtw2_gamenet_common::msg::SystemOrGame",
@@ -698,7 +715,7 @@ def emit_traits_module():
         "libtw2_packer::Packer",
         "libtw2_packer::Unpacker",
         "libtw2_packer::Warning",
-        "warn::Warn",
+        "libtw2_warn::Warn",
     )
     print("""\
 pub struct Protocol(());
@@ -896,6 +913,13 @@ class Struct(NameValues):
                         and self.values[i].min == "TEAM_SPECTATORS"
                         and self.values[i].max == "TEAM_BLUE"):
                     self.values[i] = NetBool(self.values[i].name)
+        elif self.name == ("character",):
+            for i in range(len(self.values)):
+                if (type(self.values[i]) == NetIntRange
+                        and self.values[i].name == ("ammo", "count")
+                        and self.values[i].min == 0
+                        and self.values[i].max == 10):
+                    self.values[i].min = -1
         self.values = [member.update(self, consts, enums, structs) for member in self.values]
 
         if ("snap" in self.attributes) + ("snap_empty" in self.attributes) + ("snap_single" in self.attributes) > 1:
@@ -942,13 +966,14 @@ class Struct(NameValues):
         if "snap" in self.attributes or "snap_empty" in self.attributes or "snap_single" in self.attributes:
             return
         import_(
-            "buffer::CapacityError",
             "crate::error::Error",
+            "libtw2_buffer::CapacityError",
             "libtw2_packer::Packer",
             "libtw2_packer::Unpacker",
             "libtw2_packer::Warning",
+            "libtw2_warn::Warn",
+            "libtw2_warn::wrap",
             "std::fmt",
-            "warn::Warn",
         )
         if suffix:
             suffix = "_msg"
@@ -964,7 +989,7 @@ class Struct(NameValues):
             print("        });")
         else:
             print("        let result = Ok({});".format(title(self.name)))
-        print("        _p.finish(warn);")
+        print("        _p.finish(wrap(warn));")
         print("        result")
         print("    }")
         print("    pub fn encode{}<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {{".format(suffix, title(self.name), l=self.lifetime()))
@@ -1048,8 +1073,8 @@ class NetObject(Struct):
             "libtw2_common::slice",
             "libtw2_packer::ExcessData",
             "libtw2_packer::IntUnpacker",
+            "libtw2_warn::Warn",
             "std::slice::from_ref",
-            "warn::Warn",
         )
         if self.super:
             super = self.structs[self.super]
@@ -1091,7 +1116,9 @@ def NetObjectEx(name, ex, values, **kwargs):
     return NetObject(name, values, ex=ex, **kwargs)
 
 class NetEvent(NetObject):
-    pass
+    def __init__(self, name, values, **kwargs):
+        super().__init__(name, values, **kwargs)
+        self.attributes.add("event")
 def NetEventEx(name, ex, values, **kwargs):
     return NetEvent(name, values, ex=ex, **kwargs)
 
@@ -1259,7 +1286,7 @@ class NetStringStrict(NetString):
     def assert_expr(self, self_expr):
         import_(
             "libtw2_packer::sanitize",
-            "warn::Panic",
+            "libtw2_warn::Panic",
         )
         return "sanitize(&mut Panic, {}).unwrap()".format(self_expr)
     def serialize_type(self):
@@ -1351,6 +1378,28 @@ class NetIntAny(Member):
         else:
             return NetIntAny(name)
 
+class NetTwIntString(Member):
+    kind = "int32_twstring"
+    def __init__(self, name, size):
+        super().__init__(name)
+        if size % 4 != 0:
+            raise ValueError("size must be divisible by 4, but isn't: {}".format(count))
+        self.count = size // 4
+        self.type_ = "[i32; {}]".format(self.count)
+    def decode_int_expr(self):
+        return "[\n{}]".format("".join("    _p.read_int()?,\n" for _ in range(self.count)))
+    def int_size(self):
+        return self.count
+    def serialize_type(self):
+        return {
+            "kind": self.kind,
+            "count": self.count,
+        }
+    @staticmethod
+    def deserialize(name, json_obj):
+        return NetTwIntString(name, json_obj["count"] * 4)
+
+
 def import_consts(value):
     value = str(value)
     for const in "FLAG_MISSING MAX_CLIENTS SPEC_FREEVIEW TEAM_BLUE TEAM_RED".split():
@@ -1366,11 +1415,11 @@ def evaluate_constant(consts, enums, constant):
     if constant.endswith("-1"):
         constant = constant[:-2]
         offset = -1
-    if constant.startswith("NUM_") and constant.endswith("S"):
-        return len(enums[canonicalize(constant[4:-1])].values) + offset
     c = canonicalize(constant)
     if c in consts:
         return consts[c].value + offset
+    if constant.startswith("NUM_") and constant.endswith("S"):
+        return len(enums[canonicalize(constant[4:-1])].values) + offset
     for i in range(1, len(c))[::-1]:
         if c[:i] in enums:
             try:
@@ -1567,7 +1616,7 @@ class NetAddrs(Member):
     def decode_expr(self):
         import_(
             "libtw2_gamenet_common::msg::AddrPackedSliceExt",
-            "warn::wrap",
+            "libtw2_warn::wrap",
         )
         return "AddrPackedSliceExt::from_bytes(wrap(warn), _p.read_rest()?)"
     def encode_expr(self, self_expr):
@@ -1681,6 +1730,7 @@ MEMBER_TYPES = [
     NetSha256,
     NetUuid,
     NetIntAny,
+    NetTwIntString,
     NetEnum,
     NetFlag,
     NetBool,

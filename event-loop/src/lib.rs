@@ -10,6 +10,7 @@ use libtw2_net::collections::PeerSet;
 use libtw2_net::net::Callback;
 use libtw2_net::Net;
 use libtw2_socket::Socket;
+use libtw2_warn as warn;
 use log::LogLevel;
 use std::cmp;
 use std::fmt;

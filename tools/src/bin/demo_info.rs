@@ -2,12 +2,13 @@ extern crate libtw2_gamenet_teeworlds_0_6 as libtw2_gamenet;
 
 use libtw2_demo::RawChunk;
 use libtw2_gamenet::msg::Game;
+use libtw2_warn as warn;
+use libtw2_warn::Warn;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
-use warn::Warn;
 
 #[derive(Debug)]
 enum Error {

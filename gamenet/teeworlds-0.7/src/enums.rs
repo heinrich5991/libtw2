@@ -1,6 +1,9 @@
 use libtw2_packer::IntOutOfRange;
 
 pub const MAX_CLIENTS: i32 = 64;
+pub const WEAPON_GAME: i32 = -3;
+pub const WEAPON_SELF: i32 = -2;
+pub const WEAPON_WORLD: i32 = -1;
 pub const FLAG_MISSING: i32 = -3;
 pub const FLAG_ATSTAND: i32 = -2;
 pub const FLAG_TAKEN: i32 = -1;
@@ -9,6 +12,9 @@ pub const CLIENT_VERSION: i32 = 1797;
 pub const CL_CALL_VOTE_TYPE_OPTION: &'static str = "option";
 pub const CL_CALL_VOTE_TYPE_KICK: &'static str = "kick";
 pub const CL_CALL_VOTE_TYPE_SPEC: &'static str = "spec";
+pub const VOTE_CHOICE_NO: i32 = -1;
+pub const VOTE_CHOICE_PASS: i32 = 0;
+pub const VOTE_CHOICE_YES: i32 = 1;
 
 pub const PICKUP_HEALTH: i32 = 0;
 pub const PICKUP_ARMOR: i32 = 1;
@@ -123,7 +129,7 @@ pub enum Chat {
 }
 
 pub const GAMEMSG_TEAM_SWAP: i32 = 0;
-pub const GAMEMSG_SPEC_INVALIDID: i32 = 1;
+pub const GAMEMSG_SPEC_INVALID_ID: i32 = 1;
 pub const GAMEMSG_TEAM_SHUFFLE: i32 = 2;
 pub const GAMEMSG_TEAM_BALANCE: i32 = 3;
 pub const GAMEMSG_CTF_DROP: i32 = 4;
@@ -138,7 +144,7 @@ pub const GAMEMSG_GAME_PAUSED: i32 = 10;
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Gamemsg {
     TeamSwap,
-    SpecInvalidid,
+    SpecInvalidId,
     TeamShuffle,
     TeamBalance,
     CtfDrop,
@@ -457,7 +463,7 @@ impl Gamemsg {
         use self::Gamemsg::*;
         Ok(match i {
             GAMEMSG_TEAM_SWAP => TeamSwap,
-            GAMEMSG_SPEC_INVALIDID => SpecInvalidid,
+            GAMEMSG_SPEC_INVALID_ID => SpecInvalidId,
             GAMEMSG_TEAM_SHUFFLE => TeamShuffle,
             GAMEMSG_TEAM_BALANCE => TeamBalance,
             GAMEMSG_CTF_DROP => CtfDrop,
@@ -474,7 +480,7 @@ impl Gamemsg {
         use self::Gamemsg::*;
         match self {
             TeamSwap => GAMEMSG_TEAM_SWAP,
-            SpecInvalidid => GAMEMSG_SPEC_INVALIDID,
+            SpecInvalidId => GAMEMSG_SPEC_INVALID_ID,
             TeamShuffle => GAMEMSG_TEAM_SHUFFLE,
             TeamBalance => GAMEMSG_TEAM_BALANCE,
             CtfDrop => GAMEMSG_CTF_DROP,

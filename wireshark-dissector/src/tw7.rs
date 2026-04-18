@@ -11,6 +11,7 @@ use libtw2_common::num::Cast;
 use libtw2_common::pretty;
 use libtw2_net::protocol7 as protocol;
 use libtw2_packer::Unpacker;
+use libtw2_warn::Ignore;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::Write;
@@ -20,11 +21,10 @@ use std::os::raw::c_void;
 use std::ptr;
 use std::ptr::addr_of_mut;
 use std::slice;
-use warn::Ignore;
 use zerocopy::FromBytes;
 
 const SERIALIZED_SPEC: &'static str =
-    include_str!("../../gamenet/generate/spec/teeworlds-0.7.5.json");
+    include_str!("../../gamenet/generate/spec/teeworlds-0.7-trunk.json");
 
 static mut PROTO_PACKET: c_int = -1;
 static mut PROTO_CHUNK: c_int = -1;
@@ -73,13 +73,13 @@ unsafe extern "C" fn dissect_heur(
     pinfo: *mut sys::packet_info,
     ttree: *mut sys::proto_tree,
     _data: *mut c_void,
-) -> c_int {
+) -> bool {
     if !dissect_heur_impl(tvb).is_ok() {
-        return 0;
+        return false;
     }
     let conversation = sys::find_or_create_conversation(pinfo);
     sys::conversation_set_dissector(conversation, PROTO_PACKET_HANDLE);
-    dissect_impl(tvb, pinfo, ttree).is_ok() as c_int
+    dissect_impl(tvb, pinfo, ttree).is_ok()
 }
 
 unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
@@ -99,6 +99,7 @@ unsafe fn dissect_heur_impl(tvb: *mut sys::tvbuff_t) -> Result<(), ()> {
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
             let mut iter = protocol::ChunksIter::new(chunks_data, num_chunks);
@@ -160,7 +161,7 @@ unsafe fn dissect_impl(
     macro_rules! field_boolean {
         ($tree:expr, $hf:expr, $from:expr, $value:expr, $fmt:expr, $($args:tt)*) => {{
             let value: bool = $value;
-            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value as c_uint, $fmt, $($args)*)
+            field!(sys::proto_tree_add_boolean_format, $tree, $hf, $from, 1, value.into(), $fmt, $($args)*)
         }};
     }
     macro_rules! field_uint {
@@ -399,6 +400,7 @@ unsafe fn dissect_impl(
     match packet {
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Control(ctrl),
         }) => {
             use self::protocol::ControlPacket::*;
@@ -453,6 +455,7 @@ unsafe fn dissect_impl(
         }
         protocol::Packet::Connected(protocol::ConnectedPacket {
             ack: _,
+            token: _,
             type_: protocol::ConnectedPacketType::Chunks(_, num_chunks, chunks_data),
         }) => {
             let data = &data[7..];
@@ -599,7 +602,11 @@ unsafe fn dissect_impl(
             let info = CString::new(summaries).unwrap();
             sys::col_add_str((*pinfo).cinfo, sys::COL_INFO as c_int, info.as_ptr());
         }
-        protocol::Packet::Connless(message) => {
+        protocol::Packet::Connless(protocol::ConnlessPacket {
+            payload,
+            token: _,
+            response_token: _,
+        }) => {
             let ti = sys::proto_tree_add_item(
                 ttree,
                 PROTO_CHUNK,
@@ -610,7 +617,7 @@ unsafe fn dissect_impl(
             );
             let tree = sys::proto_item_add_subtree(ti, ETT_CHUNK);
 
-            let mut p = Unpacker::new(message);
+            let mut p = Unpacker::new(payload);
             let mut summaries = String::new();
             let mut first_summary = true;
             spec.dissect_connless(tree, tvb, &mut p, &mut |summary| {
@@ -806,6 +813,7 @@ fn load_spec() -> anyhow::Result<Spec> {
     Spec::load(intern_static_with_nul("tw7\0"), SERIALIZED_SPEC)
 }
 
+#[allow(unused_unsafe)] // TODO (MSRV 1.63): Remove.
 fn register_chunk_protocol(spec: &Spec) {
     unsafe {
         PROTO_CHUNK = sys::proto_register_protocol(

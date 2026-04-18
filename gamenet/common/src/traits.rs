@@ -2,14 +2,14 @@ use crate::error::Error;
 use crate::msg::MessageId;
 use crate::msg::SystemOrGame;
 use crate::snap_obj;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_packer::with_packer;
 use libtw2_packer::ExcessData;
 use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
-use warn::Warn;
+use libtw2_warn::Warn;
 
 pub trait SnapObj: Sized {
     fn decode_obj<W: Warn<ExcessData>>(

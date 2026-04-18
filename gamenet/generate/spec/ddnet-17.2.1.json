@@ -1,7 +1,11 @@
 {
 	"constants": [
 		{"name": ["max", "clients"], "type": "int32", "value": 64},
+		{"name": ["weapon", "game"], "type": "int32", "value": -3},
+		{"name": ["weapon", "self"], "type": "int32", "value": -2},
+		{"name": ["weapon", "world"], "type": "int32", "value": -1},
 		{"name": ["spec", "freeview"], "type": "int32", "value": -1},
+		{"name": ["num", "tunezones"], "type": "int32", "value": 256},
 		{"name": ["flag", "missing"], "type": "int32", "value": -3},
 		{"name": ["flag", "atstand"], "type": "int32", "value": -2},
 		{"name": ["flag", "taken"], "type": "int32", "value": -1},
@@ -863,7 +867,7 @@
 				{"name": ["player", "flags"], "type": {"kind": "int32", "min": 0, "max": 256}},
 				{"name": ["health"], "type": {"kind": "int32", "min": 0, "max": 10}},
 				{"name": ["armor"], "type": {"kind": "int32", "min": 0, "max": 10}},
-				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": 0, "max": 10}},
+				{"name": ["ammo", "count"], "type": {"kind": "int32", "min": -1, "max": 10}},
 				{"name": ["weapon"], "type": {"kind": "enum", "enum": ["weapon"]}},
 				{"name": ["emote"], "type": {"kind": "enum", "enum": ["emote"]}},
 				{"name": ["attack", "tick"], "type": {"kind": "int32", "min": 0}}
@@ -1059,28 +1063,36 @@
 				{"name": ["x"], "type": {"kind": "int32"}},
 				{"name": ["y"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 14,
 			"name": ["explosion"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 15,
 			"name": ["spawn"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 16,
 			"name": ["hammer", "hit"],
 			"super": ["common"],
 			"members": [],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 17,
@@ -1089,7 +1101,9 @@
 			"members": [
 				{"name": ["client", "id"], "type": {"kind": "int32", "min": 0, "max": 63}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 18,
@@ -1098,7 +1112,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 19,
@@ -1107,7 +1123,9 @@
 			"members": [
 				{"name": ["sound", "id"], "type": {"kind": "enum", "enum": ["sound"]}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": 20,
@@ -1116,7 +1134,9 @@
 			"members": [
 				{"name": ["angle"], "type": {"kind": "int32"}}
 			],
-			"attributes": []
+			"attributes": [
+				"event"
+			]
 		},
 		{
 			"id": "0c4fd27d-47e3-3871-a226-9f417486a311",
@@ -1538,6 +1558,19 @@
 			"members": [
 				{"name": ["id"], "type": {"kind": "uuid"}},
 				{"name": ["error"], "type": {"kind": "int32"}}
+			],
+			"attributes": []
+		},
+		{
+			"id": "4efe406a-7774-33f1-bfde-1806ff6d1528",
+			"id_from": {
+				"algorithm": "uuid_v3",
+				"namespace": "e05ddaaa-c4e6-4cfb-b642-5d48e80c0029",
+				"name": "redirect@ddnet.org"
+			},
+			"name": ["redirect"],
+			"members": [
+				{"name": ["port"], "type": {"kind": "int32"}}
 			],
 			"attributes": []
 		}

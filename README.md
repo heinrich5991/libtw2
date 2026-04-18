@@ -69,17 +69,24 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [\_old](_old). Unmaintained implementation of the low-level file format of
   Teeworlds/DDNet maps ("datafiles"), written in C, before libtw2 turned to
   Rust.
+- [buffer](buffer). Helpers for writing to uninitialized byte buffers.
 - [common](common). Utilities for all the other crates. Number conversion, byte
   strings, etc.
 - [**datafile**](datafile). Low-level file format of Teeworlds/DDNet maps.
 - [**demo**](demo). Low-level file format of Teeworlds/DDNet demos (replays).
 - [**downloader**](downloader). Downloader for maps from game servers.
-- [event\_loop](event_loop). Helper for creating Teeworlds/DDNet protocol
+- [event-loop](event-loop). Helper for creating Teeworlds/DDNet protocol
   clients/servers.
 - [**gamenet**](gamenet). Multiple crates for handling the high-level Teeworlds
   0.6, Teeworlds 0.7 and DDNet network protocols.
 - [**gamenet/generate/spec**](gamenet/generate/spec). JSON files describing the
   high-level Teeworlds 0.6, Teeworlds 0.7 and DDNet protocol.
+- [httphook](httphook). Helper library to register Teeworlds/DDNet game servers
+  with the DDNet masterserver, for those that don't support it natively.
+- [**httphook-ldpreload**](httphook-ldpreload). Library that you can insert
+  into Teeworlds/DDNet servers using `LD_PRELOAD` that automatically registers
+  them with the DDNet masterserver, even if the game server itself doesn't
+  support it.
 - [**huffman**](huffman). Homebrew compression format using [Huffman
   coding](https://en.wikipedia.org/wiki/Huffman_coding), used in demos and over
   the network. Alternative: Ryozuki's
@@ -93,6 +100,9 @@ indicate that the libraries or executables might be useful outside of libtw2.
   formats. See also Ryozuki's [teeint](https://github.com/edg-l/teeint) for
   another implementation of Teeworlds/DDNet's [variable-length
   integers](https://en.wikipedia.org/wiki/Variable-length_quantity).
+- [polyfill-1-63](polyfill-1-63). Some helpers for Rust 1.63 compatibility.
+- [**register**](register). Register game servers with DDNet's masterserver
+  (https://master1.ddnet.org/ddnet/15/servers.json).
 - [**render-map**](render-map). Render Teeworlds/DDNet maps to images. **You
   should probably use Patiga's [TwGpu](https://gitlab.com/Patiga/twgpu)
   instead.**
@@ -118,9 +128,10 @@ indicate that the libraries or executables might be useful outside of libtw2.
 - [uniffi](uniffi). Python bindings for huffman using Mozilla's
   [uniffi](https://github.com/mozilla/uniffi-rs/):
   [**libtw2-huffman**](https://pypi.org/project/libtw2-huffman/).
+- [warn](warn). Small helper to communicate non-standard values while parsing.
 - [**wireshark-dissector**](wireshark-dissector). Working Wireshark dissector
   for Teeworlds 0.6, Teeworlds 0.7 and DDNet.
 - [world](world). Proof-of-concept Teeworlds physics. **You should probably use
   Zwelf's [TwGame](https://gitlab.com/ddnet-rs/twgame) instead.**
-- [zlib-minimal](zlib_minimal). Minimal wrapper around
+- [zlib-minimal](zlib-minimal). Minimal wrapper around
   [zlib](https://zlib.net/).

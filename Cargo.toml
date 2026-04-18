@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "buffer",
     "common",
     "datafile",
     "demo",
@@ -13,6 +14,8 @@ members = [
     "gamenet/teeworlds-0.5",
     "gamenet/teeworlds-0.6",
     "gamenet/teeworlds-0.7",
+    "httphook",
+    "httphook-ldpreload",
     "huffman",
     "huffman/reference",
     "huffman/reference/sys",
@@ -20,6 +23,8 @@ members = [
     "map",
     "net",
     "packer",
+    "register",
+    "polyfill-1-63",
     "render-map",
     "server",
     "serverbrowse",
@@ -28,6 +33,7 @@ members = [
     "stats-browser",
     "teehistorian",
     "tools",
+    "warn",
     "wireshark-dissector",
     "world",
     "zlib-minimal",

@@ -1,6 +1,6 @@
 use crate::msg;
 use crate::snap_obj;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_gamenet_common::error::Error;
 use libtw2_gamenet_common::msg::MessageId;
 use libtw2_gamenet_common::msg::SystemOrGame;
@@ -10,7 +10,7 @@ use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
 use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
-use warn::Warn;
+use libtw2_warn::Warn;
 
 pub struct Protocol(());
 

@@ -1,5 +1,5 @@
 use crate::error::Error;
-use buffer::CapacityError;
+use libtw2_buffer::CapacityError;
 use libtw2_common::digest::Sha256;
 use libtw2_common::pretty;
 use libtw2_gamenet_snap::SnapMsg;
@@ -8,11 +8,12 @@ use libtw2_packer::Unpacker;
 use libtw2_packer::Warning;
 use libtw2_packer::to_bool;
 use libtw2_packer::with_packer;
+use libtw2_warn::Warn;
+use libtw2_warn::wrap;
 use std::fmt;
 use super::MessageId;
 use super::SystemOrGame;
 use uuid::Uuid;
-use warn::Warn;
 
 impl<'a> System<'a> {
     pub fn decode<W>(warn: &mut W, p: &mut Unpacker<'a>) -> Result<System<'a>, Error>
@@ -65,6 +66,14 @@ pub const PONG_EX: Uuid = Uuid::from_u128(0xd8295530_14a7_3a0a_b02e_b2cee08d2033
 pub const CHECKSUM_REQUEST: Uuid = Uuid::from_u128(0x60a7cef1_2ecc_3ed4_b138_00fd0c8f5994);
 pub const CHECKSUM_RESPONSE: Uuid = Uuid::from_u128(0x88fc61ec_5a3c_3fc3_8dfa_fd3b715db9e0);
 pub const CHECKSUM_ERROR: Uuid = Uuid::from_u128(0x090960d1_4000_3fd5_9670_4976ae702a6a);
+pub const REDIRECT: Uuid = Uuid::from_u128(0x4efe406a_7774_33f1_bfde_1806ff6d1528);
+pub const RCON_CMD_GROUP_START: Uuid = Uuid::from_u128(0x85f67ffe_f1b1_3af3_98c4_26dbf77111b7);
+pub const RCON_CMD_GROUP_END: Uuid = Uuid::from_u128(0x5e02c980_6ca1_3c99_a9af_4650ae956252);
+pub const MAP_RELOAD: Uuid = Uuid::from_u128(0x9a9b28a3_19b0_37d9_b1f4_2cccfba05bac);
+pub const RECONNECT: Uuid = Uuid::from_u128(0x5f4d5db7_3947_3711_b04e_07a1ff23c970);
+pub const MAPLIST_ADD: Uuid = Uuid::from_u128(0xca956101_b034_3339_92ca_aa104b20d770);
+pub const MAPLIST_GROUP_START: Uuid = Uuid::from_u128(0xd2fafec0_5cd2_319a_a84d_480f2072dee4);
+pub const MAPLIST_GROUP_END: Uuid = Uuid::from_u128(0x43fd0a8b_8b23_350d_b3f6_0de549246a70);
 
 #[derive(Clone, Copy)]
 pub enum System<'a> {
@@ -100,6 +109,14 @@ pub enum System<'a> {
     ChecksumRequest(ChecksumRequest),
     ChecksumResponse(ChecksumResponse),
     ChecksumError(ChecksumError),
+    Redirect(Redirect),
+    RconCmdGroupStart(RconCmdGroupStart),
+    RconCmdGroupEnd(RconCmdGroupEnd),
+    MapReload(MapReload),
+    Reconnect(Reconnect),
+    MaplistAdd(MaplistAdd),
+    MaplistGroupStart(MaplistGroupStart),
+    MaplistGroupEnd(MaplistGroupEnd),
 }
 
 impl<'a> System<'a> {
@@ -138,6 +155,14 @@ impl<'a> System<'a> {
             Uuid(CHECKSUM_REQUEST) => System::ChecksumRequest(ChecksumRequest::decode(warn, _p)?),
             Uuid(CHECKSUM_RESPONSE) => System::ChecksumResponse(ChecksumResponse::decode(warn, _p)?),
             Uuid(CHECKSUM_ERROR) => System::ChecksumError(ChecksumError::decode(warn, _p)?),
+            Uuid(REDIRECT) => System::Redirect(Redirect::decode(warn, _p)?),
+            Uuid(RCON_CMD_GROUP_START) => System::RconCmdGroupStart(RconCmdGroupStart::decode(warn, _p)?),
+            Uuid(RCON_CMD_GROUP_END) => System::RconCmdGroupEnd(RconCmdGroupEnd::decode(warn, _p)?),
+            Uuid(MAP_RELOAD) => System::MapReload(MapReload::decode(warn, _p)?),
+            Uuid(RECONNECT) => System::Reconnect(Reconnect::decode(warn, _p)?),
+            Uuid(MAPLIST_ADD) => System::MaplistAdd(MaplistAdd::decode(warn, _p)?),
+            Uuid(MAPLIST_GROUP_START) => System::MaplistGroupStart(MaplistGroupStart::decode(warn, _p)?),
+            Uuid(MAPLIST_GROUP_END) => System::MaplistGroupEnd(MaplistGroupEnd::decode(warn, _p)?),
             _ => return Err(Error::UnknownId),
         })
     }
@@ -175,6 +200,14 @@ impl<'a> System<'a> {
             System::ChecksumRequest(_) => MessageId::from(CHECKSUM_REQUEST),
             System::ChecksumResponse(_) => MessageId::from(CHECKSUM_RESPONSE),
             System::ChecksumError(_) => MessageId::from(CHECKSUM_ERROR),
+            System::Redirect(_) => MessageId::from(REDIRECT),
+            System::RconCmdGroupStart(_) => MessageId::from(RCON_CMD_GROUP_START),
+            System::RconCmdGroupEnd(_) => MessageId::from(RCON_CMD_GROUP_END),
+            System::MapReload(_) => MessageId::from(MAP_RELOAD),
+            System::Reconnect(_) => MessageId::from(RECONNECT),
+            System::MaplistAdd(_) => MessageId::from(MAPLIST_ADD),
+            System::MaplistGroupStart(_) => MessageId::from(MAPLIST_GROUP_START),
+            System::MaplistGroupEnd(_) => MessageId::from(MAPLIST_GROUP_END),
         }
     }
     pub fn encode_msg<'d, 's>(&self, p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -211,6 +244,14 @@ impl<'a> System<'a> {
             System::ChecksumRequest(ref i) => i.encode(p),
             System::ChecksumResponse(ref i) => i.encode(p),
             System::ChecksumError(ref i) => i.encode(p),
+            System::Redirect(ref i) => i.encode(p),
+            System::RconCmdGroupStart(ref i) => i.encode(p),
+            System::RconCmdGroupEnd(ref i) => i.encode(p),
+            System::MapReload(ref i) => i.encode(p),
+            System::Reconnect(ref i) => i.encode(p),
+            System::MaplistAdd(ref i) => i.encode(p),
+            System::MaplistGroupStart(ref i) => i.encode(p),
+            System::MaplistGroupEnd(ref i) => i.encode(p),
         }
     }
 }
@@ -250,6 +291,14 @@ impl<'a> fmt::Debug for System<'a> {
             System::ChecksumRequest(ref i) => i.fmt(f),
             System::ChecksumResponse(ref i) => i.fmt(f),
             System::ChecksumError(ref i) => i.fmt(f),
+            System::Redirect(ref i) => i.fmt(f),
+            System::RconCmdGroupStart(ref i) => i.fmt(f),
+            System::RconCmdGroupEnd(ref i) => i.fmt(f),
+            System::MapReload(ref i) => i.fmt(f),
+            System::Reconnect(ref i) => i.fmt(f),
+            System::MaplistAdd(ref i) => i.fmt(f),
+            System::MaplistGroupStart(ref i) => i.fmt(f),
+            System::MaplistGroupEnd(ref i) => i.fmt(f),
         }
     }
 }
@@ -445,6 +494,54 @@ impl<'a> From<ChecksumError> for System<'a> {
         System::ChecksumError(i)
     }
 }
+
+impl<'a> From<Redirect> for System<'a> {
+    fn from(i: Redirect) -> System<'a> {
+        System::Redirect(i)
+    }
+}
+
+impl<'a> From<RconCmdGroupStart> for System<'a> {
+    fn from(i: RconCmdGroupStart) -> System<'a> {
+        System::RconCmdGroupStart(i)
+    }
+}
+
+impl<'a> From<RconCmdGroupEnd> for System<'a> {
+    fn from(i: RconCmdGroupEnd) -> System<'a> {
+        System::RconCmdGroupEnd(i)
+    }
+}
+
+impl<'a> From<MapReload> for System<'a> {
+    fn from(i: MapReload) -> System<'a> {
+        System::MapReload(i)
+    }
+}
+
+impl<'a> From<Reconnect> for System<'a> {
+    fn from(i: Reconnect) -> System<'a> {
+        System::Reconnect(i)
+    }
+}
+
+impl<'a> From<MaplistAdd> for System<'a> {
+    fn from(i: MaplistAdd) -> System<'a> {
+        System::MaplistAdd(i)
+    }
+}
+
+impl<'a> From<MaplistGroupStart> for System<'a> {
+    fn from(i: MaplistGroupStart) -> System<'a> {
+        System::MaplistGroupStart(i)
+    }
+}
+
+impl<'a> From<MaplistGroupEnd> for System<'a> {
+    fn from(i: MaplistGroupEnd) -> System<'a> {
+        System::MaplistGroupEnd(i)
+    }
+}
 #[derive(Clone, Copy)]
 pub struct Info<'a> {
     pub version: &'a [u8],
@@ -611,13 +708,43 @@ pub struct ChecksumError {
     pub error: i32,
 }
 
+#[derive(Clone, Copy)]
+pub struct Redirect {
+    pub port: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct RconCmdGroupStart {
+    pub length: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct RconCmdGroupEnd;
+
+#[derive(Clone, Copy)]
+pub struct MapReload;
+
+#[derive(Clone, Copy)]
+pub struct Reconnect;
+
+#[derive(Clone, Copy)]
+pub struct MaplistAdd;
+
+#[derive(Clone, Copy)]
+pub struct MaplistGroupStart {
+    pub length: i32,
+}
+
+#[derive(Clone, Copy)]
+pub struct MaplistGroupEnd;
+
 impl<'a> Info<'a> {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker<'a>) -> Result<Info<'a>, Error> {
         let result = Ok(Info {
             version: _p.read_string()?,
             password: _p.read_string().ok(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -643,7 +770,7 @@ impl<'a> MapChange<'a> {
             crc: _p.read_int(warn)?,
             size: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -671,7 +798,7 @@ impl<'a> MapData<'a> {
             chunk: _p.read_int(warn)?,
             data: _p.read_data(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -696,7 +823,7 @@ impl<'a> fmt::Debug for MapData<'a> {
 impl ConReady {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<ConReady, Error> {
         let result = Ok(ConReady);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -719,7 +846,7 @@ impl InputTiming {
             input_pred_tick: _p.read_int(warn)?,
             time_left: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -743,7 +870,7 @@ impl RconAuthStatus {
             auth_level: _p.read_int(warn).ok(),
             receive_commands: _p.read_int(warn).ok(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -768,7 +895,7 @@ impl<'a> RconLine<'a> {
         let result = Ok(RconLine {
             line: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -787,7 +914,7 @@ impl<'a> fmt::Debug for RconLine<'a> {
 impl Ready {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Ready, Error> {
         let result = Ok(Ready);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -804,7 +931,7 @@ impl fmt::Debug for Ready {
 impl EnterGame {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<EnterGame, Error> {
         let result = Ok(EnterGame);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -826,7 +953,7 @@ impl Input {
             input_size: _p.read_int(warn)?,
             input: crate::snap_obj::PlayerInput::decode_msg(warn, _p)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -853,7 +980,7 @@ impl<'a> RconCmd<'a> {
         let result = Ok(RconCmd {
             cmd: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -876,7 +1003,7 @@ impl<'a> RconAuth<'a> {
             password: _p.read_string()?,
             request_commands: _p.read_int(warn).ok(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -902,7 +1029,7 @@ impl RequestMapData {
         let result = Ok(RequestMapData {
             chunk: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -921,7 +1048,7 @@ impl fmt::Debug for RequestMapData {
 impl Ping {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Ping, Error> {
         let result = Ok(Ping);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -938,7 +1065,7 @@ impl fmt::Debug for Ping {
 impl PingReply {
     pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<PingReply, Error> {
         let result = Ok(PingReply);
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -959,7 +1086,7 @@ impl<'a> RconCmdAdd<'a> {
             help: _p.read_string()?,
             params: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -984,7 +1111,7 @@ impl<'a> RconCmdRemove<'a> {
         let result = Ok(RconCmdRemove {
             name: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1005,7 +1132,7 @@ impl WhatIs {
         let result = Ok(WhatIs {
             uuid: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1027,7 +1154,7 @@ impl<'a> ItIs<'a> {
             uuid: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
             name: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1050,7 +1177,7 @@ impl IDontKnow {
         let result = Ok(IDontKnow {
             uuid: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1071,7 +1198,7 @@ impl RconType {
         let result = Ok(RconType {
             username_required: to_bool(_p.read_int(warn)?)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1094,7 +1221,7 @@ impl<'a> MapDetails<'a> {
             sha256: Sha256::from_slice(_p.read_raw(32)?).unwrap(),
             crc: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1120,7 +1247,7 @@ impl Capabilities {
             version: _p.read_int(warn)?,
             flags: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1145,7 +1272,7 @@ impl<'a> ClientVersion<'a> {
             ddnet_version: _p.read_int(warn)?,
             ddnet_version_string: _p.read_string()?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1170,7 +1297,7 @@ impl PingEx {
         let result = Ok(PingEx {
             id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1191,7 +1318,7 @@ impl PongEx {
         let result = Ok(PongEx {
             id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1214,7 +1341,7 @@ impl ChecksumRequest {
             start: _p.read_int(warn)?,
             length: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1240,7 +1367,7 @@ impl ChecksumResponse {
             id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
             sha256: Sha256::from_slice(_p.read_raw(32)?).unwrap(),
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1264,7 +1391,7 @@ impl ChecksumError {
             id: Uuid::from_slice(_p.read_raw(16)?).unwrap(),
             error: _p.read_int(warn)?,
         });
-        _p.finish(warn);
+        _p.finish(wrap(warn));
         result
     }
     pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
@@ -1278,6 +1405,154 @@ impl fmt::Debug for ChecksumError {
         f.debug_struct("ChecksumError")
             .field("id", &self.id)
             .field("error", &self.error)
+            .finish()
+    }
+}
+
+impl Redirect {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Redirect, Error> {
+        let result = Ok(Redirect {
+            port: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.port)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for Redirect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Redirect")
+            .field("port", &self.port)
+            .finish()
+    }
+}
+
+impl RconCmdGroupStart {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RconCmdGroupStart, Error> {
+        let result = Ok(RconCmdGroupStart {
+            length: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.length)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for RconCmdGroupStart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RconCmdGroupStart")
+            .field("length", &self.length)
+            .finish()
+    }
+}
+
+impl RconCmdGroupEnd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<RconCmdGroupEnd, Error> {
+        let result = Ok(RconCmdGroupEnd);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for RconCmdGroupEnd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RconCmdGroupEnd")
+            .finish()
+    }
+}
+
+impl MapReload {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<MapReload, Error> {
+        let result = Ok(MapReload);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for MapReload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MapReload")
+            .finish()
+    }
+}
+
+impl Reconnect {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<Reconnect, Error> {
+        let result = Ok(Reconnect);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for Reconnect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Reconnect")
+            .finish()
+    }
+}
+
+impl MaplistAdd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<MaplistAdd, Error> {
+        let result = Ok(MaplistAdd);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for MaplistAdd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MaplistAdd")
+            .finish()
+    }
+}
+
+impl MaplistGroupStart {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<MaplistGroupStart, Error> {
+        let result = Ok(MaplistGroupStart {
+            length: _p.read_int(warn)?,
+        });
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        _p.write_int(self.length)?;
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for MaplistGroupStart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MaplistGroupStart")
+            .field("length", &self.length)
+            .finish()
+    }
+}
+
+impl MaplistGroupEnd {
+    pub fn decode<W: Warn<Warning>>(warn: &mut W, _p: &mut Unpacker) -> Result<MaplistGroupEnd, Error> {
+        let result = Ok(MaplistGroupEnd);
+        _p.finish(wrap(warn));
+        result
+    }
+    pub fn encode<'d, 's>(&self, mut _p: Packer<'d, 's>) -> Result<&'d [u8], CapacityError> {
+        Ok(_p.written())
+    }
+}
+impl fmt::Debug for MaplistGroupEnd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MaplistGroupEnd")
             .finish()
     }
 }

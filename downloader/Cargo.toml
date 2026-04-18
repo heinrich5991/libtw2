@@ -4,6 +4,7 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [[bin]]
 name = "libtw2_downloader"
@@ -20,7 +21,7 @@ libtw2-gamenet = { package = "pre-rfc3243-libtw2-gamenet-teeworlds-0-6", path = 
 pre-rfc3243-libtw2-logger = { path = "../logger/" }
 pre-rfc3243-libtw2-packer = { path = "../packer/" }
 pre-rfc3243-libtw2-snapshot = { path = "../snapshot/" }
+pre-rfc3243-libtw2-warn = { path = "../warn/" }
 log = "0.3.1"
 rand = "0.8.3"
 tempfile = "3.0.0"
-warn = ">=0.1.1,<0.3.0"

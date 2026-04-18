@@ -4,6 +4,7 @@ version = "0.0.1"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
+rust-version = "1.63.0"
 
 [lib]
 name = "libtw2_serverbrowse"
@@ -13,8 +14,8 @@ arrayvec = "0.5.2"
 pre-rfc3243-libtw2-common = { path = "../common/" }
 pre-rfc3243-libtw2-logger = { path = "../logger/" }
 pre-rfc3243-libtw2-packer = { path = "../packer/" }
+pre-rfc3243-libtw2-warn = { path = "../warn/" }
 log = "0.3.0"
 time = "0.1.25"
-warn = "0.2.2"
 zerocopy = "0.7.32"
 zerocopy-derive = "0.7.32"

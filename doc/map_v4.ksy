@@ -30,7 +30,7 @@ seq:
   - id: data_items
     process: zlib
     type: dummy
-    size: (_index == header.num_data - 1 ? header.data_size : data_offsets[_index + 1]) - data_offsets[_index]
+    size: '(_index == header.num_data - 1 ? header.data_size : data_offsets[_index + 1]) - data_offsets[_index]'
     repeat: expr
     repeat-expr: header.num_data
 types:
@@ -170,6 +170,7 @@ types:
             item_kind::group: group_item
             item_kind::layer: layer_item
             item_kind::env_points: env_points_item
+            item_kind::sound: sound_item
             item_kind::ex_type_index: ex_type_index_item
             _: unknown_item
         size: data_size
@@ -211,6 +212,7 @@ types:
       - id: data_index
         enum: optional
         type: s4
+
   envelope_item:
     seq:
       - id: version
@@ -236,10 +238,8 @@ types:
         type: s4
       - id: offset
         type: fixed_point(32.)
-        type: s4
       - id: parallax
         type: fixed_point(100.)
-        type: s4
       - id: first_layer_index
         type: s4
       - id: layer_amount
@@ -254,7 +254,6 @@ types:
       - id: clip_size
         if: version >= 2
         type: fixed_point(32.)
-        type: s4
       - id: name
         type: i32x3_string
   
@@ -454,6 +453,18 @@ types:
       - id: bezier
         type: bezier
   
+  sound_item:
+    seq:
+      - id: version
+        type: s4
+      - id: external
+        enum: bool
+        type: s4
+      - id: name
+        type: optional_string_data_index
+      - id: data_index
+        type: s4
+
   ex_type_index_item:
     seq:
       - id: uuid

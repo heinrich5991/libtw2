@@ -4,10 +4,10 @@ use libtw2_common::digest::Sha256;
 use libtw2_common::num::Cast;
 use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
 use libtw2_packer::Unpacker;
+use libtw2_warn::wrap;
+use libtw2_warn::Warn;
 use std::io;
 use thiserror::Error;
-use warn::wrap;
-use warn::Warn;
 
 use crate::format::TickMarker;
 use crate::format::Warning;
@@ -45,19 +45,19 @@ impl ReadError {
 trait SeekableRead: io::Read + io::Seek {}
 impl<T: io::Read + io::Seek> SeekableRead for T {}
 
-pub struct Reader {
-    data: Box<dyn SeekableRead>,
+pub struct Reader<'a> {
+    data: Box<dyn SeekableRead + 'a>,
     start: format::HeaderStart,
     current_tick: Option<i32>,
     raw: [u8; MAX_SNAPSHOT_SIZE],
     huffman: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
 }
 
-impl Reader {
-    pub fn new<W, R>(mut data: R, warn: &mut W) -> Result<Reader, ReadError>
+impl<'a> Reader<'a> {
+    pub fn new<W, R>(mut data: R, warn: &mut W) -> Result<Reader<'a>, ReadError>
     where
         W: Warn<Warning>,
-        R: io::Read + io::Seek + 'static,
+        R: io::Read + io::Seek + 'a,
     {
         let start = format::HeaderStart::read(&mut data)?;
         start.header.check(warn);
@@ -106,7 +106,7 @@ impl Reader {
             .as_ref()
             .map(|sha| Sha256(sha.sha_256))
     }
-    pub fn read_chunk<W>(&mut self, warn: &mut W) -> Result<Option<format::RawChunk>, ReadError>
+    pub fn read_chunk<W>(&mut self, warn: &mut W) -> Result<Option<format::RawChunk<'_>>, ReadError>
     where
         W: Warn<Warning>,
     {

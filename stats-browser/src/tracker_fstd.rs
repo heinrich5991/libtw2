@@ -38,6 +38,7 @@ impl fmt::Display for LogVersion {
         let output = match inner {
             ServerInfoVersion::V5 => "5",
             ServerInfoVersion::V6 => "6",
+            ServerInfoVersion::V6Ddper => "6_ddper",
             ServerInfoVersion::V664 => "6_64",
             ServerInfoVersion::V6Ex => "6_ex",
             ServerInfoVersion::V7 => "7",

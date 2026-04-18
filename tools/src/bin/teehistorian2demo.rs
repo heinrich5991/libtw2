@@ -4,8 +4,8 @@ use libtw2_demo::DemoKind;
 use libtw2_demo::Writer;
 use libtw2_gamenet_ddnet::enums::Emote;
 use libtw2_gamenet_ddnet::enums::Team;
-use libtw2_gamenet_ddnet::enums::Weapon;
 use libtw2_gamenet_ddnet::enums::VERSION;
+use libtw2_gamenet_ddnet::enums::WEAPON_HAMMER;
 use libtw2_gamenet_ddnet::msg::game as game_ddnet;
 use libtw2_gamenet_ddnet::msg::Game as GameDdnet;
 use libtw2_gamenet_ddnet::snap_obj;
@@ -24,15 +24,17 @@ use libtw2_teehistorian::Buffer;
 use libtw2_teehistorian::Item;
 use libtw2_teehistorian::Pos;
 use libtw2_teehistorian::Reader;
+use libtw2_warn::Ignore;
 use libtw2_world::vec2;
 use std::ffi::OsString;
-use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 use std::process;
 use vec_map::VecMap;
-use warn::Ignore;
 
 const TICKS_PER_SECOND: i32 = 50;
+const GAMEINFO_CURVERSION: i32 = 8;
 
 struct Info {
     name: ArrayVec<[u8; 4 * 4 - 1]>,
@@ -95,7 +97,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
         let (header, teehistorian) =
             Reader::open(in_, &mut buffer).map_err(|err| format!("{:?}", err))?;
         th = teehistorian;
-        let file = fs::File::create(out).map_err(|err| err.to_string())?;
+        let file = BufWriter::new(File::create(out).map_err(|err| err.to_string())?);
         demo = Writer::new(
             file,
             VERSION.as_bytes(),
@@ -214,7 +216,7 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                             jumped: (input.jump != 0) as i32,
                             hooked_player: 0,
                             hook_state: -1,
-                            hook_tick: snap_obj::Tick(0),
+                            hook_tick: 0,
                             hook_x: 0,
                             hook_y: 0,
                             hook_dx: 0,
@@ -224,26 +226,50 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                         health: 10,
                         armor: 10,
                         ammo_count: 0,
-                        weapon: Weapon::Hammer,
+                        weapon: WEAPON_HAMMER,
                         emote: Emote::Normal,
                         attack_tick: 0,
                     };
+                    let ddnet_character = snap_obj::DdnetCharacter {
+                        flags: 0,
+                        freeze_end: snap_obj::Tick(0),
+                        jumps: 0,
+                        tele_checkpoint: -1,
+                        strong_weak_id: 0,
+                        jumped_total: 0,
+                        ninja_activation_tick: snap_obj::Tick(0),
+                        freeze_start: snap_obj::Tick(0),
+                        target_x: input.target_x,
+                        target_y: input.target_y,
+                        tune_zone_override: -1,
+                    };
                     builder
                         .add_item(
-                            snap_obj::CLIENT_INFO,
+                            snap_obj::CLIENT_INFO.into(),
                             cid.assert_u16(),
                             client_info.encode(),
                         )
                         .unwrap();
                     builder
                         .add_item(
-                            snap_obj::PLAYER_INFO,
+                            snap_obj::PLAYER_INFO.into(),
                             cid.assert_u16(),
                             player_info.encode(),
                         )
                         .unwrap();
                     builder
-                        .add_item(snap_obj::CHARACTER, cid.assert_u16(), character.encode())
+                        .add_item(
+                            snap_obj::CHARACTER.into(),
+                            cid.assert_u16(),
+                            character.encode(),
+                        )
+                        .unwrap();
+                    builder
+                        .add_item(
+                            snap_obj::DDNET_CHARACTER.into(),
+                            cid.assert_u16(),
+                            ddnet_character.encode(),
+                        )
                         .unwrap();
 
                     prev_pos.insert(cid.assert_usize(), pos);
@@ -262,8 +288,37 @@ fn process(in_: &Path, out: &Path) -> Result<(), String> {
                 round_current: 1,
             };
             builder
-                .add_item(snap_obj::GAME_INFO, 0, game_info.encode())
+                .add_item(snap_obj::GAME_INFO.into(), 0, game_info.encode())
                 .unwrap();
+
+            let game_info_ex = {
+                use libtw2_gamenet_ddnet::snap_obj::*;
+                GameInfoEx {
+                    flags: GAMEINFOFLAG_TIMESCORE
+                        | GAMEINFOFLAG_GAMETYPE_RACE
+                        | GAMEINFOFLAG_GAMETYPE_DDRACE
+                        | GAMEINFOFLAG_GAMETYPE_DDNET
+                        | GAMEINFOFLAG_UNLIMITED_AMMO
+                        | GAMEINFOFLAG_RACE_RECORD_MESSAGE
+                        | GAMEINFOFLAG_ALLOW_EYE_WHEEL
+                        | GAMEINFOFLAG_ALLOW_HOOK_COLL
+                        | GAMEINFOFLAG_ALLOW_ZOOM
+                        | GAMEINFOFLAG_BUG_DDRACE_GHOST
+                        | GAMEINFOFLAG_BUG_DDRACE_INPUT
+                        | GAMEINFOFLAG_PREDICT_DDRACE
+                        | GAMEINFOFLAG_PREDICT_DDRACE_TILES
+                        | GAMEINFOFLAG_ENTITIES_DDNET
+                        | GAMEINFOFLAG_ENTITIES_DDRACE
+                        | GAMEINFOFLAG_ENTITIES_RACE
+                        | GAMEINFOFLAG_RACE,
+                    version: GAMEINFO_CURVERSION,
+                    flags2: GAMEINFOFLAG2_HUD_DDRACE,
+                }
+            };
+            builder
+                .add_item(snap_obj::GAME_INFO_EX.into(), 0, game_info_ex.encode())
+                .unwrap();
+
             let snap = builder.finish();
 
             encoded.clear();

@@ -1,32 +1,45 @@
+use crate::format::apply_item_delta;
+use crate::format::create_item_delta;
+use crate::format::item_data_to_uuid;
 use crate::format::key;
 use crate::format::key_to_id;
-use crate::format::key_to_type_id;
+use crate::format::key_to_raw_type_id;
+use crate::format::uuid_to_item_data;
+use crate::format::DeltaDifferingSizes;
 use crate::format::DeltaHeader;
 use crate::format::Item;
+use crate::format::RawItem;
 use crate::format::SnapHeader;
+use crate::format::TypeId;
 use crate::format::Warning;
+use crate::format::OFFSET_EXTENDED_TYPE_ID;
+use crate::format::TYPE_ID_EX;
 use crate::to_usize;
-use buffer::CapacityError;
+use crate::ReadInt;
+use libtw2_buffer::CapacityError;
 use libtw2_common::num::Cast;
 use libtw2_gamenet_snap as msg;
 use libtw2_gamenet_snap::SnapMsg;
 use libtw2_gamenet_snap::MAX_SNAPSHOT_PACKSIZE;
-use libtw2_packer::with_packer;
+use libtw2_packer::IntUnpacker;
 use libtw2_packer::Packer;
+use libtw2_packer::UnexpectedEnd;
 use libtw2_packer::Unpacker;
+use libtw2_warn::wrap;
+use libtw2_warn::Ignore;
+use libtw2_warn::Warn;
 use std::cmp;
-use std::collections::hash_map;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::btree_map;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::iter;
 use std::mem;
 use std::ops;
-use warn::wrap;
-use warn::Warn;
+use uuid::Uuid;
 
-// TODO: Actually obey this the same way as Teeworlds does.
 pub const MAX_SNAPSHOT_SIZE: usize = 64 * 1024; // 64 KB
+pub const MAX_SNAPSHOT_ITEMS: usize = 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -39,17 +52,22 @@ pub enum Error {
     NegativeSize,
     TooLongDiff,
     TooLongSnap,
+    TooManyItems,
     DeltaDifferingSizes,
     OffsetsUnpacking,
     InvalidOffset,
     ItemsUnpacking,
     DuplicateKey,
+    DuplicateUuidType,
+    InvalidUuidType,
+    MissingUuidType,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BuilderError {
     DuplicateKey,
     TooLongSnap,
+    TooManyItems,
 }
 
 impl From<BuilderError> for Error {
@@ -57,22 +75,14 @@ impl From<BuilderError> for Error {
         match err {
             BuilderError::DuplicateKey => Error::DuplicateKey,
             BuilderError::TooLongSnap => Error::TooLongSnap,
+            BuilderError::TooManyItems => Error::TooManyItems,
         }
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct TooLongSnap;
-
-impl From<TooLongSnap> for Error {
-    fn from(_: TooLongSnap) -> Error {
-        Error::TooLongSnap
-    }
-}
-
-impl From<TooLongSnap> for BuilderError {
-    fn from(_: TooLongSnap) -> BuilderError {
-        BuilderError::TooLongSnap
+impl From<DeltaDifferingSizes> for Error {
+    fn from(DeltaDifferingSizes: DeltaDifferingSizes) -> Error {
+        Error::DeltaDifferingSizes
     }
 }
 
@@ -82,50 +92,20 @@ impl From<libtw2_packer::IntOutOfRange> for Error {
     }
 }
 
-impl From<libtw2_packer::UnexpectedEnd> for Error {
-    fn from(_: libtw2_packer::UnexpectedEnd) -> Error {
+impl From<UnexpectedEnd> for Error {
+    fn from(UnexpectedEnd: UnexpectedEnd) -> Error {
         Error::UnexpectedEnd
     }
 }
 
-fn apply_delta(in_: Option<&[i32]>, delta: &[i32], out: &mut [i32]) -> Result<(), Error> {
-    assert!(delta.len() == out.len());
-    match in_ {
-        Some(in_) => {
-            if in_.len() != out.len() {
-                return Err(Error::DeltaDifferingSizes);
-            }
-            for i in 0..out.len() {
-                out[i] = in_[i].wrapping_add(delta[i]);
-            }
-        }
-        None => out.copy_from_slice(delta),
-    }
-    Ok(())
-}
-
-fn create_delta(from: Option<&[i32]>, to: &[i32], out: &mut [i32]) {
-    assert!(to.len() == out.len());
-    match from {
-        Some(from) => {
-            assert!(from.len() == to.len());
-            for i in 0..out.len() {
-                out[i] = to[i].wrapping_sub(from[i]);
-            }
-        }
-        None => out.copy_from_slice(to),
-    }
-}
-
-// TODO: Select a faster hasher?
 #[derive(Clone, Default)]
-pub struct Snap {
-    offsets: HashMap<i32, ops::Range<u32>>,
+pub struct RawSnap {
+    offsets: BTreeMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 
-impl Snap {
-    pub fn empty() -> Snap {
+impl RawSnap {
+    pub fn empty() -> RawSnap {
         Default::default()
     }
     fn clear(&mut self) {
@@ -135,43 +115,177 @@ impl Snap {
     fn item_from_offset(&self, offset: ops::Range<u32>) -> &[i32] {
         &self.buf[to_usize(offset)]
     }
-    pub fn item(&self, type_id: u16, id: u16) -> Option<&[i32]> {
+    pub fn item(&self, raw_type_id: u16, id: u16) -> Option<&[i32]> {
         self.offsets
-            .get(&key(type_id, id))
+            .get(&key(raw_type_id, id))
             .map(|o| &self.buf[to_usize(o.clone())])
     }
-    pub fn items(&self) -> Items {
-        Items {
+    pub fn items(&self) -> RawItems<'_> {
+        RawItems {
             snap: self,
             iter: self.offsets.iter(),
         }
     }
+    fn serialized_ints_size(num_items: usize, num_item_data_i32s: usize) -> usize {
+        // snapshot:
+        //     [ 4] data_size
+        //     [ 4] num_items
+        //     [*4] item_offsets
+        //     [  ] items
+        //
+        // item:
+        //     [ 2] id
+        //     [ 2] type_id
+        //     [  ] data
+        mem::size_of::<i32>() * (2 + num_items + num_items + num_item_data_i32s)
+    }
     fn prepare_item_vacant<'a>(
-        entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>,
+        num_items: usize,
+        entry: btree_map::VacantEntry<'a, i32, ops::Range<u32>>,
         buf: &mut Vec<i32>,
         size: usize,
-    ) -> Result<&'a mut ops::Range<u32>, TooLongSnap> {
+    ) -> Result<&'a mut ops::Range<u32>, BuilderError> {
         let offset = buf.len();
-        if offset + size > MAX_SNAPSHOT_SIZE {
-            return Err(TooLongSnap);
+        if num_items + 1 > MAX_SNAPSHOT_ITEMS {
+            return Err(BuilderError::TooManyItems);
+        }
+        if RawSnap::serialized_ints_size(num_items + 1, offset + size) > MAX_SNAPSHOT_SIZE {
+            return Err(BuilderError::TooLongSnap);
         }
         let start = offset.assert_u32();
         let end = (offset + size).assert_u32();
         buf.extend(iter::repeat(0).take(size));
         Ok(entry.insert(start..end))
     }
-    fn prepare_item(&mut self, type_id: u16, id: u16, size: usize) -> Result<&mut [i32], Error> {
-        let offset = match self.offsets.entry(key(type_id, id)) {
-            hash_map::Entry::Occupied(o) => o.into_mut(),
-            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.buf, size)?,
+    fn add_item_uninitialized(
+        &mut self,
+        raw_type_id: u16,
+        id: u16,
+        size: usize,
+    ) -> Result<&mut [i32], BuilderError> {
+        let num_items = self.offsets.len();
+        let offset = match self.offsets.entry(key(raw_type_id, id)) {
+            btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
+            btree_map::Entry::Vacant(v) => {
+                RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
+            }
         }
         .clone();
         Ok(&mut self.buf[to_usize(offset)])
     }
+    fn add_item(&mut self, raw_type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+        self.add_item_uninitialized(raw_type_id, id, data.len())?
+            .copy_from_slice(data);
+        Ok(())
+    }
+    fn prepare_item(
+        &mut self,
+        raw_type_id: u16,
+        id: u16,
+        size: usize,
+    ) -> Result<&mut [i32], Error> {
+        let num_items = self.offsets.len();
+        let offset = match self.offsets.entry(key(raw_type_id, id)) {
+            btree_map::Entry::Occupied(o) => o.into_mut(),
+            btree_map::Entry::Vacant(v) => {
+                RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
+            }
+        }
+        .clone();
+        Ok(&mut self.buf[to_usize(offset)])
+    }
+    pub fn read<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        buf: &mut Vec<i32>,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        self.clear();
+        buf.clear();
+
+        let mut unpacker = Unpacker::new(data);
+        while !unpacker.is_empty() {
+            match unpacker.read_int(wrap(warn)) {
+                Ok(int) => buf.push(int),
+                Err(UnexpectedEnd) => {
+                    warn.warn(Warning::ExcessSnapData);
+                    break;
+                }
+            }
+        }
+
+        self.read_from_ints(warn, &buf)
+    }
+    pub fn read_from_ints<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        data: &[i32],
+    ) -> Result<(), Error> {
+        self.clear();
+
+        let mut unpacker = IntUnpacker::new(data);
+        let header = SnapHeader::decode_obj(&mut unpacker)?;
+        let data = unpacker.as_slice();
+
+        let offsets_len = header.num_items.assert_usize();
+        if data.len() < offsets_len {
+            return Err(Error::OffsetsUnpacking);
+        }
+        if header.data_size % 4 != 0 {
+            return Err(Error::InvalidOffset);
+        }
+        let items_len = (header.data_size / 4).assert_usize();
+        match (offsets_len + items_len).cmp(&data.len()) {
+            cmp::Ordering::Less => warn.warn(Warning::ExcessSnapData),
+            cmp::Ordering::Equal => {}
+            cmp::Ordering::Greater => return Err(Error::ItemsUnpacking),
+        }
+
+        let (offsets, item_data) = data.split_at(offsets_len);
+        let item_data = &item_data[..items_len];
+
+        let mut offsets = offsets.iter();
+        let mut prev_offset = None;
+        loop {
+            let offset = offsets.next().copied();
+            if let Some(offset) = offset {
+                if offset < 0 {
+                    return Err(Error::InvalidOffset);
+                }
+                if offset % 4 != 0 {
+                    return Err(Error::InvalidOffset);
+                }
+            }
+            let finished = offset.is_none();
+            let offset = offset.map(|o| o.assert_usize() / 4).unwrap_or(items_len);
+
+            if let Some(prev_offset) = prev_offset {
+                if offset <= prev_offset {
+                    return Err(Error::InvalidOffset);
+                }
+                if offset > items_len {
+                    return Err(Error::InvalidOffset);
+                }
+                let raw_type_id = key_to_raw_type_id(item_data[prev_offset]);
+                let id = key_to_id(item_data[prev_offset]);
+                self.add_item(raw_type_id, id, &item_data[prev_offset + 1..offset])?;
+            } else if offset != 0 {
+                // First offset must be 0.
+                return Err(Error::InvalidOffset);
+            }
+
+            prev_offset = Some(offset);
+
+            if finished {
+                break;
+            }
+        }
+        Ok(())
+    }
     pub fn read_with_delta<W>(
         &mut self,
         warn: &mut W,
-        from: &Snap,
+        from: &RawSnap,
         delta: &Delta,
     ) -> Result<(), Error>
     where
@@ -182,7 +296,7 @@ impl Snap {
         let mut num_deletions = 0;
         for item in from.items() {
             if !delta.deleted_items.contains(&item.key()) {
-                let out = self.prepare_item(item.type_id, item.id, item.data.len())?;
+                let out = self.prepare_item(item.raw_type_id, item.id, item.data.len())?;
                 out.copy_from_slice(item.data);
             } else {
                 num_deletions += 1;
@@ -193,21 +307,27 @@ impl Snap {
         }
 
         for (&key, offset) in &delta.updated_items {
-            let type_id = key_to_type_id(key);
+            let raw_type_id = key_to_raw_type_id(key);
             let id = key_to_id(key);
             let diff = &delta.buf[to_usize(offset.clone())];
-            let out = self.prepare_item(type_id, id, diff.len())?;
-            let in_ = from.item(type_id, id);
+            let out = self.prepare_item(raw_type_id, id, diff.len())?;
+            let in_ = from.item(raw_type_id, id);
 
-            apply_delta(in_, diff, out)?;
+            apply_item_delta(in_, diff, out)?;
         }
         Ok(())
     }
-    pub fn write<'d, 's>(
+    fn write_impl<F: FnMut(i32) -> Result<(), CapacityError>>(
         &self,
         buf: &mut Vec<i32>,
-        mut p: Packer<'d, 's>,
-    ) -> Result<&'d [u8], CapacityError> {
+        mut write_int: F,
+    ) -> Result<(), CapacityError> {
+        assert!(self.offsets.len() <= MAX_SNAPSHOT_ITEMS);
+        let mut written = 0;
+        let mut write_int = |i| {
+            written += mem::size_of::<i32>();
+            write_int(i)
+        };
         let keys = buf;
         keys.clear();
         keys.extend(self.offsets.keys().cloned());
@@ -220,13 +340,13 @@ impl Snap {
             .checked_mul(mem::size_of::<i32>())
             .expect("snap size overflow")
             .assert_i32();
-        p.write_int(data_size)?;
+        write_int(data_size)?;
         let num_items = self.offsets.len().assert_i32();
-        p.write_int(num_items)?;
+        write_int(num_items)?;
 
         let mut offset = 0;
         for &key in &*keys {
-            p.write_int(offset)?;
+            write_int(offset)?;
             let key_offset = self.offsets[&key].clone();
             offset = offset
                 .checked_add(
@@ -239,100 +359,279 @@ impl Snap {
                 .expect("offset overflow");
         }
         for &key in &*keys {
-            p.write_int(key)?;
+            write_int(key)?;
             for &i in &self.buf[to_usize(self.offsets[&key].clone())] {
-                p.write_int(i)?;
+                write_int(i)?;
             }
         }
+        assert!(written <= MAX_SNAPSHOT_SIZE);
+        Ok(())
+    }
+    pub fn write<'d, 's>(
+        &self,
+        buf: &mut Vec<i32>,
+        mut p: Packer<'d, 's>,
+    ) -> Result<&'d [u8], CapacityError> {
+        self.write_impl(buf, |int| p.write_int(int))?;
         Ok(p.written())
+    }
+    pub fn write_to_ints<'a>(
+        &self,
+        buf: &mut Vec<i32>,
+        result: &'a mut [i32],
+    ) -> Result<&'a [i32], CapacityError> {
+        let mut iter = result.iter_mut();
+        self.write_impl(buf, |int| {
+            *iter.next().ok_or(CapacityError)? = int;
+            Ok(())
+        })?;
+        let remaining = iter.len();
+        let len = result.len() - remaining;
+        Ok(&result[..len])
     }
     pub fn crc(&self) -> i32 {
         self.buf.iter().fold(0, |s, &a| s.wrapping_add(a))
     }
-    pub fn recycle(mut self) -> Builder {
+    pub fn recycle(mut self) -> RawBuilder {
         self.clear();
-        Builder { snap: self }
+        RawBuilder { snap: self }
     }
 }
 
-pub struct SnapReader {
-    sizes: Vec<i32>,
+fn read_int_err<R: ReadInt, W: Warn<Warning>>(
+    reader: &mut R,
+    w: &mut W,
+    e: Error,
+) -> Result<i32, Error> {
+    reader.read_int(w).map_err(|_| e)
 }
 
-fn read_int_err<W: Warn<Warning>>(p: &mut Unpacker, w: &mut W, e: Error) -> Result<i32, Error> {
-    p.read_int(wrap(w)).map_err(|_| e)
+pub struct RawItems<'a> {
+    snap: &'a RawSnap,
+    iter: btree_map::Iter<'a, i32, ops::Range<u32>>,
 }
 
-impl SnapReader {
-    pub fn new() -> SnapReader {
-        SnapReader { sizes: Vec::new() }
-    }
-    pub fn read<W>(&mut self, warn: &mut W, snap: Snap, p: &mut Unpacker) -> Result<Snap, Error>
-    where
-        W: Warn<Warning>,
-    {
-        self.sizes.clear();
-        let header = SnapHeader::decode(warn, p)?;
-        let mut prev_offset = None;
-        for _ in 0..header.num_items {
-            let offset = p.read_int(wrap(warn)).unwrap();
-            if let Some(prev) = prev_offset {
-                if prev > offset {
-                    return Err(Error::InvalidOffset);
-                }
-                self.sizes.push(offset - prev);
-            } else if offset != 0 {
-                // First offset must be 0
-                return Err(Error::InvalidOffset);
-            }
-            prev_offset = Some(offset);
-        }
-        if let Some(last) = prev_offset {
-            if last > header.data_size {
-                return Err(Error::InvalidOffset);
-            }
-            self.sizes.push(header.data_size - last)
-        }
-
-        let mut builder = snap.recycle();
-        for size in &self.sizes {
-            if *size % 4 != 0 {
-                return Err(Error::InvalidOffset);
-            }
-            if *size == 0 {
-                return Err(Error::InvalidOffset);
-            }
-            let size = size / 4;
-            let key = read_int_err(p, warn, Error::ItemsUnpacking)?;
-            let type_id = key_to_type_id(key);
-            let id = key_to_id(key);
-            builder.add_packed(warn, type_id, id, size.assert_usize() - 1, p)?;
-        }
-        assert!(p.is_empty());
-        Ok(builder.finish())
-    }
-}
-
-pub struct Items<'a> {
-    snap: &'a Snap,
-    iter: hash_map::Iter<'a, i32, ops::Range<u32>>,
-}
-
-impl<'a> Iterator for Items<'a> {
-    type Item = Item<'a>;
-    fn next(&mut self) -> Option<Item<'a>> {
+impl<'a> Iterator for RawItems<'a> {
+    type Item = RawItem<'a>;
+    fn next(&mut self) -> Option<RawItem<'a>> {
         self.iter
             .next()
-            .map(|(&k, o)| Item::from_key(k, self.snap.item_from_offset(o.clone())))
+            .map(|(&k, o)| RawItem::from_key(k, self.snap.item_from_offset(o.clone())))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
 }
 
-impl<'a> ExactSizeIterator for Items<'a> {
+impl<'a> ExactSizeIterator for RawItems<'a> {
     fn len(&self) -> usize {
         self.iter.len()
+    }
+}
+
+impl fmt::Debug for RawSnap {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_map()
+            .entries(self.items().map(
+                |RawItem {
+                     raw_type_id,
+                     id,
+                     data,
+                 }| ((raw_type_id, id), data),
+            ))
+            .finish()
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct Snap {
+    raw: RawSnap,
+    extended_types: BTreeMap<Uuid, u16>,
+}
+
+impl Snap {
+    pub fn empty() -> Snap {
+        Default::default()
+    }
+    fn raw_type_id(&self, type_id: TypeId) -> Option<u16> {
+        match type_id {
+            TypeId::Ordinal(ordinal) => {
+                assert!(0 < ordinal && ordinal < OFFSET_EXTENDED_TYPE_ID);
+                Some(ordinal)
+            }
+            TypeId::Uuid(uuid) => self.extended_types.get(&uuid).copied(),
+        }
+    }
+    fn type_id(&self, raw_type_id: u16) -> Option<TypeId> {
+        if raw_type_id == TYPE_ID_EX {
+            None
+        } else if raw_type_id < OFFSET_EXTENDED_TYPE_ID {
+            Some(TypeId::Ordinal(raw_type_id))
+        } else {
+            // `build_from_raw()` should have checked the UUID type IDs.
+            Some(TypeId::Uuid(item_data_to_uuid(
+                &mut Ignore,
+                self.raw.item(TYPE_ID_EX, raw_type_id).unwrap(),
+            )?))
+        }
+    }
+    pub fn item(&self, type_id: TypeId, id: u16) -> Option<&[i32]> {
+        self.raw.item(self.raw_type_id(type_id)?, id)
+    }
+    pub fn items(&self) -> Items<'_> {
+        let raw = self.raw.items();
+        let remaining = self.raw.items().len() - self.extended_types.len();
+        Items {
+            raw,
+            snap: self,
+            remaining,
+        }
+    }
+    fn build_from_raw<W: Warn<Warning>>(&mut self, warn: &mut W) -> Result<(), Error> {
+        self.extended_types.clear();
+        let mut prev_checked_raw_type_id = None;
+        for (&item_key, offset) in &self.raw.offsets {
+            let raw_type_id = key_to_raw_type_id(item_key);
+            if raw_type_id == TYPE_ID_EX {
+                let item_data = self.raw.item_from_offset(offset.clone());
+                let uuid = item_data_to_uuid(warn, item_data).ok_or(Error::InvalidUuidType)?;
+                if self.extended_types.insert(uuid, raw_type_id).is_some() {
+                    return Err(Error::DuplicateUuidType);
+                }
+            } else if raw_type_id >= OFFSET_EXTENDED_TYPE_ID {
+                if Some(raw_type_id) == prev_checked_raw_type_id {
+                    continue;
+                }
+                if self
+                    .raw
+                    .offsets
+                    .get(&key(TYPE_ID_EX, raw_type_id))
+                    .is_none()
+                {
+                    return Err(Error::MissingUuidType);
+                }
+                prev_checked_raw_type_id = Some(raw_type_id);
+            }
+        }
+        Ok(())
+    }
+    pub fn read<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        buf: &mut Vec<i32>,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        self.raw.read(warn, buf, data)?;
+        self.build_from_raw(warn)?;
+        Ok(())
+    }
+    pub fn read_from_ints<W: Warn<Warning>>(
+        &mut self,
+        warn: &mut W,
+        data: &[i32],
+    ) -> Result<(), Error> {
+        self.raw.read_from_ints(warn, data)?;
+        self.build_from_raw(warn)?;
+        Ok(())
+    }
+    pub fn read_with_delta<W>(
+        &mut self,
+        warn: &mut W,
+        from: &Snap,
+        delta: &Delta,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+    {
+        self.raw.read_with_delta(warn, &from.raw, delta)?;
+        self.build_from_raw(warn)?;
+        Ok(())
+    }
+    pub fn write<'d, 's>(
+        &self,
+        buf: &mut Vec<i32>,
+        p: Packer<'d, 's>,
+    ) -> Result<&'d [u8], CapacityError> {
+        self.raw.write(buf, p)
+    }
+    pub fn write_to_ints<'a>(
+        &self,
+        buf: &mut Vec<i32>,
+        result: &'a mut [i32],
+    ) -> Result<&'a [i32], CapacityError> {
+        self.raw.write_to_ints(buf, result)
+    }
+    pub fn crc(&self) -> i32 {
+        self.raw.crc()
+    }
+    /// Recycle the snap to build another one.
+    ///
+    /// This remembers the extended item types inserted into the snap, to keep
+    /// the snapshot delta smaller.
+    pub fn recycle(mut self) -> Builder {
+        let mut next_type_id = OFFSET_EXTENDED_TYPE_ID;
+        for &key in self.raw.offsets.keys() {
+            let raw_type_id = key_to_raw_type_id(key);
+            let id = key_to_id(key);
+            const _: () = assert!(TYPE_ID_EX == 0);
+            if raw_type_id != TYPE_ID_EX {
+                break;
+            }
+            // Make sure we'll have space for at least 256 additional extended types.
+            if id < next_type_id + 256 {
+                next_type_id = id + 1;
+            }
+        }
+        self.raw.clear();
+        for (&uuid, &raw_type_id) in &self.extended_types {
+            // It fit last time, it's going to fit this time.
+            self.raw
+                .add_item(TYPE_ID_EX, raw_type_id, &uuid_to_item_data(uuid))
+                .unwrap();
+        }
+        Builder {
+            snap: self,
+            next_type_id,
+        }
+    }
+}
+
+pub struct Items<'a> {
+    raw: RawItems<'a>,
+    snap: &'a Snap,
+    remaining: usize,
+}
+
+impl<'a> Iterator for Items<'a> {
+    type Item = Item<'a>;
+    fn next(&mut self) -> Option<Item<'a>> {
+        loop {
+            match self.raw.next() {
+                None => return None,
+                Some(RawItem {
+                    raw_type_id,
+                    id,
+                    data,
+                }) => {
+                    if let Some(type_id) = self.snap.type_id(raw_type_id) {
+                        self.remaining -= 1;
+                        return Some(Item { type_id, id, data });
+                    } else {
+                        // Skip items with ill-defined types.
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a> ExactSizeIterator for Items<'a> {
+    fn len(&self) -> usize {
+        self.remaining
     }
 }
 
@@ -349,8 +648,8 @@ impl fmt::Debug for Snap {
 
 #[derive(Clone, Default)]
 pub struct Delta {
-    deleted_items: HashSet<i32>,
-    updated_items: HashMap<i32, ops::Range<u32>>,
+    deleted_items: BTreeSet<i32>,
+    updated_items: BTreeMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 
@@ -363,8 +662,8 @@ impl Delta {
         self.updated_items.clear();
         self.buf.clear();
     }
-    fn prepare_update_item(&mut self, type_id: u16, id: u16, size: usize) -> &mut [i32] {
-        let key = key(type_id, id);
+    fn prepare_update_item(&mut self, raw_type_id: u16, id: u16, size: usize) -> &mut [i32] {
+        let key = key(raw_type_id, id);
 
         let offset = self.buf.len();
         let start = offset.assert_u32();
@@ -374,69 +673,106 @@ impl Delta {
         &mut self.buf[to_usize(start..end)]
     }
     pub fn create(&mut self, from: &Snap, to: &Snap) {
+        self.create_raw(&from.raw, &to.raw)
+    }
+    pub fn create_raw(&mut self, from: &RawSnap, to: &RawSnap) {
         self.clear();
-        for Item { type_id, id, .. } in from.items() {
-            if to.item(type_id, id).is_none() {
-                assert!(self.deleted_items.insert(key(type_id, id)));
+        for RawItem {
+            raw_type_id, id, ..
+        } in from.items()
+        {
+            if to.item(raw_type_id, id).is_none() {
+                assert!(self.deleted_items.insert(key(raw_type_id, id)));
             }
         }
-        for Item { type_id, id, data } in to.items() {
-            let from_data = from.item(type_id, id);
-            let out_delta = self.prepare_update_item(type_id, id, data.len());
-            create_delta(from_data, data, out_delta);
+        for RawItem {
+            raw_type_id,
+            id,
+            data,
+        } in to.items()
+        {
+            let from_data = from.item(raw_type_id, id);
+            let out_delta = self.prepare_update_item(raw_type_id, id, data.len());
+            create_item_delta(from_data, data, out_delta)
+                .expect("item sizes can't be mismatched for self-created snapshots");
+            // but they can be different for snapshots received over the network…
         }
+    }
+
+    fn write_impl<O, F>(&self, mut object_size: O, mut write_int: F) -> Result<(), CapacityError>
+    where
+        O: FnMut(u16) -> Option<u32>,
+        F: FnMut(i32) -> Result<(), CapacityError>,
+    {
+        {
+            let header = DeltaHeader {
+                num_deleted_items: self.deleted_items.len().assert_i32(),
+                num_updated_items: self.updated_items.len().assert_i32(),
+            };
+            for int in header.encode_obj() {
+                write_int(int)?;
+            }
+        }
+        for &key in &self.deleted_items {
+            write_int(key)?;
+        }
+        for (&key, range) in &self.updated_items {
+            let data = &self.buf[to_usize(range.clone())];
+            let raw_type_id = key_to_raw_type_id(key);
+            let id = key_to_id(key);
+            write_int(raw_type_id.i32())?;
+            write_int(id.i32())?;
+            match object_size(raw_type_id) {
+                Some(size) => assert!(size.usize() == data.len()),
+                None => write_int(data.len().assert_i32())?,
+            }
+            for &d in data {
+                write_int(d)?;
+            }
+        }
+        Ok(())
     }
     pub fn write<'d, 's, O>(
         &self,
         object_size: O,
-        mut p: Packer<'d, 's>,
+        p: Packer<'d, 's>,
     ) -> Result<&'d [u8], CapacityError>
     where
         O: FnMut(u16) -> Option<u32>,
     {
-        let mut object_size = object_size;
-        with_packer(&mut p, |p| {
-            DeltaHeader {
-                num_deleted_items: self.deleted_items.len().assert_i32(),
-                num_updated_items: self.updated_items.len().assert_i32(),
-            }
-            .encode(p)
-        })?;
-        for &key in &self.deleted_items {
-            p.write_int(key)?;
-        }
-        for (&key, range) in &self.updated_items {
-            let data = &self.buf[to_usize(range.clone())];
-            let type_id = key_to_type_id(key);
-            let id = key_to_id(key);
-            p.write_int(type_id.i32())?;
-            p.write_int(id.i32())?;
-            match object_size(type_id) {
-                Some(size) => assert!(size.usize() == data.len()),
-                None => p.write_int(data.len().assert_i32())?,
-            }
-            for &d in data {
-                p.write_int(d)?;
-            }
-        }
+        let mut p = p;
+        self.write_impl(object_size, |int| p.write_int(int))?;
         Ok(p.written())
     }
-
-    pub fn read<W, O>(
-        &mut self,
-        warn: &mut W,
+    pub fn write_to_ints<'a, O>(
+        &self,
         object_size: O,
-        p: &mut Unpacker,
-    ) -> Result<(), Error>
+        result: &'a mut [i32],
+    ) -> Result<&'a [i32], CapacityError>
+    where
+        O: FnMut(u16) -> Option<u32>,
+    {
+        let mut iter = result.iter_mut();
+        self.write_impl(object_size, |int| {
+            *iter.next().ok_or(CapacityError)? = int;
+            Ok(())
+        })?;
+        let remaining = iter.len();
+        let len = result.len() - remaining;
+        Ok(&result[..len])
+    }
+
+    fn read_impl<W, O, R>(&mut self, warn: &mut W, object_size: O, p: &mut R) -> Result<(), Error>
     where
         W: Warn<Warning>,
         O: FnMut(u16) -> Option<u32>,
+        R: ReadInt,
     {
         self.clear();
 
         let mut object_size = object_size;
 
-        let header = DeltaHeader::decode(warn, p)?;
+        let header = DeltaHeader::decode_impl(warn, p)?;
 
         for _ in 0..header.num_deleted_items {
             self.deleted_items
@@ -449,13 +785,13 @@ impl Delta {
         let mut num_updates = 0;
 
         while !p.is_empty() {
-            let type_id = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
+            let raw_type_id = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
             let id = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
 
-            let type_id = type_id.try_u16().ok_or(Error::TypeIdRange)?;
+            let raw_type_id = raw_type_id.try_u16().ok_or(Error::TypeIdRange)?;
             let id = id.try_u16().ok_or(Error::IdRange)?;
 
-            let size = match object_size(type_id) {
+            let size = match object_size(raw_type_id) {
                 Some(s) => s,
                 None => {
                     let s = read_int_err(p, warn, Error::ItemDiffsUnpacking)?;
@@ -472,13 +808,13 @@ impl Delta {
             // In case of conflict, take later update (as the original code does).
             if self
                 .updated_items
-                .insert(key(type_id, id), start..end)
+                .insert(key(raw_type_id, id), start..end)
                 .is_some()
             {
                 warn.warn(Warning::DuplicateUpdate);
             }
 
-            if self.deleted_items.contains(&key(type_id, id)) {
+            if self.deleted_items.contains(&key(raw_type_id, id)) {
                 warn.warn(Warning::DeleteUpdate);
             }
             num_updates += 1;
@@ -490,57 +826,103 @@ impl Delta {
 
         Ok(())
     }
+    pub fn read_from_ints<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        p: &mut IntUnpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
+    {
+        self.read_impl(warn, object_size, p)
+    }
+
+    pub fn read<W, O>(
+        &mut self,
+        warn: &mut W,
+        object_size: O,
+        p: &mut Unpacker,
+    ) -> Result<(), Error>
+    where
+        W: Warn<Warning>,
+        O: FnMut(u16) -> Option<u32>,
+    {
+        self.read_impl(warn, object_size, p)
+    }
 }
 
 #[derive(Default)]
+pub struct RawBuilder {
+    snap: RawSnap,
+}
+
+impl RawBuilder {
+    pub fn new() -> RawBuilder {
+        Default::default()
+    }
+    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+        self.snap.add_item(type_id, id, data)
+    }
+    pub fn finish(self) -> RawSnap {
+        self.snap
+    }
+}
+
 pub struct Builder {
     snap: Snap,
+    next_type_id: u16,
+}
+
+impl Default for Builder {
+    fn default() -> Builder {
+        Builder {
+            snap: Default::default(),
+            next_type_id: OFFSET_EXTENDED_TYPE_ID,
+        }
+    }
 }
 
 impl Builder {
     pub fn new() -> Builder {
         Default::default()
     }
-    fn add_item_raw(
-        &mut self,
-        type_id: u16,
-        id: u16,
-        size: usize,
-    ) -> Result<&mut [i32], BuilderError> {
-        let offset = match self.snap.offsets.entry(key(type_id, id)) {
-            hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            hash_map::Entry::Vacant(v) => Snap::prepare_item_vacant(v, &mut self.snap.buf, size)?,
-        }
-        .clone();
-        Ok(&mut self.snap.buf[to_usize(offset)])
-    }
-    pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), BuilderError> {
-        self.add_item_raw(type_id, id, data.len())?
-            .copy_from_slice(data);
-        Ok(())
-    }
-    fn add_packed<W>(
-        &mut self,
-        w: &mut W,
-        type_id: u16,
-        id: u16,
-        size: usize,
-        p: &mut Unpacker,
-    ) -> Result<(), Error>
-    where
-        W: Warn<Warning>,
-    {
-        for x in self.add_item_raw(type_id, id, size)? {
-            *x = read_int_err(p, w, Error::ItemsUnpacking)?;
-        }
-        Ok(())
+    pub fn add_item(&mut self, type_id: TypeId, id: u16, data: &[i32]) -> Result<(), BuilderError> {
+        let raw_type_id = match type_id {
+            TypeId::Ordinal(ordinal) => {
+                assert!(0 < ordinal && ordinal < OFFSET_EXTENDED_TYPE_ID);
+                ordinal
+            }
+            TypeId::Uuid(uuid) => {
+                match self.snap.extended_types.entry(uuid) {
+                    btree_map::Entry::Occupied(o) => *o.get(),
+                    btree_map::Entry::Vacant(v) => {
+                        let raw_type_id = self.next_type_id;
+                        assert!(OFFSET_EXTENDED_TYPE_ID <= raw_type_id, "invalid type ID");
+                        assert!(raw_type_id < 0x8000, "invalid type ID");
+                        self.snap.raw.add_item(
+                            TYPE_ID_EX,
+                            raw_type_id,
+                            &uuid_to_item_data(uuid),
+                        )?;
+                        // Only increment `self.next_type_id` after successful
+                        // insertion.
+                        self.next_type_id += 1;
+                        v.insert(raw_type_id);
+                        raw_type_id
+                    }
+                }
+            }
+        };
+        self.snap.raw.add_item(raw_type_id, id, data)
     }
     pub fn finish(self) -> Snap {
         self.snap
     }
 }
 
-pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks {
+pub fn delta_chunks(tick: i32, delta_tick: i32, data: &[u8], crc: i32) -> DeltaChunks<'_> {
     DeltaChunks {
         tick: tick,
         delta_tick: tick - delta_tick,
@@ -598,5 +980,34 @@ impl<'a> Iterator for DeltaChunks<'a> {
         };
         self.cur_part += 1;
         Some(result)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Builder;
+    use super::Item;
+    use uuid::Uuid;
+
+    #[test]
+    fn smoke_test() {
+        let uuid: Uuid = "1a3fcc94-1e53-461e-912e-21200882024b".parse().unwrap();
+
+        let mut builder = Builder::new();
+        builder
+            .add_item(uuid.into(), 1337, &[0x1234, 0x567890ab])
+            .unwrap();
+        let snap = builder.finish();
+
+        assert_eq!(
+            snap.item(uuid.into(), 1337),
+            Some(&[0x1234, 0x567890ab][..])
+        );
+        let item = Item {
+            type_id: uuid.into(),
+            id: 1337,
+            data: &[0x1234, 0x567890ab],
+        };
+        assert_eq!(snap.items().collect::<Vec<_>>(), &[item][..]);
     }
 }
