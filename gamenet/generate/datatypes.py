@@ -604,7 +604,7 @@ def emit_cargo_toml(name):
 [package]
 name = "pre-rfc3243-{}"
 description = "pre-rfc3243-{}"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
@@ -615,12 +615,12 @@ name = "{}"
 
 [dependencies]
 arrayvec = "0.5.2"
-pre-rfc3243-libtw2-buffer = {{ version = "0.1", path = "../../buffer/" }}
-pre-rfc3243-libtw2-common = {{ version = "0.1", path = "../../common/" }}
-pre-rfc3243-libtw2-gamenet-common = {{ version = "0.1", path = "../common/" }}
-pre-rfc3243-libtw2-gamenet-snap = {{ version = "0.1", path = "../snap/" }}
-pre-rfc3243-libtw2-packer = {{ version = "0.1", path = "../../packer/", features = ["uuid"] }}
-pre-rfc3243-libtw2-warn = {{ version = "0.1", path = "../../warn/" }}
+pre-rfc3243-libtw2-buffer = {{ version = "0.2", path = "../../buffer/" }}
+pre-rfc3243-libtw2-common = {{ version = "0.2", path = "../../common/" }}
+pre-rfc3243-libtw2-gamenet-common = {{ version = "0.2", path = "../common/" }}
+pre-rfc3243-libtw2-gamenet-snap = {{ version = "0.2", path = "../snap/" }}
+pre-rfc3243-libtw2-packer = {{ version = "0.2", path = "../../packer/", features = ["uuid"] }}
+pre-rfc3243-libtw2-warn = {{ version = "0.2", path = "../../warn/" }}
 uuid = ">=0.8.1,<2.0.0"\
 """.format(name, name, name.replace("-", "_")))
 

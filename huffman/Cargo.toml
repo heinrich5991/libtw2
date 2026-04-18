@@ -1,7 +1,7 @@
 [package]
 name = "pre-rfc3243-libtw2-huffman"
 description = "pre-rfc3243-libtw2-huffman"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["heinrich5991 <heinrich5991@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2021"
@@ -13,8 +13,8 @@ name = "libtw2_huffman"
 [dependencies]
 arrayvec = "0.5.2"
 itertools = ">=0.3.0,<0.5.0"
-pre-rfc3243-libtw2-buffer = { version = "0.1", path = "../buffer/" }
-pre-rfc3243-libtw2-common = { version = "0.1", path = "../common/" }
+pre-rfc3243-libtw2-buffer = { version = "0.2", path = "../buffer/" }
+pre-rfc3243-libtw2-common = { version = "0.2", path = "../common/" }
 
 [dev-dependencies]
 bencher = "0.1.5"
