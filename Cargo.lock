@@ -1128,15 +1128,37 @@ dependencies = [
 name = "libtw2-snapshot"
 version = "0.0.1"
 dependencies = [
+ "bencher",
+ "itertools 0.4.19",
  "libtw2-buffer",
  "libtw2-common",
  "libtw2-gamenet-common",
  "libtw2-gamenet-snap",
  "libtw2-gamenet-teeworlds-0-6",
  "libtw2-packer",
+ "libtw2-snapshot-reference",
  "libtw2-warn",
+ "rand 0.8.3",
+ "rand_chacha 0.3.0",
  "uuid",
  "vec_map",
+]
+
+[[package]]
+name = "libtw2-snapshot-reference"
+version = "0.0.1"
+dependencies = [
+ "libc",
+ "libtw2-buffer",
+ "libtw2-snapshot-reference-sys",
+]
+
+[[package]]
+name = "libtw2-snapshot-reference-sys"
+version = "0.0.1"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]
