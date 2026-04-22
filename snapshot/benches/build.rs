@@ -7,8 +7,10 @@ use bencher::benchmark_main;
 use bencher::black_box;
 use bencher::Bencher;
 use itertools::Itertools as _;
+use libtw2_common::num::Cast as _;
 use libtw2_snapshot::snap::RawBuilder as Libtw2;
 use libtw2_snapshot_reference::snap::RawBuilder as Reference;
+use libtw2_gamenet::snap_obj::obj_size;
 use rand::Rng as _;
 use rand::SeedableRng as _;
 use rand_chacha::ChaCha8Rng as DeterministicRng;
@@ -123,7 +125,7 @@ fn _300_items() -> Vec<Item> {
         result.push(Item {
             type_id,
             id: rng.gen(),
-            data: vec![rng.gen(); type_id.into()],
+            data: vec![rng.gen(); obj_size(type_id).expect("known obj size").usize()],
         });
     }
     result
