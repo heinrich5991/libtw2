@@ -8,4 +8,5 @@ rust-version = "1.63.0"
 [dependencies]
 libc = "0.2.0"
 libtw2-buffer = { path = "../../buffer" }
+libtw2-common = { path = "../../common" }
 libtw2-snapshot-reference-sys = { path = "sys" }

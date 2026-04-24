@@ -1150,6 +1150,7 @@ version = "0.0.1"
 dependencies = [
  "libc",
  "libtw2-buffer",
+ "libtw2-common",
  "libtw2-snapshot-reference-sys",
 ]
 
