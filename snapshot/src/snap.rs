@@ -28,8 +28,11 @@ use libtw2_packer::Unpacker;
 use libtw2_warn::wrap;
 use libtw2_warn::Ignore;
 use libtw2_warn::Warn;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 use std::cmp;
 use std::collections::btree_map;
+use std::collections::hash_map;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
@@ -100,7 +103,7 @@ impl From<UnexpectedEnd> for Error {
 
 #[derive(Clone, Default)]
 pub struct RawSnap {
-    offsets: BTreeMap<i32, ops::Range<u32>>,
+    offsets: FxHashMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 
@@ -141,7 +144,7 @@ impl RawSnap {
     }
     fn prepare_item_vacant<'a>(
         num_items: usize,
-        entry: btree_map::VacantEntry<'a, i32, ops::Range<u32>>,
+        entry: hash_map::VacantEntry<'a, i32, ops::Range<u32>>,
         buf: &mut Vec<i32>,
         size: usize,
     ) -> Result<&'a mut ops::Range<u32>, BuilderError> {
@@ -165,8 +168,8 @@ impl RawSnap {
     ) -> Result<&mut [i32], BuilderError> {
         let num_items = self.offsets.len();
         let offset = match self.offsets.entry(key(raw_type_id, id)) {
-            btree_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
-            btree_map::Entry::Vacant(v) => {
+            hash_map::Entry::Occupied(..) => return Err(BuilderError::DuplicateKey),
+            hash_map::Entry::Vacant(v) => {
                 RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
             }
         }
@@ -186,8 +189,8 @@ impl RawSnap {
     ) -> Result<&mut [i32], Error> {
         let num_items = self.offsets.len();
         let offset = match self.offsets.entry(key(raw_type_id, id)) {
-            btree_map::Entry::Occupied(o) => o.into_mut(),
-            btree_map::Entry::Vacant(v) => {
+            hash_map::Entry::Occupied(o) => o.into_mut(),
+            hash_map::Entry::Vacant(v) => {
                 RawSnap::prepare_item_vacant(num_items, v, &mut self.buf, size)?
             }
         }
@@ -408,7 +411,7 @@ fn read_int_err<R: ReadInt, W: Warn<Warning>>(
 
 pub struct RawItems<'a> {
     snap: &'a RawSnap,
-    iter: btree_map::Iter<'a, i32, ops::Range<u32>>,
+    iter: hash_map::Iter<'a, i32, ops::Range<u32>>,
 }
 
 impl<'a> Iterator for RawItems<'a> {
@@ -648,8 +651,8 @@ impl fmt::Debug for Snap {
 
 #[derive(Clone, Default)]
 pub struct Delta {
-    deleted_items: BTreeSet<i32>,
-    updated_items: BTreeMap<i32, ops::Range<u32>>,
+    deleted_items: FxHashSet<i32>,
+    updated_items: FxHashMap<i32, ops::Range<u32>>,
     buf: Vec<i32>,
 }
 

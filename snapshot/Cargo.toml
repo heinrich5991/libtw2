@@ -13,6 +13,7 @@ libtw2-gamenet-common = { path = "../gamenet/common/" }
 libtw2-gamenet-snap = { path = "../gamenet/snap/" }
 libtw2-packer = { path = "../packer/" }
 libtw2-warn = { path = "../warn/" }
+rustc-hash = "2.0"
 uuid = ">=0.8.1,<2.0.0"
 vec_map = "0.8.0"
 
