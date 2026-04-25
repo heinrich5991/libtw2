@@ -298,6 +298,7 @@ types:
       - id: tiles_data_index
         type: s4
       - id: name
+        if: version >= 3
         type: i32x3_string
       - id: tele_data_index
         if: not _io.eof
