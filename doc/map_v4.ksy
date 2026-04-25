@@ -255,6 +255,7 @@ types:
         if: version >= 2
         type: fixed_point(32.)
       - id: name
+        if: version >= 3
         type: i32x3_string
   
   layer_item:
