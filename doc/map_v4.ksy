@@ -500,13 +500,13 @@ enums:
     0: not_quality
     1: quality
   tilemap_flags:
-    0x0000_0000: tiles
-    0x0000_0001: game
-    0x0000_0010: tele
-    0x0000_0100: speedup
-    0x0000_1000: front
-    0x0001_0000: switch
-    0x0010_0000: tune
+    0: tiles
+    1: game
+    2: tele
+    4: speedup
+    8: front
+    16: switch
+    32: tune
   curve_kind:
     0: step
     1: linear
