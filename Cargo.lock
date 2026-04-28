@@ -767,6 +767,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtw2"
+version = "0.0.1"
+dependencies = [
+ "libtw2-buffer",
+ "libtw2-common",
+ "libtw2-datafile",
+ "libtw2-demo",
+ "libtw2-event-loop",
+ "libtw2-gamenet-common",
+ "libtw2-gamenet-ddnet",
+ "libtw2-gamenet-snap",
+ "libtw2-gamenet-spec",
+ "libtw2-gamenet-teeworlds-0-5",
+ "libtw2-gamenet-teeworlds-0-6",
+ "libtw2-gamenet-teeworlds-0-7",
+ "libtw2-httphook",
+ "libtw2-huffman",
+ "libtw2-huffman-reference",
+ "libtw2-huffman-reference-sys",
+ "libtw2-logger",
+ "libtw2-map",
+ "libtw2-net",
+ "libtw2-packer",
+ "libtw2-polyfill-1-63",
+ "libtw2-register",
+ "libtw2-serverbrowse",
+ "libtw2-snapshot",
+ "libtw2-snapshot-reference",
+ "libtw2-snapshot-reference-sys",
+ "libtw2-socket",
+ "libtw2-stats-browser",
+ "libtw2-teehistorian",
+ "libtw2-tools",
+ "libtw2-warn",
+ "libtw2-world",
+ "libtw2-zlib-minimal",
+]
+
+[[package]]
 name = "libtw2-buffer"
 version = "0.0.1"
 dependencies = [

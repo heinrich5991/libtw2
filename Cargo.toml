@@ -40,3 +40,132 @@ members = [
     "world",
     "zlib-minimal",
 ]
+
+[package]
+name = "libtw2"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+rust-version = "1.63.0"
+
+[dependencies]
+libtw2-buffer = { path = "buffer", optional = true }
+libtw2-common = { path = "common", optional = true }
+libtw2-datafile = { path = "datafile", optional = true }
+libtw2-demo = { path = "demo", optional = true }
+libtw2-event-loop = { path = "event-loop", optional = true }
+libtw2-gamenet-common = { path = "gamenet/common", optional = true }
+libtw2-gamenet-ddnet = { path = "gamenet/ddnet", optional = true }
+libtw2-gamenet-snap = { path = "gamenet/snap", optional = true }
+libtw2-gamenet-spec = { path = "gamenet/spec", optional = true }
+libtw2-gamenet-teeworlds-0-5 = { path = "gamenet/teeworlds-0.5", optional = true }
+libtw2-gamenet-teeworlds-0-6 = { path = "gamenet/teeworlds-0.6", optional = true }
+libtw2-gamenet-teeworlds-0-7 = { path = "gamenet/teeworlds-0.7", optional = true }
+libtw2-httphook = { path = "httphook", optional = true }
+libtw2-huffman = { path = "huffman", optional = true }
+libtw2-huffman-reference = { path = "huffman/reference", optional = true }
+libtw2-huffman-reference-sys = { path = "huffman/reference/sys", optional = true }
+libtw2-logger = { path = "logger", optional = true }
+libtw2-map = { path = "map", optional = true }
+libtw2-net = { path = "net", optional = true }
+libtw2-packer = { path = "packer", optional = true }
+libtw2-polyfill-1-63 = { path = "polyfill-1-63", optional = true }
+libtw2-register = { path = "register", optional = true }
+libtw2-serverbrowse = { path = "serverbrowse", optional = true }
+libtw2-snapshot = { path = "snapshot", optional = true }
+libtw2-snapshot-reference = { path = "snapshot/reference", optional = true }
+libtw2-snapshot-reference-sys = { path = "snapshot/reference/sys", optional = true }
+libtw2-socket = { path = "socket", optional = true }
+libtw2-stats-browser = { path = "stats-browser", optional = true }
+libtw2-teehistorian = { path = "teehistorian", optional = true }
+libtw2-tools = { path = "tools", optional = true }
+libtw2-warn = { path = "warn", optional = true }
+libtw2-world = { path = "world", optional = true }
+libtw2-zlib-minimal = { path = "zlib-minimal", optional = true }
+
+[features]
+default = ["buffer", "common", "warn"]
+buffer = ["dep:libtw2-buffer"]
+common = ["dep:libtw2-common"]
+common_file_offset = ["common", "libtw2-common/file_offset"]
+common_serde = ["common", "libtw2-common/serde"]
+datafile = ["dep:libtw2-datafile"]
+demo = ["dep:libtw2-demo"]
+event_loop = ["dep:libtw2-event-loop"]
+httphook = ["dep:libtw2-httphook"]
+
+c_toolchain = []
+cxx_toolchain = []
+
+huffman = ["dep:libtw2-huffman"]
+huffman_reference = ["dep:libtw2-huffman-reference"]
+huffman_reference_sys = ["c_toolchain", "dep:libtw2-huffman-reference-sys"]
+huffman_all = ["huffman", "huffman_reference", "huffman_reference_sys"]
+logger = ["dep:libtw2-logger"]
+map = ["dep:libtw2-map"]
+net = ["dep:libtw2-net"]
+packer = ["dep:libtw2-packer"]
+packer_uuid = ["packer", "libtw2-packer/uuid"]
+polyfill_1_63 = ["dep:libtw2-polyfill-1-63"]
+register = ["dep:libtw2-register"]
+serverbrowse = ["dep:libtw2-serverbrowse"]
+snapshot = ["dep:libtw2-snapshot"]
+snapshot_reference = ["dep:libtw2-snapshot-reference"]
+snapshot_reference_sys = ["c_toolchain", "dep:libtw2-snapshot-reference-sys"]
+snapshot_all = ["snapshot", "snapshot_reference", "snapshot_reference_sys"]
+socket = ["dep:libtw2-socket"]
+stats_browser = ["dep:libtw2-stats-browser"]
+teehistorian = ["dep:libtw2-teehistorian"]
+tools = ["dep:libtw2-tools"]
+warn = ["dep:libtw2-warn"]
+world = ["dep:libtw2-world"]
+zlib_minimal = ["dep:libtw2-zlib-minimal"]
+
+gamenet_common = ["dep:libtw2-gamenet-common"]
+gamenet_ddnet = ["dep:libtw2-gamenet-ddnet"]
+gamenet_snap = ["dep:libtw2-gamenet-snap"]
+gamenet_spec = ["dep:libtw2-gamenet-spec"]
+gamenet_teeworlds_0_5 = ["dep:libtw2-gamenet-teeworlds-0-5"]
+gamenet_teeworlds_0_6 = ["dep:libtw2-gamenet-teeworlds-0-6"]
+gamenet_teeworlds_0_7 = ["dep:libtw2-gamenet-teeworlds-0-7"]
+gamenet = [
+    "gamenet_common",
+    "gamenet_ddnet",
+    "gamenet_snap",
+    "gamenet_spec",
+    "gamenet_teeworlds_0_5",
+    "gamenet_teeworlds_0_6",
+    "gamenet_teeworlds_0_7",
+]
+
+full = [
+    "buffer",
+    "common",
+    "warn",
+    "common_file_offset",
+    "common_serde",
+    "datafile",
+    "demo",
+    "event_loop",
+    "gamenet",
+    "httphook",
+    "huffman",
+    "logger",
+    "map",
+    "net",
+    "packer",
+    "packer_uuid",
+    "polyfill_1_63",
+    "register",
+    "serverbrowse",
+    "snapshot",
+    "socket",
+    "stats_browser",
+    "teehistorian",
+    "tools",
+    "world",
+    "zlib_minimal",
+]
+full_reference = ["full", "huffman_reference", "snapshot_reference"]
+full_sys = ["full", "huffman_reference_sys", "snapshot_reference_sys"]
