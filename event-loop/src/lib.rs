@@ -12,7 +12,6 @@ use libtw2_net::Net;
 use libtw2_socket::Socket;
 use libtw2_warn as warn;
 use log::LogLevel;
-use std::cmp;
 use std::fmt;
 
 pub use libtw2_net::collections;
@@ -100,7 +99,11 @@ impl Loop for SocketLoop {
             }
             self.disconnected.restore(disconnected);
 
-            let sleep_timeout = cmp::min(self.net.needs_tick(), application.needs_tick());
+            let sleep_timeout = if self.server {
+                self.net.needs_tick()
+            } else {
+                application.needs_tick()
+            };
             let sleep_duration = sleep_timeout.time_from(self.socket.time());
             if !self.server && sleep_duration.is_none() {
                 break;
