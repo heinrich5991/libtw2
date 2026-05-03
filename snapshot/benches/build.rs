@@ -3,8 +3,8 @@
 use self::traits::Delta as _;
 use self::traits::Implementation;
 use self::traits::Libtw2;
-use self::traits::RawBuilder as _;
-use self::traits::RawSnap as _;
+use self::traits::RawBuilder;
+use self::traits::RawSnap;
 use self::traits::Reference;
 use bencher::benchmark_group;
 use bencher::benchmark_main;
@@ -151,20 +151,26 @@ struct Item {
     data: Vec<i32>,
 }
 
+#[rustfmt::skip]
+fn add_items<B: RawBuilder>(builder: &mut B, items: &[Item]) {
+    for &Item { type_id, id, ref data } in items {
+        builder.add_item(type_id, id, data).unwrap();
+    }
+}
+
+fn snap_from_items<S: RawSnap>(items: &[Item]) -> S {
+    let mut builder = S::RawBuilder::default();
+    add_items(&mut builder, items);
+    builder.finish()
+}
+
 fn bench_snap<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
     let mut out = (0..16384).map(|_| 0).collect_vec();
     let mut buffer = Vec::new();
     let mut builder_buf = Some(I::RawBuilder::default());
     bencher.iter(|| {
         let mut builder = builder_buf.take().unwrap();
-        for &Item {
-            type_id,
-            id,
-            ref data,
-        } in black_box(&items)
-        {
-            builder.add_item(type_id, id, data).unwrap();
-        }
+        add_items(&mut builder, black_box(&items));
         let mut snap = builder.finish();
         black_box(snap.write_to_ints(&mut buffer, &mut out).unwrap());
         builder_buf = Some(snap.recycle());
@@ -179,32 +185,36 @@ fn bench_delta<I: Implementation>(
     let mut out = (0..16384).map(|_| 0).collect_vec();
 
     let mut delta = I::Delta::default();
-    let mut from = I::RawBuilder::default();
-    for &Item {
-        type_id,
-        id,
-        ref data,
-    } in &from_items
-    {
-        from.add_item(type_id, id, data).unwrap();
-    }
-    let from = from.finish();
+    let from: I::RawSnap = snap_from_items(&from_items);
+    let to: I::RawSnap = snap_from_items(&to_items);
+
+    bencher.iter(|| {
+        black_box(
+            delta
+                .create_raw_and_write_to_ints(black_box(&from), black_box(&to), obj_size, &mut out)
+                .unwrap(),
+        );
+    });
+}
+
+fn bench_snapdelta<I: Implementation>(
+    bencher: &mut Bencher,
+    from_items: Vec<Item>,
+    to_items: Vec<Item>,
+) {
+    let mut out = (0..16384).map(|_| 0).collect_vec();
+
+    let mut delta = I::Delta::default();
+    let from: I::RawSnap = snap_from_items(&from_items);
 
     let mut to_buf = Some(I::RawBuilder::default());
     bencher.iter(|| {
         let mut to = to_buf.take().unwrap();
-        for &Item {
-            type_id,
-            id,
-            ref data,
-        } in black_box(&to_items)
-        {
-            to.add_item(type_id, id, data).unwrap();
-        }
+        add_items(&mut to, black_box(&to_items));
         let mut to = to.finish();
         black_box(
             delta
-                .create_raw_and_write_to_ints(&from, &to, obj_size, &mut out)
+                .create_raw_and_write_to_ints(black_box(&from), &to, obj_size, &mut out)
                 .unwrap(),
         );
         to_buf = Some(to.recycle());
@@ -265,5 +275,8 @@ benches! {
     bench_delta(empty(), empty()), delta_empty_empty_libtw2, delta_empty_empty_reference;
     bench_delta(_300_items(), _300_items()), delta_300_300_libtw2, delta_300_300_reference;
     bench_delta(_300_items(), _300_items_modified()), delta_300_300m_libtw2, delta_300_300m_reference;
+    bench_snapdelta(empty(), empty()), snapdelta_empty_empty_libtw2, snapdelta_empty_empty_reference;
+    bench_snapdelta(_300_items(), _300_items()), snapdelta_300_300_libtw2, snapdelta_300_300_reference;
+    bench_snapdelta(_300_items(), _300_items_modified()), snapdelta_300_300m_libtw2, snapdelta_300_300m_reference;
 }
 benchmark_main!(building);
