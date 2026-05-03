@@ -164,7 +164,7 @@ fn snap_from_items<S: RawSnap>(items: &[Item]) -> S {
     builder.finish()
 }
 
-fn bench_snap<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
+fn bench_snapwrite<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
     let mut out = (0..16384).map(|_| 0).collect_vec();
     let mut buffer = Vec::new();
     let mut builder_buf = Some(I::RawBuilder::default());
@@ -173,6 +173,17 @@ fn bench_snap<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
         add_items(&mut builder, black_box(&items));
         let mut snap = builder.finish();
         black_box(snap.write_to_ints(&mut buffer, &mut out).unwrap());
+        builder_buf = Some(snap.recycle());
+    });
+}
+
+fn bench_snap<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
+    let mut builder_buf = Some(I::RawBuilder::default());
+    bencher.iter(|| {
+        let mut builder = builder_buf.take().unwrap();
+        add_items(&mut builder, black_box(&items));
+        let mut snap = builder.finish();
+        black_box(&snap);
         builder_buf = Some(snap.recycle());
     });
 }
@@ -272,6 +283,8 @@ macro_rules! benches {
 benches! {
     bench_snap(empty()), snap_empty_libtw2, snap_empty_reference;
     bench_snap(_300_items()), snap_300_libtw2, snap_300_reference;
+    bench_snapwrite(empty()), snapwrite_empty_libtw2, snapwrite_empty_reference;
+    bench_snapwrite(_300_items()), snapwrite_300_libtw2, snapwrite_300_reference;
     bench_delta(empty(), empty()), delta_empty_empty_libtw2, delta_empty_empty_reference;
     bench_delta(_300_items(), _300_items()), delta_300_300_libtw2, delta_300_300_reference;
     bench_delta(_300_items(), _300_items_modified()), delta_300_300m_libtw2, delta_300_300m_reference;
