@@ -5,7 +5,7 @@ The server continually sends snapshots and snapshot deltas to all game clients t
 To avoid sending redundant information, snapshots are sent only occasionally and snapshot deltas are used to compactly represent what changed.
 As tees move around, their position and other attributes often change on every tick.
 Normally, the server would need to include all of these tees in every snapshot delta.
-However, tees have a the system in place called dead reckoning in place to reduce how often a tee update needs to be sent by the server.
+However, tees have a system in place called dead reckoning in place to reduce how often a tee update needs to be sent by the server.
 
 The idea of dead reckoning is that the client can run the physics calculations just as well as the server.
 So we define a subset of physics we call dead reckoning which the client and server agree upon.
