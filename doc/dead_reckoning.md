@@ -39,9 +39,7 @@ If the client receives a snapshot with tick $n$, and finds a tee with tick $t$, 
 In case the client has cached a dead reckoned tee from the original tick $t$, it can also use it to perform less dead reckoning.
 A future snapshot does not have a "more correct" tee for this tick, even if that snapshot's tick is further back in the past.
 
-Demos
------
-
-In demos, we receive a snapshot only every second tick and some snapshots are even fully left out.
-A missing snapshot means that dead reckoning produces the expected snapshot which was left out for that reason(?).
-The client will also fill the gap of every second tick by running dead reckoning(? or do we use full prediction here ?).
+The server can decide to send fewer than one snapshot per tick.
+With `sv_high_bandwidth 0`, the server will send at most one snapshot every other tick.
+Longer snapshot gaps mean that dead reckoning produces the expected snapshot, which was able to be left out for that reason(?).
+The client will also fill the gap of every second tick by running dead reckoning(? or do we use full prediction here ? or does this not get predicted at all and the graphics interpolate between further away snapshots ?).
