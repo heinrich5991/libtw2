@@ -10,7 +10,7 @@ However, tees have a system in place called dead reckoning in place to reduce ho
 The idea of dead reckoning is that the client can run the physics calculations just as well as the server.
 So we define a subset of physics we call dead reckoning which the client and server agree upon.
 Dead reckoning only considers a singular tee, without interaction with projectiles or other tees.
-Whenever the server sends a tee update, the state includes the tick on which from the state is.
+Whenever the server sends a tee update, the state includes the tick that the state is for.
 The client then runs dead reckoning on the single tee.
 The server knows which physics are run by the client and only sends a new tee state if the real tee position diverged from the dead reckoning simulation.
 Alternatively, if the tee state the client has is 3 seconds old (150 ticks), the server also sends an update.
