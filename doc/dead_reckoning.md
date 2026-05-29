@@ -8,7 +8,8 @@ Normally, the server would need to include all of these tees in every snapshot d
 However, tees have a system in place called dead reckoning in place to reduce how often a tee update needs to be sent by the server.
 
 The idea of dead reckoning is that the client can run the physics calculations just as well as the server.
-So we define a subset of physics we call dead reckoning which the client and server agree upon.
+Dead reckoning is a subset of Teeworlds physics which the client and server are aware of.
+As dead reckoning is a subset of Teeworlds physics, it won't take DDNet concepts like tune zones into account.
 Dead reckoning only considers a singular tee, without interaction with projectiles or other tees.
 Whenever the server sends a tee update, the state includes the tick that the state is for.
 The client then runs dead reckoning on the single tee.
@@ -27,8 +28,8 @@ Assumptions
 Prediction
 ==========
 
-If the client receives a snapshot with tick `n`, and finds a tee with tick `t`, it runs dead reckoning for `n - t` ticks to get the up-to-date tee.
-In case the client has cached a dead reckoned tee from the original tick `t`, it can also use it to perform less dead reckoning.
+If the client receives a snapshot with tick $n$, and finds a tee with tick $t$, it runs dead reckoning for $n - t$ ticks to get the up-to-date tee.
+In case the client has cached a dead reckoned tee from the original tick $t$, it can also use it to perform less dead reckoning.
 A future snapshot does not have a "more correct" tee for this tick, even if that snapshot's tick is further back in the past.
 
 Demos
