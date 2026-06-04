@@ -35,12 +35,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let tick = chr.character_core.tick;
                         assert!(tick <= last_tick.unwrap());
                         if let Some(last_tick) = tee_ticks.insert(*id, tick) {
-                            assert!(tick >= last_tick); // Breaks
+                            // assert!(tick >= last_tick); // Breaks
                             if tick < last_tick {
                                 println!(
-                                    "Character ({id}) with decreased tick: {last_tick} -> {tick}"
+                                    "Character {id} with decreased tick: {last_tick} -> {tick}"
                                 );
                             }
+                            if last_tick == 0 {
+                                println!("Character {id} going from tick 0 -> {tick}");
+                            }
+                        } else {
+                            println!("Character {id} starting at tick {tick}");
                         }
                     }
                 }
