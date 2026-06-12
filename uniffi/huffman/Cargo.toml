@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libtw2-huffman = { path = "../../huffman" }
-uniffi = "0.27"
+uniffi = "0.31"
 
 [build-dependencies]
-uniffi = { version = "0.27", features = ["build"] }
+uniffi = { version = "0.31", features = ["build"] }
