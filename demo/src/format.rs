@@ -67,15 +67,51 @@ pub enum RawChunk<'a> {
 
 #[derive(BinRead, BinWrite, Debug)]
 #[brw(big)]
-pub(crate) struct HeaderStart {
-    pub version: Version,
-    pub header: Header,
+pub struct HeaderStart {
+    pub(crate) version: Version,
+    pub(crate) header: Header,
     #[br(if(version >= Version::V4))]
-    pub timeline_markers: TimelineMarkers,
+    pub(crate) timeline_markers: TimelineMarkers,
     #[br(if(version == Version::V6Ddnet))]
-    pub map_sha256: Option<MapSha256>,
+    pub(crate) map_sha256: Option<MapSha256>,
     #[br(count = header.map_size)]
-    pub map: Vec<u8>,
+    pub(crate) map: Vec<u8>,
+}
+
+impl HeaderStart {
+    pub fn version(&self) -> Version {
+        self.version
+    }
+    pub fn net_version(&self) -> &[u8] {
+        self.header.net_version.raw()
+    }
+    pub fn map_name(&self) -> &[u8] {
+        self.header.map_name.raw()
+    }
+    pub fn map_size(&self) -> u32 {
+        self.header.map_size.assert_u32()
+    }
+    pub fn map_data(&self) -> &[u8] {
+        &self.map
+    }
+    pub fn map_crc(&self) -> u32 {
+        self.header.map_crc
+    }
+    pub fn kind(&self) -> DemoKind {
+        self.header.kind
+    }
+    pub fn length(&self) -> i32 {
+        self.header.length
+    }
+    pub fn timestamp(&self) -> &[u8] {
+        self.header.timestamp.raw()
+    }
+    pub fn timeline_markers(&self) -> &[i32] {
+        self.timeline_markers.markers()
+    }
+    pub fn map_sha256(&self) -> Option<Sha256> {
+        self.map_sha256.as_ref().map(|sha| Sha256(sha.sha_256))
+    }
 }
 
 #[derive(BinRead, BinWrite, Debug)]
@@ -210,7 +246,7 @@ const CHUNKSIZE_ONEBYTEFOLLOWS: u8 = 0b0001_1110;
 const CHUNKSIZE_TWOBYTESFOLLOW: u8 = 0b0001_1111;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum DataKind {
+pub enum DataKind {
     Snapshot,
     Message,
     SnapshotDelta,
@@ -224,13 +260,13 @@ pub(crate) enum TickMarker {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum ChunkHeader {
+pub enum ChunkHeader {
     Tick { marker: TickMarker, keyframe: bool },
     Data { kind: DataKind, size: u16 },
 }
 
 impl ChunkHeader {
-    pub(crate) fn read<R, W>(
+    pub fn read<R, W>(
         data: &mut R,
         version: Version,
         warn: &mut W,
