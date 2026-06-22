@@ -1,8 +1,13 @@
 use crate::format;
+use arrayvec::ArrayVec;
+use binrw::BinWrite;
+use libtw2_buffer as buffer;
 use libtw2_common::digest::Sha256;
+use libtw2_common::num::Cast;
 use libtw2_gamenet_common::traits::MessageExt as _;
 use libtw2_gamenet_common::traits::Protocol;
 use libtw2_gamenet_common::traits::SnapObj as _;
+use libtw2_huffman::instances::TEEWORLDS as HUFFMAN;
 use libtw2_packer::with_packer;
 use libtw2_snapshot::snap;
 use libtw2_snapshot::Delta;
@@ -12,8 +17,12 @@ use std::marker::PhantomData;
 use std::mem;
 use thiserror::Error;
 
+const WRITER_VERSION: format::Version = format::Version::V5;
+
 #[derive(Debug, Error)]
 pub enum WriteError {
+    #[error(transparent)]
+    BinRw(#[from] binrw::Error),
     #[error(transparent)]
     Inner(crate::WriteError),
     #[error("Snap creation - {0:?}")]
@@ -38,11 +47,16 @@ impl From<snap::BuilderError> for WriteError {
     }
 }
 
+pub(crate) trait SeekableWrite: io::Write + io::Seek {}
+impl<T: io::Write + io::Seek> SeekableWrite for T {}
+
 /// DDNet demo writer.
 ///
 /// Automatically writes snapshot deltas.
 pub struct DemoWriter<'a, P: for<'p> Protocol<'p>> {
-    inner: crate::Writer<'a>,
+    file: Box<dyn SeekableWrite + 'a>,
+    prev_tick: Option<i32>,
+    huffman: ArrayVec<[u8; format::MAX_SNAPSHOT_SIZE]>,
     // To verify the monotonic increase
     last_tick: i32,
     // Stores the last tick, in which a snapshot was written.
@@ -57,7 +71,7 @@ pub struct DemoWriter<'a, P: for<'p> Protocol<'p>> {
 
 impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
     pub fn new<T: io::Write + io::Seek + 'a>(
-        file: T,
+        mut file: T,
         net_version: &[u8],
         map_name: &[u8],
         map_sha256: Option<Sha256>,
@@ -67,20 +81,36 @@ impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
         timestamp: &[u8],
         map: &[u8],
     ) -> Result<Self, WriteError> {
-        let raw = crate::Writer::new(
-            file,
-            net_version,
-            map_name,
-            map_sha256,
-            map_crc,
-            kind,
+        let version = if map_sha256.is_some() {
+            format::Version::V6Ddnet
+        } else {
+            format::Version::V5
+        };
+        version.write(&mut file)?;
+        let header = format::Header {
+            net_version: format::CappedString::from_raw(net_version),
+            map_name: format::CappedString::from_raw(map_name),
+            map_size: map.len().assert_i32(),
+            map_crc: map_crc,
+            kind: kind,
             length,
-            timestamp,
-            map,
-        )?;
+            timestamp: format::CappedString::from_raw(timestamp),
+        };
+        header.write(&mut file)?;
+        format::TimelineMarkers {
+            amount: 0,
+            markers: [0; 64],
+        }
+        .write(&mut file)?;
+        if let Some(sha256) = map_sha256 {
+            format::MapSha256::new(sha256).write_le(&mut file)?;
+        }
+        map.write(&mut file)?;
 
         Ok(Self {
-            inner: raw,
+            file: Box::new(file),
+            prev_tick: None,
+            huffman: ArrayVec::new(),
             last_tick: -1,
             last_keyframe: None,
             snap: Snap::default(),
@@ -117,18 +147,27 @@ impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
         let old_snap = mem::take(&mut self.snap);
         let new_snap = mem::take(&mut self.builder).finish();
 
-        self.inner.write_tick(is_keyframe, tick)?;
+        let tm = format::TickMarker::new(tick, self.prev_tick, is_keyframe, WRITER_VERSION);
+        format::ChunkHeader::Tick {
+            marker: tm,
+            keyframe: is_keyframe,
+        }
+        .write(&mut self.file, WRITER_VERSION)?;
+        self.prev_tick = Some(tick);
+
         if is_keyframe {
             let keys = &mut self.i32_buf;
+            self.buf.clear();
             with_packer(&mut self.buf, |p| new_snap.write(keys, p))
                 .map_err(|_| WriteError::TooLargeSnap)?;
-            self.inner.write_snapshot(&self.buf)?;
+            self.write_chunk_impl(format::DataKind::Snapshot)?;
         } else {
             self.delta.create(&old_snap, &new_snap);
             let delta = &self.delta;
+            self.buf.clear();
             with_packer(&mut self.buf, |p| delta.write(P::obj_size, p))
                 .map_err(|_| WriteError::TooLargeSnap)?;
-            self.inner.write_snapshot_delta(&self.buf)?;
+            self.write_chunk_impl(format::DataKind::SnapshotDelta)?;
         }
 
         // Snap deltas always rely on the snap of the last tick in the demo.
@@ -144,9 +183,41 @@ impl<'a, P: for<'p> Protocol<'p>> DemoWriter<'a, P> {
         Ok(())
     }
     pub fn write_msg(&mut self, msg: &<P as Protocol<'_>>::Game) -> Result<(), WriteError> {
-        with_packer(&mut self.buf, |p| msg.encode(p)).map_err(|_| WriteError::TooLongNetMsg)?;
-        self.inner.write_message(self.buf.as_slice())?;
+        // We reuse the huffman buffer as we need to do twint decoding twice.
+        self.huffman.clear();
+        with_packer(&mut self.huffman, |p| msg.encode(p)).map_err(|_| WriteError::TooLongNetMsg)?;
         self.buf.clear();
+        with_packer(
+            &mut self.buf,
+            |mut p| -> Result<(), buffer::CapacityError> {
+                for b in self.huffman.chunks(4) {
+                    // Get or return 0.
+                    fn g(bytes: &[u8], idx: usize) -> u8 {
+                        bytes.get(idx).cloned().unwrap_or(0)
+                    }
+                    p.write_int(i32::from_le_bytes([g(b, 0), g(b, 1), g(b, 2), g(b, 3)]))?;
+                }
+                Ok(())
+            },
+        )
+        .expect("overlong message");
+        self.write_chunk_impl(format::DataKind::Message)?;
+        Ok(())
+    }
+    fn write_chunk_impl(&mut self, kind: format::DataKind) -> Result<(), WriteError> {
+        let data = &self.buf;
+        self.huffman.clear();
+        HUFFMAN
+            .compress(data, &mut self.huffman)
+            .expect("too long compression");
+        format::ChunkHeader::Data {
+            kind,
+            size: self.huffman.len().assert_u16(),
+        }
+        .write(&mut self.file, format::Version::V5)?;
+        self.file
+            .write_all(&self.huffman)
+            .map_err(binrw::Error::Io)?;
         Ok(())
     }
 }
