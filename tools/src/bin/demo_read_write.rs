@@ -73,14 +73,14 @@ fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
     let mut reader = ddnet::DemoReader::<DDNet>::new(input_file, &mut warn::Log)?;
     let mut writer = ddnet::DemoWriter::<DDNet>::new(
         output_file,
-        reader.net_version(),
-        reader.map_name(),
-        reader.map_sha256(),
-        reader.map_crc(),
-        reader.kind(),
-        reader.length(),
-        reader.timestamp(),
-        reader.map_data(),
+        reader.header().net_version(),
+        reader.header().map_name(),
+        reader.header().map_sha256(),
+        reader.header().map_crc(),
+        reader.header().kind(),
+        reader.header().length(),
+        reader.header().timestamp(),
+        reader.header().map_data(),
     )?;
     let mut last_tick = None;
     while let Some(chunk) = reader.next_chunk(&mut warn::Log)? {
@@ -90,7 +90,7 @@ fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
                 None => eprintln!("Snapshot without tick"),
                 Some(t) => writer.write_snap(t, snap.map(|(obj, id)| (obj, *id)))?,
             },
-            ddnet::Chunk::Tick(t) => last_tick = Some(t),
+            ddnet::Chunk::Tick { tick, .. } => last_tick = Some(tick),
             ddnet::Chunk::Invalid => eprintln!("Invalid chunk!"),
         }
     }
