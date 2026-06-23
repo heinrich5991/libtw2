@@ -99,6 +99,20 @@ pub enum Chunk<'a, P: Protocol<'a>> {
     Invalid,
 }
 
+fn apply_tickmarker(current_tick: Option<i32>, tm: format::TickMarker) -> Result<i32, ReadError> {
+    use format::TickMarker::*;
+    match (current_tick, tm) {
+        (None, Absolute(t)) => Ok(t),
+        (Some(prev), Absolute(t)) if t > prev => Ok(t),
+        (Some(_), Absolute(_)) => Err(ReadError::NotIncreasingTick),
+        (None, Delta(_)) => Err(ReadError::StartingDeltaSnapshot),
+        (Some(prev), Delta(d)) => match prev.checked_add(d.i32()) {
+            None => Err(ReadError::TickOverflow),
+            Some(t) => Ok(t),
+        },
+    }
+}
+
 impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
     pub fn new<R, W>(mut data: R, warn: &mut W) -> Result<Self, ReadError>
     where
@@ -137,37 +151,14 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
             return Ok(None);
         };
         match chunk_header {
-            format::ChunkHeader::Tick {
-                marker: format::TickMarker::Absolute(t),
-                keyframe,
-            } => {
-                if let Some(previous) = self.current_tick {
-                    if previous >= t {
-                        return Err(ReadError::NotIncreasingTick);
-                    }
-                }
-                self.current_tick = Some(t);
+            format::ChunkHeader::Tick { marker, keyframe } => {
+                let tick = apply_tickmarker(self.current_tick, marker)?;
+                self.current_tick = Some(tick);
                 Ok(Some(Chunk::Tick {
-                    tick: t,
+                    tick,
                     keyframe: keyframe,
                 }))
             }
-            format::ChunkHeader::Tick {
-                marker: format::TickMarker::Delta(d),
-                keyframe,
-            } => match self.current_tick {
-                None => Err(ReadError::StartingDeltaSnapshot),
-                Some(t) => match t.checked_add(d.i32()) {
-                    None => Err(ReadError::TickOverflow),
-                    Some(new_t) => {
-                        self.current_tick = Some(new_t);
-                        Ok(Some(Chunk::Tick {
-                            tick: new_t,
-                            keyframe: keyframe,
-                        }))
-                    }
-                },
-            },
             format::ChunkHeader::Data { kind, size } => {
                 let raw_data = &mut self.raw[..size.usize()];
                 self.data.read_exact(raw_data)?;
@@ -220,6 +211,93 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
                 }
             }
         }
+    }
+
+    pub fn stream_position(&mut self) -> io::Result<u64> {
+        self.data.stream_position()
+    }
+
+    /// Seeks the inner reader to the specified position.
+    /// Take care that the tick is a keyframe.
+    /// Otherwise, a snap delta will throw errors.
+    pub fn seek(&mut self, pos: u64) -> io::Result<()> {
+        self.data.seek(io::SeekFrom::Start(pos))?;
+        self.current_tick = None;
+        self.snap = std::mem::take(&mut self.snap).recycle().finish();
+        Ok(())
+    }
+
+    /// This method uses minimal IO to seek the keyframe identified by the tick parameter.
+    /// It will go to the keyframe with the equal tick, if it exists.
+    /// Otherwise it will go to the keyframe with the closest, lower tick.
+    /// Returns `None`, if there was no keyframe leading up to the requested tick, of if the tick lies in the past.
+    /// If `None` is returned, the internal state of the reader stayed untouched.
+    /// If `Some` is returned, it contains the tick of the found keyframe.
+    pub fn skip_to_keyframe<W>(
+        &mut self,
+        seek_tick: i32,
+        warn: &mut W,
+    ) -> Result<Option<i32>, ReadError>
+    where
+        W: Warn<Warning>,
+    {
+        let mut last_valid_position = self.data.stream_position()?;
+        let mut last_valid_tick = self.current_tick;
+        let mut tmp_tick = self.current_tick;
+        while let Ok(header) =
+            format::ChunkHeader::read(&mut self.data, self.start.version, wrap(warn))
+        {
+            let Some(header) = header else {
+                // End of the demo, go back to last valid position;
+                if last_valid_tick == self.current_tick {
+                    // We didn't find a better position than the original one.
+                    self.data.seek(io::SeekFrom::Start(last_valid_position))?;
+                    return Ok(None);
+                } else {
+                    // We properly seek, so we need to reset internal state.
+                    self.seek(last_valid_position)?;
+                    return Ok(last_valid_tick);
+                }
+            };
+            let this_header_position = self.data.stream_position()?;
+            match header {
+                format::ChunkHeader::Tick { marker, keyframe } => {
+                    let tick = apply_tickmarker(tmp_tick, marker)?;
+                    tmp_tick = Some(tick);
+                    if keyframe {
+                        match tick.cmp(&seek_tick) {
+                            std::cmp::Ordering::Less => {
+                                // Still to far back in the demo, might still be the best fit.
+                                last_valid_position = this_header_position;
+                                last_valid_tick = Some(tick);
+                            }
+                            std::cmp::Ordering::Equal => {
+                                // We found exactly the keyframe the user asked for :)
+                                self.data.seek(io::SeekFrom::Start(this_header_position))?;
+                                return Ok(Some(tick));
+                            }
+                            std::cmp::Ordering::Greater => {
+                                // We overshot the requested tick, go back to last keyframe.
+                                if last_valid_tick == self.current_tick {
+                                    // We didn't find a better position than the original one.
+                                    self.data.seek(io::SeekFrom::Start(last_valid_position))?;
+                                    return Ok(None);
+                                } else {
+                                    // We properly seek, so we need to reset internal state.
+                                    self.seek(last_valid_position)?;
+                                    return Ok(last_valid_tick);
+                                }
+                            }
+                        }
+                    }
+                }
+                format::ChunkHeader::Data { size, .. } => {
+                    // Skip past chunk data
+                    self.data.seek(io::SeekFrom::Current(size.i64()))?;
+                }
+            }
+        }
+        todo!()
     }
 }
 
