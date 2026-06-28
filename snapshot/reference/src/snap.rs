@@ -27,10 +27,10 @@ impl Default for RawBuilder {
 
 impl RawBuilder {
     fn inner_builder_mut(&mut self) -> *mut libc::c_void {
-        self.builder.as_mut_ptr() as *mut _
+        self.builder.as_mut_ptr().cast::<libc::c_void>()
     }
     pub fn new() -> RawBuilder {
-        Default::default()
+        RawBuilder::default()
     }
     pub fn add_item(&mut self, type_id: u16, id: u16, data: &[i32]) -> Result<(), Infallible> {
         unsafe {
@@ -47,7 +47,7 @@ impl RawBuilder {
     pub fn finish(mut self) -> RawSnap {
         const LEN: usize = 16384;
         assert!(self.serialized_snap.capacity() >= LEN);
-        let buffer = self.serialized_snap.as_mut_ptr() as *mut [i32; LEN];
+        let buffer = self.serialized_snap.as_mut_ptr().cast::<[i32; LEN]>();
         let written = unsafe { sys::snapshotbuilder_finish(self.inner_builder_mut(), buffer) };
         self.serialize_ok = usize::try_from(written)
             // TODO (MSRV 1.76): Use `.inspect()`
@@ -63,11 +63,7 @@ impl RawBuilder {
 pub struct RawSnap(RawBuilder);
 
 impl RawSnap {
-    pub fn write_to_ints<'a>(
-        &mut self,
-        _buf: &mut Vec<i32>,
-        result: &'a mut [i32],
-    ) -> Result<&'a [i32], CapacityError> {
+    pub fn write_to_ints<'a>(&mut self, result: &'a mut [i32]) -> Result<&'a [i32], CapacityError> {
         if !self.0.serialize_ok {
             return Err(CapacityError);
         }
@@ -103,15 +99,18 @@ impl Default for Delta {
 
 impl Delta {
     fn inner_delta_mut(&mut self) -> *mut libc::c_void {
-        self.builder.as_mut_ptr() as *mut _
+        self.builder.as_mut_ptr().cast::<libc::c_void>()
     }
     pub fn new() -> Delta {
-        Default::default()
+        Delta::default()
     }
     #[allow(unpredictable_function_pointer_comparisons)] // only used for caching
     fn handle_obj_size(&mut self, obj_size: fn(u16) -> Option<u32>) {
-        if self.prev_obj_size.is_none() {
+        if self.prev_obj_size != Some(obj_size) {
             self.prev_obj_size = Some(obj_size);
+            unsafe {
+                sys::snapshotdelta_init(self.inner_delta_mut());
+            }
             for type_ in 0..32768 {
                 if let Some(size) = obj_size(type_) {
                     unsafe {
@@ -123,8 +122,6 @@ impl Delta {
                     }
                 }
             }
-        } else if self.prev_obj_size != Some(obj_size) {
-            panic!("can only be called with a single `obj_size` function");
         }
     }
     pub fn create_raw_and_write_to_ints<'a>(
@@ -135,8 +132,9 @@ impl Delta {
         mut result: &'a mut [i32],
     ) -> Result<&'a [i32], CapacityError> {
         self.handle_obj_size(obj_size);
-        assert!(from.0.serialize_ok);
-        assert!(to.0.serialize_ok);
+        if !from.0.serialize_ok || !to.0.serialize_ok {
+            return Err(CapacityError);
+        }
         if result.len() > 16384 {
             result = &mut result[..16384];
         }

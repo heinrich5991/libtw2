@@ -61,11 +61,7 @@ mod traits {
     }
     pub trait RawSnap {
         type RawBuilder: RawBuilder<RawSnap = Self>;
-        fn write_to_ints<'a>(
-            &mut self,
-            buf: &mut Vec<i32>,
-            result: &'a mut [i32],
-        ) -> Result<&'a [i32], CapacityError>;
+        fn write_to_ints<'a>(&mut self, result: &'a mut [i32]) -> Result<&'a [i32], CapacityError>;
         fn recycle(self) -> Self::RawBuilder;
     }
 
@@ -93,12 +89,8 @@ mod traits {
     }
     impl RawSnap for libtw2_snap::RawSnap {
         type RawBuilder = libtw2_snap::RawBuilder;
-        fn write_to_ints<'a>(
-            &mut self,
-            buf: &mut Vec<i32>,
-            result: &'a mut [i32],
-        ) -> Result<&'a [i32], CapacityError> {
-            (&*self).write_to_ints(buf, result)
+        fn write_to_ints<'a>(&mut self, result: &'a mut [i32]) -> Result<&'a [i32], CapacityError> {
+            (&*self).write_to_ints(result)
         }
         fn recycle(self) -> libtw2_snap::RawBuilder {
             self.recycle()
@@ -128,12 +120,8 @@ mod traits {
     }
     impl RawSnap for reference_snap::RawSnap {
         type RawBuilder = reference_snap::RawBuilder;
-        fn write_to_ints<'a>(
-            &mut self,
-            buf: &mut Vec<i32>,
-            result: &'a mut [i32],
-        ) -> Result<&'a [i32], CapacityError> {
-            self.write_to_ints(buf, result)
+        fn write_to_ints<'a>(&mut self, result: &'a mut [i32]) -> Result<&'a [i32], CapacityError> {
+            self.write_to_ints(result)
         }
         fn recycle(self) -> reference_snap::RawBuilder {
             self.recycle()
@@ -166,13 +154,12 @@ fn snap_from_items<S: RawSnap>(items: &[Item]) -> S {
 
 fn bench_snapwrite<I: Implementation>(bencher: &mut Bencher, items: Vec<Item>) {
     let mut out = (0..16384).map(|_| 0).collect_vec();
-    let mut buffer = Vec::new();
     let mut builder_buf = Some(I::RawBuilder::default());
     bencher.iter(|| {
         let mut builder = builder_buf.take().unwrap();
         add_items(&mut builder, black_box(&items));
         let mut snap = builder.finish();
-        black_box(snap.write_to_ints(&mut buffer, &mut out).unwrap());
+        black_box(snap.write_to_ints(&mut out).unwrap());
         builder_buf = Some(snap.recycle());
     });
 }
