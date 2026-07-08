@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-            ddnet::Chunk::Tick(t) => last_tick = Some(t),
+            ddnet::Chunk::Tick { tick, .. } => last_tick = Some(tick),
             _ => {}
         }
     }
