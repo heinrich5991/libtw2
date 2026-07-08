@@ -169,6 +169,21 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
             }
         }
     }
+    /// Gets the position of the underlying reader.
+    pub fn stream_position(&mut self) -> Result<u64, ReadError> {
+        self.raw.stream_position().map_err(Into::into)
+    }
+    /// Moves the underlying reader to the specified position.
+    /// Note that demos hold a lot of state.
+    /// Seeking to chunks that are not keyframe ticks will cause errors.
+    pub fn seek(&mut self, pos: u64) -> Result<(), ReadError> {
+        self.delta.clear();
+        self.snap = Snap::empty();
+        self.old_snap = Snap::empty();
+        self.snapshot.objects.clear();
+        self.raw.seek(pos)?;
+        Ok(())
+    }
 }
 
 struct Snapshot<T> {

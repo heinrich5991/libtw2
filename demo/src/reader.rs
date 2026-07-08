@@ -182,4 +182,16 @@ impl<'a> Reader<'a> {
             }
         }
     }
+    /// Gets the position of the underlying reader.
+    pub fn stream_position(&mut self) -> Result<u64, ReadError> {
+        self.data.stream_position().map_err(Into::into)
+    }
+    /// Moves the underlying reader to the specified position.
+    /// Note that demos hold a lot of state.
+    /// Seeking to chunks that are not keyframe ticks will cause errors.
+    pub fn seek(&mut self, pos: u64) -> Result<(), ReadError> {
+        self.current_tick = None;
+        self.data.seek(io::SeekFrom::Start(pos))?;
+        Ok(())
+    }
 }
