@@ -184,6 +184,26 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
         self.raw.seek(pos)?;
         Ok(())
     }
+
+    /// Seeks forwards to the keyframe that contains the target tick.
+    /// This methods returns Some with the tick and stream position, if such a keyframe is found.
+    /// It returns None in one of three cases:
+    ///  - the keyframe would be before the current stream position
+    ///  - the demo ends before the keyframe is found
+    /// As long as the method doesn't return an error, the stream position and demo state is unchanged.
+    /// If this method returns an error, the stream position is unspecified.
+    pub fn next_keyframe_position_for_tick<W>(
+        &mut self,
+        target_tick: i32,
+        warn: &mut W,
+    ) -> Result<Option<(i32, u64)>, ReadError>
+    where
+        W: Warn<Warning>,
+    {
+        self.raw
+            .next_keyframe_position_for_tick(target_tick, wrap(warn))
+            .map_err(Into::into)
+    }
 }
 
 struct Snapshot<T> {

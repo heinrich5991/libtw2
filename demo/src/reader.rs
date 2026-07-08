@@ -173,6 +173,64 @@ impl<'a> Reader<'a> {
         self.data.seek(io::SeekFrom::Start(pos))?;
         Ok(())
     }
+    /// Seeks forwards to the keyframe that contains the target tick.
+    /// This methods returns Some with the tick and stream position, if such a keyframe is found.
+    /// It returns None in one of three cases:
+    ///  - the keyframe would be before the current stream position
+    ///  - the demo ends before the keyframe is found
+    /// As long as the method doesn't return an error, the stream position and demo state is unchanged.
+    /// If this method returns an error, the stream position is unspecified.
+    pub fn next_keyframe_position_for_tick<W>(
+        &mut self,
+        target_tick: i32,
+        warn: &mut W,
+    ) -> Result<Option<(i32, u64)>, ReadError>
+    where
+        W: Warn<Warning>,
+    {
+        let start_position = self.stream_position()?;
+        let start_tick = self.current_tick;
+        let mut closest_position = None;
+        use crate::format::ChunkHeader;
+        let mut tmp_tick = self.current_tick;
+        loop {
+            let current_position = self.stream_position()?;
+            let Some(chunk_header) = ChunkHeader::read(&mut self.data, self.start.version, warn)?
+            else {
+                break;
+            };
+            match chunk_header {
+                ChunkHeader::Tick { marker, keyframe } => {
+                    let Ok(tick) = apply_tickmarker(tmp_tick, marker) else {
+                        break;
+                    };
+                    if tick > target_tick {
+                        self.seek(start_position)?;
+                        self.current_tick = start_tick;
+                        return Ok(closest_position);
+                    }
+                    if matches!(marker, TickMarker::Absolute(_)) && keyframe {
+                        closest_position = Some((tick, current_position));
+                    }
+                    if tick == target_tick {
+                        self.seek(start_position)?;
+                        self.current_tick = start_tick;
+                        return Ok(closest_position);
+                    }
+                    tmp_tick = Some(tick);
+                }
+                ChunkHeader::Data { size, .. } => {
+                    // TODO (MSRV 1.80): Use Seek::seek_relative`
+                    if self.data.seek(io::SeekFrom::Current(size.into())).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+        self.seek(start_position)?;
+        self.current_tick = start_tick;
+        return Ok(None);
+    }
 }
 
 fn apply_tickmarker(current_tick: Option<i32>, tm: TickMarker) -> Result<i32, ReadError> {
