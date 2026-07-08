@@ -30,6 +30,8 @@ pub enum ReadError {
     StartingDeltaSnapshot,
     #[error("The tick number overflowed")]
     TickOverflow,
+    #[error("Delta tick marker as a keyframe")]
+    DeltaTickKeyframe,
 }
 
 impl ReadError {
@@ -119,37 +121,14 @@ impl<'a> Reader<'a> {
             None => return Ok(None),
         };
         match chunk_header {
-            ChunkHeader::Tick {
-                marker: TickMarker::Absolute(t),
-                keyframe,
-            } => {
-                if let Some(previous) = self.current_tick {
-                    if previous >= t {
-                        return Err(ReadError::NotIncreasingTick);
-                    }
+            ChunkHeader::Tick { marker, keyframe } => {
+                let tick = apply_tickmarker(self.current_tick, marker)?;
+                self.current_tick = Some(tick);
+                if matches!(marker, TickMarker::Delta(_)) && keyframe {
+                    return Err(ReadError::DeltaTickKeyframe);
                 }
-                self.current_tick = Some(t);
-                Ok(Some(RawChunk::Tick {
-                    tick: t,
-                    keyframe: keyframe,
-                }))
+                Ok(Some(RawChunk::Tick { tick, keyframe }))
             }
-            ChunkHeader::Tick {
-                marker: TickMarker::Delta(d),
-                keyframe,
-            } => match self.current_tick {
-                None => Err(ReadError::StartingDeltaSnapshot),
-                Some(t) => match t.checked_add(d.i32()) {
-                    None => Err(ReadError::TickOverflow),
-                    Some(new_t) => {
-                        self.current_tick = Some(new_t);
-                        Ok(Some(RawChunk::Tick {
-                            tick: new_t,
-                            keyframe: keyframe,
-                        }))
-                    }
-                },
-            },
             ChunkHeader::Data { kind, size } => {
                 if kind == DataKind::Unknown {
                     return Ok(Some(RawChunk::Unknown));
@@ -193,5 +172,19 @@ impl<'a> Reader<'a> {
         self.current_tick = None;
         self.data.seek(io::SeekFrom::Start(pos))?;
         Ok(())
+    }
+}
+
+fn apply_tickmarker(current_tick: Option<i32>, tm: TickMarker) -> Result<i32, ReadError> {
+    use TickMarker::*;
+    match (current_tick, tm) {
+        (None, Absolute(t)) => Ok(t),
+        (Some(prev), Absolute(t)) if t > prev => Ok(t),
+        (Some(_), Absolute(_)) => Err(ReadError::NotIncreasingTick),
+        (None, Delta(_)) => Err(ReadError::StartingDeltaSnapshot),
+        (Some(prev), Delta(d)) => match prev.checked_add(d.i32()) {
+            None => Err(ReadError::TickOverflow),
+            Some(t) => Ok(t),
+        },
     }
 }

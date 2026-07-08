@@ -74,7 +74,7 @@ impl From<ExcessData> for Warning {
 pub enum Chunk<'a, P: Protocol<'a>> {
     Message(P::Game),
     Snapshot(slice::Iter<'a, (P::SnapObj, u16)>),
-    Tick(i32),
+    Tick { tick: i32, keyframe: bool },
     Invalid,
 }
 
@@ -137,7 +137,7 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
         match self.raw.read_chunk(wrap(warn))? {
             None => return Ok(None),
             Some(RawChunk::Unknown) => Ok(Some(Chunk::Invalid)),
-            Some(RawChunk::Tick { tick, .. }) => Ok(Some(Chunk::Tick(tick))),
+            Some(RawChunk::Tick { tick, keyframe }) => Ok(Some(Chunk::Tick { tick, keyframe })),
             Some(RawChunk::Message(msg)) => {
                 let mut unpacker = Unpacker::new_from_demo(msg);
                 match P::Game::decode(wrap(warn), &mut unpacker) {

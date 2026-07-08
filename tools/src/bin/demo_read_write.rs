@@ -90,7 +90,7 @@ fn ddnet_read_write(input: &str, output: &str) -> Result<(), Box<dyn Error>> {
                 None => eprintln!("Snapshot without tick"),
                 Some(t) => writer.write_snap(t, snap.map(|(obj, id)| (obj, *id)))?,
             },
-            ddnet::Chunk::Tick(t) => last_tick = Some(t),
+            ddnet::Chunk::Tick { tick, .. } => last_tick = Some(tick),
             ddnet::Chunk::Invalid => eprintln!("Invalid chunk!"),
         }
     }
