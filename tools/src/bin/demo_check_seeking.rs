@@ -2,6 +2,7 @@ use clap::App;
 use clap::Arg;
 use libtw2_demo::ddnet;
 use libtw2_demo::ddnet::DemoReader;
+use libtw2_demo::ChunkType;
 use libtw2_gamenet_ddnet::Protocol as DDNet;
 use libtw2_warn as warn;
 use std::error::Error;
@@ -28,9 +29,19 @@ impl SeekableDemo for DemoReader<'static, DDNet> {
     fn next_keyframe(&mut self) -> Result<Option<(i32, u64)>, Box<dyn Error>> {
         loop {
             let position = self.stream_position()?;
+            let chunk_type = self.next_chunk_type()?;
             let Some(chunk) = self.next_chunk(&mut warn::Ignore)? else {
+                assert!(chunk_type.is_none());
                 return Ok(None);
             };
+            assert!(matches!(
+                (chunk_type, &chunk),
+                (Some(ChunkType::Message), ddnet::Chunk::Message(_))
+                    | (Some(ChunkType::Message), ddnet::Chunk::Invalid)
+                    | (Some(ChunkType::Snapshot), ddnet::Chunk::Snapshot(_))
+                    | (Some(ChunkType::Tick), ddnet::Chunk::Tick { .. })
+                    | (None, ddnet::Chunk::Invalid)
+            ));
             if let ddnet::Chunk::Tick {
                 keyframe: true,
                 tick,
