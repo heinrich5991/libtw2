@@ -169,6 +169,16 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
             }
         }
     }
+    /// Peeks into the next chunk header to determine the next chunk type.
+    /// It returns `None` in one of three cases:
+    ///  - the demo ends
+    ///  - the stream position couldn't be determined
+    ///  - an unknown/invalid chunk type follows
+    /// If `Ok` is returned, the reader's position is unchanged.
+    /// If `Err` is returned, the reader's position is unspecified.
+    pub fn next_chunk_type(&mut self) -> Result<Option<reader::ChunkType>, ReadError> {
+        self.raw.next_chunk_type().map_err(Into::into)
+    }
     /// Gets the position of the underlying reader.
     pub fn stream_position(&mut self) -> Result<u64, ReadError> {
         self.raw.stream_position().map_err(Into::into)

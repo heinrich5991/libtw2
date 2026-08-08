@@ -9,6 +9,7 @@ use libtw2_warn::Warn;
 use std::io;
 use thiserror::Error;
 
+use crate::format::ChunkHeader;
 use crate::format::TickMarker;
 use crate::format::Warning;
 use crate::format::MAX_SNAPSHOT_SIZE;
@@ -53,6 +54,13 @@ pub struct Reader<'a> {
     current_tick: Option<i32>,
     raw: [u8; MAX_SNAPSHOT_SIZE],
     huffman: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChunkType {
+    Tick,
+    Snapshot,
+    Message,
 }
 
 impl<'a> Reader<'a> {
@@ -160,6 +168,35 @@ impl<'a> Reader<'a> {
                 }))
             }
         }
+    }
+    /// Peeks into the next chunk header to determine the next chunk type.
+    /// It returns `None` in one of three cases:
+    ///  - the demo ends
+    ///  - the stream position couldn't be determined
+    ///  - an unknown/invalid chunk type follows
+    /// If `Ok` is returned, the reader's position is unchanged.
+    /// If `Err` is returned, the reader's position is unspecified.
+    pub(crate) fn next_chunk_type(&mut self) -> Result<Option<ChunkType>, ReadError> {
+        let position = self.stream_position()?;
+        let mut warn = libtw2_warn::Ignore;
+        let chunk_type = match ChunkHeader::read(&mut self.data, self.start.version, &mut warn)? {
+            Some(ChunkHeader::Tick { .. }) => Some(ChunkType::Tick),
+            Some(ChunkHeader::Data {
+                kind: format::DataKind::Snapshot | format::DataKind::SnapshotDelta,
+                ..
+            }) => Some(ChunkType::Snapshot),
+            Some(ChunkHeader::Data {
+                kind: format::DataKind::Message,
+                ..
+            }) => Some(ChunkType::Message),
+            None
+            | Some(ChunkHeader::Data {
+                kind: format::DataKind::Unknown,
+                ..
+            }) => None,
+        };
+        self.data.seek(io::SeekFrom::Start(position))?;
+        Ok(chunk_type)
     }
     /// Gets the position of the underlying reader.
     pub fn stream_position(&mut self) -> Result<u64, ReadError> {
