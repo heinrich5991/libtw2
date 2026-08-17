@@ -1486,17 +1486,17 @@ impl DdnetCharacter {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<DdnetCharacter, Error> {
         Ok(DdnetCharacter {
-            flags: _p.read_int()?,
-            freeze_end: crate::snap_obj::Tick(_p.read_int()?),
-            jumps: in_range(_p.read_int()?, -1, 255)?,
-            tele_checkpoint: _p.read_int()?,
-            strong_weak_id: in_range(_p.read_int()?, 0, 127)?,
-            jumped_total: in_range(_p.read_int()?, -1, 255)?,
-            ninja_activation_tick: crate::snap_obj::Tick(_p.read_int()?),
-            freeze_start: crate::snap_obj::Tick(_p.read_int()?),
-            target_x: _p.read_int()?,
-            target_y: _p.read_int()?,
-            tune_zone_override: in_range(_p.read_int()?, -1, 255)?,
+            flags: _p.read_int().unwrap_or(0),
+            freeze_end: crate::snap_obj::Tick(_p.read_int().unwrap_or(0)),
+            jumps: in_range(_p.read_int().unwrap_or(2), -1, 255)?,
+            tele_checkpoint: _p.read_int().unwrap_or(-1),
+            strong_weak_id: in_range(_p.read_int().unwrap_or(0), 0, 127)?,
+            jumped_total: in_range(_p.read_int().unwrap_or(-1), -1, 255)?,
+            ninja_activation_tick: crate::snap_obj::Tick(_p.read_int().unwrap_or(-1)),
+            freeze_start: crate::snap_obj::Tick(_p.read_int().unwrap_or(-1)),
+            target_x: _p.read_int().unwrap_or(0),
+            target_y: _p.read_int().unwrap_or(0),
+            tune_zone_override: in_range(_p.read_int().unwrap_or(-1), -1, 255)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1551,9 +1551,9 @@ impl GameInfoEx {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<GameInfoEx, Error> {
         Ok(GameInfoEx {
-            flags: _p.read_int()?,
-            version: _p.read_int()?,
-            flags2: _p.read_int()?,
+            flags: _p.read_int().unwrap_or(0),
+            version: _p.read_int().unwrap_or(0),
+            flags2: _p.read_int().unwrap_or(0),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1625,9 +1625,9 @@ impl DdnetLaser {
             start_tick: crate::snap_obj::Tick(_p.read_int()?),
             owner: in_range(_p.read_int()?, -1, 127)?,
             type_: _p.read_int()?,
-            switch_number: _p.read_int()?,
-            subtype: _p.read_int()?,
-            flags: _p.read_int()?,
+            switch_number: _p.read_int().unwrap_or(-1),
+            subtype: _p.read_int().unwrap_or(-1),
+            flags: _p.read_int().unwrap_or(0),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1703,7 +1703,7 @@ impl DdnetPickup {
             type_: positive(_p.read_int()?)?,
             subtype: positive(_p.read_int()?)?,
             switch_number: _p.read_int()?,
-            flags: _p.read_int()?,
+            flags: _p.read_int().unwrap_or(0),
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -1736,7 +1736,7 @@ impl DdnetSpectatorInfo {
             zoom: positive(_p.read_int()?)?,
             deadzone: positive(_p.read_int()?)?,
             follow_factor: positive(_p.read_int()?)?,
-            spectator_count: in_range(_p.read_int()?, 0, 127)?,
+            spectator_count: in_range(_p.read_int().unwrap_or(0), 0, 127)?,
         })
     }
     pub fn encode(&self) -> &[i32] {
@@ -2088,7 +2088,7 @@ impl SwitchState {
     }
     pub fn decode_inner(_p: &mut IntUnpacker) -> Result<SwitchState, Error> {
         Ok(SwitchState {
-            highest_switch_number: _p.read_int()?,
+            highest_switch_number: _p.read_int().unwrap_or(0),
             status: [
                 _p.read_int()?,
                 _p.read_int()?,

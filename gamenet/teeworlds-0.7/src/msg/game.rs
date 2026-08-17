@@ -1939,7 +1939,7 @@ impl SvRaceFinish {
             time: at_least(_p.read_int(warn)?, -1)?,
             diff: _p.read_int(warn)?,
             record_personal: to_bool(_p.read_int(warn)?)?,
-            record_server: to_bool(_p.read_int(warn)?)?,
+            record_server: to_bool(_p.read_int(warn).unwrap_or(0))?,
         });
         _p.finish(wrap(warn));
         result
