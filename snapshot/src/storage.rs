@@ -68,8 +68,7 @@ impl Storage {
     }
     pub fn reset(&mut self) {
         let self_free = &mut self.free;
-        // FIXME: Replace with something like `exhaust`.
-        self.snaps.drain(..).map(|s| self_free.push(s.snap)).count();
+        self_free.extend(self.snaps.drain(..).map(|s| s.snap));
         self.ack_tick = None;
     }
     pub fn ack_tick(&self) -> Option<i32> {
@@ -95,11 +94,7 @@ impl Storage {
             if delta_tick >= 0 {
                 if let Some(i) = self.snaps.iter().position(|s| s.tick < delta_tick) {
                     let self_free = &mut self.free;
-                    // FIXME: Replace with something like `exhaust`.
-                    self.snaps
-                        .drain(i..)
-                        .map(|s| self_free.push(s.snap))
-                        .count();
+                    self_free.extend(self.snaps.drain(i..).map(|s| s.snap));
                 }
                 if let Some(d) = self.snaps.back() {
                     if d.tick == delta_tick {
@@ -155,11 +150,7 @@ impl Storage {
         }
         if let Some(i) = self.snaps.iter().position(|s| s.tick < tick) {
             let self_free = &mut self.free;
-            // FIXME: Replace with something like `exhaust`.
-            self.snaps
-                .drain(i..)
-                .map(|s| self_free.push(s.snap))
-                .count();
+            self_free.extend(self.snaps.drain(i..).map(|s| s.snap));
         }
         if !self.snaps.back().map(|s| s.tick == tick).unwrap_or(false) {
             self.delta_tick = None;

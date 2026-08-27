@@ -189,10 +189,13 @@ pub fn apply_item_delta(
     assert!(delta.len() == out.len());
     match in_ {
         Some(in_) => {
-            if in_.len() != out.len() {
+            let len = out.len();
+            if in_.len() != len {
                 return Err(DeltaDifferingSizes);
             }
-            for i in 0..out.len() {
+            let in_ = &in_[..len];
+            let delta = &delta[..len];
+            for i in 0..len {
                 out[i] = in_[i].wrapping_add(delta[i]);
             }
         }
@@ -233,10 +236,13 @@ pub fn create_item_delta(
     assert!(to.len() == out.len());
     match from {
         Some(from) => {
-            if from.len() != to.len() {
+            let len = out.len();
+            if from.len() != len {
                 return Err(DeltaDifferingSizes);
             }
-            for i in 0..out.len() {
+            let from = &from[..len];
+            let to = &to[..len];
+            for i in 0..len {
                 out[i] = to[i].wrapping_sub(from[i]);
             }
         }
