@@ -755,6 +755,80 @@
 	],
 	"connless_messages": [
 		{
+			"id": [255, 255, 255, 255, 98, 101, 97, 116],
+			"name": ["heartbeat"],
+			"members": [
+				{"name": ["alt", "port"], "type": {"kind": "be_uint16"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 114, 101, 113, 116],
+			"name": ["get", "list"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 108, 105, 115, 116],
+			"name": ["list"],
+			"members": [
+				{"name": ["servers"], "type": {"kind": "packed_addresses"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 99, 111, 117, 110],
+			"name": ["get", "count"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 115, 105, 122, 101],
+			"name": ["count"],
+			"members": [
+				{"name": ["count"], "type": {"kind": "be_uint16"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 103, 105, 101, 50],
+			"name": ["get", "info"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "uint8"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 110, 102, 50],
+			"name": ["info"],
+			"members": [
+				{"name": ["token"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["flags"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["progression"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["num", "players"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["max", "players"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
+			"id": [255, 255, 255, 255, 103, 105, 101, 102],
+			"name": ["old", "get", "info"],
+			"members": []
+		},
+		{
+			"id": [255, 255, 255, 255, 105, 110, 102, 111],
+			"name": ["old", "info"],
+			"members": [
+				{"name": ["version"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["name"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["map"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["game", "type"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["flags"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["progression"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["num", "players"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["max", "players"], "type": {"kind": "string", "disallow_cc": true}},
+				{"name": ["clients"], "type": {"kind": "serverinfo_client"}}
+			]
+		},
+		{
 			"id": [255, 255, 255, 255, 102, 119, 63, 63],
 			"name": ["forward", "check"],
 			"members": []
