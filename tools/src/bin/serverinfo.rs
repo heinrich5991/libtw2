@@ -32,10 +32,6 @@ fn do_(socket: UdpSocket, addr: SocketAddr) {
                 println!("{:?}", x.parse().unwrap());
                 break;
             }
-            Some(Response::Info6Ddper(x)) => {
-                println!("{:?}", x.parse().unwrap());
-                break;
-            }
             _ => {
                 error!("received non-info response from peer");
             }
