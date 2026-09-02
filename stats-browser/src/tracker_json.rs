@@ -134,6 +134,14 @@ mod json {
             };
             result.clients.reserve_exact(i.clients.len());
             for c in &i.clients {
+                if c.flags & protocol::CLIENTINFO_FLAG_BOT != 0 {
+                    // Skip bots entirely.
+                    result.max_clients -= 1;
+                    if c.flags & protocol::CLIENTINFO_FLAG_SPECTATOR == 0 {
+                        result.max_players -= 1;
+                    }
+                    continue;
+                }
                 result.clients.push(c.try_into()?);
             }
             Ok(result)
