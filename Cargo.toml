@@ -29,6 +29,8 @@ members = [
     "server",
     "serverbrowse",
     "snapshot",
+    "snapshot/reference",
+    "snapshot/reference/sys",
     "socket",
     "stats-browser",
     "teehistorian",

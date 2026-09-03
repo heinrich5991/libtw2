@@ -51,7 +51,6 @@ jobs:
           name: libtw2-${{ matrix.os }}
 
   build-uniffi:
-    if: false
     name: Build uniffi
     runs-on: ubuntu-latest
     steps:

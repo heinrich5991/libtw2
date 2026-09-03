@@ -100,7 +100,7 @@ impl Timeout {
         self.to_opt().map(|t| {
             if t > time {
                 let us = t.as_usecs_since_epoch() - time.as_usecs_since_epoch();
-                Duration::new(us / 1_000_000_000, (us % 1_000_000_000).assert_u32())
+                Duration::from_micros(us)
             } else {
                 Duration::from_millis(0)
             }

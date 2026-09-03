@@ -74,7 +74,7 @@ impl From<ExcessData> for Warning {
 pub enum Chunk<'a, P: Protocol<'a>> {
     Message(P::Game),
     Snapshot(slice::Iter<'a, (P::SnapObj, u16)>),
-    Tick(i32),
+    Tick { tick: i32, keyframe: bool },
     Invalid,
 }
 
@@ -137,7 +137,7 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
         match self.raw.read_chunk(wrap(warn))? {
             None => return Ok(None),
             Some(RawChunk::Unknown) => Ok(Some(Chunk::Invalid)),
-            Some(RawChunk::Tick { tick, .. }) => Ok(Some(Chunk::Tick(tick))),
+            Some(RawChunk::Tick { tick, keyframe }) => Ok(Some(Chunk::Tick { tick, keyframe })),
             Some(RawChunk::Message(msg)) => {
                 let mut unpacker = Unpacker::new_from_demo(msg);
                 match P::Game::decode(wrap(warn), &mut unpacker) {
@@ -168,6 +168,51 @@ impl<'a, P: for<'p> Protocol<'p>> DemoReader<'a, P> {
                 Ok(Some(Chunk::Snapshot(self.snapshot.objects.iter())))
             }
         }
+    }
+    /// Peeks into the next chunk header to determine the next chunk type.
+    /// It returns `None` in one of three cases:
+    ///  - the demo ends
+    ///  - the stream position couldn't be determined
+    ///  - an unknown/invalid chunk type follows
+    /// If `Ok` is returned, the reader's position is unchanged.
+    /// If `Err` is returned, the reader's position is unspecified.
+    pub fn next_chunk_type(&mut self) -> Result<Option<reader::ChunkType>, ReadError> {
+        self.raw.next_chunk_type().map_err(Into::into)
+    }
+    /// Gets the position of the underlying reader.
+    pub fn stream_position(&mut self) -> Result<u64, ReadError> {
+        self.raw.stream_position().map_err(Into::into)
+    }
+    /// Moves the underlying reader to the specified position.
+    /// Note that demos hold a lot of state.
+    /// Seeking to chunks that are not keyframe ticks will cause errors.
+    pub fn seek(&mut self, pos: u64) -> Result<(), ReadError> {
+        self.delta.clear();
+        self.snap = Snap::empty();
+        self.old_snap = Snap::empty();
+        self.snapshot.objects.clear();
+        self.raw.seek(pos)?;
+        Ok(())
+    }
+
+    /// Seeks forwards to the keyframe that contains the target tick.
+    /// This methods returns Some with the tick and stream position, if such a keyframe is found.
+    /// It returns None in one of three cases:
+    ///  - the keyframe would be before the current stream position
+    ///  - the demo ends before the keyframe is found
+    /// As long as the method doesn't return an error, the stream position and demo state is unchanged.
+    /// If this method returns an error, the stream position is unspecified.
+    pub fn next_keyframe_position_for_tick<W>(
+        &mut self,
+        target_tick: i32,
+        warn: &mut W,
+    ) -> Result<Option<(i32, u64)>, ReadError>
+    where
+        W: Warn<Warning>,
+    {
+        self.raw
+            .next_keyframe_position_for_tick(target_tick, wrap(warn))
+            .map_err(Into::into)
     }
 }
 

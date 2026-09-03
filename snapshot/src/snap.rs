@@ -694,7 +694,9 @@ impl Delta {
             let from_data = from.item(raw_type_id, id);
             let out_delta = self.prepare_update_item(raw_type_id, id, data.len());
             create_item_delta(from_data, data, out_delta)
-                .expect("item sizes can't be mismatched for self-created snapshots");
+                .unwrap_or_else(|_| panic!(
+                    "item sizes can't be mismatched for self-created snapshots (raw_type_id={raw_type_id}, id={id})"
+                ));
             // but they can be different for snapshots received over the network…
         }
     }

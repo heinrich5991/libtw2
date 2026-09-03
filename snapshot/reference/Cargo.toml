@@ -1,0 +1,15 @@
+[package]
+name = "pre-rfc3243-libtw2-snapshot-reference"
+version = "0.0.1"
+authors = ["heinrich5991 <heinrich5991@gmail.com>"]
+edition = "2021"
+rust-version = "1.63.0"
+
+[lib]
+name = "libtw2_snapshot_reference"
+
+[dependencies]
+libc = "0.2.0"
+pre-rfc3243-libtw2-buffer = { path = "../../buffer" }
+pre-rfc3243-libtw2-common = { path = "../../common" }
+pre-rfc3243-libtw2-snapshot-reference-sys = { path = "sys" }

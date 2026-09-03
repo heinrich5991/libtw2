@@ -10,8 +10,16 @@ name = "libtw2_huffman"
 crate-type = ["cdylib"]
 
 [dependencies]
+<<<<<<< HEAD
 pre-rfc3243-libtw2-huffman = { path = "../../huffman" }
 uniffi = "0.27"
+||||||| 4c34ddd
+libtw2-huffman = { path = "../../huffman" }
+uniffi = "0.27"
+=======
+libtw2-huffman = { path = "../../huffman" }
+uniffi = "0.31"
+>>>>>>> origin/master
 
 [build-dependencies]
-uniffi = { version = "0.27", features = ["build"] }
+uniffi = { version = "0.31", features = ["build"] }

@@ -1,6 +1,7 @@
 from collections import namedtuple
 import uuid
 import threading
+import sys
 
 def flatten(l):
     return [y for x in l for y in x]
@@ -85,6 +86,9 @@ def load_protocol_spec(json_obj):
     )
 
 def deserialize_member(json_obj):
+    kwargs = {}
+    if "default" in json_obj:
+        kwargs["default"] = json_obj["default"]
     name = ()
     if "name" in json_obj:
         name = tuple(json_obj["name"])
@@ -92,9 +96,6 @@ def deserialize_member(json_obj):
     kind = json_obj["kind"]
     if kind not in MEMBER_TYPES_MAPPING:
         raise ProtocolSpecError("unknown member kind {!r}".format(kind))
-    kwargs = {}
-    if "default" in json_obj:
-        kwargs["default"] = json_obj["default"]
     return MEMBER_TYPES_MAPPING[kind].deserialize(name, json_obj, **kwargs)
 
 DDNET_EX_UUID="e05ddaaa-c4e6-4cfb-b642-5d48e80c0029"
@@ -1357,26 +1358,41 @@ class NetIntAny(Member):
     kind = "int32"
     type_ = "i32"
     def decode_expr(self):
-        return "_p.read_int(warn)?"
+        if self.default is None:
+            return "_p.read_int(warn)?"
+        else:
+            if type(self.default is bool):
+                self.default = int(self.default)
+            elif type(self.default) is not int:
+                raise ValueError(f"Can't use non-int default value of '{self.name}': '{self.default}'")
+            return f"_p.read_int(warn).unwrap_or({self.default})"
     def encode_expr(self, self_expr):
         return "_p.write_int({})".format(self_expr)
     def decode_int_expr(self):
-        return "_p.read_int()?"
+        if self.default is None:
+            return "_p.read_int()?"
+        else:
+            if type(self.default) == str:
+                if self.default == "TuneZone::OVERRIDE_NONE":
+                    self.default = -1
+                else:
+                    raise ValueError(f"Can't figure out default value of {self.name}: '{self.default}'")
+            return f"_p.read_int().unwrap_or({self.default})"
     def int_size(self):
         return 1
     def serialize_type(self):
         return {"kind": self.kind}
     @staticmethod
-    def deserialize(name, json_obj):
+    def deserialize(name, json_obj, default=None):
         if "min" in json_obj and "max" not in json_obj:
             if json_obj["min"] == 0:
-                return NetIntPositive(name)
+                return NetIntPositive(name, default=default)
             else:
-                return NetIntMin(name, json_obj["min"])
+                return NetIntMin(name, json_obj["min"], default=default)
         elif "min" in json_obj or "max" in json_obj:
-            return NetIntRange(name, json_obj["min"], json_obj["max"])
+            return NetIntRange(name, json_obj["min"], json_obj["max"], default=default)
         else:
-            return NetIntAny(name)
+            return NetIntAny(name, default=default)
 
 class NetTwIntString(Member):
     kind = "int32_twstring"
@@ -1482,8 +1498,6 @@ class NetIntRange(NetIntAny):
         return {"kind": self.kind, "min": self.min, "max": self.max}
 
 class NetIntPositive(NetIntAny):
-    def __init__(self, name):
-        super().__init__(name)
     def decode_expr(self):
         import_("libtw2_packer::positive")
         return "positive({})?".format(super().decode_expr())
@@ -1496,8 +1510,8 @@ class NetIntPositive(NetIntAny):
         return {"kind": self.kind, "min": 0}
 
 class NetIntMin(NetIntAny):
-    def __init__(self, name, min):
-        super().__init__(name)
+    def __init__(self, name, min, default=None):
+        super().__init__(name, default)
         self.min = min
     def decode_expr(self):
         import_("libtw2_packer::at_least")
@@ -1587,8 +1601,8 @@ class NetTick(NetIntAny):
     def serialize_type(self):
         return {"kind": self.kind}
     @staticmethod
-    def deserialize(name, json_obj):
-        return NetTick(name)
+    def deserialize(name, json_obj, default=None):
+        return NetTick(name, default=default)
 
 class NetObjectMember(Member):
     kind = "snapshot_object"

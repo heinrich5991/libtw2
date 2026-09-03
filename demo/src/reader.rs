@@ -9,6 +9,7 @@ use libtw2_warn::Warn;
 use std::io;
 use thiserror::Error;
 
+use crate::format::ChunkHeader;
 use crate::format::TickMarker;
 use crate::format::Warning;
 use crate::format::MAX_SNAPSHOT_SIZE;
@@ -30,6 +31,8 @@ pub enum ReadError {
     StartingDeltaSnapshot,
     #[error("The tick number overflowed")]
     TickOverflow,
+    #[error("Delta tick marker as a keyframe")]
+    DeltaTickKeyframe,
 }
 
 impl ReadError {
@@ -51,6 +54,13 @@ pub struct Reader<'a> {
     current_tick: Option<i32>,
     raw: [u8; MAX_SNAPSHOT_SIZE],
     huffman: ArrayVec<[u8; MAX_SNAPSHOT_SIZE]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChunkType {
+    Tick,
+    Snapshot,
+    Message,
 }
 
 impl<'a> Reader<'a> {
@@ -119,37 +129,14 @@ impl<'a> Reader<'a> {
             None => return Ok(None),
         };
         match chunk_header {
-            ChunkHeader::Tick {
-                marker: TickMarker::Absolute(t),
-                keyframe,
-            } => {
-                if let Some(previous) = self.current_tick {
-                    if previous >= t {
-                        return Err(ReadError::NotIncreasingTick);
-                    }
+            ChunkHeader::Tick { marker, keyframe } => {
+                let tick = apply_tickmarker(self.current_tick, marker)?;
+                self.current_tick = Some(tick);
+                if matches!(marker, TickMarker::Delta(_)) && keyframe {
+                    return Err(ReadError::DeltaTickKeyframe);
                 }
-                self.current_tick = Some(t);
-                Ok(Some(RawChunk::Tick {
-                    tick: t,
-                    keyframe: keyframe,
-                }))
+                Ok(Some(RawChunk::Tick { tick, keyframe }))
             }
-            ChunkHeader::Tick {
-                marker: TickMarker::Delta(d),
-                keyframe,
-            } => match self.current_tick {
-                None => Err(ReadError::StartingDeltaSnapshot),
-                Some(t) => match t.checked_add(d.i32()) {
-                    None => Err(ReadError::TickOverflow),
-                    Some(new_t) => {
-                        self.current_tick = Some(new_t);
-                        Ok(Some(RawChunk::Tick {
-                            tick: new_t,
-                            keyframe: keyframe,
-                        }))
-                    }
-                },
-            },
             ChunkHeader::Data { kind, size } => {
                 if kind == DataKind::Unknown {
                     return Ok(Some(RawChunk::Unknown));
@@ -181,5 +168,118 @@ impl<'a> Reader<'a> {
                 }))
             }
         }
+    }
+    /// Peeks into the next chunk header to determine the next chunk type.
+    /// It returns `None` in one of three cases:
+    ///  - the demo ends
+    ///  - the stream position couldn't be determined
+    ///  - an unknown/invalid chunk type follows
+    /// If `Ok` is returned, the reader's position is unchanged.
+    /// If `Err` is returned, the reader's position is unspecified.
+    pub(crate) fn next_chunk_type(&mut self) -> Result<Option<ChunkType>, ReadError> {
+        let position = self.stream_position()?;
+        let mut warn = libtw2_warn::Ignore;
+        let chunk_type = match ChunkHeader::read(&mut self.data, self.start.version, &mut warn)? {
+            Some(ChunkHeader::Tick { .. }) => Some(ChunkType::Tick),
+            Some(ChunkHeader::Data {
+                kind: format::DataKind::Snapshot | format::DataKind::SnapshotDelta,
+                ..
+            }) => Some(ChunkType::Snapshot),
+            Some(ChunkHeader::Data {
+                kind: format::DataKind::Message,
+                ..
+            }) => Some(ChunkType::Message),
+            None
+            | Some(ChunkHeader::Data {
+                kind: format::DataKind::Unknown,
+                ..
+            }) => None,
+        };
+        self.data.seek(io::SeekFrom::Start(position))?;
+        Ok(chunk_type)
+    }
+    /// Gets the position of the underlying reader.
+    pub fn stream_position(&mut self) -> Result<u64, ReadError> {
+        self.data.stream_position().map_err(Into::into)
+    }
+    /// Moves the underlying reader to the specified position.
+    /// Note that demos hold a lot of state.
+    /// Seeking to chunks that are not keyframe ticks will cause errors.
+    pub fn seek(&mut self, pos: u64) -> Result<(), ReadError> {
+        self.current_tick = None;
+        self.data.seek(io::SeekFrom::Start(pos))?;
+        Ok(())
+    }
+    /// Seeks forwards to the keyframe that contains the target tick.
+    /// This methods returns Some with the tick and stream position, if such a keyframe is found.
+    /// It returns None in one of three cases:
+    ///  - the keyframe would be before the current stream position
+    ///  - the demo ends before the keyframe is found
+    /// As long as the method doesn't return an error, the stream position and demo state is unchanged.
+    /// If this method returns an error, the stream position is unspecified.
+    pub fn next_keyframe_position_for_tick<W>(
+        &mut self,
+        target_tick: i32,
+        warn: &mut W,
+    ) -> Result<Option<(i32, u64)>, ReadError>
+    where
+        W: Warn<Warning>,
+    {
+        let start_position = self.stream_position()?;
+        let start_tick = self.current_tick;
+        let mut closest_position = None;
+        use crate::format::ChunkHeader;
+        let mut tmp_tick = self.current_tick;
+        loop {
+            let current_position = self.stream_position()?;
+            let Some(chunk_header) = ChunkHeader::read(&mut self.data, self.start.version, warn)?
+            else {
+                break;
+            };
+            match chunk_header {
+                ChunkHeader::Tick { marker, keyframe } => {
+                    let Ok(tick) = apply_tickmarker(tmp_tick, marker) else {
+                        break;
+                    };
+                    if tick > target_tick {
+                        self.seek(start_position)?;
+                        self.current_tick = start_tick;
+                        return Ok(closest_position);
+                    }
+                    if matches!(marker, TickMarker::Absolute(_)) && keyframe {
+                        closest_position = Some((tick, current_position));
+                    }
+                    if tick == target_tick {
+                        self.seek(start_position)?;
+                        self.current_tick = start_tick;
+                        return Ok(closest_position);
+                    }
+                    tmp_tick = Some(tick);
+                }
+                ChunkHeader::Data { size, .. } => {
+                    // TODO (MSRV 1.80): Use Seek::seek_relative`
+                    if self.data.seek(io::SeekFrom::Current(size.into())).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+        self.seek(start_position)?;
+        self.current_tick = start_tick;
+        return Ok(None);
+    }
+}
+
+fn apply_tickmarker(current_tick: Option<i32>, tm: TickMarker) -> Result<i32, ReadError> {
+    use TickMarker::*;
+    match (current_tick, tm) {
+        (None, Absolute(t)) => Ok(t),
+        (Some(prev), Absolute(t)) if t > prev => Ok(t),
+        (Some(_), Absolute(_)) => Err(ReadError::NotIncreasingTick),
+        (None, Delta(_)) => Err(ReadError::StartingDeltaSnapshot),
+        (Some(prev), Delta(d)) => match prev.checked_add(d.i32()) {
+            None => Err(ReadError::TickOverflow),
+            Some(t) => Ok(t),
+        },
     }
 }
