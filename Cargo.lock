@@ -1464,15 +1464,38 @@ dependencies = [
 name = "pre-rfc3243-libtw2-snapshot"
 version = "0.2.0"
 dependencies = [
+ "bencher",
+ "itertools 0.4.19",
  "pre-rfc3243-libtw2-buffer",
  "pre-rfc3243-libtw2-common",
  "pre-rfc3243-libtw2-gamenet-common",
  "pre-rfc3243-libtw2-gamenet-snap",
  "pre-rfc3243-libtw2-gamenet-teeworlds-0-6",
  "pre-rfc3243-libtw2-packer",
+ "pre-rfc3243-libtw2-snapshot-reference",
  "pre-rfc3243-libtw2-warn",
+ "rand 0.8.3",
+ "rand_chacha 0.3.0",
  "uuid",
  "vec_map",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-snapshot-reference"
+version = "0.0.1"
+dependencies = [
+ "libc",
+ "pre-rfc3243-libtw2-buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-snapshot-reference-sys",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-snapshot-reference-sys"
+version = "0.0.1"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]
