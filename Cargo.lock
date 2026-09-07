@@ -1202,7 +1202,7 @@ dependencies = [
 
 [[package]]
 name = "pre-rfc3243-libtw2-gamenet-ddnet"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "arrayvec",
  "pre-rfc3243-libtw2-buffer",
